@@ -37,7 +37,7 @@ La référence normative reste `Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`. Le
 - `npm run prisma:deploy` — migrations appliquées, puis aucune migration en attente ;
 - `npm run openapi:validate` — 83 opérations valides ;
 - `npm run contracts:validate` — schémas et exemple valides ;
-- `npm test` — 14 fichiers, 37 tests, 0 échec ;
+- `npm test` — 14 fichiers, 39 tests, 0 échec ;
 - `npm run build` — succès ;
 - smoke HTTP live/ready avec PostgreSQL réel — `200` / `200`.
 
