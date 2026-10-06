@@ -11,12 +11,12 @@ function createPrisma(query: () => Promise<unknown>): PrismaService {
 
 describe('HealthController', () => {
   it('reports live', () => {
-    const controller = new HealthController(createPrisma(async () => [1]));
+    const controller = new HealthController(createPrisma(() => Promise.resolve([1])));
     expect(controller.live()).toEqual({ status: 'ok' });
   });
 
   it('reports ready when PostgreSQL responds', async () => {
-    const controller = new HealthController(createPrisma(async () => [1]));
+    const controller = new HealthController(createPrisma(() => Promise.resolve([1])));
 
     await expect(controller.ready()).resolves.toEqual({
       status: 'ok',
@@ -26,9 +26,7 @@ describe('HealthController', () => {
 
   it('reports unavailable when PostgreSQL does not respond', async () => {
     const controller = new HealthController(
-      createPrisma(async () => {
-        throw new Error('database unavailable');
-      }),
+      createPrisma(() => Promise.reject(new Error('database unavailable'))),
     );
 
     await expect(controller.ready()).rejects.toBeInstanceOf(
