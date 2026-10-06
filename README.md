@@ -1,6 +1,6 @@
 # Monarque Connect
 
-**Statut : FROZEN SPECIFICATION BASELINE v1.1**  
+**Statut : FROZEN SPECIFICATION BASELINE v1.2 — AI-Native Foundation**  
 **Propriétaire : Monarque Group S.A.S.**  
 **Maîtrise d'œuvre : LTEX**  
 **Backend owner : @jupi-z**  
@@ -14,10 +14,18 @@ Monarque Connect repose sur quatre piliers complémentaires :
 
 1. **Monarque Network** — visibilité, vérification/confiance, découverte, relations B2B, demandes et échanges ;
 2. **Monarque Business OS** — CRM, ventes, achats, stock, caisse, projets, documents et opérations ;
-3. **Monarque Intelligence** — KPI, alertes et insights opérationnels, sans dépendance à une IA pour le MVP ;
+3. **Monarque Intelligence** — KPI, alertes, prévisions et assistance gouvernée, construits sur un socle AI-native sans rendre le Core dépendant d'un modèle ;
 4. **Monarque Control Plane** — organisations, plans, modules, entitlements, quotas, support et audit plateforme.
 
 Le projet est **100 % API-first** et ne dépend d'aucun ERP tiers. ERPNext et Frappe ne font pas partie de l'architecture.
+
+## Principe AI-native
+
+Monarque Connect est conçu dès ses couches basses pour l'intelligence :
+
+`Core déterministe → Event Fabric → Knowledge Layer → Intelligence Engine → Agent Runtime`
+
+Le Core reste souverain. Les modèles IA peuvent observer, expliquer, prévoir, recommander et proposer des actions, mais jamais contourner les règles métier, les permissions ou la vérité transactionnelle.
 
 ## Modèle d'accès
 
