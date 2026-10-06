@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Monarque Connect API
-  version: 0.1.0
-  description: API-first autonomous backend for Monarque Connect.
+  version: 0.2.0
+  description: Monarque Connect v1.1 API-first autonomous backend with Network, Business OS, Intelligence and Control Plane.
 servers:
   - url: /api/v1
 security:
@@ -11,6 +11,8 @@ tags:
   - { name: Health }
   - { name: Auth }
   - { name: Organizations }
+  - { name: Establishments }
+  - { name: Capabilities }
   - { name: Memberships }
   - { name: Parties }
   - { name: Catalog }
@@ -19,10 +21,14 @@ tags:
   - { name: Orders }
   - { name: Invoices }
   - { name: Payments }
+  - { name: Purchases }
   - { name: Expenses }
+  - { name: Cash }
   - { name: Inventory }
+  - { name: Projects }
   - { name: Network }
   - { name: Messaging }
+  - { name: Intelligence }
   - { name: Platform }
 
 paths:
@@ -148,6 +154,73 @@ paths:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200": { description: Invitation accepted }
+
+
+  /organizations/{organizationId}/capabilities:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Capabilities]
+      operationId: getOrganizationCapabilities
+      responses:
+        "200":
+          description: Effective tenant capabilities, activations, quotas and accessible establishments
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/establishments:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Establishments]
+      operationId: listEstablishments
+      responses:
+        "200": { description: Establishments visible to the current member }
+    post:
+      tags: [Establishments]
+      operationId: createEstablishment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateEstablishmentRequest" }
+      responses:
+        "201": { description: Establishment created }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/establishments/{establishmentId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - $ref: "#/components/parameters/EstablishmentId"
+    get:
+      tags: [Establishments]
+      operationId: getEstablishment
+      responses:
+        "200": { description: Establishment }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    patch:
+      tags: [Establishments]
+      operationId: updateEstablishment
+      responses:
+        "200": { description: Establishment updated }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/modules/{moduleCode}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - $ref: "#/components/parameters/ModuleCode"
+    patch:
+      tags: [Capabilities]
+      operationId: setOrganizationModuleActivation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetModuleActivationRequest" }
+      responses:
+        "200": { description: Module activation updated }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/parties:
     parameters:
@@ -352,6 +425,106 @@ paths:
       responses:
         "201": { description: Stock movement created }
 
+
+  /organizations/{organizationId}/supplier-rfqs:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Purchases]
+      operationId: listSupplierRfqs
+      responses:
+        "200": { description: Supplier RFQs }
+    post:
+      tags: [Purchases]
+      operationId: createSupplierRfq
+      responses:
+        "201": { description: Supplier RFQ created }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/purchase-orders:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Purchases]
+      operationId: listPurchaseOrders
+      responses:
+        "200": { description: Purchase orders }
+    post:
+      tags: [Purchases]
+      operationId: createPurchaseOrder
+      responses:
+        "201": { description: Purchase order created }
+
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/receipts:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Purchases, Inventory]
+      operationId: createGoodsReceipt
+      responses:
+        "201": { description: Goods receipt created and stock effects applied once }
+
+  /organizations/{organizationId}/cash-accounts:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Cash]
+      operationId: listCashAccounts
+      responses:
+        "200": { description: Cash accounts }
+    post:
+      tags: [Cash]
+      operationId: createCashAccount
+      responses:
+        "201": { description: Cash account created }
+
+  /organizations/{organizationId}/cash-movements:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Cash]
+      operationId: listCashMovements
+      responses:
+        "200": { description: Cash movements }
+    post:
+      tags: [Cash]
+      operationId: createCashMovement
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201": { description: Append-only cash movement recorded }
+
+  /organizations/{organizationId}/projects:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      responses:
+        "200": { description: Projects }
+    post:
+      tags: [Projects]
+      operationId: createProject
+      responses:
+        "201": { description: Project created }
+
+  /organizations/{organizationId}/projects/{projectId}/tasks:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Projects]
+      operationId: listProjectTasks
+      responses:
+        "200": { description: Project tasks }
+    post:
+      tags: [Projects]
+      operationId: createProjectTask
+      responses:
+        "201": { description: Project task created }
+
   /network/organizations:
     get:
       tags: [Network]
@@ -362,6 +535,38 @@ paths:
         - $ref: "#/components/parameters/Limit"
       responses:
         "200": { description: Public organization profiles }
+
+
+  /network/organizations/{targetOrganizationId}/inquiries:
+    post:
+      tags: [Network]
+      operationId: createNetworkInquiry
+      parameters:
+        - { name: targetOrganizationId, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201": { description: Commercial inquiry created }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/network-inquiries:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Network]
+      operationId: listNetworkInquiries
+      responses:
+        "200": { description: Incoming commercial inquiries }
+
+  /organizations/{organizationId}/network-inquiries/{inquiryId}/convert:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: inquiryId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Network, CRM]
+      operationId: convertNetworkInquiry
+      responses:
+        "201": { description: Lead or opportunity created from inquiry }
 
   /organizations/{organizationId}/connection-requests:
     parameters:
@@ -401,6 +606,26 @@ paths:
       responses:
         "201": { description: Message sent }
 
+
+  /organizations/{organizationId}/insights/overview:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Intelligence]
+      operationId: getInsightsOverview
+      responses:
+        "200": { description: KPI overview restricted to tenant and establishment scope }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/insights/alerts:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Intelligence]
+      operationId: listInsightAlerts
+      responses:
+        "200": { description: Insight alerts }
+
   /platform/organizations:
     get:
       tags: [Platform]
@@ -414,6 +639,69 @@ paths:
       operationId: platformListUsers
       responses:
         "200": { description: Platform users }
+
+  /platform/module-catalog:
+    get:
+      tags: [Platform]
+      operationId: platformListModuleCatalog
+      responses:
+        "200": { description: Canonical module catalog }
+
+  /platform/plans:
+    get:
+      tags: [Platform]
+      operationId: platformListPlans
+      responses:
+        "200": { description: Plans and versions }
+    post:
+      tags: [Platform]
+      operationId: platformCreatePlanVersion
+      responses:
+        "201": { description: Plan version created }
+
+  /platform/organizations/{organizationId}/subscription:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    patch:
+      tags: [Platform]
+      operationId: platformSetOrganizationSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetSubscriptionRequest" }
+      responses:
+        "200": { description: Subscription changed }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /platform/organizations/{organizationId}/entitlements:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Platform]
+      operationId: platformListOrganizationEntitlements
+      responses:
+        "200": { description: Effective and explicit entitlements }
+    post:
+      tags: [Platform]
+      operationId: platformSetOrganizationEntitlement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetEntitlementRequest" }
+      responses:
+        "200": { description: Entitlement override applied }
+
+  /platform/organizations/{organizationId}/status:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    patch:
+      tags: [Platform]
+      operationId: platformSetOrganizationStatus
+      responses:
+        "200": { description: Tenant status updated }
+
 
 components:
   securitySchemes:
@@ -435,6 +723,16 @@ components:
       name: limit
       in: query
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    EstablishmentId:
+      name: establishmentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ModuleCode:
+      name: moduleCode
+      in: path
+      required: true
+      schema: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -487,9 +785,50 @@ components:
     CreateOrganizationRequest:
       type: object
       additionalProperties: false
-      required: [name, handle, defaultCurrency]
+      required: [businessTypeCode, name, handle, defaultCurrency]
       properties:
+        businessTypeCode:
+          type: string
+          pattern: "^[A-Z][A-Z0-9_]{1,63}$"
         name: { type: string, minLength: 2, maxLength: 160 }
         legalName: { type: string, maxLength: 200 }
         handle: { type: string, pattern: "^[a-z0-9][a-z0-9-]{2,49}$" }
         defaultCurrency: { type: string, pattern: "^[A-Z]{3}$" }
+
+    CreateEstablishmentRequest:
+      type: object
+      additionalProperties: false
+      required: [code, name, type]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 50 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        type:
+          type: string
+          enum: [HEAD_OFFICE, BRANCH, SHOP, OFFICE, SERVICE_POINT, OTHER]
+    SetModuleActivationRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    SetSubscriptionRequest:
+      type: object
+      additionalProperties: false
+      required: [planCode, planVersion]
+      properties:
+        planCode: { type: string }
+        planVersion: { type: integer, minimum: 1 }
+        managedService: { type: boolean, default: false }
+    SetEntitlementRequest:
+      type: object
+      additionalProperties: false
+      required: [moduleCode, effect, reason]
+      properties:
+        moduleCode: { type: string }
+        effect:
+          type: string
+          enum: [ALLOW, DENY, LIMIT_OVERRIDE]
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        limits:
+          type: object
+          additionalProperties: true
