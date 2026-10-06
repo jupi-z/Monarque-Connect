@@ -37,10 +37,33 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
     throw new Error('DATABASE_URL must be a PostgreSQL connection URL');
   }
 
+  const rawCorsOrigins = input.CORS_ORIGINS;
+  const corsOrigins =
+    typeof rawCorsOrigins === 'string'
+      ? rawCorsOrigins
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter((origin) => origin.length > 0)
+      : [];
+
+  for (const origin of corsOrigins) {
+    let parsed: URL;
+    try {
+      parsed = new URL(origin);
+    } catch {
+      throw new Error(`Invalid CORS origin: ${origin}`);
+    }
+
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== origin) {
+      throw new Error(`CORS origin must be an exact http(s) origin: ${origin}`);
+    }
+  }
+
   return {
     ...input,
     NODE_ENV: nodeEnv,
     PORT: port,
     DATABASE_URL: databaseUrl,
+    CORS_ORIGINS: corsOrigins,
   };
 }
