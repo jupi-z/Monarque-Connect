@@ -1,6 +1,6 @@
 # 29 — Extensions futures
 
-La baseline v1.1 réintroduit les forces structurelles de Monarque Connect sans reprendre un ERP tiers. Les extensions suivantes restent hors MVP tant qu'une décision dédiée ne les ouvre pas :
+La baseline v1.2 conserve les forces structurelles de Monarque Connect sans reprendre un ERP tiers et prépare nativement l'intelligence sans rendre le Core dépendant d'un modèle. Les extensions suivantes restent hors MVP tant qu'une décision dédiée ne les ouvre pas :
 
 - comptabilité statutaire OHADA/RDC ;
 - paie et déclarations ;
