@@ -109,7 +109,7 @@ Il ne peut pas :
 
 Lors de la création :
 1. business type choisi ;
-2. plan assigné ;
+2. plan assigné : `CONNECT v1` par défaut pour une création standard ; un autre plan ne peut être assigné que par un flux plateforme autorisé ;
 3. intersection entre preset métier et modules autorisés par le plan ;
 4. modules `default_enabled` activés ;
 5. établissement principal créé ;
@@ -122,3 +122,16 @@ Le preset peut être modifié ensuite sans changer le business type.
 Une version de plan utilisée par un client n'est pas mutée de manière destructive. Une nouvelle version est créée puis les subscriptions sont migrées explicitement.
 
 Les `module_code` sont stables et ne sont pas recyclés.
+
+## 9. Transition Phase 1 → Phase 2
+
+Phase 1 peut créer des organizations avant l'existence technique des subscriptions. Elles n'ont alors accès qu'aux capacités core.
+
+L'introduction de Phase 2 doit :
+1. seeder le catalogue/modules/plans v1 ;
+2. créer une subscription `CONNECT v1` pour toute organization ACTIVE existante sans subscription ;
+3. calculer les activations initiales depuis le business type ;
+4. être rejouable/idempotente ;
+5. tester qu'aucune organization ne reste sans subscription active après migration.
+
+Après Phase 2, toute création standard d'organization crée aussi sa subscription `CONNECT v1` dans le workflow d'onboarding, sans exposer au client le droit de s'auto-attribuer un plan supérieur.
