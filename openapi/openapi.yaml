@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Monarque Connect API
-  version: 0.2.0
+  version: 0.3.0
   description: Monarque Connect v1.1 API-first autonomous backend with Network, Business OS, Intelligence and Control Plane.
 servers:
   - url: /api/v1
@@ -79,6 +79,11 @@ paths:
       security: []
       tags: [Auth]
       operationId: refresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RefreshRequest" }
       responses:
         "200": { description: Session rotated }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -94,6 +99,35 @@ paths:
       operationId: getMe
       responses:
         "200": { description: Current user }
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangePasswordRequest" }
+      responses:
+        "204": { description: Password changed and other sessions revoked }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/sessions:
+    get:
+      tags: [Auth]
+      operationId: listSessions
+      responses:
+        "200": { description: Active refresh sessions for current user }
+
+  /auth/sessions/{sessionId}:
+    parameters:
+      - { name: sessionId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Auth]
+      operationId: revokeSession
+      responses:
+        "204": { description: Session revoked }
 
   /organizations:
     get:
@@ -136,18 +170,55 @@ paths:
       responses:
         "200": { description: Members }
 
+  /organizations/{organizationId}/members/{membershipId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: membershipId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Memberships]
+      operationId: updateMembership
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateMembershipRequest" }
+      responses:
+        "200": { description: Membership updated }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/invitations:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Memberships]
+      operationId: listInvitations
+      responses:
+        "200": { description: Invitations }
     post:
       tags: [Memberships]
       operationId: createInvitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateInvitationRequest" }
       responses:
         "201": { description: Invitation created }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/invitations/{invitationId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Memberships]
+      operationId: revokeInvitation
+      responses:
+        "204": { description: Invitation revoked }
 
   /invitations/{token}/accept:
     post:
-      security: []
       tags: [Memberships]
       operationId: acceptInvitation
       parameters:
@@ -202,6 +273,11 @@ paths:
     patch:
       tags: [Establishments]
       operationId: updateEstablishment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateEstablishmentRequest" }
       responses:
         "200": { description: Establishment updated }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -842,7 +918,7 @@ components:
       properties:
         email: { type: string, format: email }
         phone: { type: string }
-        password: { type: string, minLength: 12, maxLength: 256 }
+        password: { type: string, minLength: 15, maxLength: 128 }
         firstName: { type: string, minLength: 1, maxLength: 100 }
         lastName: { type: string, minLength: 1, maxLength: 100 }
     LoginRequest:
@@ -865,6 +941,64 @@ components:
         handle: { type: string, pattern: "^[a-z0-9][a-z0-9-]{2,49}$" }
         defaultCurrency: { type: string, pattern: "^[A-Z]{3}$" }
 
+
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string, minLength: 32, maxLength: 1024 }
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, minLength: 1, maxLength: 128 }
+        newPassword: { type: string, minLength: 15, maxLength: 128 }
+    CreateInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [email, role, scopeMode]
+      properties:
+        email: { type: string, format: email }
+        role:
+          type: string
+          enum: [ADMIN, SALES, FINANCE, OPERATIONS, VIEWER]
+        scopeMode:
+          type: string
+          enum: [ALL_ESTABLISHMENTS, SELECTED_ESTABLISHMENTS]
+        establishmentIds:
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+    UpdateMembershipRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          enum: [OWNER, ADMIN, SALES, FINANCE, OPERATIONS, VIEWER]
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED]
+        scopeMode:
+          type: string
+          enum: [ALL_ESTABLISHMENTS, SELECTED_ESTABLISHMENTS]
+        establishmentIds:
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+      minProperties: 1
+    UpdateEstablishmentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        isPrimary: { type: boolean }
+      minProperties: 1
     CreateEstablishmentRequest:
       type: object
       additionalProperties: false
