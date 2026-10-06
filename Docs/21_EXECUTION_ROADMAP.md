@@ -5,10 +5,26 @@ La roadmap est ordonnée pour éviter de construire les modules métier avant le
 ## Phase 0 — Fondation
 Repo, Node/TS/Nest, PostgreSQL, Prisma, Docker, config, health, OpenAPI validation, CI.
 
+## Phase 0.5 — AI-native foundation
+
+Avant la première verticale métier :
+- Domain Event envelope ;
+- transactional outbox ;
+- correlation/causation/request IDs ;
+- actor types ;
+- data classification ;
+- provenance metadata ;
+- worker/consumer idempotent minimal ;
+- aucune intégration fournisseur IA.
+
+**Gate :** un use-case de fondation prouve transaction + outbox atomique + replay idempotent.
+
 ## Phase 1 — Identity & tenancy
 Auth, users, organizations, business types, establishments, memberships, invitations, RBAC, establishment scopes, tenant isolation.
 
-**Gate :** deux tenants + deux établissements + scopes testés sans fuite.
+Chaque mutation significative de cette phase émet les événements définis dans `43_DOMAIN_EVENT_CONTRACT.md`.
+
+**Gate :** deux tenants + deux établissements + scopes testés sans fuite, et événements identity/tenancy prouvés atomiques.
 
 ## Phase 2 — Product entitlements
 Module catalog, business type presets, plans versionnés, subscriptions, organization entitlements, module activations, quotas, capabilities endpoint.
@@ -37,10 +53,26 @@ Projects, tasks, document linking, media.
 Conversations, messages, network policies, anti-abuse baseline.
 
 ## Phase 10 — Intelligence
+
+### 10A — déterministe
 KPI projections, metric snapshots, deterministic insight rules, alerts, dashboards API.
+
+### 10B — probabiliste gouverné
+Premières features IA ciblées seulement si les gates de `48_AI_SECURITY_AND_EVALUATION.md` sont satisfaites :
+- AI Gateway ;
+- model registry ;
+- tenant AI policy ;
+- Knowledge Layer minimale ;
+- feature d'assistance évaluée.
+
+Pas d'agent généraliste au premier lancement.
 
 ## Phase 11 — Control Plane
 Platform tenant administration, plans, entitlements, quotas, tenant status, support-safe operations, audit.
+
+## Phase 11.5 — Agent readiness
+
+Contrats de tool/action, classes A0-A4, confirmations, délégations et audit. Aucun agent high-impact autonome.
 
 ## Phase 12 — Hardening/release
 Security, concurrency, migration, entitlement downgrade tests, performance, backup/restore, tenant export/portability, staging, release.
