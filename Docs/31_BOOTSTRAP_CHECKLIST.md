@@ -1,6 +1,6 @@
 # 31 — Checklist de bootstrap
 
-Avant toute feature métier :
+Avant toute implémentation de Phase 0.5 ou feature métier :
 
 - [x] dépôt privé créé ;
 - [x] `@Gabby344` a accepté l'invitation collaborateur ;
@@ -16,4 +16,4 @@ Avant toute feature métier :
 - [x] OpenAPI validée ;
 - [x] première PR de fondation fusionnée.
 
-Aucune verticale métier ne commence avant cette checklist.
+La Phase 0.5 et les verticales métier ne commencent pas tant que cette checklist n'est pas entièrement verte.
