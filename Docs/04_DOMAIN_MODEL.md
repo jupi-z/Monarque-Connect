@@ -80,6 +80,8 @@ Les dépenses, documents et opportunités peuvent référencer un projet lorsque
 ## Network
 
 `OrganizationProfile` : projection publique opt-in.  
+`OrganizationVerification` : statut de vérification géré par la plateforme, avec preuve interne non publique par défaut.  
+`PublishedCredential` : certification ou référence que l'organisation choisit explicitement de publier.  
 `ConnectionRequest` : demande B2B.  
 `BusinessConnection` : relation acceptée.  
 `NetworkInquiry` : demande commerciale d'une organisation à une autre, convertible en lead/opportunity.
