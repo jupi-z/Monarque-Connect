@@ -56,6 +56,7 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `47_AGENT_RUNTIME_AND_ACTION_POLICY.md` | Agents et politique d'action |
 | `48_AI_SECURITY_AND_EVALUATION.md` | Sécurité et évaluation IA |
 | `49_BASELINE_V1_2_ACCEPTANCE.md` | Acceptance AI-native v1.2 |
+| `50_SECURITY_EXCEPTION_REGISTER.md` | Registre des exceptions sécurité dépendances |
 
 ## Gel documentaire
 
