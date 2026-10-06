@@ -21,14 +21,16 @@ Le MVP n'est terminé que lorsque :
 - [ ] cash
 - [ ] inventory
 - [ ] projects/tasks
-- [ ] network profiles/discovery/connections/inquiries
+- [ ] network profiles/verification/trust/discovery/connections/inquiries
 - [ ] messaging
 - [ ] documents/media
 - [ ] intelligence KPI/alerts
+- [ ] tenant data export/portability
 - [ ] platform control plane
 
 ## Produit à quatre piliers
 
+- [ ] Network expose un profil de confiance sans score opaque
 - [ ] Network alimente réellement CRM via inquiry → opportunity
 - [ ] Business OS couvre un cycle vente et un cycle achat
 - [ ] Intelligence expose des KPI/alertes dérivés du backend
@@ -59,6 +61,7 @@ Le MVP n'est terminé que lorsque :
 - [ ] stock append-only/compensation
 - [ ] cash append-only/compensation
 - [ ] backup/restore prouvé
+- [ ] export tenant principal généré et relu
 
 ## API
 
