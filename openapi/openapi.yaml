@@ -537,13 +537,14 @@ paths:
         "200": { description: Public organization profiles }
 
 
-  /network/organizations/{targetOrganizationId}/inquiries:
+  /organizations/{organizationId}/network/organizations/{targetOrganizationId}/inquiries:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: targetOrganizationId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
     post:
       tags: [Network]
       operationId: createNetworkInquiry
-      parameters:
-        - { name: targetOrganizationId, in: path, required: true, schema: { type: string, format: uuid } }
-        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "201": { description: Commercial inquiry created }
         "403": { $ref: "#/components/responses/Forbidden" }
