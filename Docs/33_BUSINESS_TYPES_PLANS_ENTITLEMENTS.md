@@ -12,11 +12,13 @@ Les codes sont des données seedées, pas un enum DB fermé.
 
 | Code | Segment | Modules recommandés |
 |---|---|---|
-| `SERVICE_PROVIDER` | Prestataires de services | CRM, CATALOG, SALES, EXPENSES, PROJECTS, DOCUMENTS, NETWORK |
-| `COMMERCE_DISTRIBUTION` | Commerce / distribution | CATALOG, SALES, PURCHASES, INVENTORY, CASH, EXPENSES, DOCUMENTS, NETWORK |
-| `MINING_SUPPLIER_B2B` | Fournisseur minier / B2B | CRM, CATALOG, SALES, PURCHASES, DOCUMENTS, NETWORK_TRUST, NETWORK, INVENTORY optionnel |
-| `SMALL_INDUSTRY` | Petite industrie | CATALOG, SALES, PURCHASES, INVENTORY, EXPENSES, DOCUMENTS, PROJECTS ; fabrication avancée différée |
-| `OTHER` | Activité non encore spécialisée | CATALOG, CRM, SALES, DOCUMENTS, NETWORK |
+| `SERVICE_PROVIDER` | Prestataires de services | CRM, CATALOG, SALES, EXPENSES, PROJECTS, DOCUMENTS + Network Suite |
+| `COMMERCE_DISTRIBUTION` | Commerce / distribution | CATALOG, SALES, PURCHASES, INVENTORY, CASH, EXPENSES, DOCUMENTS + Network Suite |
+| `MINING_SUPPLIER_B2B` | Fournisseur minier / B2B | CRM, CATALOG, SALES, PURCHASES, DOCUMENTS, INVENTORY optionnel + Network Suite |
+| `SMALL_INDUSTRY` | Petite industrie | CATALOG, SALES, PURCHASES, INVENTORY, EXPENSES, DOCUMENTS, PROJECTS + Network Suite ; fabrication avancée différée |
+| `OTHER` | Activité non encore spécialisée | CATALOG, CRM, SALES, DOCUMENTS + Network Suite |
+
+**Network Suite** est uniquement un raccourci documentaire pour les vrais codes : `NETWORK_PROFILE`, `NETWORK_TRUST`, `NETWORK_DISCOVERY`, `NETWORK_CONNECTIONS`, `NETWORK_INQUIRIES`, `MESSAGING`. Le seed doit stocker les codes réels, jamais `NETWORK_SUITE`.
 
 Un groupe multi-agences n'est pas un business type : c'est une organization possédant plusieurs establishments et une gouvernance adaptée.
 
