@@ -39,14 +39,13 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `29_FUTURE_EXTENSION_MAP.md` | Extensions |
 | `30_GITHUB_GOVERNANCE.md` | GitHub |
 | `31_BOOTSTRAP_CHECKLIST.md` | Bootstrap |
-| `32_PRODUCT_MODEL_V1_1.md` | Modèle produit à quatre piliers |
+| `32_PRODUCT_MODEL.md` | Modèle produit à quatre piliers |
 | `33_BUSINESS_TYPES_PLANS_ENTITLEMENTS.md` | Types, plans et droits fonctionnels |
 | `34_ESTABLISHMENTS_AND_SCOPE.md` | Établissements et portée d'accès |
 | `35_CONTROL_PLANE_SPEC.md` | Control Plane SaaS |
 | `36_PURCHASES_CASH_PROJECTS.md` | Achats, caisse et projets légers |
 | `37_INTELLIGENCE_SPEC.md` | Intelligence opérationnelle |
 | `38_MODULE_CATALOG.md` | Catalogue canonique des modules |
-| `39_BASELINE_V1_1_ACCEPTANCE.md` | Checklist d'acceptation v1.1 |
 | `40_RDC_LOCALIZATION_BOUNDARY.md` | Localisation RDC et frontière de conformité |
 | `41_DATA_PORTABILITY_AND_EXPORT.md` | Portabilité et export tenant |
 | `42_AI_NATIVE_FOUNDATION.md` | Architecture AI-native |
@@ -57,6 +56,7 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `47_AGENT_RUNTIME_AND_ACTION_POLICY.md` | Agents et politique d'action |
 | `48_AI_SECURITY_AND_EVALUATION.md` | Sécurité et évaluation IA |
 | `49_BASELINE_V1_2_ACCEPTANCE.md` | Acceptance AI-native v1.2 |
+| `50_SECURITY_EXCEPTION_REGISTER.md` | Registre des exceptions sécurité dépendances |
 
 ## Gel documentaire
 

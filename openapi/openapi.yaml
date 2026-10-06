@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Monarque Connect API
   version: 0.2.0
-  description: Monarque Connect v1.1 API-first autonomous backend with Network, Business OS, Intelligence and Control Plane.
+  description: Monarque Connect v1.2 API-first autonomous backend with Network, Business OS, Intelligence, Control Plane and AI-native foundations.
 servers:
   - url: /api/v1
 security:

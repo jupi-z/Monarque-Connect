@@ -8,6 +8,11 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/monarque_connect_test
+
     services:
       postgres:
         image: postgres:17
@@ -28,11 +33,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
       - name: Install dependencies
+        run: npm ci
+      - name: Audit runtime dependency graph
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          npm audit --json > /tmp/npm-audit.json || true
+          node scripts/check-runtime-audit.mjs /tmp/npm-audit.json
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run prisma:validate
+      - run: npm run prisma:generate
       - run: npm run openapi:validate
       - run: npm run contracts:validate
       - run: npm test

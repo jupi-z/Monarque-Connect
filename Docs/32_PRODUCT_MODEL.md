@@ -1,8 +1,8 @@
-# 32 — Modèle produit Monarque Connect v1.1
+# 32 — Modèle produit Monarque Connect
 
 ## Objet
 
-La v1.1 restaure les éléments qui faisaient la force du concept original de Monarque Connect, tout en conservant la nouvelle décision technique : **backend 100 % propriétaire, API-first, sans ERPNext/Frappe**.
+La baseline actuelle conserve les éléments qui faisaient la force du concept original de Monarque Connect tout en imposant un **backend 100 % propriétaire, API-first, sans ERPNext/Frappe**, et une fondation **AI-native avec Core déterministe**.
 
 ## Les quatre piliers
 
@@ -37,7 +37,7 @@ Transformer l'activité en information utile :
 - alertes déterministes ;
 - qualité opérationnelle.
 
-L'IA avancée n'est pas nécessaire au MVP.
+L'Intelligence progresse de règles déterministes vers des fonctions probabilistes gouvernées. Le Core transactionnel reste indépendant de tout modèle IA.
 
 ### 4. Monarque Control Plane
 Industrialiser Monarque Connect comme SaaS :
@@ -88,3 +88,12 @@ Un nouveau secteur doit pouvoir être ajouté principalement par :
 - un preset de modules ;
 - éventuellement de nouvelles configurations ;
 sans fork du backend et sans duplication des domaines existants.
+
+
+### Fondations AI-native
+
+Les quatre piliers reposent sur une infrastructure commune :
+
+`Core déterministe → Event Fabric → Knowledge Layer → Intelligence Engine → Agent Runtime`.
+
+L'Event Fabric et la provenance sont des fondations ; les modèles, embeddings et agents avancés ne sont activés que lorsqu'une feature réelle les justifie et satisfait les gates de sécurité/évaluation.

@@ -22,7 +22,7 @@
 | ADR-018 | Ressources opérationnelles établissement-scopées | Accepted |
 | ADR-019 | Capabilities endpoint pour clients, sans délégation de sécurité | Accepted |
 | ADR-020 | Achats, caisse et projets légers font partie du MVP Business OS | Accepted |
-| ADR-021 | Intelligence MVP déterministe ; IA avancée différée | Accepted |
+| ADR-021 | Intelligence démarre déterministe ; capacités probabilistes activées uniquement derrière les gates de gouvernance/évaluation | Accepted |
 | ADR-022 | Control Plane fait partie du backend propriétaire, avec rôles plateforme séparés | Accepted |
 | ADR-023 | NetworkInquiry est le pont Network → CRM | Accepted |
 | ADR-024 | Pas d'ERPNext/Frappe ni d'adapter de compatibilité dans l'architecture cible | Accepted |
