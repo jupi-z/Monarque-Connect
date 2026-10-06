@@ -22,6 +22,13 @@ L'accès de `@Gabby344` permet la contribution au projet mais ne vaut pas transf
 ## Issues
 Une issue pour chaque verticale ou bug. Pas de travail important non tracé.
 
+## Branch lifecycle
+- branche courte par scope ;
+- aucune branche fusionnée ne reste comme branche de travail ;
+- supprimer la branche head après merge ;
+- activer GitHub **Automatically delete head branches** ;
+- ne jamais supprimer `main`.
+
 ## Commits
 Conventional Commits recommandé : `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `security`.
 
