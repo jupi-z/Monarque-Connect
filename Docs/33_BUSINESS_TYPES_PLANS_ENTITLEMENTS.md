@@ -14,7 +14,7 @@ Les codes sont des données seedées, pas un enum DB fermé.
 |---|---|---|
 | `SERVICE_PROVIDER` | Prestataires de services | CRM, CATALOG, SALES, EXPENSES, PROJECTS, DOCUMENTS, NETWORK |
 | `COMMERCE_DISTRIBUTION` | Commerce / distribution | CATALOG, SALES, PURCHASES, INVENTORY, CASH, EXPENSES, DOCUMENTS, NETWORK |
-| `MINING_SUPPLIER_B2B` | Fournisseur minier / B2B | CRM, CATALOG, SALES, PURCHASES, DOCUMENTS, NETWORK, INVENTORY optionnel |
+| `MINING_SUPPLIER_B2B` | Fournisseur minier / B2B | CRM, CATALOG, SALES, PURCHASES, DOCUMENTS, NETWORK_TRUST, NETWORK, INVENTORY optionnel |
 | `SMALL_INDUSTRY` | Petite industrie | CATALOG, SALES, PURCHASES, INVENTORY, EXPENSES, DOCUMENTS, PROJECTS ; fabrication avancée différée |
 | `OTHER` | Activité non encore spécialisée | CATALOG, CRM, SALES, DOCUMENTS, NETWORK |
 
@@ -27,6 +27,7 @@ Cible : organisation cherchant visibilité, catalogue et opportunités.
 
 Capacités :
 - NETWORK_PROFILE
+- NETWORK_TRUST
 - NETWORK_DISCOVERY
 - NETWORK_CONNECTIONS
 - NETWORK_INQUIRIES
@@ -75,19 +76,19 @@ Pour un module M :
 
 1. vérifier organization ACTIVE ;
 2. charger subscription active ;
-3. lire `PlanModule(M)` ;
-4. appliquer l'unique override actif `OrganizationEntitlement(M)` s'il existe ;
-5. résoudre les limites effectives ;
+3. calculer `baseAllowed` depuis `PlanModule(M)` ;
+4. appliquer l'override actif : `ALLOW` force allowed, `DENY` force denied, `LIMIT_OVERRIDE` conserve `baseAllowed` ;
+5. résoudre les limites effectives depuis plan puis override ;
 6. vérifier dépendances du module ;
 7. vérifier `OrganizationModuleActivation(M)` ;
 8. appliquer RBAC et establishment scope.
 
 ### Précédence
 
-- override actif explicite > plan ;
 - `DENY` explicite interdit ;
 - `ALLOW` explicite peut ouvrir un module hors plan si Monarque Group l'accorde ;
-- `LIMIT_OVERRIDE` change uniquement les limites ;
+- `LIMIT_OVERRIDE` ne change jamais le booléen d'accès, seulement les limites ;
+- un override avec limites peut accompagner `ALLOW` lorsque nécessaire ;
 - suspension tenant interdit toutes les capacités métier sauf endpoints de compte/support explicitement autorisés.
 
 ## 6. Activation
