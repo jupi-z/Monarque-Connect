@@ -1,7 +1,23 @@
 # OpenAPI
 
-`openapi.yaml` est la source normative du contrat public.
+`openapi.yaml` est la source normative de la **surface publique API Monarque Connect v1.1**.
 
-Le fichier couvre la surface MVP et doit être détaillé verticalement avant implémentation d'une verticale : schémas complets, réponses, erreurs, exemples et permissions.
+Le contrat expose notamment :
+- identity/tenancy ;
+- establishments ;
+- capabilities/modules ;
+- CRM/sales ;
+- purchases/inventory/cash/projects ;
+- Network et inquiries ;
+- Intelligence ;
+- Control Plane plateforme.
 
-Aucune route publique implémentée ne peut exister durablement hors contrat.
+Le fichier de baseline fixe la surface et les operationIds. Avant implémentation de chaque verticale, les schémas de requête/réponse, erreurs, exemples, scopes et règles d'idempotence doivent être détaillés dans la même PR que la verticale.
+
+## Règles
+
+- aucune route publique implémentée durablement hors contrat ;
+- aucun client ne déduit les droits depuis le plan ou business type ;
+- `capabilities` est la projection client ;
+- l'autorisation réelle reste revalidée sur chaque endpoint ;
+- breaking change : version API ou migration documentée.
