@@ -48,6 +48,7 @@ Les rôles plateforme sont séparés des memberships tenant.
 | Network connection/inquiry | ✓ | ✓ | ✓ | – | ✓ | read |
 | Messaging | ✓ | ✓ | ✓ | ✓ | ✓ | read |
 | Insights read | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Export tenant | ✓ | ✓ | – | – | – | – |
 | Audit read | ✓ | ✓ | – | – | – | – |
 
 ## Scope d'établissement
