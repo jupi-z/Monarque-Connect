@@ -20,6 +20,7 @@
 - lockfile obligatoire ;
 - dépendances minimales ;
 - aucun framework ERP/CRM tiers comme socle métier ;
+- ERPNext et Frappe sont explicitement hors architecture cible ;
 - pas de Redis tant qu'un besoin mesuré ne le justifie ;
 - pas de broker distribué en MVP.
 
