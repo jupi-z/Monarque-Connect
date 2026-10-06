@@ -26,6 +26,7 @@ tags:
   - { name: Cash }
   - { name: Inventory }
   - { name: Projects }
+  - { name: Exports }
   - { name: Network }
   - { name: Messaging }
   - { name: Intelligence }
@@ -527,6 +528,7 @@ paths:
 
   /network/organizations:
     get:
+      security: []
       tags: [Network]
       operationId: discoverOrganizations
       parameters:
@@ -537,16 +539,50 @@ paths:
         "200": { description: Public organization profiles }
 
 
-  /network/organizations/{targetOrganizationId}/inquiries:
+  /organizations/{organizationId}/network/organizations/{targetOrganizationId}/inquiries:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: targetOrganizationId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
     post:
       tags: [Network]
       operationId: createNetworkInquiry
-      parameters:
-        - { name: targetOrganizationId, in: path, required: true, schema: { type: string, format: uuid } }
-        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "201": { description: Commercial inquiry created }
         "403": { $ref: "#/components/responses/Forbidden" }
+
+
+
+  /network/organizations/{organizationId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      security: []
+      tags: [Network]
+      operationId: getPublicNetworkOrganization
+      responses:
+        "200": { description: Public organization profile }
+        "404": { description: Profile not public or not found }
+
+  /network/organizations/{organizationId}/catalog:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      security: []
+      tags: [Network]
+      operationId: getPublicNetworkOrganizationCatalog
+      responses:
+        "200": { description: Public catalog projection for the organization }
+
+  /network/organizations/{organizationId}/trust:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      security: []
+      tags: [Network]
+      operationId: getNetworkOrganizationTrust
+      responses:
+        "200": { description: Public verification and explicitly published trust signals }
 
   /organizations/{organizationId}/network-inquiries:
     parameters:
@@ -607,6 +643,30 @@ paths:
         "201": { description: Message sent }
 
 
+
+  /organizations/{organizationId}/exports:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Exports]
+      operationId: requestOrganizationExport
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202": { description: Export requested }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/exports/{exportId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: exportId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Exports]
+      operationId: getOrganizationExport
+      responses:
+        "200": { description: Export job status and short-lived download metadata when ready }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /organizations/{organizationId}/insights/overview:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -658,6 +718,16 @@ paths:
       operationId: platformCreatePlanVersion
       responses:
         "201": { description: Plan version created }
+
+
+  /platform/organizations/{organizationId}/verification:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    patch:
+      tags: [Platform]
+      operationId: platformSetOrganizationVerification
+      responses:
+        "200": { description: Organization verification status updated }
 
   /platform/organizations/{organizationId}/subscription:
     parameters:

@@ -47,6 +47,8 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `37_INTELLIGENCE_SPEC.md` | Intelligence opérationnelle |
 | `38_MODULE_CATALOG.md` | Catalogue canonique des modules |
 | `39_BASELINE_V1_1_ACCEPTANCE.md` | Checklist d'acceptation v1.1 |
+| `40_RDC_LOCALIZATION_BOUNDARY.md` | Localisation RDC et frontière de conformité |
+| `41_DATA_PORTABILITY_AND_EXPORT.md` | Portabilité et export tenant |
 
 ## Gel documentaire
 

@@ -9,7 +9,7 @@ Le produit n'est ni un ERP générique à modules illimités ni un simple résea
 ## Piliers du produit
 
 ### Monarque Network
-Profils publics, découverte, connexions B2B, demandes de devis/opportunités, messagerie et relations commerciales.
+Profils publics, vérification/confiance, découverte, connexions B2B, demandes de devis/opportunités, messagerie et relations commerciales.
 
 ### Monarque Business OS
 Organisation, établissements, utilisateurs, CRM, catalogue, ventes, achats, stock, caisse, dépenses, projets légers et documents.
@@ -39,10 +39,12 @@ Plans, modules, entitlements, quotas, provisioning logique, statut tenant, suppo
 - projets légers et tâches ;
 - documents ;
 - annuaire B2B ;
+- vérification et signaux de confiance publiables ;
 - demandes de connexion ;
 - demandes commerciales réseau ;
 - messagerie inter-entreprises ;
 - KPI et alertes opérationnelles ;
+- export/portabilité des données principales ;
 - console plateforme Monarque Group.
 
 ## Hors périmètre MVP
@@ -76,3 +78,5 @@ Comptabilité statutaire complète, paie, fiscalité automatisée, MRP/fabricati
 - **INV-023** : toute API métier est versionnée sous `/api/v1`.
 - **INV-024** : aucune interface graphique n'est nécessaire pour exécuter les use-cases du backend.
 - **INV-025** : une suspension tenant ou entitlement prend effet côté serveur indépendamment de l'état d'un client.
+- **INV-026** : la portabilité de base des données tenant est une capacité core non réservée à un plan premium.
+- **INV-027** : aucune fonction locale RDC n'est présentée comme conforme juridiquement/fiscalement sans validation spécialisée.

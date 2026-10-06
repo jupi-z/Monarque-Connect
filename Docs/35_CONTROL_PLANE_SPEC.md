@@ -22,6 +22,13 @@ Le Control Plane permet à Monarque Group d'exploiter Monarque Connect comme un 
 - limites par défaut ;
 - statut DRAFT/ACTIVE/RETIRED.
 
+### Network verification
+- statut de vérification ;
+- date/expiration éventuelle ;
+- niveau ou méthode interne versionnée si utilisée ;
+- raison/preuve interne non publique ;
+- audit de toute décision.
+
 ### Organization entitlements
 - ALLOW ;
 - DENY ;
@@ -58,6 +65,7 @@ Auditer :
 - quota override ;
 - suspension/reprise ;
 - changement de business type ;
+- décision de vérification/dé-vérification ;
 - opération de support sensible.
 
 Chaque événement inclut actor, target tenant, before/after filtré, raison et requestId.

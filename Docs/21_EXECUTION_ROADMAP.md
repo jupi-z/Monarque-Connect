@@ -19,7 +19,7 @@ Module catalog, business type presets, plans versionnés, subscriptions, organiz
 Business parties, catalog, warehouses.
 
 ## Phase 4 — CRM + Network entry
-Leads, opportunities, organization public profiles, discovery, connections, NetworkInquiry → CRM.
+Leads, opportunities, organization public profiles, verification/trust, discovery, connections, NetworkInquiry → CRM.
 
 ## Phase 5 — Sales
 Quotes → Sales Orders → Invoices → PaymentRecords.
@@ -43,7 +43,7 @@ KPI projections, metric snapshots, deterministic insight rules, alerts, dashboar
 Platform tenant administration, plans, entitlements, quotas, tenant status, support-safe operations, audit.
 
 ## Phase 12 — Hardening/release
-Security, concurrency, migration, entitlement downgrade tests, performance, backup/restore, staging, release.
+Security, concurrency, migration, entitlement downgrade tests, performance, backup/restore, tenant export/portability, staging, release.
 
 ## Ordre parallèle frontend
 

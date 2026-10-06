@@ -54,13 +54,15 @@ Les tests critiques utilisent PostgreSQL réel, pas SQLite.
 16. stock entrant/sortant cohérent ;
 17. create project + task + expense liée ;
 18. publish network profile ;
-19. second organization discovered ;
-20. connection accepted ;
-21. network inquiry convertie en opportunity ;
-22. conversation + messages ;
-23. insight/KPI calculable ;
-24. user hors scope établissement → refus ;
-25. tenant A tente accès privé tenant B → refus ;
-26. platform retire `PURCHASES` → endpoint purchases refuse immédiatement.
+19. platform verifies organization and trust projection is visible ;
+20. second organization discovered ;
+21. connection accepted ;
+22. network inquiry convertie en opportunity ;
+23. conversation + messages ;
+24. insight/KPI calculable ;
+25. export tenant demandé puis généré sans secrets ;
+26. user hors scope établissement → refus ;
+27. tenant A tente accès privé tenant B → refus ;
+28. platform retire `PURCHASES` → endpoint purchases refuse immédiatement.
 
 Aucune UI n'entre dans ce scénario.

@@ -20,9 +20,12 @@ La baseline v1.1 est considérée prête pour exécution uniquement si les point
 - [x] établissement principal obligatoire ;
 - [x] scopes d'établissement ;
 - [x] achats, caisse et projets légers dans le MVP ;
+- [x] vérification/confiance réseau définie sans score opaque ;
 - [x] NetworkInquiry relie Network et CRM ;
 - [x] Intelligence MVP sans dépendance IA ;
-- [x] Control Plane séparé du tenant.
+- [x] Control Plane séparé du tenant ;
+- [x] frontière de localisation RDC documentée ;
+- [x] portabilité/export tenant core documentés.
 
 ## Sécurité
 
@@ -41,7 +44,8 @@ La baseline v1.1 est considérée prête pour exécution uniquement si les point
 - [x] capabilities endpoint défini ;
 - [x] establishment endpoints définis ;
 - [x] purchases/cash/projects définis ;
-- [x] network inquiries définies ;
+- [x] network trust/inquiries définis ;
+- [x] création d'inquiry porte une source organization explicite et vérifiée ;
 - [x] intelligence définie ;
 - [x] control plane défini.
 

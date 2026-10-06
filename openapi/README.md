@@ -8,8 +8,9 @@ Le contrat expose notamment :
 - capabilities/modules ;
 - CRM/sales ;
 - purchases/inventory/cash/projects ;
-- Network et inquiries ;
+- Network, trust/verifications et inquiries ;
 - Intelligence ;
+- exports/portabilité ;
 - Control Plane plateforme.
 
 Le fichier de baseline fixe la surface et les operationIds. Avant implémentation de chaque verticale, les schémas de requête/réponse, erreurs, exemples, scopes et règles d'idempotence doivent être détaillés dans la même PR que la verticale.
