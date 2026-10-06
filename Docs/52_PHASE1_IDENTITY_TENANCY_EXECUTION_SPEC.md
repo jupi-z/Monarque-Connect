@@ -108,6 +108,10 @@ Valeurs établissement principal :
 - `is_primary = true`
 - status ACTIVE
 
+### Transition vers Phase 2
+
+Pendant Phase 1, aucune subscription commerciale n'est requise pour les capacités core. Phase 2 backfillera `CONNECT v1` sur les organizations existantes. Après Phase 2, le même onboarding créera la subscription par défaut via l'orchestration d'entitlements.
+
 Events :
 - `organization.created.v1`
 - `establishment.created.v1`
