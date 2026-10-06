@@ -12,13 +12,20 @@ const pool = new Pool({ connectionString, max: 5 });
 const repository = new OutboxRepository();
 const consumer = new FoundationProbeConsumer();
 const dispatcher = new EventDispatcher();
-dispatcher.register('foundation.probe.recorded', 1, consumer.handle.bind(consumer));
+dispatcher.register(consumer.consumerName, 'foundation.probe.recorded', 1, consumer.handle.bind(consumer));
 const worker = new EventWorker(pool, repository, dispatcher);
 let stopping = false;
+let activeBatch: Promise<number> | undefined;
+let stopPromise: Promise<void> | undefined;
 
 async function stop(): Promise<void> {
+  if (stopPromise) return stopPromise;
   stopping = true;
-  await pool.end();
+  stopPromise = (async () => {
+    if (activeBatch) await activeBatch;
+    await pool.end();
+  })();
+  await stopPromise;
 }
 
 process.once('SIGINT', () => void stop());
@@ -26,9 +33,12 @@ process.once('SIGTERM', () => void stop());
 
 while (!stopping) {
   try {
-    await worker.processBatch();
-  } catch (error) {
-    console.error('Event worker cycle failed', error instanceof Error ? error.message : 'unknown error');
+    activeBatch = worker.processBatch();
+    await activeBatch;
+  } catch {
+    console.error(JSON.stringify({ code: 'EVENT_WORKER_CYCLE_FAILED' }));
+  } finally {
+    activeBatch = undefined;
   }
   if (!stopping) await delay(1000);
 }

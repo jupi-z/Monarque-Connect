@@ -21,6 +21,7 @@ const event = {
   status: 'PROCESSING' as const,
   attempts: 1,
   lockedBy: 'worker-a',
+  claimToken: '7f8fad5b-d9cb-469f-a165-70867728950e',
   occurredAt: new Date(),
   recordedAt: new Date(),
 } satisfies ClaimedOutboxEvent;
@@ -42,5 +43,16 @@ describe('EventDispatcher', () => {
     await expect(dispatcher.dispatch({} as EventDbClient, event)).rejects.toThrow(
       /unknown event handler/i,
     );
+  });
+
+  it('fans out to independently named consumers', async () => {
+    const dispatcher = new EventDispatcher();
+    const calls: string[] = [];
+    dispatcher.register('projection-a', 'foundation.probe.recorded', 1, () => { calls.push('a'); return Promise.resolve(); });
+    dispatcher.register('projection-b', 'foundation.probe.recorded', 1, () => { calls.push('b'); return Promise.resolve(); });
+
+    await dispatcher.dispatch({} as EventDbClient, event);
+
+    expect(calls).toEqual(['a', 'b']);
   });
 });

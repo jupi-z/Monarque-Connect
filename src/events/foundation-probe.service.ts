@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
+import { Injectable } from '@nestjs/common';
 import { createDomainEvent } from './domain-event.factory.js';
 import type { EventContext } from './event-context.js';
 import { OutboxRepository } from './outbox.repository.js';
 
+@Injectable()
 export class FoundationProbeService {
   constructor(private readonly outbox: OutboxRepository) {}
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import type { DomainEvent } from './domain-event.js';
 
@@ -22,6 +23,7 @@ export interface ClaimedOutboxEvent {
   status: 'PROCESSING';
   attempts: number;
   lockedBy: string | null;
+  claimToken: string;
   occurredAt: Date;
   recordedAt: Date;
 }
@@ -30,6 +32,7 @@ export interface ClaimOptions {
   workerId: string;
   batchSize: number;
   leaseSeconds: number;
+  maxAttempts?: number;
 }
 
 export class OutboxRepository {
@@ -62,63 +65,80 @@ export class OutboxRepository {
   }
 
   async claimBatch(client: EventDbClient, options: ClaimOptions): Promise<ClaimedOutboxEvent[]> {
+    const maxAttempts = options.maxAttempts ?? 8;
+    const claimToken = randomUUID();
+    await client.query(
+      `UPDATE outbox_events
+       SET status = 'FAILED', locked_at = null, locked_by = null,
+           last_error_code = COALESCE(last_error_code, 'MAX_ATTEMPTS_EXCEEDED'),
+           last_error_message = COALESCE(last_error_message, 'maximum attempts exceeded')
+       WHERE attempts >= $2
+         AND ((status = 'PENDING') OR (status = 'PROCESSING' AND locked_at < now() - ($1 * interval '1 second')))` ,
+      [options.leaseSeconds, maxAttempts],
+    );
     const result = await client.query(
       `WITH eligible AS (
          SELECT id
          FROM outbox_events
-         WHERE (status = 'PENDING' AND (next_attempt_at IS NULL OR next_attempt_at <= now()))
-            OR (status = 'PROCESSING' AND locked_at < now() - ($3 * interval '1 second'))
+         WHERE attempts < $4
+           AND ((status = 'PENDING' AND (next_attempt_at IS NULL OR next_attempt_at <= now()))
+            OR (status = 'PROCESSING' AND locked_at < now() - ($3 * interval '1 second')))
          ORDER BY recorded_at
          FOR UPDATE SKIP LOCKED
          LIMIT $1
        )
        UPDATE outbox_events AS e
-       SET status = 'PROCESSING', attempts = e.attempts + 1, locked_at = now(), locked_by = $2
+       SET status = 'PROCESSING', attempts = e.attempts + 1, locked_at = now(), locked_by = $2, claim_token = $5
        FROM eligible
        WHERE e.id = eligible.id
        RETURNING e.*`,
-      [options.batchSize, options.workerId, options.leaseSeconds],
+      [options.batchSize, options.workerId, options.leaseSeconds, maxAttempts, claimToken],
     );
     return result.rows.map((row: unknown) => this.mapRow(row));
   }
 
-  async markProcessed(client: EventDbClient, eventId: string): Promise<void> {
-    await client.query(
+  async markProcessed(client: EventDbClient, eventId: string, claimToken: string): Promise<void> {
+    const result = await client.query(
       `UPDATE outbox_events
        SET status = 'PROCESSED', processed_at = now(), locked_at = null, locked_by = null,
-           last_error_code = null, last_error_message = null
-       WHERE id = $1 AND status = 'PROCESSING'`,
-      [eventId],
+           last_error_code = null, last_error_message = null, claim_token = null
+       WHERE id = $1 AND status = 'PROCESSING' AND claim_token = $2`,
+      [eventId, claimToken],
     );
+    if (result.rowCount !== 1) throw new Error(`Outbox claim lost for event ${eventId}`);
   }
 
   async markRetry(
     client: EventDbClient,
     eventId: string,
+    claimToken: string,
     nextAttemptAt: Date,
     error: { code: string; message: string },
   ): Promise<void> {
-    await client.query(
+    const result = await client.query(
       `UPDATE outbox_events
        SET status = 'PENDING', next_attempt_at = $2, locked_at = null, locked_by = null,
-           last_error_code = $3, last_error_message = $4
-       WHERE id = $1 AND status = 'PROCESSING'`,
-      [eventId, nextAttemptAt, error.code.slice(0, 120), error.message.slice(0, 1000)],
+           last_error_code = $4, last_error_message = $5, claim_token = null
+       WHERE id = $1 AND status = 'PROCESSING' AND claim_token = $3`,
+      [eventId, nextAttemptAt, claimToken, error.code.slice(0, 120), error.message.slice(0, 1000)],
     );
+    if (result.rowCount !== 1) throw new Error(`Outbox claim lost for event ${eventId}`);
   }
 
   async markFailed(
     client: EventDbClient,
     eventId: string,
+    claimToken: string,
     error: { code: string; message: string },
   ): Promise<void> {
-    await client.query(
+    const result = await client.query(
       `UPDATE outbox_events
        SET status = 'FAILED', locked_at = null, locked_by = null,
-           last_error_code = $2, last_error_message = $3
-       WHERE id = $1 AND status = 'PROCESSING'`,
-      [eventId, error.code.slice(0, 120), error.message.slice(0, 1000)],
+           last_error_code = $3, last_error_message = $4, claim_token = null
+       WHERE id = $1 AND status = 'PROCESSING' AND claim_token = $2`,
+      [eventId, claimToken, error.code.slice(0, 120), error.message.slice(0, 1000)],
     );
+    if (result.rowCount !== 1) throw new Error(`Outbox claim lost for event ${eventId}`);
   }
 
   private mapRow(row: unknown): ClaimedOutboxEvent {
@@ -142,8 +162,9 @@ export class OutboxRepository {
       status: 'PROCESSING',
       attempts: Number(data.attempts),
       lockedBy: (data.locked_by as string | null) ?? null,
-      occurredAt: new Date(String(data.occurred_at)),
-      recordedAt: new Date(String(data.recorded_at)),
+      claimToken: String(data.claim_token),
+      occurredAt: data.occurred_at instanceof Date ? data.occurred_at : new Date(String(data.occurred_at)),
+      recordedAt: data.recorded_at instanceof Date ? data.recorded_at : new Date(String(data.recorded_at)),
     };
   }
 }

@@ -45,6 +45,7 @@ model OutboxEvent {
   payloadJson         Json                     @map("payload_json")
   status              OutboxEventStatus        @default(PENDING)
   attempts            Int                      @default(0)
+  claimToken          String?                  @map("claim_token") @db.Uuid
   nextAttemptAt       DateTime?                @map("next_attempt_at") @db.Timestamptz(6)
   lockedAt            DateTime?                @map("locked_at") @db.Timestamptz(6)
   lockedBy            String?                  @map("locked_by") @db.VarChar(160)

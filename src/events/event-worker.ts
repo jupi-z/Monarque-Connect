@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import { sanitizeError } from './domain-event.factory.js';
 import { EventDispatcher } from './event-dispatcher.js';
+import { runWithEventContext, workerContextFor } from './event-context.js';
 import { nextRetryAt } from './retry-policy.js';
 import { OutboxRepository } from './outbox.repository.js';
 
@@ -28,7 +29,7 @@ export class EventWorker {
     let claimed;
     try {
       await claimClient.query('BEGIN');
-      claimed = await this.repository.claimBatch(claimClient, { workerId, batchSize, leaseSeconds });
+      claimed = await this.repository.claimBatch(claimClient, { workerId, batchSize, leaseSeconds, maxAttempts });
       await claimClient.query('COMMIT');
     } catch (error) {
       await claimClient.query('ROLLBACK');
@@ -47,26 +48,29 @@ export class EventWorker {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      await this.dispatcher.dispatch(client, event);
-      await this.repository.markProcessed(client, event.id);
+      await runWithEventContext(workerContextFor({
+        eventId: event.id,
+        correlationId: event.correlationId,
+        ...(event.requestId ? { requestId: event.requestId } : {}),
+      }), () => this.dispatcher.dispatch(client, event));
+      await this.repository.markProcessed(client, event.id, event.claimToken);
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
-      const failureClient = await this.pool.connect();
       try {
-        await failureClient.query('BEGIN');
+        await client.query('BEGIN');
         const safeError = sanitizeError(error);
-        if (event.attempts >= maxAttempts) {
-          await this.repository.markFailed(failureClient, event.id, safeError);
+        if (error instanceof Error && error.name === 'PermanentEventError') {
+          await this.repository.markFailed(client, event.id, event.claimToken, safeError);
+        } else if (event.attempts >= maxAttempts) {
+          await this.repository.markFailed(client, event.id, event.claimToken, safeError);
         } else {
-          await this.repository.markRetry(failureClient, event.id, nextRetryAt(event.attempts, now), safeError);
+          await this.repository.markRetry(client, event.id, event.claimToken, nextRetryAt(event.attempts, now), safeError);
         }
-        await failureClient.query('COMMIT');
+        await client.query('COMMIT');
       } catch (failureError) {
-        await failureClient.query('ROLLBACK');
+        await client.query('ROLLBACK');
         throw failureError;
-      } finally {
-        failureClient.release();
       }
     } finally {
       client.release();

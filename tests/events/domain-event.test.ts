@@ -41,6 +41,19 @@ describe('createDomainEvent', () => {
       /payload/i,
     );
   });
+
+  it('protects nested payloads and rejects secret-shaped keys', () => {
+    const payload = { items: [{ label: 'ok' }] };
+    const event = createDomainEvent({ ...input, payload });
+    expect(() => ((event.payload.items as Array<{ label: string }>)[0]!.label = 'changed')).toThrow();
+    expect(() => createDomainEvent({ ...input, payload: { ApiKey: 'secret' } })).toThrow(/secret/i);
+  });
+
+  it('requires strict event metadata', () => {
+    expect(() => createDomainEvent({ ...input, occurredAt: '2026-10-06' })).toThrow(/RFC3339/i);
+    expect(() => createDomainEvent({ ...input, actor: { type: 'USER' } })).toThrow(/actor.id/i);
+    expect(() => createDomainEvent({ ...input, requestId: 'bad\nrequest' })).toThrow(/requestId/i);
+  });
 });
 
 describe('sanitizeError', () => {
@@ -48,7 +61,8 @@ describe('sanitizeError', () => {
     const result = sanitizeError(new Error('private database details '.repeat(100)));
 
     expect(result.code).toBe('EVENT_PROCESSING_FAILED');
-    expect(result.message.length).toBeLessThanOrEqual(1000);
+    expect(result.message).toBe('Event processing failed');
+    expect(result.message).not.toContain('private');
     expect(result).not.toHaveProperty('stack');
   });
 });

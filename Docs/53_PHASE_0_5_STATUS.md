@@ -2,7 +2,7 @@
 
 ## Statut
 
-La fondation Event Fabric Phase 0.5 est implémentée sur la branche locale `feat/phase-0-5-event-fabric`. Aucun commit n'a été poussé vers le dépôt distant.
+La fondation Event Fabric Phase 0.5 est implémentée et durcie sur la branche locale `feat/phase-0-5-event-fabric`. Aucun commit n'a été poussé vers le dépôt distant.
 
 La référence normative reste `Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`. Le design concret et le plan de reprise sont dans `Docs/superpowers/specs/2026-10-06-event-fabric-design.md` et `Docs/superpowers/plans/2026-10-06-event-fabric-implementation.md`.
 
@@ -14,8 +14,11 @@ La référence normative reste `Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`. Le
 - [x] leases expirés récupérables ;
 - [x] retry borné et passage `FAILED` testés ;
 - [x] consumer versionné et replay idempotent par receipt unique ;
-- [x] propagation request/correlation/causation représentée et testée ;
-- [x] payloads d'événements contrôlés et erreurs persistées sanitizées ;
+- [x] propagation request/correlation/causation représentée, propagée par contexte asynchrone et testée ;
+- [x] payloads d'événements contrôlés, profondément gelés et erreurs persistées sanitizées ;
+- [x] fencing des leases par jeton de possession et rejet des transitions obsolètes ;
+- [x] fan-out de plusieurs consumers nommés pour un même type/version ;
+- [x] arrêt du worker après drainage du batch actif ;
 - [x] runner worker exploitable via `npm run events:worker` ;
 - [x] aucun broker, fournisseur IA ou vector store ajouté ;
 - [x] migration appliquée localement sur PostgreSQL 17 ;
@@ -32,7 +35,7 @@ La référence normative reste `Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`. Le
 - `npm run prisma:deploy` — migrations appliquées, puis aucune migration en attente ;
 - `npm run openapi:validate` — 83 opérations valides ;
 - `npm run contracts:validate` — schémas et exemple valides ;
-- `npm test` — 11 fichiers, 27 tests, 0 échec ;
+- `npm test` — 12 fichiers, 34 tests, 0 échec ;
 - `npm run build` — succès ;
 - smoke HTTP live/ready avec PostgreSQL réel — `200` / `200`.
 
