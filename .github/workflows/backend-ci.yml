@@ -33,5 +33,6 @@ jobs:
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run openapi:validate
       - run: npm test
       - run: npm run build
