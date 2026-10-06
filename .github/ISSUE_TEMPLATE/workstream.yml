@@ -1,7 +1,6 @@
 name: Workstream declaration
 description: Choisir formellement une zone de contribution
 title: "[WORKSTREAM] "
-labels: ["workstream"]
 body:
   - type: markdown
     attributes:
