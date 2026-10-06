@@ -181,6 +181,10 @@ Conversation entre organizations autorisées ; message avec auteur user + organi
 ### documents / media_objects
 Métadonnées en DB, binaire en object storage.
 
+### data_exports
+`id`, `organization_id`, `requested_by_membership_id`, `status`, `format`, `object_key?`, `manifest_version`, `requested_at`, `ready_at?`, `expires_at?`, `failure_code?`.  
+Aucun secret d'authentification n'est exporté. Le fichier généré reste privé et expire.
+
 ### audit_events / outbox_events / idempotency_keys
 Append-only pour audit/outbox ; clés d'idempotence scoped par actor/tenant/opération.
 
