@@ -58,6 +58,7 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `49_BASELINE_V1_2_ACCEPTANCE.md` | Acceptance AI-native v1.2 |
 | `50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md` | Spécification d'implémentation Event Fabric Phase 0.5 |
 | `51_SECURITY_EXCEPTION_REGISTER.md` | Registre des exceptions sécurité dépendances |
+| `52_EVENT_FABRIC_OPERATIONS.md` | Exploitation Event Fabric |
 
 ## Gel documentaire
 

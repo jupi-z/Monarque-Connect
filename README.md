@@ -7,8 +7,8 @@ Le produit combine dans un même écosystème un **réseau économique entre ent
 > **État du projet**
 >
 > La baseline fonctionnelle et architecturale **v1.2 — AI-Native Foundation** est figée.  
-> La fondation technique du backend est validée.  
-> Le prochain chantier d’implémentation est **Phase 0.5 — Event Fabric**, puis **Phase 1 — Identity & Tenancy**.
+> La fondation technique du backend est validée et **Phase 0.5 — Event Fabric** est en cours d’implémentation sur une branche dédiée.  
+> Le prochain jalon est **Phase 1 — Identity & Tenancy** après validation de la gate Event Fabric.
 >
 > Les modules métier décrits ci-dessous représentent la **cible du MVP**. Ils ne sont pas tous encore implémentés.
 
@@ -277,11 +277,15 @@ Monarque Connect ne repose ni sur ERPNext ni sur Frappe.
 - contrats machine-readable pour Domain Events et propositions d’actions agentiques ;
 - validation lint / typecheck / Prisma / OpenAPI / contrats / tests / build en CI ;
 - documentation normative v1.2.
+- enveloppe Domain Event versionnée et validée ;
+- migrations PostgreSQL de l'outbox et des receipts ;
+- preuve transactionnelle fact + event ;
+- dispatcher versionné, consumer idempotent et worker avec retry/lease.
 
 ### Prochaines étapes
 
-1. **Phase 0.5 — Event Fabric**  
-   Transactional outbox, worker, retries, idempotence, provenance et propagation du contexte.
+1. **Finaliser la gate Phase 0.5 — Event Fabric**  
+   Vérifier migration, transaction atomique, worker multi-instance, replay idempotent, retries et documentation opérationnelle.
 
 2. **Phase 1 — Identity & Tenancy**  
    Auth, utilisateurs, organisations, types d’entreprise, établissements, memberships, invitations, RBAC et isolation multi-tenant.
@@ -306,6 +310,7 @@ npm ci
 cp .env.example .env
 docker compose -f docker-compose.dev.yml up -d
 npm run prisma:generate
+npm run prisma:deploy
 npm run start:dev
 ~~~
 
@@ -329,6 +334,7 @@ npm run lint
 npm run typecheck
 npm run prisma:validate
 npm run prisma:generate
+npm run prisma:deploy
 npm run openapi:validate
 npm run contracts:validate
 npm test
