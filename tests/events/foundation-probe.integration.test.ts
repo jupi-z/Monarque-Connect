@@ -31,14 +31,14 @@ describe('FoundationProbeService', () => {
     client.release();
 
     const probes = await pool.query('SELECT id, value FROM foundation_probes');
-    const events = await pool.query(
+    const events = await pool.query<{ aggregate_id: string; event_type: string; payload_json: { value: string } }>(
       "SELECT aggregate_id, event_type, payload_json FROM outbox_events WHERE event_type = 'foundation.probe.recorded'",
     );
     expect(probes.rows).toHaveLength(1);
     expect(probes.rows[0]).toEqual({ id: result.probeId, value: 'probe-value' });
     expect(events.rows).toHaveLength(1);
-    expect(events.rows[0].aggregate_id).toBe(result.probeId);
-    expect(events.rows[0].payload_json).toEqual({ value: 'probe-value' });
+    expect(events.rows[0]?.aggregate_id).toBe(result.probeId);
+    expect(events.rows[0]?.payload_json).toEqual({ value: 'probe-value' });
   });
 
   it('rolls back the fact and event together', async () => {

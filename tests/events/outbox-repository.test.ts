@@ -103,10 +103,17 @@ describe('OutboxRepository', () => {
       client.release();
     }
 
-    const row = await pool.query('SELECT status, locked_by, locked_at, processed_at FROM outbox_events WHERE id = $1', [event.eventId]);
-    expect(row.rows[0].status).toBe('PROCESSED');
-    expect(row.rows[0].locked_by).toBeNull();
-    expect(row.rows[0].locked_at).toBeNull();
-    expect(row.rows[0].processed_at).not.toBeNull();
+    const row = await pool.query<{
+      status: string;
+      locked_by: string | null;
+      locked_at: Date | null;
+      processed_at: Date | null;
+    }>('SELECT status, locked_by, locked_at, processed_at FROM outbox_events WHERE id = $1', [event.eventId]);
+    const processed = row.rows[0];
+    if (!processed) throw new Error('expected processed outbox row');
+    expect(processed.status).toBe('PROCESSED');
+    expect(processed.locked_by).toBeNull();
+    expect(processed.locked_at).toBeNull();
+    expect(processed.processed_at).not.toBeNull();
   });
 });

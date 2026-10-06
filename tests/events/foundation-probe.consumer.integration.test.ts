@@ -39,13 +39,15 @@ describe('FoundationProbeConsumer', () => {
 
     const claimClient = await pool.connect();
     await claimClient.query('BEGIN');
-    const [event] = await new OutboxRepository().claimBatch(claimClient, {
+    const claimed = await new OutboxRepository().claimBatch(claimClient, {
       workerId: 'worker-a',
       batchSize: 1,
       leaseSeconds: 60,
     });
     await claimClient.query('COMMIT');
     claimClient.release();
+    const event = claimed[0];
+    if (!event) throw new Error('expected one claimed event');
     expect(event.id).toBe(created.eventId);
 
     await consumeInTransaction(pool, consumer, event);
@@ -68,13 +70,15 @@ describe('FoundationProbeConsumer', () => {
 
     const claimClient = await pool.connect();
     await claimClient.query('BEGIN');
-    const [event] = await new OutboxRepository().claimBatch(claimClient, {
+    const claimed = await new OutboxRepository().claimBatch(claimClient, {
       workerId: 'worker-a',
       batchSize: 1,
       leaseSeconds: 60,
     });
     await claimClient.query('COMMIT');
     claimClient.release();
+    const event = claimed[0];
+    if (!event) throw new Error('expected one claimed event');
 
     const client = await pool.connect();
     await client.query('BEGIN');

@@ -23,11 +23,11 @@ export class FoundationProbeService {
       actor: { type: 'SYSTEM' },
       aggregate: { type: 'FoundationProbe', id: probeId },
       correlationId: context.correlationId,
-      causationId: context.causationId,
-      requestId: context.requestId,
       dataClassification: 'INTERNAL',
       purpose: 'phase-0.5-proof',
       payload: { value },
+      ...(context.causationId ? { causationId: context.causationId } : {}),
+      ...(context.requestId ? { requestId: context.requestId } : {}),
     });
     await this.outbox.enqueue(client, event);
     return { probeId, eventId: event.eventId };

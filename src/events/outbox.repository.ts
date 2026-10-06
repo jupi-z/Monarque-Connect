@@ -79,7 +79,7 @@ export class OutboxRepository {
        RETURNING e.*`,
       [options.batchSize, options.workerId, options.leaseSeconds],
     );
-    return result.rows.map((row) => this.mapRow(row));
+    return result.rows.map((row: unknown) => this.mapRow(row));
   }
 
   async markProcessed(client: EventDbClient, eventId: string): Promise<void> {
@@ -121,28 +121,29 @@ export class OutboxRepository {
     );
   }
 
-  private mapRow(row: Record<string, unknown>): ClaimedOutboxEvent {
+  private mapRow(row: unknown): ClaimedOutboxEvent {
+    const data = row as Record<string, unknown>;
     return {
-      id: String(row.id),
-      eventType: String(row.event_type),
-      eventVersion: Number(row.event_version),
-      organizationId: (row.organization_id as string | null) ?? null,
-      establishmentId: (row.establishment_id as string | null) ?? null,
-      actorType: String(row.actor_type),
-      actorId: (row.actor_id as string | null) ?? null,
-      aggregateType: String(row.aggregate_type),
-      aggregateId: String(row.aggregate_id),
-      correlationId: String(row.correlation_id),
-      causationId: (row.causation_id as string | null) ?? null,
-      requestId: (row.request_id as string | null) ?? null,
-      dataClassification: String(row.data_classification),
-      purpose: String(row.purpose),
-      payload: row.payload_json as Record<string, unknown>,
+      id: String(data.id),
+      eventType: String(data.event_type),
+      eventVersion: Number(data.event_version),
+      organizationId: (data.organization_id as string | null) ?? null,
+      establishmentId: (data.establishment_id as string | null) ?? null,
+      actorType: String(data.actor_type),
+      actorId: (data.actor_id as string | null) ?? null,
+      aggregateType: String(data.aggregate_type),
+      aggregateId: String(data.aggregate_id),
+      correlationId: String(data.correlation_id),
+      causationId: (data.causation_id as string | null) ?? null,
+      requestId: (data.request_id as string | null) ?? null,
+      dataClassification: String(data.data_classification),
+      purpose: String(data.purpose),
+      payload: (data.payload_json ?? {}) as Record<string, unknown>,
       status: 'PROCESSING',
-      attempts: Number(row.attempts),
-      lockedBy: (row.locked_by as string | null) ?? null,
-      occurredAt: new Date(String(row.occurred_at)),
-      recordedAt: new Date(String(row.recorded_at)),
+      attempts: Number(data.attempts),
+      lockedBy: (data.locked_by as string | null) ?? null,
+      occurredAt: new Date(String(data.occurred_at)),
+      recordedAt: new Date(String(data.recorded_at)),
     };
   }
 }
