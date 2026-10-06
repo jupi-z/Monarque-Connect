@@ -91,11 +91,19 @@ Les dépenses, documents et opportunités peuvent référencer un projet lorsque
 `Conversation` : relation entre deux organisations autorisées.  
 `Message` : message immuable, auteur utilisateur + organisation d'origine.
 
-## Intelligence
+## Intelligence et AI-native foundation
 
+`DomainEvent` : fait métier immuable décrit par l'envelope canonique.  
+`OutboxEvent` : événement durable enregistré dans la transaction métier avant publication.  
 `MetricSnapshot` : valeur calculée d'un KPI à un instant donné.  
 `InsightRule` : règle déterministe d'analyse/alerte.  
-`InsightAlert` : alerte créée par une règle.
+`InsightAlert` : alerte créée par une règle.  
+`KnowledgeRecord` : projection reconstruisible destinée au retrieval gouverné ; jamais source de vérité.  
+`OrganizationAiPolicy` : politique tenant pour activation IA, classes de données autorisées et traitement externe.  
+`AiInferenceRun` : metadata d'une inference future : feature, modèle, finalité, coût/latence, statut, sans imposer le stockage du prompt brut.  
+`AgentDefinition` : définition versionnée d'un agent futur.  
+`AgentActionProposal` : proposition structurée d'action avant exécution.  
+`AgentActionExecution` : résultat auditable d'un tool/command exécuté avec délégation.
 
 Aucune donnée cross-tenant identifiable n'est exposée. Le benchmarking agrégé/anonymisé est hors MVP tant que gouvernance et critères d'anonymisation ne sont pas validés.
 
@@ -103,5 +111,4 @@ Aucune donnée cross-tenant identifiable n'est exposée. Le benchmarking agrég�
 
 `Document` : métadonnées métier.  
 `MediaObject` : objet de stockage.  
-`AuditEvent` : trace immuable des actions sensibles.  
-`OutboxEvent` : événement durable d'intégration.
+`AuditEvent` : trace immuable des actions sensibles.
