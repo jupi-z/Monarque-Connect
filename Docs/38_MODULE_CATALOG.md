@@ -8,6 +8,7 @@ Toujours présents techniquement :
 - ESTABLISHMENTS
 - MEMBERSHIPS
 - PLATFORM_SECURITY
+- DATA_PORTABILITY
 
 Ils peuvent avoir des quotas, mais ne sont pas désactivés comme des modules commerciaux.
 
