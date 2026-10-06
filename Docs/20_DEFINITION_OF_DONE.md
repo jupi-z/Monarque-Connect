@@ -85,3 +85,20 @@ Le MVP n'est terminé que lorsque :
 ## Canonical E2E
 
 - [ ] scénario de `15_TEST_STRATEGY.md` passe entièrement par HTTP.
+
+## AI-native foundation
+
+- [ ] Domain Event envelope implémenté et versionné
+- [ ] transactional outbox utilisée dès les domaines Phase 1
+- [ ] consumers idempotents
+- [ ] actor USER/SYSTEM/AGENT/PLATFORM supporté par le contrat
+- [ ] classification et purpose présents dans les événements
+- [ ] correlation/causation/request IDs propagés
+- [ ] aucun secret dans les événements
+- [ ] Core totalement fonctionnel sans fournisseur IA
+- [ ] aucun accès IA direct à PostgreSQL
+- [ ] data provenance contract documenté et testable
+- [ ] AI policy default trainingOptIn=false
+- [ ] AI Gateway/provider abstraction définie avant première inference
+- [ ] action agentique future obligatoirement via commands/tools
+- [ ] sécurité prompt injection/retrieval couverte avant première feature IA
