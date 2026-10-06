@@ -1,0 +1,9 @@
+# Backend core: review by backend owner
+/src/ @jupi-z
+/prisma/ @jupi-z
+/openapi/ @jupi-z
+/scripts/ @jupi-z
+/.github/workflows/ @jupi-z
+
+# Normative documentation
+/Docs/ @jupi-z
