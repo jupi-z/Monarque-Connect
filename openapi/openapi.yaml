@@ -695,6 +695,16 @@ paths:
       responses:
         "201": { description: Plan version created }
 
+
+  /platform/organizations/{organizationId}/verification:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    patch:
+      tags: [Platform]
+      operationId: platformSetOrganizationVerification
+      responses:
+        "200": { description: Organization verification status updated }
+
   /platform/organizations/{organizationId}/subscription:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
