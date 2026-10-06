@@ -18,7 +18,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "openapi:validate": "node scripts/validate-openapi.mjs",
-    "contracts:validate": "node scripts/validate-contracts.mjs"
+    "contracts:validate": "node scripts/validate-contracts.mjs",
+    "prisma:validate": "prisma validate"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.0",
