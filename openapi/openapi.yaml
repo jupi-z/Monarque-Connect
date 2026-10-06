@@ -528,6 +528,7 @@ paths:
 
   /network/organizations:
     get:
+      security: []
       tags: [Network]
       operationId: discoverOrganizations
       parameters:
@@ -551,10 +552,33 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
 
 
+
+  /network/organizations/{organizationId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      security: []
+      tags: [Network]
+      operationId: getPublicNetworkOrganization
+      responses:
+        "200": { description: Public organization profile }
+        "404": { description: Profile not public or not found }
+
+  /network/organizations/{organizationId}/catalog:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      security: []
+      tags: [Network]
+      operationId: getPublicNetworkOrganizationCatalog
+      responses:
+        "200": { description: Public catalog projection for the organization }
+
   /network/organizations/{organizationId}/trust:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
     get:
+      security: []
       tags: [Network]
       operationId: getNetworkOrganizationTrust
       responses:
