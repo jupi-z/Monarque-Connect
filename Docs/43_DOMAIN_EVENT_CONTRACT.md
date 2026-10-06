@@ -4,7 +4,7 @@
 
 Le contrat événementiel constitue la mémoire structurée du système et le point d'ancrage futur de Monarque Intelligence.
 
-Le schéma machine-readable de référence est `contracts/domain-event.schema.json`.
+Le schéma machine-readable de référence est `contracts/domain-event.schema.json`. L'implémentation concrète du worker, des leases, retries et receipts est figée dans `50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`.
 
 ## Envelope canonique
 
