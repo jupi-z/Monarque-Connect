@@ -11,8 +11,8 @@ Avant toute feature métier :
 - [x] `npm run typecheck` vert ;
 - [x] `npm test` vert ;
 - [x] `npm run build` vert ;
-- [ ] PostgreSQL 17 démarre via Docker ;
-- [ ] health live/ready répondent par HTTP ;
+- [x] PostgreSQL 17 démarre via conteneur Docker en CI ;
+- [x] health live/ready répondent par HTTP en CI ;
 - [x] OpenAPI validée ;
 - [x] première PR de fondation fusionnée.
 
