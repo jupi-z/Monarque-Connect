@@ -14,7 +14,8 @@ La baseline v1.2 est prête avant Phase 1 si :
 - [x] transactional outbox obligatoire pour événements critiques ;
 - [x] at-least-once + consumers idempotents ;
 - [x] versionnement des événements défini ;
-- [x] correlation/causation/request IDs définis.
+- [x] correlation/causation/request IDs définis ;
+- [x] schemas JSON contractuels ajoutés et validés en CI.
 
 ## Data Governance
 
@@ -57,4 +58,4 @@ La baseline v1.2 est prête avant Phase 1 si :
 
 ## Exécution
 
-La première implémentation doit construire le socle Event Fabric/provenance avec Phase 1, sans implémenter prématurément un chatbot ou un agent généraliste.
+La Phase 0.5 doit implémenter le socle Event Fabric/provenance avant Phase 1, sans implémenter prématurément un chatbot ou un agent généraliste.
