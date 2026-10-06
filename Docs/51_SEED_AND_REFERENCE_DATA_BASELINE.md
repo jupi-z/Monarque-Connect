@@ -142,3 +142,12 @@ Le seed :
 - ne réécrit pas une version de plan déjà utilisée ;
 - échoue si une modification destructive non versionnée est détectée ;
 - peut être rejoué en CI et staging.
+
+## 9. Backfill Phase 2
+
+Au déploiement initial de Phase 2 :
+- toute organization ACTIVE sans subscription reçoit `CONNECT v1` ;
+- les activations initiales sont calculées depuis son business type ;
+- l'opération est idempotente ;
+- une organization déjà sous subscription n'est pas modifiée ;
+- le backfill est testé sur base vide et base issue de Phase 1.
