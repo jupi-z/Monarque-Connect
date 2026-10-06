@@ -1,0 +1,10 @@
+{
+  "name": "monarque-connect-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=24 <25"},
+  "scripts": {"build":"tsc -p tsconfig.json","lint":"eslint src tests --ext .ts","typecheck":"tsc -p tsconfig.json --noEmit","test":"vitest run","test:e2e":"vitest run tests/e2e --hookTimeout=60000","start":"node dist/src/main.js","start:dev":"tsx watch src/main.ts","prisma:generate":"prisma generate","prisma:migrate":"prisma migrate dev","prisma:deploy":"prisma migrate deploy"},
+  "dependencies": {"@nestjs/common":"^12.1.0","@nestjs/config":"^12.0.1","@nestjs/core":"^12.1.0","@nestjs/platform-express":"^12.1.0","@prisma/adapter-pg":"^7.10.0","@prisma/client":"^7.10.0","argon2":"^0.45.1","class-transformer":"^0.5.1","class-validator":"^0.14.2","helmet":"^8.1.0","jose":"^6.2.12","pg":"^8.23.0","reflect-metadata":"^0.2.2","rxjs":"^7.8.2","uuid":"^13.0.0"},
+  "devDependencies": {"@eslint/js":"^9.39.5","@types/node":"^24.0.0","eslint":"^9.39.5","prettier":"^3.6.2","prisma":"^7.10.0","supertest":"^7.3.0","tsx":"^4.20.3","typescript":"^5.9.2","typescript-eslint":"^8.70.1","vitest":"^5.0.1"}
+}
