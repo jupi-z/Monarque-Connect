@@ -1,13 +1,33 @@
 # 26 — Glossaire
 
-- **Tenant** : organisation cliente isolée logiquement.
+- **Tenant** : organisation cliente et frontière principale d'isolation.
+- **Business Type** : classification métier utilisée pour proposer des presets, sans valeur d'autorisation.
+- **Establishment** : établissement opérationnel d'un tenant : siège, agence, boutique, bureau, etc.
 - **Membership** : rattachement utilisateur↔organisation.
-- **Party** : client/fournisseur local.
+- **Establishment Scope** : ensemble des établissements sur lesquels un membership peut agir.
+- **Module Definition** : capacité fonctionnelle canonique identifiable par un code stable.
+- **Plan** : offre commerciale versionnée définissant un ensemble de capacités et limites par défaut.
+- **Subscription** : rattachement courant d'une organisation à une version de plan.
+- **Entitlement** : droit fonctionnel effectif accordé à une organisation pour un module/capacité.
+- **Module Activation** : choix de configuration d'utiliser ou non un module déjà autorisé.
+- **Quota** : limite mesurable associée à une capacité ou ressource.
+- **Capabilities** : projection API des capacités effectives et du contexte accessible à un utilisateur.
+- **Party** : client/fournisseur local au tenant.
 - **Network Organization** : entreprise Monarque Connect visible dans le réseau.
-- **Quote** : devis.
+- **Network Inquiry** : demande commerciale B2B convertible en lead/opportunity.
+- **Quote** : devis client.
+- **Supplier RFQ** : demande de prix envoyée à un ou plusieurs fournisseurs.
 - **SalesOrder** : commande client.
-- **Invoice** : facture.
+- **PurchaseOrder** : commande fournisseur.
+- **GoodsReceipt** : réception fournisseur.
+- **Invoice** : facture client.
 - **PaymentRecord** : enregistrement d'un encaissement constaté.
+- **CashAccount** : caisse logique d'un établissement.
+- **CashMovement** : mouvement append-only d'entrée/sortie de caisse.
+- **Business OS** : fonctions permettant à l'entreprise d'exécuter ses opérations.
+- **Network** : couche de visibilité et d'interaction économique B2B.
+- **Intelligence** : KPI, projections, règles et alertes opérationnelles.
+- **Control Plane** : système Monarque Group de gestion des tenants, plans, entitlements, quotas et opérations plateforme.
 - **Outbox** : table d'événements durables.
 - **Platform** : plan d'administration Monarque Group.
 - **Client** : application consommatrice de l'API, jamais source de vérité métier.
