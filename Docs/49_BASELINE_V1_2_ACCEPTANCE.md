@@ -58,4 +58,4 @@ La baseline v1.2 est prête avant Phase 1 si :
 
 ## Exécution
 
-La Phase 0.5 doit implémenter le socle Event Fabric/provenance avant Phase 1, sans implémenter prématurément un chatbot ou un agent généraliste.
+La Phase 0.5 doit implémenter le socle Event Fabric/provenance avant Phase 1, selon `50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`, sans implémenter prématurément un chatbot ou un agent généraliste.
