@@ -57,3 +57,31 @@ Les données partagées via NetworkInquiry, RFQ réseau ou messagerie sont des p
 ## Principe
 
 Une protection uniquement frontend est inexistante du point de vue sécurité. Les menus cachés et les feature flags client ne constituent jamais un contrôle d'accès.
+
+## Menaces IA natives
+
+- prompt injection depuis messages/documents/pages ;
+- cross-tenant retrieval ;
+- exfiltration par tool ;
+- confusion contenu/instruction ;
+- hallucination présentée comme vérité métier ;
+- agent agissant avec permission excessive ;
+- replay/duplication d'action mutante ;
+- fournisseur conservant ou entraînant sur données non autorisées ;
+- modèle compromis/changé sans réévaluation ;
+- coûts d'inférence non bornés.
+
+## Contrôles IA
+
+- aucun accès DB direct pour modèles/agents ;
+- retrieval filtré avant recherche ;
+- contenu récupéré marqué untrusted ;
+- AI Gateway obligatoire ;
+- tool allowlist + schemas stricts ;
+- permissions et entitlements revalidés à l'exécution ;
+- confirmation humaine des actions à fort impact ;
+- idempotence des mutations ;
+- training opt-in=false ;
+- secrets exclus ;
+- kill switch feature/tenant/global ;
+- évaluation sécurité/qualité avant activation production.
