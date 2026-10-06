@@ -2,24 +2,53 @@
 
 Environnements : `development`, `test`, `staging`, `production`.
 
-## Config
-Validation fail-fast au démarrage.
+## Principe
 
-Variables minimales :
-- `DATABASE_URL`
+Toute configuration **utilisée par le code actif** est validée fail-fast au démarrage. Une verticale ajoute la validation de ses variables dans la même PR qui introduit leur usage.
+
+Cela évite deux erreurs opposées :
+- démarrer avec une configuration réellement requise mais invalide ;
+- exiger prématurément des secrets de modules qui n'existent pas encore.
+
+## Fondation active
+
+Variables actuellement utilisées :
+
+- `NODE_ENV` — défaut `development` ;
+- `PORT` — défaut `3000` ;
+- `DATABASE_URL` — obligatoire, PostgreSQL ;
+- `CORS_ORIGINS` — liste exacte séparée par virgules ; vide = aucun origin navigateur autorisé.
+
+`.env.example` contient uniquement des placeholders/données de développement.
+
+## Variables activées avec les verticales
+
+### Auth
 - `JWT_ISSUER`
 - `JWT_AUDIENCE`
 - clés de signature/rotation
+
+### Object storage / documents
 - `S3_ENDPOINT`
+- `S3_REGION`
 - `S3_BUCKET`
 - credentials storage
-- `CORS_ORIGINS`
-- email provider config
-- log level
 
-`.env.example` contient uniquement des placeholders.
+### Notifications futures
+- configuration fournisseur email/SMS selon la verticale concernée
 
-Production : secrets injectés par le système de déploiement, jamais commités.
+### Observabilité
+- niveau/configuration de logs selon l'implémentation retenue
+
+Chaque groupe devient obligatoire uniquement lorsque son module est implémenté.
+
+## Production
+
+- secrets injectés par le système de déploiement ;
+- jamais commités ;
+- rotation possible sans migration métier ;
+- CORS en allowlist exacte ;
+- aucune valeur de démonstration de `.env.example` réutilisée comme secret.
 
 ## Configuration IA future
 
