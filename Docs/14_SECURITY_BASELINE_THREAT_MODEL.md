@@ -17,6 +17,7 @@
 13. abus de messagerie, inquiries ou sourcing réseau.
 14. dépassement de quota par concurrence/race condition.
 15. cache client obsolète après downgrade, suspension ou retrait d'un module.
+16. export tenant utilisé comme vecteur d'exfiltration ou mélange cross-tenant.
 
 ## Contrôles
 
@@ -36,6 +37,7 @@
 - prepared queries via ORM ;
 - object storage privé ;
 - audit immuable ;
+- exports privés, expirants, sans secrets et tenant-scoped ;
 - secret scanning + dependency audit ;
 - CI sans secrets de prod ;
 - backup chiffré selon fournisseur ;
