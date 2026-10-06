@@ -3,7 +3,7 @@
 Avant toute feature métier :
 
 - [x] dépôt privé créé ;
-- [ ] `@Gabby344` a accepté l'invitation collaborateur ;
+- [x] `@Gabby344` a accepté l'invitation collaborateur ;
 - [ ] protection `main` configurée ;
 - [ ] `npm install` exécuté avec Node 24 ;
 - [ ] `package-lock.json` commité ;
