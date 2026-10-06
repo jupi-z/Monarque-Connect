@@ -1,0 +1,495 @@
+openapi: 3.1.0
+info:
+  title: Monarque Connect API
+  version: 0.1.0
+  description: API-first autonomous backend for Monarque Connect.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - { name: Health }
+  - { name: Auth }
+  - { name: Organizations }
+  - { name: Memberships }
+  - { name: Parties }
+  - { name: Catalog }
+  - { name: CRM }
+  - { name: Quotes }
+  - { name: Orders }
+  - { name: Invoices }
+  - { name: Payments }
+  - { name: Expenses }
+  - { name: Inventory }
+  - { name: Network }
+  - { name: Messaging }
+  - { name: Platform }
+
+paths:
+  /health/live:
+    get:
+      security: []
+      tags: [Health]
+      operationId: healthLive
+      responses:
+        "200": { description: Live }
+  /health/ready:
+    get:
+      security: []
+      tags: [Health]
+      operationId: healthReady
+      responses:
+        "200": { description: Ready }
+
+  /auth/register:
+    post:
+      security: []
+      tags: [Auth]
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "201": { description: Registered }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /auth/login:
+    post:
+      security: []
+      tags: [Auth]
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200": { description: Authenticated }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /auth/refresh:
+    post:
+      security: []
+      tags: [Auth]
+      operationId: refresh
+      responses:
+        "200": { description: Session rotated }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      responses:
+        "204": { description: Logged out }
+  /auth/me:
+    get:
+      tags: [Auth]
+      operationId: getMe
+      responses:
+        "200": { description: Current user }
+
+  /organizations:
+    get:
+      tags: [Organizations]
+      operationId: listMyOrganizations
+      responses:
+        "200": { description: Organizations }
+    post:
+      tags: [Organizations]
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOrganizationRequest" }
+      responses:
+        "201": { description: Organization created }
+
+  /organizations/{organizationId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Organizations]
+      operationId: getOrganization
+      responses:
+        "200": { description: Organization }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    patch:
+      tags: [Organizations]
+      operationId: updateOrganization
+      responses:
+        "200": { description: Organization updated }
+
+  /organizations/{organizationId}/members:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Memberships]
+      operationId: listMembers
+      responses:
+        "200": { description: Members }
+
+  /organizations/{organizationId}/invitations:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Memberships]
+      operationId: createInvitation
+      responses:
+        "201": { description: Invitation created }
+
+  /invitations/{token}/accept:
+    post:
+      security: []
+      tags: [Memberships]
+      operationId: acceptInvitation
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: Invitation accepted }
+
+  /organizations/{organizationId}/parties:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Parties]
+      operationId: listParties
+      responses:
+        "200": { description: Parties }
+    post:
+      tags: [Parties]
+      operationId: createParty
+      responses:
+        "201": { description: Party created }
+
+  /organizations/{organizationId}/items:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Catalog]
+      operationId: listItems
+      responses:
+        "200": { description: Items }
+    post:
+      tags: [Catalog]
+      operationId: createItem
+      responses:
+        "201": { description: Item created }
+
+  /organizations/{organizationId}/leads:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [CRM]
+      operationId: listLeads
+      responses:
+        "200": { description: Leads }
+    post:
+      tags: [CRM]
+      operationId: createLead
+      responses:
+        "201": { description: Lead created }
+
+  /organizations/{organizationId}/opportunities:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [CRM]
+      operationId: listOpportunities
+      responses:
+        "200": { description: Opportunities }
+    post:
+      tags: [CRM]
+      operationId: createOpportunity
+      responses:
+        "201": { description: Opportunity created }
+
+  /organizations/{organizationId}/quotes:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Quotes]
+      operationId: listQuotes
+      responses:
+        "200": { description: Quotes }
+    post:
+      tags: [Quotes]
+      operationId: createQuote
+      responses:
+        "201": { description: Quote created }
+
+  /organizations/{organizationId}/quotes/{quoteId}/send:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: quoteId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Quotes]
+      operationId: sendQuote
+      responses:
+        "200": { description: Quote sent }
+
+  /organizations/{organizationId}/quotes/{quoteId}/accept:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: quoteId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Quotes]
+      operationId: acceptQuote
+      responses:
+        "200": { description: Quote accepted }
+
+  /organizations/{organizationId}/quotes/{quoteId}/convert-to-order:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: quoteId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Quotes, Orders]
+      operationId: convertQuoteToOrder
+      responses:
+        "201": { description: Order created }
+
+  /organizations/{organizationId}/orders:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Orders]
+      operationId: listOrders
+      responses:
+        "200": { description: Orders }
+
+  /organizations/{organizationId}/orders/{orderId}/confirm:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Orders]
+      operationId: confirmOrder
+      responses:
+        "200": { description: Confirmed }
+
+  /organizations/{organizationId}/orders/{orderId}/convert-to-invoice:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Orders, Invoices]
+      operationId: convertOrderToInvoice
+      responses:
+        "201": { description: Invoice created }
+
+  /organizations/{organizationId}/invoices:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Invoices]
+      operationId: listInvoices
+      responses:
+        "200": { description: Invoices }
+
+  /organizations/{organizationId}/invoices/{invoiceId}/issue:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: invoiceId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Invoices]
+      operationId: issueInvoice
+      responses:
+        "200": { description: Issued }
+
+  /organizations/{organizationId}/invoices/{invoiceId}/payments:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: invoiceId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Payments]
+      operationId: recordPayment
+      responses:
+        "201": { description: Payment recorded }
+
+  /organizations/{organizationId}/expenses:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Expenses]
+      operationId: listExpenses
+      responses:
+        "200": { description: Expenses }
+    post:
+      tags: [Expenses]
+      operationId: createExpense
+      responses:
+        "201": { description: Expense created }
+
+  /organizations/{organizationId}/warehouses:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Inventory]
+      operationId: listWarehouses
+      responses:
+        "200": { description: Warehouses }
+    post:
+      tags: [Inventory]
+      operationId: createWarehouse
+      responses:
+        "201": { description: Warehouse created }
+
+  /organizations/{organizationId}/stock-movements:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Inventory]
+      operationId: createStockMovement
+      responses:
+        "201": { description: Stock movement created }
+
+  /network/organizations:
+    get:
+      tags: [Network]
+      operationId: discoverOrganizations
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200": { description: Public organization profiles }
+
+  /organizations/{organizationId}/connection-requests:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Network]
+      operationId: createConnectionRequest
+      responses:
+        "201": { description: Connection request created }
+
+  /organizations/{organizationId}/conversations:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Messaging]
+      operationId: listConversations
+      responses:
+        "200": { description: Conversations }
+    post:
+      tags: [Messaging]
+      operationId: createConversation
+      responses:
+        "201": { description: Conversation created }
+
+  /organizations/{organizationId}/conversations/{conversationId}/messages:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Messaging]
+      operationId: listMessages
+      responses:
+        "200": { description: Messages }
+    post:
+      tags: [Messaging]
+      operationId: sendMessage
+      responses:
+        "201": { description: Message sent }
+
+  /platform/organizations:
+    get:
+      tags: [Platform]
+      operationId: platformListOrganizations
+      responses:
+        "200": { description: Platform organizations }
+
+  /platform/users:
+    get:
+      tags: [Platform]
+      operationId: platformListUsers
+      responses:
+        "200": { description: Platform users }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Forbidden:
+      description: Insufficient permission
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Conflict:
+      description: State conflict
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, requestId]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        requestId: { type: string }
+        code: { type: string }
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, firstName, lastName]
+      properties:
+        email: { type: string, format: email }
+        phone: { type: string }
+        password: { type: string, minLength: 12, maxLength: 256 }
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [identifier, password]
+      properties:
+        identifier: { type: string }
+        password: { type: string }
+    CreateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [name, handle, defaultCurrency]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        legalName: { type: string, maxLength: 200 }
+        handle: { type: string, pattern: "^[a-z0-9][a-z0-9-]{2,49}$" }
+        defaultCurrency: { type: string, pattern: "^[A-Z]{3}$" }
