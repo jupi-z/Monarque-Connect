@@ -8,6 +8,13 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/monarque_connect_test
+      JWT_ISSUER: monarque-connect
+      JWT_AUDIENCE: monarque-connect-api
+      CORS_ORIGINS: http://localhost:3001
+      STORAGE_DRIVER: memory
     services:
       postgres:
         image: postgres:17
@@ -31,6 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - run: npm run prisma:generate
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run openapi:validate
