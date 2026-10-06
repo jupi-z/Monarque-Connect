@@ -38,3 +38,15 @@ Ajouter un business type ou une version de plan ne doit pas nécessiter de fork 
 ## Intelligence
 
 Les dashboards MVP doivent rester exploitables sans infrastructure analytique distribuée. Les calculs coûteux sont profilés avant introduction d'un datastore spécialisé.
+
+## AI-native NFR
+
+- émission outbox dans la même transaction : pas de fenêtre de perte entre état et événement ;
+- traitement eventuel : at-least-once, retry borné, dead-letter/review state documenté ;
+- event consumers horizontaux et idempotents ;
+- panne Intelligence/AI Gateway n'empêche pas login, ventes, achats, facturation, stock ou caisse ;
+- provider timeout configurable ;
+- coût IA mesurable par tenant/feature ;
+- retrieval tenant-scoped avant scoring/vector search ;
+- toute feature probabiliste possède kill switch sans migration de données ;
+- model/provider replacement ne change pas les contrats métier.
