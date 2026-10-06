@@ -9,6 +9,7 @@ La v1.1 restaure les éléments qui faisaient la force du concept original de Mo
 ### 1. Monarque Network
 Créer de la visibilité et des opportunités :
 - profil public ;
+- vérification et signaux de confiance publiables ;
 - catalogue public ;
 - découverte d'entreprises ;
 - connexions B2B ;
@@ -58,7 +59,7 @@ et :
 
 `Stock need → Supplier RFQ → Purchase Order → Goods Receipt → Inventory`.
 
-Les transactions structurées alimentent ensuite les KPI et alertes. Le réseau crée des opportunités ; le Business OS les transforme en opérations ; l'Intelligence rend l'historique utile ; le Control Plane permet d'exploiter le tout à l'échelle.
+Les transactions structurées alimentent ensuite les KPI et alertes. Le réseau crée des opportunités et de la confiance ; le Business OS les transforme en opérations ; l'Intelligence rend l'historique utile ; le Control Plane permet d'exploiter le tout à l'échelle.
 
 ## Modèle de configuration
 
