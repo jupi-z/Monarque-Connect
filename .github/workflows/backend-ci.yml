@@ -36,6 +36,7 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - run: npm run prisma:generate
       - name: Audit runtime dependency graph
         run: |
           npm audit --json > /tmp/npm-audit.json || true
@@ -43,7 +44,6 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run prisma:validate
-      - run: npm run prisma:generate
       - run: npm run prisma:deploy
       - run: npm run openapi:validate
       - run: npm run contracts:validate
