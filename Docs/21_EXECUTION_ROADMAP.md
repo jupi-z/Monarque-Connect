@@ -1,4 +1,4 @@
-# 21 — Roadmap d'exécution v1.1
+# 21 — Roadmap d'exécution v1.2
 
 La roadmap est ordonnée pour éviter de construire les modules métier avant les mécanismes qui déterminent **qui peut y accéder, dans quel tenant, dans quel établissement et sous quel plan**.
 
