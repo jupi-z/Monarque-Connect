@@ -24,3 +24,17 @@ Les frontends futurs doivent viser WCAG 2.2 AA sur les parcours critiques.
 
 ## Réseau
 Le backend doit rester utilisable dans des conditions de bande passante modeste : payloads bornés, pagination, compression HTTP, pas de sur-fetching massif.
+
+## Entitlements et permissions
+
+- résolution d'une capability courante : cible p95 ≤ 50 ms hors latence réseau, cache interne autorisé si invalidation sûre ;
+- retrait d'entitlement/suspension : aucune dépendance à l'expiration d'un cache client ;
+- agrégations et listes appliquent tenant + establishment scope avant calcul/pagination.
+
+## Évolutivité produit
+
+Ajouter un business type ou une version de plan ne doit pas nécessiter de fork applicatif. Ajouter un module peut nécessiter du code, mais son activation commerciale doit passer par le catalogue/entitlements communs.
+
+## Intelligence
+
+Les dashboards MVP doivent rester exploitables sans infrastructure analytique distribuée. Les calculs coûteux sont profilés avant introduction d'un datastore spécialisé.
