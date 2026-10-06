@@ -20,3 +20,14 @@ Variables minimales :
 `.env.example` contient uniquement des placeholders.
 
 Production : secrets injectés par le système de déploiement, jamais commités.
+
+## Configuration IA future
+
+Les credentials fournisseurs IA :
+- ne sont jamais présents dans Git ;
+- ne sont jamais exposés aux clients ;
+- sont injectés comme secrets de plateforme ;
+- sont séparés par environnement ;
+- sont rotatables sans changement métier.
+
+La sélection fournisseur/modèle est une configuration du AI Gateway/Model Registry, jamais une constante dispersée dans les modules métier.

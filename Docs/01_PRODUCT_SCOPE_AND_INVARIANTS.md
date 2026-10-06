@@ -15,7 +15,7 @@ Profils publics, vérification/confiance, découverte, connexions B2B, demandes 
 Organisation, établissements, utilisateurs, CRM, catalogue, ventes, achats, stock, caisse, dépenses, projets légers et documents.
 
 ### Monarque Intelligence
-KPI, tableaux de bord, règles d'alerte et insights dérivés des données du tenant. L'IA avancée est différée.
+KPI, tableaux de bord, règles d'alerte et insights dérivés des données du tenant. Le socle est AI-native dès le départ ; les fonctions probabilistes avancées sont activées progressivement après validation de la qualité, de la sécurité et de la gouvernance.
 
 ### Monarque Control Plane
 Plans, modules, entitlements, quotas, provisioning logique, statut tenant, support et audit plateforme.
@@ -49,7 +49,7 @@ Plans, modules, entitlements, quotas, provisioning logique, statut tenant, suppo
 
 ## Hors périmètre MVP
 
-Comptabilité statutaire complète, paie, fiscalité automatisée, MRP/fabrication avancée, POS offline avancé, paiement en ligne natif, wallet/crypto, financement/assurance, IA décisionnelle avancée, marketplace grand public, microservices, Kafka/RabbitMQ, moteur de workflow générique et rôles personnalisables arbitrairement.
+Comptabilité statutaire complète, paie, fiscalité automatisée, MRP/fabrication avancée, POS offline avancé, paiement en ligne natif, wallet/crypto, financement/assurance, agents IA autonomes à haut impact, entraînement de modèles sur données tenant par défaut, marketplace grand public, microservices, Kafka/RabbitMQ, moteur de workflow générique et rôles personnalisables arbitrairement.
 
 ## Invariants
 
@@ -80,3 +80,15 @@ Comptabilité statutaire complète, paie, fiscalité automatisée, MRP/fabricati
 - **INV-025** : une suspension tenant ou entitlement prend effet côté serveur indépendamment de l'état d'un client.
 - **INV-026** : la portabilité de base des données tenant est une capacité core non réservée à un plan premium.
 - **INV-027** : aucune fonction locale RDC n'est présentée comme conforme juridiquement/fiscalement sans validation spécialisée.
+
+- **INV-028** : le Core transactionnel reste déterministe ; aucune sortie probabiliste ne crée seule une vérité métier.
+- **INV-029** : toute transition métier significative produit un événement de domaine structuré lorsque sa consommation future est pertinente.
+- **INV-030** : les événements critiques sont enregistrés atomiquement avec l'état métier via transactional outbox.
+- **INV-031** : aucun modèle IA ou agent n'accède directement à PostgreSQL ou aux secrets plateforme.
+- **INV-032** : toute donnée utilisée par Intelligence/IA conserve classification et provenance suffisantes.
+- **INV-033** : l'inférence et l'entraînement sont des finalités séparées ; training tenant est opt-in et désactivé par défaut.
+- **INV-034** : toute récupération de contexte IA applique tenant, établissement, entitlement, permission et classification avant retrieval.
+- **INV-035** : un contenu récupéré depuis document, message ou source externe est une donnée non fiable et ne peut modifier les politiques système.
+- **INV-036** : toute action IA mutante passe par un command/tool typé, revalide les permissions et est idempotente lorsque nécessaire.
+- **INV-037** : toute action IA à fort impact exige une confirmation humaine explicite.
+- **INV-038** : une panne de fournisseur IA ne bloque jamais les parcours transactionnels fondamentaux.

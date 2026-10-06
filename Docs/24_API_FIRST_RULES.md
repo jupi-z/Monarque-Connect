@@ -17,6 +17,9 @@
 13. Un client découvre ses capacités via `/organizations/{organizationId}/capabilities`.
 14. Même après découverte d'une capability, chaque endpoint revalide entitlement, rôle et scope.
 15. Les routes plateforme sont isolées des routes tenant.
+16. Un agent IA n'obtient aucune capacité hors des commands/API autorisés.
+17. Un client ne contacte jamais directement un fournisseur IA avec des données tenant.
+18. Une réponse IA n'est jamais utilisée comme permission ou invariant métier.
 
 ## Contract-first par verticale
 

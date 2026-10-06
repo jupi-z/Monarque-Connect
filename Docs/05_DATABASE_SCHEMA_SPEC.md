@@ -194,3 +194,62 @@ Append-only pour audit/outbox ; clés d'idempotence scoped par actor/tenant/opé
 - toute table établissement-scopée doit vérifier cohérence `organization_id ↔ establishment_id` ;
 - les relations réseau sont les seules relations cross-organization explicitement autorisées ;
 - les entitlements et scopes sont testés en base réelle via E2E.
+
+## AI-native foundation
+
+### outbox_events
+
+L'Outbox devient un composant de fondation, pas uniquement une future intégration.
+
+Champs minimaux :
+`id`, `event_type`, `event_version`, `organization_id?`, `establishment_id?`, `actor_type`, `actor_id?`, `aggregate_type`, `aggregate_id`, `correlation_id`, `causation_id?`, `request_id?`, `data_classification`, `purpose`, `payload_json`, `occurred_at`, `recorded_at`, `status`, `attempts`, `next_attempt_at?`, `published_at?`.
+
+Index :
+- `(status, next_attempt_at)` ;
+- `(organization_id, occurred_at)` ;
+- `(aggregate_type, aggregate_id, occurred_at)` ;
+- `correlation_id`.
+
+Le payload ne contient jamais password, token, secret ou dump ORM complet.
+
+### organization_ai_policies
+
+Prépare les futures features IA sans les activer automatiquement :
+
+`organization_id`, `ai_features_enabled`, `external_model_processing_allowed`, `allowed_data_classes_json`, `training_opt_in` default false, `retention_preference?`, `updated_by`, `updated_at`.
+
+La policy ne peut jamais élargir les permissions utilisateur ni rendre légale une utilisation autrement interdite.
+
+### knowledge_records — future/projection
+
+Table ou datastore de projection futur, créée uniquement quand la première feature de retrieval le nécessite.
+
+Conceptuellement :
+`id`, `organization_id`, `establishment_id?`, `source_type`, `source_id`, `source_version_hash`, `content_type`, `data_classification`, `purpose`, `projection_json`, `valid_from`, `valid_to?`, timestamps.
+
+Ce datastore est reconstruisible depuis les sources autorisées.
+
+### ai_inference_runs — future runtime
+
+Metadata uniquement :
+`id`, `organization_id`, `initiating_user_id?`, `feature_code`, `provider`, `model_id`, `model_policy_version`, `correlation_id`, `input_classification`, `status`, `latency_ms?`, `input_units?`, `output_units?`, `estimated_cost?`, `started_at`, `completed_at?`.
+
+Les prompts/réponses bruts ne sont pas stockés par défaut.
+
+### agent_action_proposals / agent_action_executions — future runtime
+
+Préparent un audit fort des agents :
+- initiating user ;
+- agent definition/version ;
+- tenant/establishment ;
+- tool/command ;
+- arguments hash + représentation filtrée ;
+- action class ;
+- confirmation status ;
+- idempotency key ;
+- result/status ;
+- correlation/request IDs.
+
+## Règle d'introduction
+
+Seule `outbox_events` est requise dès les premières verticales. Les tables Knowledge/Inference/Agent sont créées lorsque les features correspondantes entrent réellement en implémentation afin d'éviter une infrastructure morte prématurée.

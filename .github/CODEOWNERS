@@ -2,6 +2,7 @@
 /src/ @jupi-z
 /prisma/ @jupi-z
 /openapi/ @jupi-z
+/contracts/ @jupi-z
 /scripts/ @jupi-z
 /.github/workflows/ @jupi-z
 

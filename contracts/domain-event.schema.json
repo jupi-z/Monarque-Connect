@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://monarque-connect.local/contracts/domain-event.schema.json",
+  "title": "Monarque Connect Domain Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "recordedAt",
+    "actor",
+    "aggregate",
+    "correlationId",
+    "dataClassification",
+    "purpose",
+    "payload"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+    "eventVersion": { "type": "integer", "minimum": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "organizationId": { "type": ["string", "null"], "format": "uuid" },
+    "establishmentId": { "type": ["string", "null"], "format": "uuid" },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["USER", "SYSTEM", "AGENT", "PLATFORM"] },
+        "id": { "type": ["string", "null"], "format": "uuid" }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "id": { "type": "string", "format": "uuid" }
+      }
+    },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "causationId": { "type": ["string", "null"], "format": "uuid" },
+    "requestId": { "type": ["string", "null"], "minLength": 1, "maxLength": 200 },
+    "dataClassification": {
+      "type": "string",
+      "enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
+    },
+    "purpose": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "payload": { "type": "object" }
+  }
+}

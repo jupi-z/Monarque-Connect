@@ -68,3 +68,15 @@ Avant chaque verticale :
 6. quotas si applicables ;
 7. tests contractuels ;
 8. seulement ensuite implémentation.
+
+## Contrats Intelligence / Agents
+
+Toute future API IA :
+- reste sous `/api/v1` ou version ultérieure ;
+- expose des DTO structurés, jamais un canal donnant un accès libre au backend ;
+- ne transmet pas les credentials fournisseur au client ;
+- ne permet pas de sélectionner arbitrairement des tools ou permissions ;
+- référence sources/provenance lorsque la feature l'exige ;
+- distingue réponse informative, brouillon, proposition d'action et action exécutée.
+
+Les actions agentiques mutantes utilisent les mêmes commands métier, idempotency rules et authorization policies que les actions humaines.

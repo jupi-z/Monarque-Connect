@@ -66,3 +66,23 @@ Les tests critiques utilisent PostgreSQL réel, pas SQLite.
 28. platform retire `PURCHASES` → endpoint purchases refuse immédiatement.
 
 Aucune UI n'entre dans ce scénario.
+
+## Tests AI-native de fondation
+
+Dès Phase 1 :
+- événement critique écrit dans la même transaction que l'état métier ;
+- rollback transactionnel => aucun OutboxEvent orphelin ;
+- retry consumer => effet idempotent ;
+- event envelope contient tenant/actor/correlation/classification attendus ;
+- aucun secret dans payload événementiel.
+
+Avant toute feature probabiliste :
+- cross-tenant retrieval impossible ;
+- establishment scope appliqué avant retrieval ;
+- prompt injection indirecte n'altère pas policies/tools ;
+- structured output invalide refusé ;
+- model timeout n'impacte pas le Core ;
+- high-impact action sans confirmation refusée ;
+- permission retirée entre proposition et exécution => action refusée ;
+- replay tool => pas de duplication ;
+- jeu d'évaluation versionné et seuils de release satisfaits.

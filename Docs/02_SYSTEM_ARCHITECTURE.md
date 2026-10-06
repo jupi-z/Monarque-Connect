@@ -66,15 +66,61 @@ Ces plans sont séparés par frontières de modules, permissions et contrats, sa
 - `conversations`
 - `messages`
 
-### Intelligence
+### Intelligence / AI foundation
+- `events`
+- `outbox`
 - `metrics`
 - `insights`
 - `alerts`
+- `knowledge` (projection layer)
+- `ai-policy`
+- `ai-gateway` (future runtime boundary)
+- `agents` (future runtime boundary)
 
 ### Platform / infrastructure
 - `platform`
 - `audit`
-- `outbox`
+
+## Architecture AI-native
+
+```text
+HTTP/API
+  ↓
+Application / Domain
+  ↓
+PostgreSQL transaction
+  ├─ état métier
+  └─ OutboxEvent
+        ↓
+     Event Fabric
+        ↓
+  ┌─────┴──────────────┐
+  │                    │
+Metrics/Alerts     Knowledge Projections
+  │                    │
+  └────────┬───────────┘
+           ↓
+   Intelligence Engine
+           ↓
+      AI Gateway
+           ↓
+    Model Providers
+           ↓
+    Agent Proposals
+           ↓
+ Commands/API du Core
+```
+
+Le chemin retour vers le Core passe uniquement par des commands/tools autorisés. Un modèle n'écrit jamais directement dans les tables métier.
+
+### Event Fabric
+PostgreSQL transactional outbox + workers idempotents au MVP. Kafka/RabbitMQ restent différés jusqu'à besoin mesuré.
+
+### Knowledge Layer
+Projection gouvernée et reconstruisible, jamais source de vérité.
+
+### AI Gateway
+Boundary provider-neutral pour toute future inference externe ou locale.
 
 ## Couches
 
@@ -102,7 +148,11 @@ Le contrôle est centralisé dans des policies/guards réutilisables. Aucun cont
 - entitlements = capacités effectives ;
 - activations = configuration tenant ;
 - permissions/scopes = autorisation utilisateur ;
-- aucune extraction microservice sans raison mesurée.
+- aucune extraction microservice sans raison mesurée ;
+- aucun SDK fournisseur IA dans les modules métier ;
+- tout événement critique est atomique avec la transaction qui l'a causé ;
+- tout consumer d'événement est idempotent ;
+- toute future action agentique repasse par les mêmes policies/commands que l'utilisateur.
 
 ## Clients
 

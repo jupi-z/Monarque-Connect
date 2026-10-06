@@ -1,6 +1,6 @@
 # Dossier documentaire normatif
 
-**Statut : FROZEN SPECIFICATION BASELINE v1.1**
+**Statut : FROZEN SPECIFICATION BASELINE v1.2 — AI-Native Foundation**
 
 Ce dossier constitue la source de vérité fonctionnelle, architecturale et opérationnelle de Monarque Connect.
 
@@ -49,6 +49,14 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `39_BASELINE_V1_1_ACCEPTANCE.md` | Checklist d'acceptation v1.1 |
 | `40_RDC_LOCALIZATION_BOUNDARY.md` | Localisation RDC et frontière de conformité |
 | `41_DATA_PORTABILITY_AND_EXPORT.md` | Portabilité et export tenant |
+| `42_AI_NATIVE_FOUNDATION.md` | Architecture AI-native |
+| `43_DOMAIN_EVENT_CONTRACT.md` | Event Fabric et contrat événementiel |
+| `44_DATA_PROVENANCE_CLASSIFICATION_AI_POLICY.md` | Provenance, classification et policy IA |
+| `45_KNOWLEDGE_LAYER_AND_RETRIEVAL.md` | Knowledge Layer / retrieval |
+| `46_AI_GATEWAY_AND_MODEL_GOVERNANCE.md` | AI Gateway et gouvernance modèles |
+| `47_AGENT_RUNTIME_AND_ACTION_POLICY.md` | Agents et politique d'action |
+| `48_AI_SECURITY_AND_EVALUATION.md` | Sécurité et évaluation IA |
+| `49_BASELINE_V1_2_ACCEPTANCE.md` | Acceptance AI-native v1.2 |
 
 ## Gel documentaire
 

@@ -26,3 +26,14 @@
 
 ## Compatibilité
 Le backend est la référence. Les clients sont compatibles avec une version API, jamais avec des classes internes.
+
+## Politique IA / analytique
+
+- aucun fournisseur/modèle IA n'est une dépendance du Core ;
+- aucun SDK fournisseur dans les modules métier ;
+- l'intégration IA future passe par un adapter `ai-gateway` ;
+- PostgreSQL + outbox suffisent au MVP pour Event Fabric ;
+- aucun vector database imposé avant besoin mesuré ;
+- aucun framework agentique imposé dans le socle ;
+- embeddings, model provider et runtime agentique sont des choix remplaçables ;
+- toute dépendance IA majeure exige revue sécurité, données, licence, coût et ADR.

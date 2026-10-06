@@ -46,3 +46,13 @@ Les clients maintiennent un établissement de travail sélectionné lorsque néc
 ## Repositories
 
 Chaque frontend vit dans un dépôt séparé. Le repo backend fournit le contrat, pas des composants UI.
+
+## Intelligence / IA
+
+Les clients :
+- appellent Monarque Connect, jamais directement un provider IA avec des données tenant ;
+- affichent clairement lorsqu'un contenu est généré/prédit ;
+- distinguent information, recommandation, brouillon et action confirmée ;
+- n'interprètent pas une suggestion IA comme état métier ;
+- demandent confirmation utilisateur quand le backend retourne `confirmationRequired=true`;
+- conservent les références/source IDs lorsque fournies pour permettre la vérification.
