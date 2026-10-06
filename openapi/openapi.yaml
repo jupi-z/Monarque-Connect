@@ -26,6 +26,7 @@ tags:
   - { name: Cash }
   - { name: Inventory }
   - { name: Projects }
+  - { name: Exports }
   - { name: Network }
   - { name: Messaging }
   - { name: Intelligence }
@@ -548,6 +549,16 @@ paths:
       responses:
         "201": { description: Commercial inquiry created }
         "403": { $ref: "#/components/responses/Forbidden" }
+
+
+  /network/organizations/{organizationId}/trust:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Network]
+      operationId: getNetworkOrganizationTrust
+      responses:
+        "200": { description: Public verification and explicitly published trust signals }
 
   /organizations/{organizationId}/network-inquiries:
     parameters:
