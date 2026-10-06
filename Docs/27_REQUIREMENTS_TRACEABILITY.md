@@ -1,8 +1,14 @@
 # 27 — Traçabilité
 
 Chaque exigence reçoit un identifiant dans les issues/PR :
+
 - `AUTH-*`
 - `TENANT-*`
+- `BTYPE-*`
+- `EST-*`
+- `MEMBER-*`
+- `ENT-*`
+- `QUOTA-*`
 - `PARTY-*`
 - `CAT-*`
 - `CRM-*`
@@ -10,16 +16,23 @@ Chaque exigence reçoit un identifiant dans les issues/PR :
 - `ORDER-*`
 - `INV-*`
 - `PAY-*`
+- `PUR-*`
 - `EXP-*`
+- `CASH-*`
 - `STOCK-*`
+- `PROJ-*`
 - `NET-*`
 - `MSG-*`
 - `DOC-*`
+- `INTEL-*`
 - `PLATFORM-*`
 - `SEC-*`
 - `OPS-*`
 
 Une feature PR référence :
-`requirement → endpoint → migration/table → tests → preuve CI`.
+
+`requirement → module_code → entitlement/policy → endpoint → migration/table → tests → preuve CI`.
+
+Pour une ressource établissement-scopée, la trace inclut aussi le test de scope.
 
 Aucune case cochée dans la DoD sans preuve.
