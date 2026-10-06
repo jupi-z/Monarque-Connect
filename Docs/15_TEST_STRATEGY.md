@@ -1,35 +1,66 @@
 # 15 — Stratégie de tests
 
 ## Pyramide
-- unit : règles pures ;
+
+- unit : règles pures, calcul d'entitlements, transitions ;
 - integration : PostgreSQL réel ;
 - contract : OpenAPI ;
 - E2E HTTP : use-cases ;
-- security : RBAC/tenant/ownership ;
-- concurrency : séquences, paiements, stock, invitations ;
+- security : RBAC/tenant/establishment/entitlement/ownership ;
+- concurrency : séquences, paiements, caisse, stock, quotas, invitations ;
 - migration : base vide + upgrade ;
 - performance : baseline staging.
 
+## Matrices obligatoires
+
+### Tenant isolation
+Pour chaque ressource tenantée : A peut accéder, B ne peut pas accéder.
+
+### Establishment isolation
+Un membre scoped sur établissement A ne voit ni ne modifie les ressources établissement B.
+
+### Entitlement
+Pour chaque module :
+1. plan autorise + module actif + permission → succès ;
+2. plan n'autorise pas → refus ;
+3. override DENY → refus ;
+4. module autorisé mais désactivé → refus fonctionnel ;
+5. entitlement retiré après session déjà ouverte → refus immédiat côté serveur.
+
+### RBAC
+Chaque rôle possède au moins un test positif et un test négatif par domaine critique.
+
 ## Base de données
+
 Les tests critiques utilisent PostgreSQL réel, pas SQLite.
 
-## E2E canonique
-API uniquement :
+## E2E canonique API-only
+
 1. register ;
-2. create organization ;
-3. invite second member ;
-4. create party ;
-5. create product ;
-6. create lead/opportunity ;
-7. quote → accepted ;
-8. order → confirmed ;
-9. invoice → issued ;
-10. payment → paid ;
-11. stock movement cohérent ;
-12. publish network profile ;
-13. second organization discovered ;
-14. connection accepted ;
-15. conversation + messages ;
-16. tenant A tente accès privé tenant B → refus.
+2. create organization de type `COMMERCE_DISTRIBUTION` ;
+3. établissement principal créé ;
+4. plan `BUSINESS` assigné par plateforme ;
+5. capabilities renvoie les modules attendus ;
+6. invite second member scoped sur l'établissement principal ;
+7. create customer et supplier ;
+8. create product + warehouse ;
+9. create lead/opportunity ;
+10. quote → accepted ;
+11. sales order → confirmed ;
+12. invoice → issued ;
+13. payment → paid ;
+14. cash movement cohérent ;
+15. supplier RFQ → purchase order → goods receipt ;
+16. stock entrant/sortant cohérent ;
+17. create project + task + expense liée ;
+18. publish network profile ;
+19. second organization discovered ;
+20. connection accepted ;
+21. network inquiry convertie en opportunity ;
+22. conversation + messages ;
+23. insight/KPI calculable ;
+24. user hors scope établissement → refus ;
+25. tenant A tente accès privé tenant B → refus ;
+26. platform retire `PURCHASES` → endpoint purchases refuse immédiatement.
 
 Aucune UI n'entre dans ce scénario.

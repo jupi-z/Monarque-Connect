@@ -14,3 +14,15 @@
 | ADR-010 | Pas de Redis/broker/search dédié en MVP | Accepted |
 | ADR-011 | PaymentRecord = constat d'encaissement, pas gateway | Accepted |
 | ADR-012 | Backend owner `@jupi-z` | Accepted |
+| ADR-013 | Produit structuré en Network + Business OS + Intelligence + Control Plane | Accepted |
+| ADR-014 | Business type = preset extensible, jamais mécanisme d'autorisation | Accepted |
+| ADR-015 | Plan + overrides = entitlement effectif | Accepted |
+| ADR-016 | Activation module séparée de l'entitlement | Accepted |
+| ADR-017 | Chaque organisation possède un établissement principal | Accepted |
+| ADR-018 | Ressources opérationnelles établissement-scopées | Accepted |
+| ADR-019 | Capabilities endpoint pour clients, sans délégation de sécurité | Accepted |
+| ADR-020 | Achats, caisse et projets légers font partie du MVP Business OS | Accepted |
+| ADR-021 | Intelligence MVP déterministe ; IA avancée différée | Accepted |
+| ADR-022 | Control Plane fait partie du backend propriétaire, avec rôles plateforme séparés | Accepted |
+| ADR-023 | NetworkInquiry est le pont Network → CRM | Accepted |
+| ADR-024 | Pas d'ERPNext/Frappe ni d'adapter de compatibilité dans l'architecture cible | Accepted |

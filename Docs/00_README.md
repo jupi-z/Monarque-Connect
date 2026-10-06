@@ -1,8 +1,8 @@
 # Dossier documentaire normatif
 
-**Statut : FROZEN SPECIFICATION BASELINE v1.0**
+**Statut : FROZEN SPECIFICATION BASELINE v1.1**
 
-Ce dossier constitue la source de vérité fonctionnelle, architecturale et opérationnelle de Monarque Connect MVP.
+Ce dossier constitue la source de vérité fonctionnelle, architecturale et opérationnelle de Monarque Connect.
 
 ## Documents
 
@@ -38,8 +38,16 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `28_CLIENT_INTEGRATION_CONTRACT.md` | Règles clients |
 | `29_FUTURE_EXTENSION_MAP.md` | Extensions |
 | `30_GITHUB_GOVERNANCE.md` | GitHub |
-| `31_BOOTSTRAP_CHECKLIST.md` | Bootstrap avant développement |
+| `31_BOOTSTRAP_CHECKLIST.md` | Bootstrap |
+| `32_PRODUCT_MODEL_V1_1.md` | Modèle produit à quatre piliers |
+| `33_BUSINESS_TYPES_PLANS_ENTITLEMENTS.md` | Types, plans et droits fonctionnels |
+| `34_ESTABLISHMENTS_AND_SCOPE.md` | Établissements et portée d'accès |
+| `35_CONTROL_PLANE_SPEC.md` | Control Plane SaaS |
+| `36_PURCHASES_CASH_PROJECTS.md` | Achats, caisse et projets légers |
+| `37_INTELLIGENCE_SPEC.md` | Intelligence opérationnelle |
+| `38_MODULE_CATALOG.md` | Catalogue canonique des modules |
+| `39_BASELINE_V1_1_ACCEPTANCE.md` | Checklist d'acceptation v1.1 |
 
 ## Gel documentaire
 
-Aucune PR ne peut modifier silencieusement une règle normative. Toute divergence entre code et baseline est un défaut à corriger.
+Toute divergence entre code et baseline est un défaut. Une modification du modèle produit, d'un entitlement, d'un invariant, d'un contrat API ou d'une frontière de module exige une modification documentaire explicite et, si structurante, un ADR.
