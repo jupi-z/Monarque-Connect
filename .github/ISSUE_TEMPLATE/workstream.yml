@@ -1,0 +1,33 @@
+name: Workstream declaration
+description: Choisir formellement une zone de contribution
+title: "[WORKSTREAM] "
+labels: ["workstream"]
+body:
+  - type: markdown
+    attributes:
+      value: "Le backend/API est réservé à @jupi-z sauf accord explicite."
+  - type: dropdown
+    id: primary
+    attributes:
+      label: Workstream principal
+      options:
+        - Business Web Client
+        - Platform Admin Client
+        - Design System / UX implementation
+        - QA / contract testing
+        - Documentation / developer experience
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Périmètre que je prends
+      description: Décrire ce qui sera livré et ce qui ne sera pas touché.
+    validations:
+      required: true
+  - type: textarea
+    id: milestones
+    attributes:
+      label: Premier jalon proposé
+    validations:
+      required: true
