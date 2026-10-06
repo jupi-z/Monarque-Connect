@@ -29,4 +29,4 @@ Le dépôt privé courant expose `main` comme non protégée. Tant que `#6` n'es
 
 ## Décision de lancement
 
-Le **socle technique est prêt pour Phase 0.5** (`#13`). La protection de branche est un hardening de gouvernance externe au code ; elle doit être résolue avant d'augmenter le volume de contributions, mais elle ne justifie pas de retarder l'implémentation du backend par `@jupi-z`.
+Le **socle technique est prêt et la Phase 0.5 Event Fabric est implémentée localement** (`#13`). Les preuves et commandes sont consignées dans `Docs/53_PHASE_0_5_STATUS.md`. La protection de branche est un hardening de gouvernance externe au code ; elle doit être résolue avant d'augmenter le volume de contributions.
