@@ -1,11 +1,11 @@
 import fs from 'node:fs/promises';
 
-const files = [
+const schemaFiles = [
   new URL('../contracts/domain-event.schema.json', import.meta.url),
   new URL('../contracts/agent-action-proposal.schema.json', import.meta.url),
 ];
 
-for (const file of files) {
+for (const file of schemaFiles) {
   const source = await fs.readFile(file, 'utf8');
   const schema = JSON.parse(source);
 
@@ -33,3 +33,33 @@ for (const file of files) {
 
   console.log(`Contract schema valid: ${file.pathname}`);
 }
+
+const eventSchema = JSON.parse(
+  await fs.readFile(new URL('../contracts/domain-event.schema.json', import.meta.url), 'utf8'),
+);
+const sampleEvent = JSON.parse(
+  await fs.readFile(
+    new URL('../contracts/examples/organization.created.v1.json', import.meta.url),
+    'utf8',
+  ),
+);
+
+for (const key of eventSchema.required) {
+  if (!(key in sampleEvent)) {
+    throw new Error(`Sample event is missing required property "${key}"`);
+  }
+}
+
+if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(sampleEvent.eventType)) {
+  throw new Error('Sample eventType does not match the canonical naming convention');
+}
+
+if (!['USER', 'SYSTEM', 'AGENT', 'PLATFORM'].includes(sampleEvent.actor?.type)) {
+  throw new Error('Sample actor.type is invalid');
+}
+
+if (!['PUBLIC', 'INTERNAL', 'CONFIDENTIAL', 'RESTRICTED'].includes(sampleEvent.dataClassification)) {
+  throw new Error('Sample dataClassification is invalid');
+}
+
+console.log('Contract example valid: organization.created.v1.json');
