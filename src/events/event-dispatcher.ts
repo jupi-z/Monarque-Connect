@@ -25,11 +25,12 @@ export class EventDispatcher {
     this.handlers.set(key, consumers);
   }
 
-  async dispatch(client: EventDbClient, event: ClaimedOutboxEvent): Promise<void> {
+  async dispatch(client: EventDbClient, event: ClaimedOutboxEvent): Promise<string[]> {
     const handlers = this.handlers.get(`${event.eventType}:${event.eventVersion}`);
     if (!handlers) {
       throw new PermanentEventError(`Unknown event handler: ${event.eventType} v${event.eventVersion}`);
     }
     for (const handler of handlers.values()) await handler(client, event);
+    return [...handlers.keys()];
   }
 }

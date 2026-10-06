@@ -19,6 +19,8 @@ La référence normative reste `Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`. Le
 - [x] fencing des leases par jeton de possession et rejet des transitions obsolètes ;
 - [x] fan-out de plusieurs consumers nommés pour un même type/version ;
 - [x] arrêt du worker après drainage du batch actif ;
+- [x] observabilité minimale : métriques outbox SQL, durées/résultats worker et logs structurés sans payload ;
+- [x] use-case Prisma transactionnel disponible et testé pour l'écriture fait + outbox ;
 - [x] runner worker exploitable via `npm run events:worker` ;
 - [x] aucun broker, fournisseur IA ou vector store ajouté ;
 - [x] migration appliquée localement sur PostgreSQL 17 ;
@@ -35,7 +37,7 @@ La référence normative reste `Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`. Le
 - `npm run prisma:deploy` — migrations appliquées, puis aucune migration en attente ;
 - `npm run openapi:validate` — 83 opérations valides ;
 - `npm run contracts:validate` — schémas et exemple valides ;
-- `npm test` — 12 fichiers, 34 tests, 0 échec ;
+- `npm test` — 14 fichiers, 37 tests, 0 échec ;
 - `npm run build` — succès ;
 - smoke HTTP live/ready avec PostgreSQL réel — `200` / `200`.
 

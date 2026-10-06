@@ -166,4 +166,34 @@ describe('OutboxRepository', () => {
     expect(staleStatus.rows[0]?.status).toBe('PROCESSING');
     expect(staleStatus.rows[0]?.claim_token).toBe(secondClaim.claimToken);
   });
+
+  it('reports operational outbox metrics without exposing payloads', async () => {
+    const event = createDomainEvent({
+      eventType: 'foundation.probe.recorded',
+      eventVersion: 1,
+      occurredAt: new Date().toISOString(),
+      actor: { type: 'SYSTEM' },
+      aggregate: { type: 'FoundationProbe', id: '0f8fad5b-d9cb-469f-a165-70867728950e' },
+      correlationId: '9f8fad5b-d9cb-469f-a165-70867728950e',
+      dataClassification: 'INTERNAL',
+      purpose: 'phase-0.5-proof',
+      payload: { value: 'metrics' },
+    });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await repository.enqueue(client, event);
+      await client.query('COMMIT');
+    } finally {
+      client.release();
+    }
+
+    const metrics = await repository.readOperationalMetrics(pool);
+    expect(metrics.pendingTotal).toBe(1);
+    expect(metrics.failedTotal).toBe(0);
+    expect(metrics.processingTotal).toBe(0);
+    expect(metrics.oldestPendingAt).toBeInstanceOf(Date);
+    expect(metrics.maxAttempts).toBe(0);
+    expect(metrics).not.toHaveProperty('payload');
+  });
 });

@@ -7,6 +7,7 @@ import { FoundationProbeConsumer } from './foundation-probe.consumer.js';
 import { FoundationProbeService } from './foundation-probe.service.js';
 import { OutboxRepository } from './outbox.repository.js';
 import { PrismaOutboxWriter } from './prisma-outbox.writer.js';
+import { PrismaFoundationProbeService } from './prisma-foundation-probe.service.js';
 
 function createDispatcher(consumer: FoundationProbeConsumer): EventDispatcher {
   const dispatcher = new EventDispatcher();
@@ -20,6 +21,7 @@ function createDispatcher(consumer: FoundationProbeConsumer): EventDispatcher {
     EventDatabase,
     OutboxRepository,
     PrismaOutboxWriter,
+    PrismaFoundationProbeService,
     FoundationProbeConsumer,
     FoundationProbeService,
     {
@@ -34,6 +36,6 @@ function createDispatcher(consumer: FoundationProbeConsumer): EventDispatcher {
         new EventWorker(database.pool, repository, dispatcher),
     },
   ],
-  exports: [EventDatabase, OutboxRepository, PrismaOutboxWriter, FoundationProbeService, EventDispatcher, EventWorker],
+  exports: [EventDatabase, OutboxRepository, PrismaOutboxWriter, PrismaFoundationProbeService, FoundationProbeService, EventDispatcher, EventWorker],
 })
 export class EventModule {}

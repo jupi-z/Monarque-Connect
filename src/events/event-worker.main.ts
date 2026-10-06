@@ -4,6 +4,7 @@ import { EventDispatcher } from './event-dispatcher.js';
 import { EventWorker } from './event-worker.js';
 import { FoundationProbeConsumer } from './foundation-probe.consumer.js';
 import { OutboxRepository } from './outbox.repository.js';
+import { JsonEventWorkerObserver } from './event-observability.js';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('DATABASE_URL is required for the event worker');
@@ -13,7 +14,7 @@ const repository = new OutboxRepository();
 const consumer = new FoundationProbeConsumer();
 const dispatcher = new EventDispatcher();
 dispatcher.register(consumer.consumerName, 'foundation.probe.recorded', 1, consumer.handle.bind(consumer));
-const worker = new EventWorker(pool, repository, dispatcher);
+const worker = new EventWorker(pool, repository, dispatcher, new JsonEventWorkerObserver());
 let stopping = false;
 let activeBatch: Promise<number> | undefined;
 let stopPromise: Promise<void> | undefined;

@@ -35,7 +35,40 @@ export interface ClaimOptions {
   maxAttempts?: number;
 }
 
+export interface OutboxOperationalMetrics {
+  pendingTotal: number;
+  processingTotal: number;
+  failedTotal: number;
+  oldestPendingAt: Date | null;
+  averageAttempts: number;
+  maxAttempts: number;
+}
+
 export class OutboxRepository {
+  async readOperationalMetrics(client: EventDbClient): Promise<OutboxOperationalMetrics> {
+    const result = await client.query(
+      `SELECT
+         count(*) FILTER (WHERE status = 'PENDING')::int AS pending_total,
+         count(*) FILTER (WHERE status = 'PROCESSING')::int AS processing_total,
+         count(*) FILTER (WHERE status = 'FAILED')::int AS failed_total,
+         min(recorded_at) FILTER (WHERE status = 'PENDING') AS oldest_pending_at,
+         COALESCE(avg(attempts), 0)::float AS average_attempts,
+         COALESCE(max(attempts), 0)::int AS max_attempts
+       FROM outbox_events`,
+    );
+    const row = result.rows[0] as Record<string, unknown>;
+    return {
+      pendingTotal: Number(row.pending_total),
+      processingTotal: Number(row.processing_total),
+      failedTotal: Number(row.failed_total),
+      oldestPendingAt: row.oldest_pending_at instanceof Date
+        ? row.oldest_pending_at
+        : typeof row.oldest_pending_at === 'string' ? new Date(row.oldest_pending_at) : null,
+      averageAttempts: Number(row.average_attempts),
+      maxAttempts: Number(row.max_attempts),
+    };
+  }
+
   async enqueue(client: EventDbClient, event: DomainEvent): Promise<void> {
     await client.query(
       `INSERT INTO outbox_events

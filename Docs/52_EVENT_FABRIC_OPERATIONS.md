@@ -45,9 +45,11 @@ ORDER BY recorded_at;
 
 Ne pas logger ou copier `payload_json` par défaut. Les erreurs persistées sont bornées et nettoyées ; une intervention manuelle de reprise doit être auditée dans la verticale qui l'introduira.
 
+Le worker expose des hooks d'observabilité sans payload brut : compteurs de succès/retry/échec, durée cumulée/maximale et résultats par type/version et consumer. Le runner écrit des événements JSON structurés contenant `eventId`, `eventType`, `eventVersion`, `correlationId`, `organizationId`, `attempt`, le résultat et la durée. Le repository fournit aussi les compteurs SQL `PENDING`, `PROCESSING`, `FAILED`, l'âge du plus ancien pending et les attempts moyen/maximal.
+
 ## Limites Phase 0.5
 
-Le runner actuel ne fournit pas encore de console d'administration, de dead-letter UI, de métriques Prometheus ou de rétention automatique. Aucun broker distribué, fournisseur IA, Knowledge Layer ou event sourcing n'est requis ni installé.
+Le runner actuel ne fournit pas encore de console d'administration, de dead-letter UI, de backend Prometheus ou de rétention automatique. Les hooks et métriques SQL minimaux de la spécification sont présents. Aucun broker distribué, fournisseur IA, Knowledge Layer ou event sourcing n'est requis ni installé.
 
 ## Développement
 

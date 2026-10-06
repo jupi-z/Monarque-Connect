@@ -4,6 +4,7 @@ import { EventDispatcher } from './event-dispatcher.js';
 import { runWithEventContext, workerContextFor } from './event-context.js';
 import { nextRetryAt } from './retry-policy.js';
 import { OutboxRepository } from './outbox.repository.js';
+import { EventWorkerMetrics, type EventWorkerObserver } from './event-observability.js';
 
 export interface WorkerProcessOptions {
   batchSize?: number;
@@ -18,6 +19,7 @@ export class EventWorker {
     private readonly pool: Pool,
     private readonly repository: OutboxRepository,
     private readonly dispatcher: EventDispatcher,
+    private readonly observer: EventWorkerObserver = new EventWorkerMetrics(),
   ) {}
 
   async processBatch(options: WorkerProcessOptions = {}): Promise<number> {
@@ -45,16 +47,18 @@ export class EventWorker {
   }
 
   private async processOne(event: Awaited<ReturnType<OutboxRepository['claimBatch']>>[number], maxAttempts: number, now: Date): Promise<void> {
+    const startedAt = Date.now();
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      await runWithEventContext(workerContextFor({
+      const consumers = await runWithEventContext(workerContextFor({
         eventId: event.id,
         correlationId: event.correlationId,
         ...(event.requestId ? { requestId: event.requestId } : {}),
       }), () => this.dispatcher.dispatch(client, event));
       await this.repository.markProcessed(client, event.id, event.claimToken);
       await client.query('COMMIT');
+      this.observer.recordProcessed(event, Date.now() - startedAt, consumers);
     } catch (error) {
       await client.query('ROLLBACK');
       try {
@@ -62,10 +66,13 @@ export class EventWorker {
         const safeError = sanitizeError(error);
         if (error instanceof Error && error.name === 'PermanentEventError') {
           await this.repository.markFailed(client, event.id, event.claimToken, safeError);
+          this.observer.recordFailed(event, Date.now() - startedAt);
         } else if (event.attempts >= maxAttempts) {
           await this.repository.markFailed(client, event.id, event.claimToken, safeError);
+          this.observer.recordFailed(event, Date.now() - startedAt);
         } else {
           await this.repository.markRetry(client, event.id, event.claimToken, nextRetryAt(event.attempts, now), safeError);
+          this.observer.recordRetry(event, Date.now() - startedAt);
         }
         await client.query('COMMIT');
       } catch (failureError) {
