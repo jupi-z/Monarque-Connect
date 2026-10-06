@@ -160,7 +160,8 @@ Token :
 - TTL initial 7 jours ;
 - usage unique.
 
-Acceptation :
+Acceptation via `POST /invitations/accept` avec le token dans le body, jamais dans l'URL.
+
 1. user authentifié ;
 2. email normalisé du user = email invitation ;
 3. token valide/non expiré/non révoqué ;
