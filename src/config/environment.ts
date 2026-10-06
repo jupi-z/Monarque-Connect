@@ -6,19 +6,19 @@ export interface Environment {
   DATABASE_URL: string;
   JWT_ISSUER: string;
   JWT_AUDIENCE: string;
-  JWT_PRIVATE_KEY_PATH?: string;
-  JWT_PUBLIC_KEY_PATH?: string;
+  JWT_PRIVATE_KEY_PATH?: string | undefined;
+  JWT_PUBLIC_KEY_PATH?: string | undefined;
   JWT_KEY_ID: string;
   JWT_ACCESS_TTL_SECONDS: number;
   JWT_REFRESH_TTL_SECONDS: number;
   CORS_ORIGINS: string;
   LOG_LEVEL: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
   STORAGE_DRIVER: 'memory' | 's3';
-  S3_ENDPOINT?: string;
-  S3_REGION?: string;
-  S3_BUCKET?: string;
-  S3_ACCESS_KEY_ID?: string;
-  S3_SECRET_ACCESS_KEY?: string;
+  S3_ENDPOINT?: string | undefined;
+  S3_REGION?: string | undefined;
+  S3_BUCKET?: string | undefined;
+  S3_ACCESS_KEY_ID?: string | undefined;
+  S3_SECRET_ACCESS_KEY?: string | undefined;
 }
 
 function requireString(
