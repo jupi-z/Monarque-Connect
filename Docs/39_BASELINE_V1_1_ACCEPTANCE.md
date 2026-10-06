@@ -45,6 +45,7 @@ La baseline v1.1 est considérée prête pour exécution uniquement si les point
 - [x] establishment endpoints définis ;
 - [x] purchases/cash/projects définis ;
 - [x] network trust/inquiries définis ;
+- [x] création d'inquiry porte une source organization explicite et vérifiée ;
 - [x] intelligence définie ;
 - [x] control plane défini.
 
