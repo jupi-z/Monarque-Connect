@@ -21,7 +21,8 @@ describe('validateEnvironment', () => {
   });
 
   it('fails when DATABASE_URL is missing', () => {
-    const { DATABASE_URL: _databaseUrl, ...invalid } = base;
+    const invalid: Record<string, unknown> = { ...base };
+    delete invalid.DATABASE_URL;
 
     expect(() => validateEnvironment(invalid)).toThrow(
       'DATABASE_URL is required',
