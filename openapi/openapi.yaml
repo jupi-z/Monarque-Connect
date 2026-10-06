@@ -217,13 +217,17 @@ paths:
       responses:
         "204": { description: Invitation revoked }
 
-  /invitations/{token}/accept:
+  /invitations/accept:
     post:
       tags: [Memberships]
       operationId: acceptInvitation
       parameters:
-        - { name: token, in: path, required: true, schema: { type: string } }
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AcceptInvitationRequest" }
       responses:
         "200": { description: Invitation accepted }
 
@@ -955,6 +959,12 @@ components:
       properties:
         currentPassword: { type: string, minLength: 1, maxLength: 128 }
         newPassword: { type: string, minLength: 15, maxLength: 128 }
+    AcceptInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { type: string, minLength: 32, maxLength: 1024 }
     CreateInvitationRequest:
       type: object
       additionalProperties: false
