@@ -34,6 +34,8 @@ Obligatoire pour :
 - stock correction ;
 - cash correction ;
 - connexion/inquiry B2B sensible ;
+- vérification/dé-vérification réseau ;
+- demande/génération/téléchargement d'export lorsque observable ;
 - actions plateforme/support.
 
 Audit append-only avec `requestId`, actor, tenant, establishment éventuel, cible, action, résultat et contexte filtré.
