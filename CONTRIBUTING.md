@@ -5,12 +5,13 @@ Le dépôt et le produit sont exploités sous l'autorité de Monarque Group S.A.
 
 ## Workflow
 - `main` doit rester déployable.
-- Branche courte : `feature/<scope>`, `fix/<scope>`, `docs/<scope>`.
+- Branche courte : `feature/<scope>`, `fix/<scope>`, `docs/<scope>`, `spec/<scope>` ou `chore/<scope>`.
 - Pull Request obligatoire.
 - CI verte obligatoire.
 - Revue obligatoire pour tout changement de sécurité, schéma, API ou architecture.
 - Squash merge recommandé.
 - Aucun push direct sur `main`.
+- Une branche fusionnée est supprimée et n'est pas réutilisée.
 
 ## Zones
 - Backend/API, DB, sécurité, migrations : owner principal `@jupi-z`.
