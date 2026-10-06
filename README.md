@@ -4,7 +4,7 @@
 **Propriétaire : Monarque Group S.A.S.**  
 **Maîtrise d'œuvre : LTEX**  
 **Backend owner : @jupi-z**  
-**Collaborateur : @Gabby344 (invitation en attente d'acceptation)**
+**Collaborateur : @Gabby344**
 
 Monarque Connect est un **Business Operating Network** : un socle de gestion opérationnelle pour entreprises, relié à un réseau B2B permettant aux organisations de se découvrir, se connecter et collaborer.
 
