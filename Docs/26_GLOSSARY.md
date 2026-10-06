@@ -14,6 +14,8 @@
 - **Capabilities** : projection API des capacités effectives et du contexte accessible à un utilisateur.
 - **Party** : client/fournisseur local au tenant.
 - **Network Organization** : entreprise Monarque Connect visible dans le réseau.
+- **Network Trust** : vérification plateforme et signaux de confiance explicitement publiés, sans score opaque au MVP.
+- **Published Credential** : certification ou référence qu'une organisation choisit de rendre visible.
 - **Network Inquiry** : demande commerciale B2B convertible en lead/opportunity.
 - **Quote** : devis client.
 - **Supplier RFQ** : demande de prix envoyée à un ou plusieurs fournisseurs.
@@ -30,4 +32,5 @@
 - **Control Plane** : système Monarque Group de gestion des tenants, plans, entitlements, quotas et opérations plateforme.
 - **Outbox** : table d'événements durables.
 - **Platform** : plan d'administration Monarque Group.
+- **Data Portability** : capacité core permettant au tenant d'exporter ses données principales dans un format exploitable.
 - **Client** : application consommatrice de l'API, jamais source de vérité métier.
