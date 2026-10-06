@@ -26,3 +26,6 @@
 | ADR-022 | Control Plane fait partie du backend propriétaire, avec rôles plateforme séparés | Accepted |
 | ADR-023 | NetworkInquiry est le pont Network → CRM | Accepted |
 | ADR-024 | Pas d'ERPNext/Frappe ni d'adapter de compatibilité dans l'architecture cible | Accepted |
+| ADR-025 | Network trust MVP = vérification + credentials publiés, sans score réputationnel opaque | Accepted |
+| ADR-026 | Portabilité/export des données tenant = capacité core non premium | Accepted |
+| ADR-027 | Localisation RDC séparée du core ; conformité réglementaire seulement après validation spécialisée | Accepted |
