@@ -11,6 +11,9 @@ Avant toute implémentation de Phase 0.5 ou feature métier :
 - [x] `npm run typecheck` vert ;
 - [x] `npm test` vert ;
 - [x] `npm run build` vert ;
+- [ ] configuration fail-fast validée en CI ;
+- [ ] `npm run prisma:generate` vert ;
+- [ ] readiness vérifie réellement PostgreSQL ;
 - [x] PostgreSQL 17 démarre via conteneur Docker en CI ;
 - [x] health live/ready répondent par HTTP en CI ;
 - [x] OpenAPI validée ;
