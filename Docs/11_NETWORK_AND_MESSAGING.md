@@ -6,7 +6,25 @@ Une organisation choisit explicitement si son profil est public. Seuls les champ
 
 Le type d'entreprise et les catégories publiques servent à la découverte ; ils n'exposent aucune donnée opérationnelle privée.
 
-## 2. Découverte
+## 2. Vérification et confiance
+
+Le MVP restaure la dimension de confiance du concept initial sans introduire de notation opaque.
+
+Le profil peut afficher :
+- statut de vérification Monarque Connect ;
+- date/expiration de vérification si pertinente ;
+- certifications/références que l'entreprise choisit de publier ;
+- complétude de profil non sensible.
+
+Ne font pas partie du MVP :
+- étoiles/avis publics ;
+- score réputationnel propriétaire opaque ;
+- classement automatique d'entreprises ;
+- publication de pièces justificatives sensibles.
+
+La vérification est gérée par le Control Plane et auditée.
+
+## 3. Découverte
 
 Le réseau permet la recherche d'organisations par :
 - nom ;
@@ -17,13 +35,13 @@ Le réseau permet la recherche d'organisations par :
 
 Le moteur de recherche dédié reste différé ; PostgreSQL suffit au MVP.
 
-## 3. Connexion
+## 4. Connexion
 
 `PENDING → ACCEPTED | DECLINED | CANCELLED`.
 
 Pas d'auto-connexion à soi-même. Une paire acceptée est unique.
 
-## 4. Network Inquiry
+## 5. Network Inquiry
 
 Une organisation authentifiée peut envoyer une demande commerciale à une autre organisation visible si ses règles de contact le permettent.
 
@@ -34,7 +52,7 @@ Le destinataire peut convertir l'inquiry en Lead/Opportunity sans recopier manue
 Cette liaison matérialise la boucle :
 `Network → CRM → Sales → historique opérationnel`.
 
-## 5. Sourcing / RFQ réseau
+## 6. Sourcing / RFQ réseau
 
 Le module `PURCHASES` peut envoyer une SupplierRFQ à :
 - un fournisseur interne au tenant ;
@@ -42,11 +60,11 @@ Le module `PURCHASES` peut envoyer une SupplierRFQ à :
 
 Le fournisseur réseau ne voit que la RFQ qui lui est adressée et les données explicitement partagées. Aucun accès au back-office de l'acheteur n'est créé.
 
-## 6. Linking BusinessParty
+## 7. Linking BusinessParty
 
 Une organisation peut lier un `BusinessParty` local à une organization du réseau. Ce lien sert à éviter les doublons et à fluidifier les transactions, sans fusion de données privées.
 
-## 7. Messagerie
+## 8. Messagerie
 
 Une conversation B2B n'est créée que si la policy réseau l'autorise.
 
@@ -59,7 +77,7 @@ Messages :
 
 Aucun utilisateur d'une entreprise ne peut lire les conversations d'une entreprise dont il n'est pas membre.
 
-## 8. Anti-abus MVP
+## 9. Anti-abus MVP
 
 - rate limiting des inquiries/messages ;
 - blocage organisation↔organisation possible ;
@@ -67,9 +85,10 @@ Aucun utilisateur d'une entreprise ne peut lire les conversations d'une entrepri
 - statut de connexion vérifié côté serveur ;
 - pas d'envoi de masse non sollicité dans le MVP.
 
-## 9. Entitlements
+## 10. Entitlements
 
 - visibilité réseau : `NETWORK_PROFILE` ;
+- confiance/vérification : `NETWORK_TRUST` ;
 - découverte : `NETWORK_DISCOVERY` ;
 - inquiry : `NETWORK_INQUIRIES` ;
 - connexions : `NETWORK_CONNECTIONS` ;
