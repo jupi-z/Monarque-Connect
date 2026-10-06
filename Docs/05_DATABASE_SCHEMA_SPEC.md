@@ -148,6 +148,14 @@ Tenant + establishment + purchase order, warehouse, quantities reçues. Confirma
 ### organization_profiles
 Projection publique explicitement activée.
 
+### organization_verifications
+`organization_id`, `status`, `level?`, `verified_at?`, `expires_at?`, `reviewed_by_platform_user_id?`, `internal_reason?`.  
+Les preuves sensibles de vérification ne sont jamais exposées directement dans le profil public.
+
+### published_credentials
+`id`, `organization_id`, `title`, `issuer?`, `reference?`, `valid_from?`, `expires_at?`, `document_id?`, `public`.  
+Seuls les credentials `public=true` sont exposables.
+
 ### connection_requests / business_connections
 Relations B2B entre organizations.
 
