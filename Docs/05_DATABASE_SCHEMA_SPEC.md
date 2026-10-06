@@ -202,7 +202,7 @@ Append-only pour audit/outbox ; clés d'idempotence scoped par actor/tenant/opé
 L'Outbox devient un composant de fondation, pas uniquement une future intégration.
 
 Champs minimaux :
-`id`, `event_type`, `event_version`, `organization_id?`, `establishment_id?`, `actor_type`, `actor_id?`, `aggregate_type`, `aggregate_id`, `correlation_id`, `causation_id?`, `request_id?`, `data_classification`, `purpose`, `payload_json`, `occurred_at`, `recorded_at`, `status`, `attempts`, `next_attempt_at?`, `published_at?`.
+`id`, `event_type`, `event_version`, `organization_id?`, `establishment_id?`, `actor_type`, `actor_id?`, `aggregate_type`, `aggregate_id`, `correlation_id`, `causation_id?`, `request_id?`, `data_classification`, `purpose`, `payload_json`, `occurred_at`, `recorded_at`, `status`, `attempts`, `next_attempt_at`, `locked_at?`, `locked_by?`, `last_error_code?`, `last_error_at?`, `published_at?`.
 
 Index :
 - `(status, next_attempt_at)` ;
@@ -211,6 +211,15 @@ Index :
 - `correlation_id`.
 
 Le payload ne contient jamais password, token, secret ou dump ORM complet.
+
+### event_consumptions
+
+Receipt durable par consumer :
+`event_id`, `consumer_code`, `processed_at`.
+
+PK unique `(event_id, consumer_code)`.
+
+Lorsqu'un consumer produit un effet durable, cet effet et son receipt sont écrits dans la même transaction. Un retry peut constater le receipt et ne pas répéter l'effet.
 
 ### organization_ai_policies
 
