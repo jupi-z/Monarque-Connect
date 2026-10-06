@@ -22,6 +22,7 @@ La baseline v1.1 réintroduit les forces structurelles de Monarque Connect sans 
 - manufacturing/MRP ;
 - tax engine ;
 - financement/assurance/logistique partenaires ;
+- avis publics, notation et score réputationnel avancé ;
 - marketplace transactionnelle ;
 - microservices si un besoin réel les justifie.
 
