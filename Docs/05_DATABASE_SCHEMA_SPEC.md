@@ -202,7 +202,7 @@ Append-only pour audit/outbox ; clés d'idempotence scoped par actor/tenant/opé
 L'Outbox devient un composant de fondation, pas uniquement une future intégration.
 
 Champs minimaux :
-`id`, `event_type`, `event_version`, `organization_id?`, `establishment_id?`, `actor_type`, `actor_id?`, `aggregate_type`, `aggregate_id`, `correlation_id`, `causation_id?`, `request_id?`, `data_classification`, `purpose`, `payload_json`, `occurred_at`, `recorded_at`, `status`, `attempts`, `next_attempt_at?`, `published_at?`.
+`id`, `event_type`, `event_version`, `organization_id?`, `establishment_id?`, `actor_type`, `actor_id?`, `aggregate_type`, `aggregate_id`, `correlation_id`, `causation_id?`, `request_id?`, `data_classification`, `purpose`, `payload_json`, `occurred_at`, `recorded_at`, `status`, `attempts`, `next_attempt_at?`, `locked_at?`, `locked_by?`, `processed_at?`, `last_error_code?`, `last_error_message?`.
 
 Index :
 - `(status, next_attempt_at)` ;
@@ -211,6 +211,13 @@ Index :
 - `correlation_id`.
 
 Le payload ne contient jamais password, token, secret ou dump ORM complet.
+
+### event_consumer_receipts
+
+`id`, `consumer_name`, `event_id`, `processed_at`.  
+Contrainte unique `(consumer_name, event_id)` afin de rendre les consumers DB internes idempotents.
+
+Le comportement de claim, lease, retry, FAILED et replay est figé dans `50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`.
 
 ### organization_ai_policies
 
