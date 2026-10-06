@@ -15,7 +15,7 @@ La baseline v1.1 réintroduit les forces structurelles de Monarque Connect sans 
 - moteur de recherche dédié ;
 - API keys / intégrations tierces ;
 - webhooks publics ;
-- IA générative/décisionnelle ;
+- agents IA autonomes avancés et multi-step à haut impact ;
 - benchmarking cross-tenant ;
 - rôles personnalisés ;
 - multi-warehouse avancé ;
@@ -36,3 +36,16 @@ Toute extension :
 5. fournit contrat OpenAPI, migration, tests, audit et rollback/forward-fix ;
 6. conserve les IDs et historiques existants ;
 7. ne peut pas réintroduire ERPNext/Frappe comme dépendance métier cachée sans nouvel ADR explicitement approuvé.
+
+## Intelligence future
+
+Les fondations AI-native, Event Fabric, provenance et AI Gateway ne sont pas des extensions futures : elles font partie de la baseline.
+
+Restent différés jusqu'à validation :
+- embeddings/vector search à grande échelle ;
+- modèles de prévision avancés ;
+- assistants conversationnels généralistes ;
+- agents multi-outils autonomes ;
+- fine-tuning/training sur données tenant ;
+- benchmarking intelligent cross-tenant ;
+- décisions automatisées à impact financier/juridique.
