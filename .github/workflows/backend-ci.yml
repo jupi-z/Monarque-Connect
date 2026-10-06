@@ -36,3 +36,16 @@ jobs:
       - run: npm run openapi:validate
       - run: npm test
       - run: npm run build
+      - name: Smoke HTTP health endpoints
+        run: |
+          npm run start > /tmp/monarque-connect.log 2>&1 &
+          APP_PID=$!
+          trap 'kill $APP_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3000/api/v1/health/live > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/api/v1/health/live
+          curl -fsS http://127.0.0.1:3000/api/v1/health/ready
