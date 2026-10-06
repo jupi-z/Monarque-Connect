@@ -71,6 +71,8 @@ Jamais autonome :
 - contourner conformité ou approbations ;
 - prendre une décision juridique/comptable définitive.
 
+Le contrat machine-readable de proposition est `contracts/agent-action-proposal.schema.json`.
+
 ## Action proposal
 
 Avant action A2/A3, l'agent produit une proposition structurée :
