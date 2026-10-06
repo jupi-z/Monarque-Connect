@@ -22,9 +22,12 @@ Chaque exigence reçoit un identifiant dans les issues/PR :
 - `STOCK-*`
 - `PROJ-*`
 - `NET-*`
+- `TRUST-*`
 - `MSG-*`
 - `DOC-*`
 - `INTEL-*`
+- `EXPORT-*`
+- `LOC-*`
 - `PLATFORM-*`
 - `SEC-*`
 - `OPS-*`
