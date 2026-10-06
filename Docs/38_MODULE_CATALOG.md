@@ -21,11 +21,12 @@ Ils peuvent avoir des quotas, mais ne sont pas désactivés comme des modules co
 | `PURCHASES` | Business OS | CATALOG |
 | `INVENTORY` | Business OS | CATALOG |
 | `EXPENSES` | Business OS | core |
-| `CASH` | Business OS | EXPENSES |
+| `CASH` | Business OS | core |
 | `PROJECTS` | Business OS | core |
 | `DOCUMENTS` | Business OS | core |
-| `NETWORK_PROFILE` | Network | CATALOG optionnel pour catalogue public |
-| `NETWORK_DISCOVERY` | Network | NETWORK_PROFILE |
+| `NETWORK_PROFILE` | Network | core |
+| `NETWORK_TRUST` | Network | NETWORK_PROFILE |
+| `NETWORK_DISCOVERY` | Network | core |
 | `NETWORK_CONNECTIONS` | Network | NETWORK_DISCOVERY |
 | `NETWORK_INQUIRIES` | Network | NETWORK_PROFILE |
 | `MESSAGING` | Network | NETWORK_CONNECTIONS |
@@ -44,6 +45,8 @@ Un module FUTURE ne peut pas être activé par un plan actif de production.
 ## Dépendances
 
 L'activation d'un module exige que ses dépendances soient entitled et actives, sauf dépendance explicitement `optional`.
+
+Le code `NETWORK_TRUST` couvre vérification et signaux de confiance publiables. Les notes publiques, avis et scores réputationnels opaques sont hors MVP.
 
 Désactiver une dépendance :
 - bloque d'abord les nouvelles écritures du module dépendant ;
