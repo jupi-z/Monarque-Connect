@@ -1,11 +1,14 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseHealthService } from './database-health.service.js';
 import { validateEnvironment } from './config/environment.js';
 import { HealthController } from './health.controller.js';
+import { EventModule } from './events/event.module.js';
+import { requestContextMiddleware } from './events/request-context.middleware.js';
 
 @Module({
   imports: [
+    EventModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,
@@ -14,4 +17,8 @@ import { HealthController } from './health.controller.js';
   controllers: [HealthController],
   providers: [DatabaseHealthService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(requestContextMiddleware).forRoutes('*');
+  }
+}

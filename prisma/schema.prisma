@@ -5,3 +5,89 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum EventActorType {
+  USER
+  SYSTEM
+  AGENT
+  PLATFORM
+}
+
+enum EventDataClassification {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+  RESTRICTED
+}
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+model OutboxEvent {
+  id                  String                   @id @db.Uuid
+  eventType           String                   @map("event_type") @db.VarChar(160)
+  eventVersion        Int                      @map("event_version")
+  organizationId      String?                  @map("organization_id") @db.Uuid
+  establishmentId     String?                  @map("establishment_id") @db.Uuid
+  actorType           EventActorType           @map("actor_type")
+  actorId             String?                  @map("actor_id") @db.Uuid
+  aggregateType       String                   @map("aggregate_type") @db.VarChar(120)
+  aggregateId         String                   @map("aggregate_id") @db.Uuid
+  correlationId       String                   @map("correlation_id") @db.Uuid
+  causationId         String?                  @map("causation_id") @db.Uuid
+  requestId           String?                  @map("request_id") @db.VarChar(200)
+  dataClassification  EventDataClassification  @map("data_classification")
+  purpose             String                   @db.VarChar(200)
+  payloadJson         Json                     @map("payload_json")
+  status              OutboxEventStatus        @default(PENDING)
+  attempts            Int                      @default(0)
+  claimToken          String?                  @map("claim_token") @db.Uuid
+  nextAttemptAt       DateTime?                @map("next_attempt_at") @db.Timestamptz(6)
+  lockedAt            DateTime?                @map("locked_at") @db.Timestamptz(6)
+  lockedBy            String?                  @map("locked_by") @db.VarChar(160)
+  processedAt         DateTime?                @map("processed_at") @db.Timestamptz(6)
+  lastErrorCode       String?                  @map("last_error_code") @db.VarChar(120)
+  lastErrorMessage    String?                  @map("last_error_message") @db.VarChar(1000)
+  occurredAt          DateTime                 @map("occurred_at") @db.Timestamptz(6)
+  recordedAt          DateTime                 @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  receipts            EventConsumerReceipt[]
+
+  @@index([status, nextAttemptAt, recordedAt])
+  @@index([organizationId, recordedAt])
+  @@index([aggregateType, aggregateId, recordedAt])
+  @@index([correlationId])
+  @@map("outbox_events")
+}
+
+model EventConsumerReceipt {
+  id             String     @id @db.Uuid
+  consumerName   String     @map("consumer_name") @db.VarChar(160)
+  eventId        String     @map("event_id") @db.Uuid
+  processedAt    DateTime   @default(now()) @map("processed_at") @db.Timestamptz(6)
+  event          OutboxEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([consumerName, eventId])
+  @@index([eventId])
+  @@map("event_consumer_receipts")
+}
+
+model FoundationProbe {
+  id        String   @id @db.Uuid
+  value     String   @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("foundation_probes")
+}
+
+model FoundationProbeProjection {
+  id          String   @id @db.Uuid
+  eventId     String   @unique @map("event_id") @db.Uuid
+  value       String   @db.VarChar(200)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("foundation_probe_projections")
+}
