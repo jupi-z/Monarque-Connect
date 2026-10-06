@@ -1,6 +1,6 @@
 # OpenAPI
 
-`openapi.yaml` est la source normative de la **surface publique API Monarque Connect v1.1**.
+`openapi.yaml` est la source normative de la **surface publique API Monarque Connect v1.2**.
 
 Le contrat expose notamment :
 - identity/tenancy ;
