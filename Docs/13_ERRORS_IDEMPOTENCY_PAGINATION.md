@@ -33,6 +33,7 @@ Header `Idempotency-Key` obligatoire pour :
 - confirmation goods receipt ;
 - mouvement stock critique ;
 - mouvement cash manuel ;
+- création d'un export tenant ;
 - opérations réseau créatrices d'effet ;
 - opérations plateforme de changement de subscription/entitlement si l'endpoint le prévoit.
 
