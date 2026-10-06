@@ -29,3 +29,13 @@
 | ADR-025 | Network trust MVP = vérification + credentials publiés, sans score réputationnel opaque | Accepted |
 | ADR-026 | Portabilité/export des données tenant = capacité core non premium | Accepted |
 | ADR-027 | Localisation RDC séparée du core ; conformité réglementaire seulement après validation spécialisée | Accepted |
+| ADR-028 | Monarque Connect est AI-native mais le Core transactionnel reste déterministe | Accepted |
+| ADR-029 | Transactional outbox = fondation obligatoire des événements métier critiques | Accepted |
+| ADR-030 | PostgreSQL Event Fabric au MVP ; broker distribué différé | Accepted |
+| ADR-031 | Knowledge Layer = projection reconstruisible, jamais source de vérité | Accepted |
+| ADR-032 | AI Gateway provider-neutral obligatoire pour toute inference | Accepted |
+| ADR-033 | Aucun SDK IA fournisseur dans les modules métier | Accepted |
+| ADR-034 | Inference et training sont séparés ; training tenant opt-in=false par défaut | Accepted |
+| ADR-035 | Agent = principal technique délégué, sans accès DB direct | Accepted |
+| ADR-036 | Actions agentiques high-impact exigent confirmation humaine et revalidation | Accepted |
+| ADR-037 | Vector store/embeddings différés jusqu'à besoin démontré | Accepted |
