@@ -1,10 +1,16 @@
-import type { Prisma } from '@prisma/client';
 import type { DomainEvent } from './domain-event.js';
+
+type TransactionOutboxClient = {
+  outboxEvent: {
+    create(args: { data: Record<string, unknown> }): Promise<unknown>;
+  };
+};
 
 /** Transaction-bound writer for application services already using Prisma. */
 export class PrismaOutboxWriter {
-  async enqueue(tx: Prisma.TransactionClient, event: DomainEvent): Promise<void> {
-    await tx.outboxEvent.create({
+  async enqueue(tx: unknown, event: DomainEvent): Promise<void> {
+    const client = tx as TransactionOutboxClient;
+    await client.outboxEvent.create({
       data: {
         id: event.eventId,
         eventType: event.eventType,
@@ -21,7 +27,7 @@ export class PrismaOutboxWriter {
         requestId: event.requestId ?? null,
         dataClassification: event.dataClassification,
         purpose: event.purpose,
-        payloadJson: event.payload as Prisma.InputJsonValue,
+        payloadJson: event.payload,
       },
     });
   }
