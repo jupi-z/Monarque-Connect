@@ -31,18 +31,20 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
       - run: npm run prisma:generate
+      - run: npm run prisma:validate
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run openapi:validate
       - run: npm run contracts:validate
+      - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run build
       - name: Smoke HTTP health endpoints
