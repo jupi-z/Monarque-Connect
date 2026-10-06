@@ -48,14 +48,15 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
 
   for (const origin of corsOrigins) {
     let parsed: URL;
+
     try {
       parsed = new URL(origin);
     } catch {
-      throw new Error(`Invalid CORS origin: ${origin}`);
+      throw new Error('Invalid CORS origin');
     }
 
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== origin) {
-      throw new Error(`CORS origin must be an exact http(s) origin: ${origin}`);
+      throw new Error('CORS origin must be an exact http(s) origin');
     }
   }
 
