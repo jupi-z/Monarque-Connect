@@ -6,6 +6,19 @@ Une organisation choisit explicitement si son profil est public. Seuls les champ
 
 Le type d'entreprise et les catégories publiques servent à la découverte ; ils n'exposent aucune donnée opérationnelle privée.
 
+## Accès public en lecture
+
+Les profils marqués publics, leur trust profile publiable et leur catalogue public peuvent être consultés sans compte, via des endpoints read-only explicitement `security: []`.
+
+Le backend applique :
+- allowlist stricte de champs ;
+- rate limiting public ;
+- pagination ;
+- aucun contact privé, prix privé, stock interne ou document privé ;
+- aucune déduction sur les modules internes du tenant.
+
+Créer une inquiry, une connexion ou un message exige une identité authentifiée et une organization source vérifiée.
+
 ## 2. Vérification et confiance
 
 Le MVP restaure la dimension de confiance du concept initial sans introduire de notation opaque.
