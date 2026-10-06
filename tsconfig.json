@@ -1,0 +1,4 @@
+{
+  "compilerOptions": {"target":"ES2023","module":"NodeNext","moduleResolution":"NodeNext","strict":true,"noUncheckedIndexedAccess":true,"exactOptionalPropertyTypes":true,"esModuleInterop":true,"experimentalDecorators":true,"emitDecoratorMetadata":true,"outDir":"dist","rootDir":".","skipLibCheck":true},
+  "include":["src/**/*.ts","tests/**/*.ts"]
+}
