@@ -7,6 +7,8 @@ Repo, Node/TS/Nest, PostgreSQL, Prisma, Docker, config, health, OpenAPI validati
 
 ## Phase 0.5 — AI-native foundation
 
+Spécification d'exécution : `50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`.
+
 Avant la première verticale métier :
 - Domain Event envelope ;
 - transactional outbox ;
