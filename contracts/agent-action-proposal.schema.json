@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://monarque-connect.local/contracts/agent-action-proposal.schema.json",
+  "title": "Monarque Connect Agent Action Proposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "proposalId",
+    "organizationId",
+    "initiatingUserId",
+    "agentDefinitionId",
+    "agentVersion",
+    "actionClass",
+    "tool",
+    "arguments",
+    "impactSummary",
+    "confirmationRequired",
+    "correlationId"
+  ],
+  "properties": {
+    "proposalId": { "type": "string", "format": "uuid" },
+    "organizationId": { "type": "string", "format": "uuid" },
+    "establishmentId": { "type": ["string", "null"], "format": "uuid" },
+    "initiatingUserId": { "type": "string", "format": "uuid" },
+    "agentDefinitionId": { "type": "string", "format": "uuid" },
+    "agentVersion": { "type": "integer", "minimum": 1 },
+    "actionClass": { "type": "string", "enum": ["A0", "A1", "A2", "A3", "A4"] },
+    "tool": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "arguments": { "type": "object" },
+    "impactSummary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sourceType", "sourceId"],
+        "properties": {
+          "sourceType": { "type": "string" },
+          "sourceId": { "type": "string" }
+        }
+      }
+    },
+    "confirmationRequired": { "type": "boolean" },
+    "correlationId": { "type": "string", "format": "uuid" }
+  }
+}
