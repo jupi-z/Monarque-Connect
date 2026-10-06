@@ -32,6 +32,19 @@ function requireString(
   return value.trim();
 }
 
+function stringValue(
+  config: Record<string, unknown>,
+  key: string,
+  fallback: string,
+): string {
+  const value = config[key];
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value !== 'string') {
+    throw new Error(`Invalid environment: ${key} must be a string`);
+  }
+  return value.trim();
+}
+
 function optionalString(
   config: Record<string, unknown>,
   key: string,
@@ -79,7 +92,7 @@ function assertUrl(value: string, key: string, protocols: string[]): void {
 export function validateEnvironment(
   config: Record<string, unknown>,
 ): Environment & Record<string, unknown> {
-  const nodeEnvRaw = String(config.NODE_ENV ?? 'development');
+  const nodeEnvRaw = stringValue(config, 'NODE_ENV', 'development');
   const allowedNodeEnvs: NodeEnvironment[] = [
     'development',
     'test',
@@ -100,7 +113,11 @@ export function validateEnvironment(
   const JWT_AUDIENCE = requireString(config, 'JWT_AUDIENCE');
   const JWT_PRIVATE_KEY_PATH = optionalString(config, 'JWT_PRIVATE_KEY_PATH');
   const JWT_PUBLIC_KEY_PATH = optionalString(config, 'JWT_PUBLIC_KEY_PATH');
-  const JWT_KEY_ID = String(config.JWT_KEY_ID ?? 'monarque-connect-key-1').trim();
+  const JWT_KEY_ID = stringValue(
+    config,
+    'JWT_KEY_ID',
+    'monarque-connect-key-1',
+  );
   const JWT_ACCESS_TTL_SECONDS = integer(
     config,
     'JWT_ACCESS_TTL_SECONDS',
@@ -125,8 +142,10 @@ export function validateEnvironment(
     );
   }
 
-  const CORS_ORIGINS = String(
-    config.CORS_ORIGINS ?? 'http://localhost:3001',
+  const CORS_ORIGINS = stringValue(
+    config,
+    'CORS_ORIGINS',
+    'http://localhost:3001',
   )
     .split(',')
     .map((origin) => origin.trim())
@@ -141,18 +160,18 @@ export function validateEnvironment(
     assertUrl(origin, 'CORS_ORIGINS', ['http', 'https']);
   }
 
-  const logLevel = String(config.LOG_LEVEL ?? 'info');
+  const logLevel = stringValue(config, 'LOG_LEVEL', 'info');
   const allowedLogLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
   if (!allowedLogLevels.includes(logLevel as (typeof allowedLogLevels)[number])) {
     throw new Error('Invalid environment: LOG_LEVEL is invalid');
   }
   const LOG_LEVEL = logLevel as Environment['LOG_LEVEL'];
 
-  const storageDriverRaw = String(config.STORAGE_DRIVER ?? 'memory');
+  const storageDriverRaw = stringValue(config, 'STORAGE_DRIVER', 'memory');
   if (storageDriverRaw !== 'memory' && storageDriverRaw !== 's3') {
     throw new Error('Invalid environment: STORAGE_DRIVER must be memory or s3');
   }
-  const STORAGE_DRIVER = storageDriverRaw as Environment['STORAGE_DRIVER'];
+  const STORAGE_DRIVER = storageDriverRaw;
 
   const S3_ENDPOINT = optionalString(config, 'S3_ENDPOINT');
   const S3_REGION = optionalString(config, 'S3_REGION');
@@ -208,7 +227,8 @@ export function validateEnvironment(
 }
 
 export function corsOriginsFromEnvironment(): string[] {
-  return String(process.env.CORS_ORIGINS ?? 'http://localhost:3001')
+  const raw = process.env.CORS_ORIGINS ?? 'http://localhost:3001';
+  return raw
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
