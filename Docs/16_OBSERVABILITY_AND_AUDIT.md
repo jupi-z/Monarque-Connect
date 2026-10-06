@@ -43,3 +43,29 @@ Audit append-only avec `requestId`, actor, tenant, establishment éventuel, cibl
 ## Intelligence vs observabilité
 
 Les KPI métier de Monarque Intelligence ne remplacent pas les métriques techniques. Les deux flux restent conceptuellement séparés même s'ils partagent une infrastructure de collecte.
+
+## Observabilité Intelligence / IA
+
+Pour toute future inference :
+- featureCode ;
+- provider/model ;
+- tenant ;
+- correlationId ;
+- statut ;
+- latence ;
+- unités/tokens si disponibles ;
+- coût estimé ;
+- classification d'entrée ;
+- policy version.
+
+Les prompts/réponses bruts ne sont pas requis dans les logs et sont interdits par défaut lorsqu'ils contiennent des données sensibles.
+
+Pour toute action agentique :
+- initiateur humain ;
+- agent/version ;
+- action class ;
+- tool ;
+- confirmation ;
+- résultat ;
+- idempotency key ;
+- audit event lié.
