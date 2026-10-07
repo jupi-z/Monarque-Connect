@@ -2,7 +2,7 @@
 
 ## Current state
 
-Phase 1 implementation is active on `feat/phase-1-identity-tenancy` and is intentionally delivered through a pull request. The completed implementation slice contains the identity, tenancy, establishment, membership, invitation, scope, audit, and client-critical capability foundations.
+Phase 1 implementation slice is merged on `main` through PR #22 (`c2e5e383`). The feature branch and its worktree have been removed after merge. The delivered slice contains the identity, tenancy, establishment, membership, invitation, scope, audit, and client-critical capability foundations.
 
 ## Delivered
 
@@ -22,7 +22,7 @@ Phase 1 implementation is active on `feat/phase-1-identity-tenancy` and is inten
 - `npm test`: 18 files, 48 tests passing;
 - `npm run lint`: passing;
 - `npm run typecheck`: passing;
-- `npm run build`: required before PR merge;
+- `npm run build`: passing locally and in GitHub Actions;
 - `npm run openapi:validate`: 85 operations valid;
 - migrations and seed verified from an empty PostgreSQL database.
 
@@ -30,4 +30,4 @@ Phase 1 implementation is active on `feat/phase-1-identity-tenancy` and is inten
 
 The capabilities endpoint currently exposes the identity/tenancy projection and an empty commercial-module list. Plans, module catalog, subscriptions, entitlements, quotas, and module activation remain the Phase 2 Control Plane work; they must be implemented before any commercial endpoint treats `modules` as authoritative.
 
-Before Phase 1 is closed, the remaining delivery gate is contract-level RFC 9457 response verification plus CI/PR review and merge evidence.
+The Phase 1 implementation slice is closed after contract-level RFC 9457 response verification, green CI, PR review gate, squash merge, and branch cleanup. Commercial module catalog, plans, entitlements, quotas and activations remain the explicitly documented Phase 2 boundary.
