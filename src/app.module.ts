@@ -5,10 +5,12 @@ import { validateEnvironment } from './config/environment.js';
 import { HealthController } from './health.controller.js';
 import { EventModule } from './events/event.module.js';
 import { requestContextMiddleware } from './events/request-context.middleware.js';
+import { DatabaseModule } from './database/database.module.js';
 
 @Module({
   imports: [
     EventModule,
+    DatabaseModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,

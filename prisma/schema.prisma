@@ -27,6 +27,79 @@ enum OutboxEventStatus {
   FAILED
 }
 
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum EstablishmentType {
+  HEAD_OFFICE
+  BRANCH
+  SHOP
+  OFFICE
+  SERVICE_POINT
+  OTHER
+}
+
+enum EstablishmentStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum TenantRole {
+  OWNER
+  ADMIN
+  SALES
+  FINANCE
+  OPERATIONS
+  VIEWER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  REVOKED
+}
+
+enum ScopeMode {
+  ALL_ESTABLISHMENTS
+  SELECTED_ESTABLISHMENTS
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum AuditAction {
+  USER_REGISTERED
+  USER_LOGIN_SUCCEEDED
+  USER_LOGIN_FAILED
+  SESSION_CREATED
+  SESSION_REFRESHED
+  SESSION_REPLAY_REVOKED
+  SESSION_REVOKED
+  ORGANIZATION_CREATED
+  ORGANIZATION_UPDATED
+  ESTABLISHMENT_CREATED
+  ESTABLISHMENT_UPDATED
+  MEMBERSHIP_CREATED
+  MEMBERSHIP_UPDATED
+  INVITATION_CREATED
+  INVITATION_ACCEPTED
+}
+
 model OutboxEvent {
   id                  String                   @id @db.Uuid
   eventType           String                   @map("event_type") @db.VarChar(160)
@@ -90,4 +163,162 @@ model FoundationProbeProjection {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("foundation_probe_projections")
+}
+
+model User {
+  id             String           @id @db.Uuid
+  email          String           @db.VarChar(320)
+  normalizedEmail String          @unique @map("normalized_email") @db.VarChar(320)
+  phone          String?          @db.VarChar(40)
+  passwordHash   String           @map("password_hash") @db.VarChar(255)
+  firstName      String           @map("first_name") @db.VarChar(100)
+  lastName       String           @map("last_name") @db.VarChar(100)
+  status         UserStatus       @default(ACTIVE)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  memberships    Membership[]
+  refreshSessions RefreshSession[]
+
+  @@index([status])
+  @@map("users")
+}
+
+model RefreshSession {
+  id             String    @id @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  familyId       String    @map("family_id") @db.Uuid
+  tokenHash      String    @unique @map("token_hash") @db.VarChar(128)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  replacedById   String?   @map("replaced_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt     DateTime? @map("last_used_at") @db.Timestamptz(6)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([familyId])
+  @@map("refresh_sessions")
+}
+
+model BusinessType {
+  code          String         @id @db.VarChar(64)
+  name          String         @db.VarChar(160)
+  description   String?        @db.VarChar(500)
+  active        Boolean        @default(true)
+  sortOrder     Int            @default(0) @map("sort_order")
+  organizations Organization[]
+
+  @@index([active, sortOrder])
+  @@map("business_types")
+}
+
+model Organization {
+  id                String              @id @db.Uuid
+  businessTypeCode  String              @map("business_type_code") @db.VarChar(64)
+  name              String              @db.VarChar(160)
+  legalName         String?             @map("legal_name") @db.VarChar(200)
+  handle            String              @unique @db.VarChar(50)
+  defaultCurrency   String              @map("default_currency") @db.Char(3)
+  status            OrganizationStatus  @default(ACTIVE)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  businessType      BusinessType        @relation(fields: [businessTypeCode], references: [code])
+  establishments    Establishment[]
+  memberships       Membership[]
+  invitations       Invitation[]
+  auditEvents       AuditEvent[]
+
+  @@index([businessTypeCode])
+  @@index([status])
+  @@map("organizations")
+}
+
+model Establishment {
+  id             String                       @id @db.Uuid
+  organizationId String                       @map("organization_id") @db.Uuid
+  code           String                       @db.VarChar(50)
+  name           String                       @db.VarChar(160)
+  type           EstablishmentType
+  isPrimary      Boolean                      @default(false) @map("is_primary")
+  status         EstablishmentStatus          @default(ACTIVE)
+  addressJson    Json?                        @map("address_json")
+  createdAt      DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scopeLinks     MembershipEstablishmentScope[]
+
+  @@unique([organizationId, code])
+  @@unique([id, organizationId])
+  @@index([organizationId, isPrimary])
+  @@map("establishments")
+}
+
+model Membership {
+  id             String                       @id @db.Uuid
+  organizationId String                       @map("organization_id") @db.Uuid
+  userId         String                       @map("user_id") @db.Uuid
+  role           TenantRole
+  scopeMode      ScopeMode                    @map("scope_mode")
+  status         MembershipStatus             @default(ACTIVE)
+  createdAt      DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scopeLinks     MembershipEstablishmentScope[]
+
+  @@unique([organizationId, userId])
+  @@unique([id, organizationId])
+  @@index([userId, status])
+  @@map("memberships")
+}
+
+model MembershipEstablishmentScope {
+  membershipId    String        @map("membership_id") @db.Uuid
+  establishmentId String        @map("establishment_id") @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  membership      Membership    @relation(fields: [membershipId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  establishment   Establishment @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@id([membershipId, establishmentId])
+  @@index([organizationId, establishmentId])
+  @@map("membership_establishment_scopes")
+}
+
+model Invitation {
+  id             String           @id @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  email          String           @db.VarChar(320)
+  normalizedEmail String          @map("normalized_email") @db.VarChar(320)
+  role           TenantRole
+  scopeMode      ScopeMode        @map("scope_mode")
+  tokenHash      String           @unique @map("token_hash") @db.VarChar(128)
+  expiresAt      DateTime         @map("expires_at") @db.Timestamptz(6)
+  status         InvitationStatus @default(PENDING)
+  acceptedAt     DateTime?        @map("accepted_at") @db.Timestamptz(6)
+  createdBy      String           @map("created_by") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([normalizedEmail, status])
+  @@map("invitations")
+}
+
+model AuditEvent {
+  id             String          @id @db.Uuid
+  action         AuditAction
+  actorUserId    String?         @map("actor_user_id") @db.Uuid
+  organizationId String?         @map("organization_id") @db.Uuid
+  establishmentId String?        @map("establishment_id") @db.Uuid
+  targetType     String          @map("target_type") @db.VarChar(120)
+  targetId       String?         @map("target_id") @db.Uuid
+  requestId      String?         @map("request_id") @db.VarChar(200)
+  correlationId  String           @map("correlation_id") @db.Uuid
+  metadataJson   Json            @default("{}") @map("metadata_json")
+  occurredAt     DateTime        @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@map("audit_events")
 }
