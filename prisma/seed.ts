@@ -6,10 +6,10 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
 
 const businessTypes = [
   { code: 'COMMERCE_DISTRIBUTION', name: 'Commerce & distribution', sortOrder: 10 },
-  { code: 'SERVICES', name: 'Services', sortOrder: 20 },
-  { code: 'CONSTRUCTION', name: 'Construction', sortOrder: 30 },
-  { code: 'INDUSTRY', name: 'Industry', sortOrder: 40 },
-  { code: 'PROFESSIONAL', name: 'Professional services', sortOrder: 50 },
+  { code: 'SERVICE_PROVIDER', name: 'Service provider', sortOrder: 20 },
+  { code: 'MINING_SUPPLIER_B2B', name: 'Mining supplier / B2B', sortOrder: 30 },
+  { code: 'SMALL_INDUSTRY', name: 'Small industry', sortOrder: 40 },
+  { code: 'OTHER', name: 'Other activity', sortOrder: 50 },
 ] as const;
 
 try {

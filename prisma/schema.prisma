@@ -200,6 +200,16 @@ model RefreshSession {
   @@map("refresh_sessions")
 }
 
+model LoginRateLimitBucket {
+  keyHash       String   @id @map("key_hash") @db.VarChar(128)
+  failures      Int      @default(0)
+  blockedUntil  DateTime? @map("blocked_until") @db.Timestamptz(6)
+  windowStarted DateTime @map("window_started") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("login_rate_limit_buckets")
+}
+
 model BusinessType {
   code          String         @id @db.VarChar(64)
   name          String         @db.VarChar(160)
@@ -246,6 +256,7 @@ model Establishment {
   updatedAt      DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   scopeLinks     MembershipEstablishmentScope[]
+  invitationScopeLinks InvitationEstablishmentScope[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -298,10 +309,24 @@ model Invitation {
   createdBy      String           @map("created_by") @db.Uuid
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scopeLinks     InvitationEstablishmentScope[]
 
   @@index([organizationId, status])
   @@index([normalizedEmail, status])
+  @@unique([id, organizationId])
   @@map("invitations")
+}
+
+model InvitationEstablishmentScope {
+  invitationId    String        @map("invitation_id") @db.Uuid
+  establishmentId String        @map("establishment_id") @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  invitation      Invitation    @relation(fields: [invitationId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  establishment   Establishment @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@id([invitationId, establishmentId])
+  @@index([organizationId, establishmentId])
+  @@map("invitation_establishment_scopes")
 }
 
 model AuditEvent {

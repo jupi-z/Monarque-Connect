@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { ProblemDetailsFilter } from './http/problem-details.filter.js';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -23,6 +24,7 @@ async function bootstrap(): Promise<void> {
       transform: true,
     }),
   );
+  app.useGlobalFilters(new ProblemDetailsFilter());
 
   await app.listen(config.getOrThrow<number>('PORT'), '0.0.0.0');
 }

@@ -6,11 +6,15 @@ import { HealthController } from './health.controller.js';
 import { EventModule } from './events/event.module.js';
 import { requestContextMiddleware } from './events/request-context.middleware.js';
 import { DatabaseModule } from './database/database.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { TenancyModule } from './tenancy/tenancy.module.js';
 
 @Module({
   imports: [
     EventModule,
     DatabaseModule,
+    AuthModule,
+    TenancyModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,

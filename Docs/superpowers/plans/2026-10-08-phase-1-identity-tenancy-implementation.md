@@ -6,43 +6,43 @@
 
 - [x] Create isolated worktree and feature branch.
 - [x] Read Phase 1 specification, schema, auth, tenancy, authorization, API, test, and DoD documents.
-- [ ] Make the PostgreSQL integration suite deterministic when all files run together; retain the explicit test-database guard.
-- [ ] Re-run the pre-Phase-1 baseline and record the result.
+- [x] Make the PostgreSQL integration suite deterministic when all files run together; retain the explicit test-database guard.
+- [x] Re-run the pre-Phase-1 baseline and record the result.
 
 ## 1. Database and transaction foundation
 
-- [ ] Add Prisma client/database module with lifecycle management and typed transaction access.
-- [ ] Add identity/tenancy schema and migration with composite integrity constraints and primary-establishment uniqueness.
-- [ ] Add idempotent reference-data seed command for business types and role/scope metadata.
-- [ ] Add audit-event persistence and event payload builders with secret-field protection.
-- [ ] Prove empty-database migration, rollback atomicity, and tenant/establishment referential integrity.
+- [x] Add Prisma client/database module with lifecycle management and typed transaction access.
+- [x] Add identity/tenancy schema and migration with composite integrity constraints and primary-establishment uniqueness.
+- [x] Add idempotent reference-data seed command for business types and role/scope metadata.
+- [x] Add audit-event persistence and event payload builders with secret-field protection.
+- [x] Prove empty-database migration, rollback atomicity, and tenant/establishment referential integrity.
 
 ## 2. Identity and sessions
 
-- [ ] Add Argon2id password service and normalized identifiers.
-- [ ] Add asymmetric JWT key configuration with `kid`, issuer, audience, short access TTL, and no secret fallback.
-- [ ] Add registration, login, current-user, refresh rotation, logout, password-change/session revocation primitives.
-- [ ] Add replay/family revocation tests and login error/rate-limit behavior without user enumeration.
+- [x] Add Argon2id password service and normalized identifiers.
+- [x] Add asymmetric JWT key configuration with `kid`, issuer, audience, short access TTL, and no secret fallback.
+- [x] Add registration, login, current-user, refresh rotation, logout, password-change/session revocation primitives.
+- [x] Add replay/family revocation tests and login error/rate-limit behavior without user enumeration.
 
 ## 3. Organizations and establishments
 
-- [ ] Add organization creation with atomic primary establishment and owner membership.
-- [ ] Add organization/establishment reads and writes protected by authorization context.
-- [ ] Add membership status and organization status checks on every private request.
-- [ ] Add cross-tenant and cross-establishment HTTP tests.
+- [x] Add organization creation with atomic primary establishment and owner membership.
+- [x] Add organization/establishment reads and writes protected by authorization context.
+- [x] Add membership status and organization status checks on every private request.
+- [x] Add cross-tenant and cross-establishment HTTP tests.
 
 ## 4. Memberships, invitations, and authorization
 
-- [ ] Add roles, deny-by-default permission policy, active membership resolution, and establishment scope intersection.
-- [ ] Add opaque single-use invitation creation/acceptance with hashed tokens and expiry.
-- [ ] Add membership scope management and last-owner protection.
-- [ ] Add authorization matrix tests for positive and negative cases.
+- [x] Add roles, deny-by-default permission policy, active membership resolution, and establishment scope intersection.
+- [x] Add opaque single-use invitation creation/acceptance with hashed tokens and expiry.
+- [x] Add membership scope management and last-owner protection.
+- [x] Add authorization matrix tests for positive and negative cases.
 
 ## 5. Capabilities and contract completion
 
-- [ ] Add effective capabilities projection, preserving the separation between capability display and enforcement.
-- [ ] Detail OpenAPI schemas, examples, errors, and security requirements for the client-critical flow.
-- [ ] Add contract tests and request-id/problem-details behavior.
+- [x] Add effective capabilities projection, preserving the separation between capability display and enforcement.
+- [x] Detail OpenAPI schemas, examples, errors, and security requirements for the client-critical flow.
+- [x] Add contract tests and request-id/problem-details behavior.
 
 ## 6. Delivery and closure
 
