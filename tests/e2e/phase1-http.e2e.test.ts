@@ -1,0 +1,94 @@
+import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { generateKeyPair } from 'node:crypto';
+import { promisify } from 'node:util';
+import { exportPKCS8, exportSPKI } from 'jose';
+import { Test } from '@nestjs/testing';
+import { ValidationPipe, type INestApplication } from '@nestjs/common';
+import request from 'supertest';
+import type { Response } from 'supertest';
+import { AppModule } from '../../src/app.module.js';
+import { PrismaService } from '../../src/database/prisma.service.js';
+import { ProblemDetailsFilter } from '../../src/http/problem-details.filter.js';
+
+const generateKeyPairAsync = promisify(generateKeyPair);
+
+describe('Phase 1 HTTP flow', () => {
+  const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/monarque_connect_test';
+  let app: INestApplication;
+  let ownerToken = '';
+  let organizationId = '';
+
+  beforeAll(async () => {
+    const { privateKey, publicKey } = await generateKeyPairAsync('rsa', { modulusLength: 2048 });
+    process.env.NODE_ENV = 'test';
+    process.env.DATABASE_URL = connectionString;
+    process.env.CORS_ORIGINS = '';
+    process.env.JWT_ISSUER = 'monarque-connect-test';
+    process.env.JWT_AUDIENCE = 'monarque-connect-api-test';
+    process.env.JWT_KEY_ID = 'e2e-key-1';
+    process.env.JWT_PRIVATE_KEY_PEM = await exportPKCS8(privateKey);
+    process.env.JWT_PUBLIC_KEY_PEM = await exportSPKI(publicKey);
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = moduleRef.createNestApplication();
+    app.setGlobalPrefix('api/v1');
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalFilters(new ProblemDetailsFilter());
+    await app.init();
+    const prisma = app.get(PrismaService);
+    await prisma.businessType.upsert({ where: { code: 'COMMERCE_DISTRIBUTION' }, update: { active: true }, create: { code: 'COMMERCE_DISTRIBUTION', name: 'Commerce & distribution', sortOrder: 10 } });
+    await prisma.auditEvent.deleteMany();
+    await prisma.membershipEstablishmentScope.deleteMany();
+    await prisma.invitationEstablishmentScope.deleteMany();
+    await prisma.invitation.deleteMany();
+    await prisma.membership.deleteMany();
+    await prisma.establishment.deleteMany();
+    await prisma.organization.deleteMany();
+    await prisma.refreshSession.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.loginRateLimitBucket.deleteMany();
+    await prisma.eventConsumerReceipt.deleteMany();
+    await prisma.outboxEvent.deleteMany();
+  });
+
+  afterAll(async () => { if (app) await app.close(); });
+
+  it('supports register → login → me → organization → establishment → capabilities and blocks cross-tenant access', async () => {
+    const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
+    const registration = await request(server).post('/api/v1/auth/register').send({ email: 'http-owner@example.com', password: 'correct horse battery staple', firstName: 'HTTP', lastName: 'Owner' }).expect(201);
+    const registrationBody = bodyOf<{ email: string; id: string }>(registration);
+    expect(registrationBody.email).toBe('http-owner@example.com');
+    const login = await request(server).post('/api/v1/auth/login').send({ identifier: 'http-owner@example.com', password: 'correct horse battery staple' }).expect(200);
+    ownerToken = bodyOf<{ accessToken: string }>(login).accessToken;
+    const me = await request(server).get('/api/v1/auth/me').set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<{ email: string }>(me).email).toBe('http-owner@example.com');
+    const organization = await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'HTTP Tenant', handle: 'http-tenant', defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
+    const organizationBody = bodyOf<{ id: string; establishment: { isPrimary: boolean } }>(organization);
+    organizationId = organizationBody.id;
+    expect(organizationBody.establishment.isPrimary).toBe(true);
+    const organizations = await request(server).get('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<unknown[]>(organizations)).toHaveLength(1);
+    const establishments = await request(server).get(`/api/v1/organizations/${organizationId}/establishments`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<unknown[]>(establishments)).toHaveLength(1);
+    const capabilities = await request(server).get(`/api/v1/organizations/${organizationId}/capabilities`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<{ role: string; establishments: unknown[] }>(capabilities)).toMatchObject({ role: 'OWNER' });
+    expect(bodyOf<{ role: string; establishments: unknown[] }>(capabilities).establishments).toHaveLength(1);
+    const otherRegistration = await request(server).post('/api/v1/auth/register').send({ email: 'http-other@example.com', password: 'correct horse battery staple', firstName: 'HTTP', lastName: 'Other' }).expect(201);
+    const otherRegistrationBody = bodyOf<{ email: string }>(otherRegistration);
+    const otherLogin = await request(server).post('/api/v1/auth/login').send({ identifier: otherRegistrationBody.email, password: 'correct horse battery staple' }).expect(200);
+    const forbidden = await request(server).get(`/api/v1/organizations/${organizationId}`).set('Authorization', `Bearer ${bodyOf<{ accessToken: string }>(otherLogin).accessToken}`).expect('Content-Type', /application\/problem\+json/).expect(403);
+    expect(bodyOf<{ type: string; requestId: string }>(forbidden).type).toContain('/problems/403');
+    expect(bodyOf<{ type: string; requestId: string }>(forbidden).requestId).toBeTruthy();
+  });
+
+  it('rate-limits repeated failed login attempts without revealing account existence', async () => {
+    const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(server).post('/api/v1/auth/login').send({ identifier: 'unknown-rate-limited@example.com', password: 'wrong password' }).expect(401);
+    }
+    await request(server).post('/api/v1/auth/login').send({ identifier: 'unknown-rate-limited@example.com', password: 'wrong password' }).expect(429);
+  });
+});
+
+function bodyOf<T>(response: Response): T {
+  return response.body as T;
+}
