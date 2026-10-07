@@ -51,6 +51,13 @@ jobs:
       - run: npm run build
       - name: Smoke HTTP health endpoints
         run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/monarque-jwt-private.pem
+          openssl rsa -pubout -in /tmp/monarque-jwt-private.pem -out /tmp/monarque-jwt-public.pem
+          export JWT_ISSUER=monarque-connect-ci
+          export JWT_AUDIENCE=monarque-connect-api-ci
+          export JWT_KEY_ID=ci-ephemeral-key-1
+          export JWT_PRIVATE_KEY_PEM="$(cat /tmp/monarque-jwt-private.pem)"
+          export JWT_PUBLIC_KEY_PEM="$(cat /tmp/monarque-jwt-public.pem)"
           npm run start > /tmp/monarque-connect.log 2>&1 &
           APP_PID=$!
           trap 'kill $APP_PID 2>/dev/null || true' EXIT
