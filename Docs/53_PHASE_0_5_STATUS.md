@@ -2,7 +2,7 @@
 
 ## Statut
 
-La fondation Event Fabric Phase 0.5 est implémentée et durcie sur la branche locale `feat/phase-0-5-event-fabric`. Aucun commit n'a été poussé vers le dépôt distant.
+La fondation Event Fabric Phase 0.5 est terminée et fusionnée sur `main` via la PR #19 (`bb42d75476ebbf25574d4686e7c407232c40ac18`). La branche de travail a été supprimée après fusion. La CI GitHub du commit livré est verte.
 
 La référence normative reste `Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`. Le design concret et le plan de reprise sont dans `Docs/superpowers/specs/2026-10-06-event-fabric-design.md` et `Docs/superpowers/plans/2026-10-06-event-fabric-implementation.md`.
 
@@ -41,7 +41,15 @@ La référence normative reste `Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md`. Le
 - `npm run build` — succès ;
 - smoke HTTP live/ready avec PostgreSQL réel — `200` / `200`.
 
-## Commits locaux
+## Livraison GitHub
+
+- PR de livraison : `#19` — Event Fabric Phase 0.5 ;
+- commit de merge squash : `bb42d75476ebbf25574d4686e7c407232c40ac18` ;
+- branche de travail : supprimée après fusion ;
+- `main` : synchronisée avec `origin/main` ;
+- aucun artefact local de progression livré.
+
+## Commits historiques
 
 - `625240f` — design et plan ;
 - `d699ee8` — enveloppe et contexte ;

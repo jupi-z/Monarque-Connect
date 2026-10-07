@@ -30,6 +30,12 @@ describe('createDomainEvent', () => {
     expect(event.recordedAt).toMatch(/Z$/);
   });
 
+  it('accepts the event type syntax declared by the machine-readable contract', () => {
+    expect(createDomainEvent({ ...input, eventType: 'foundation_probe.recorded' }).eventType).toBe(
+      'foundation_probe.recorded',
+    );
+  });
+
   it('rejects payloads containing reserved secret fields', () => {
     expect(() => createDomainEvent({ ...input, payload: { token: 'secret' } })).toThrow(
       /secret/i,
