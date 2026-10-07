@@ -58,7 +58,7 @@ function deepFreeze<T>(value: T): T {
 export function createDomainEvent<TPayload extends Record<string, unknown>>(
   input: DomainEventInput<TPayload>,
 ): DomainEvent<TPayload> {
-  if (!/^[a-z][a-z0-9]*(\.[a-z][a-z0-9_]*)+$/.test(input.eventType)) {
+  if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(input.eventType)) {
     throw new Error('eventType must be a stable dotted name');
   }
   if (!Number.isInteger(input.eventVersion) || input.eventVersion < 1) {

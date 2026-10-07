@@ -60,6 +60,8 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `51_SECURITY_EXCEPTION_REGISTER.md` | Registre des exceptions sécurité dépendances |
 | `52_EVENT_FABRIC_OPERATIONS.md` | Exploitation Event Fabric |
 | `53_PHASE_0_5_STATUS.md` | État et preuves de livraison Phase 0.5 |
+| `54_PHASE1_IDENTITY_TENANCY_EXECUTION_SPEC.md` | Spécification d'exécution Phase 1 |
+| `55_SEED_AND_REFERENCE_DATA_BASELINE.md` | Baseline des seeds et données de référence |
 
 ## Gel documentaire
 

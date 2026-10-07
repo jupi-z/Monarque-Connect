@@ -7,8 +7,8 @@ Le produit combine dans un même écosystème un **réseau économique entre ent
 > **État du projet**
 >
 > La baseline fonctionnelle et architecturale **v1.2 — AI-Native Foundation** est figée.  
-> La fondation technique du backend est validée et **Phase 0.5 — Event Fabric** est en cours d’implémentation sur une branche dédiée.  
-> Le prochain jalon est **Phase 1 — Identity & Tenancy** après validation de la gate Event Fabric.
+> La fondation technique du backend est validée et **Phase 0.5 — Event Fabric** est terminée sur `main`.  
+> Le prochain jalon est **Phase 1 — Identity & Tenancy**.
 >
 > Les modules métier décrits ci-dessous représentent la **cible du MVP**. Ils ne sont pas tous encore implémentés.
 
@@ -284,13 +284,10 @@ Monarque Connect ne repose ni sur ERPNext ni sur Frappe.
 
 ### Prochaines étapes
 
-1. **Finaliser la gate Phase 0.5 — Event Fabric**  
-   Vérifier migration, transaction atomique, worker multi-instance, replay idempotent, retries et documentation opérationnelle.
-
-2. **Phase 1 — Identity & Tenancy**  
+1. **Phase 1 — Identity & Tenancy**  
    Auth, utilisateurs, organisations, types d’entreprise, établissements, memberships, invitations, RBAC et isolation multi-tenant.
 
-3. **Phase 2 — Product Entitlements**  
+2. **Phase 2 — Product Entitlements**  
    Plans, modules, subscriptions, entitlements, quotas et endpoint capabilities.
 
 Les verticales CRM, ventes, achats, opérations, réseau, messaging et intelligence viennent ensuite selon la roadmap normative.

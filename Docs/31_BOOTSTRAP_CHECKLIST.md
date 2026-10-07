@@ -29,4 +29,4 @@ Le dépôt privé courant expose `main` comme non protégée. Tant que `#6` n'es
 
 ## Décision de lancement
 
-Le **socle technique est prêt et la Phase 0.5 Event Fabric est implémentée localement** (`#13`). Les preuves et commandes sont consignées dans `Docs/53_PHASE_0_5_STATUS.md`. La protection de branche est un hardening de gouvernance externe au code ; elle doit être résolue avant d'augmenter le volume de contributions.
+Le **socle technique est prêt et la Phase 0.5 Event Fabric est terminée sur `main`** (`#13`). Les preuves et commandes sont consignées dans `Docs/53_PHASE_0_5_STATUS.md`. La protection technique de branche reste un hardening de gouvernance externe au code ; tant qu'elle n'est pas disponible, toute contribution passe par branche, PR, CI verte et revue.
