@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { createRequestContext } from '../../src/events/event-context.js';
 import { PrismaFoundationProbeService } from '../../src/events/prisma-foundation-probe.service.js';
 import { PrismaOutboxWriter } from '../../src/events/prisma-outbox.writer.js';
@@ -23,7 +24,7 @@ describe('PrismaFoundationProbeService', () => {
       foundationProbe: { create: vi.fn().mockResolvedValue({}) },
       outboxEvent: { create: vi.fn().mockResolvedValue({}) },
     };
-    const result = await service.recordFoundationProbe(tx, 'prisma-proof', createRequestContext());
+    const result = await service.recordFoundationProbe(tx as unknown as Prisma.TransactionClient, 'prisma-proof', createRequestContext());
 
     expect(result.probeId).toMatch(/^[0-9a-f-]{36}$/);
     expect(tx.foundationProbe.create).toHaveBeenCalledWith({
