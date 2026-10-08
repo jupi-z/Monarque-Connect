@@ -82,6 +82,7 @@ describe('Identity and tenancy integration', () => {
     const created = await organizations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, {
       businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Tenant C', handle: 'tenant-c', defaultCurrency: 'EUR', establishmentName: 'Head office',
     }) as { id: string; establishment: { id: string } };
+    const secondEstablishment = await organizations.createEstablishment({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, { code: 'BRANCH-2', name: 'Second branch', type: 'BRANCH' }) as { id: string };
     const invitation = await invitations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, { email: 'member@example.com', role: 'VIEWER', scopeMode: 'SELECTED_ESTABLISHMENTS', establishmentIds: [created.establishment.id] }) as { token: string };
     const accepted = await invitations.accept({ userId: invited.id, sessionId: '00000000-0000-0000-0000-000000000004' }, invitation.token) as { membershipId: string };
     expect(accepted.membershipId).toMatch(/^[0-9a-f-]{36}$/);
@@ -89,5 +90,16 @@ describe('Identity and tenancy integration', () => {
     const membership = await prisma.membership.findUnique({ where: { id: accepted.membershipId }, include: { scopeLinks: true } });
     expect(membership?.scopeMode).toBe('SELECTED_ESTABLISHMENTS');
     expect(membership?.scopeLinks).toHaveLength(1);
+    await expect(organizations.update({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, { name: 'Tenant C updated' })).resolves.toMatchObject({ name: 'Tenant C updated' });
+    await expect(organizations.update({ userId: invited.id, sessionId: '00000000-0000-0000-0000-000000000004' }, created.id, { name: 'Unauthorized update' })).rejects.toThrow();
+    await expect(organizations.getEstablishment({ userId: invited.id, sessionId: '00000000-0000-0000-0000-000000000004' }, created.id, created.establishment.id)).resolves.toMatchObject({ id: created.establishment.id });
+    await expect(organizations.getEstablishment({ userId: invited.id, sessionId: '00000000-0000-0000-0000-000000000004' }, created.id, secondEstablishment.id)).rejects.toThrow();
+  });
+
+  it('records logout as an auditable session revocation', async () => {
+    const owner = await auth.register({ email: 'logout@example.com', password: 'correct horse battery staple', firstName: 'Logout', lastName: 'User' });
+    const tokens = await auth.login({ identifier: owner.email, password: 'correct horse battery staple' });
+    await auth.logout({ userId: owner.id, sessionId: tokens.sessionId });
+    await expect(prisma.auditEvent.findFirst({ where: { actorUserId: owner.id, action: 'SESSION_REVOKED' }, orderBy: { occurredAt: 'desc' } })).resolves.toMatchObject({ targetType: 'RefreshSession' });
   });
 });

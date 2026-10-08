@@ -244,6 +244,11 @@ paths:
     get:
       tags: [Capabilities]
       operationId: getOrganizationCapabilities
+      parameters:
+        - name: establishmentId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
       responses:
         "200":
           description: Effective tenant capabilities and accessible establishments
@@ -287,13 +292,26 @@ paths:
       tags: [Establishments]
       operationId: getEstablishment
       responses:
-        "200": { description: Establishment }
+        "200":
+          description: Establishment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Establishment" }
         "403": { $ref: "#/components/responses/Forbidden" }
     patch:
       tags: [Establishments]
       operationId: updateEstablishment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateEstablishmentRequest" }
       responses:
-        "200": { description: Establishment updated }
+        "200":
+          description: Establishment updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Establishment" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
   /organizations/{organizationId}/modules/{moduleCode}:
@@ -1013,13 +1031,14 @@ components:
     Capabilities:
       type: object
       additionalProperties: false
-      required: [organizationId, businessTypeCode, defaultCurrency, role, scopeMode, establishments, modules, permissions]
+      required: [organizationId, businessTypeCode, defaultCurrency, role, scopeMode, activeEstablishmentId, establishments, modules, permissions]
       properties:
         organizationId: { type: string, format: uuid }
         businessTypeCode: { type: string }
         defaultCurrency: { type: string, pattern: "^[A-Z]{3}$" }
         role: { type: string, enum: [OWNER, ADMIN, SALES, FINANCE, OPERATIONS, VIEWER] }
         scopeMode: { type: string, enum: [ALL_ESTABLISHMENTS, SELECTED_ESTABLISHMENTS] }
+        activeEstablishmentId: { type: [string, 'null'], format: uuid }
         establishments:
           type: array
           items: { $ref: "#/components/schemas/Establishment" }
@@ -1096,6 +1115,15 @@ components:
       required: [code, name, type]
       properties:
         code: { type: string, minLength: 1, maxLength: 50 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        type:
+          type: string
+          enum: [HEAD_OFFICE, BRANCH, SHOP, OFFICE, SERVICE_POINT, OTHER]
+    UpdateEstablishmentRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
         name: { type: string, minLength: 1, maxLength: 160 }
         type:
           type: string

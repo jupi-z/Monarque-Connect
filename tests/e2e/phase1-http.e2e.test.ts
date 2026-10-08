@@ -69,8 +69,13 @@ describe('Phase 1 HTTP flow', () => {
     expect(bodyOf<unknown[]>(organizations)).toHaveLength(1);
     const establishments = await request(server).get(`/api/v1/organizations/${organizationId}/establishments`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<unknown[]>(establishments)).toHaveLength(1);
-    const capabilities = await request(server).get(`/api/v1/organizations/${organizationId}/capabilities`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
-    expect(bodyOf<{ role: string; establishments: unknown[] }>(capabilities)).toMatchObject({ role: 'OWNER' });
+    const establishment = bodyOf<Array<{ id: string }>>(establishments)[0]!;
+    const detail = await request(server).get(`/api/v1/organizations/${organizationId}/establishments/${establishment.id}`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<{ id: string }>(detail).id).toBe(establishment.id);
+    const updated = await request(server).patch(`/api/v1/organizations/${organizationId}/establishments/${establishment.id}`).set('Authorization', `Bearer ${ownerToken}`).send({ name: 'Renamed main office' }).expect(200);
+    expect(bodyOf<{ name: string }>(updated).name).toBe('Renamed main office');
+    const capabilities = await request(server).get(`/api/v1/organizations/${organizationId}/capabilities?establishmentId=${establishment.id}`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<{ role: string; activeEstablishmentId: string; establishments: unknown[] }>(capabilities)).toMatchObject({ role: 'OWNER', activeEstablishmentId: establishment.id });
     expect(bodyOf<{ role: string; establishments: unknown[] }>(capabilities).establishments).toHaveLength(1);
     const otherRegistration = await request(server).post('/api/v1/auth/register').send({ email: 'http-other@example.com', password: 'correct horse battery staple', firstName: 'HTTP', lastName: 'Other' }).expect(201);
     const otherRegistrationBody = bodyOf<{ email: string }>(otherRegistration);

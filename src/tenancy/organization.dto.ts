@@ -43,6 +43,11 @@ export class OrganizationIdParam {
   organizationId!: string;
 }
 
+export class EstablishmentIdParam extends OrganizationIdParam {
+  @IsUUID()
+  establishmentId!: string;
+}
+
 export class CreateEstablishmentDto {
   @IsString()
   @MinLength(1)
@@ -56,6 +61,24 @@ export class CreateEstablishmentDto {
 
   @IsIn(['HEAD_OFFICE', 'BRANCH', 'SHOP', 'OFFICE', 'SERVICE_POINT', 'OTHER'])
   type!: 'HEAD_OFFICE' | 'BRANCH' | 'SHOP' | 'OFFICE' | 'SERVICE_POINT' | 'OTHER';
+}
+
+export class UpdateEstablishmentDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(160)
+  name?: string;
+
+  @IsOptional()
+  @IsIn(['HEAD_OFFICE', 'BRANCH', 'SHOP', 'OFFICE', 'SERVICE_POINT', 'OTHER'])
+  type?: 'HEAD_OFFICE' | 'BRANCH' | 'SHOP' | 'OFFICE' | 'SERVICE_POINT' | 'OTHER';
+}
+
+export class CapabilitiesQuery {
+  @IsOptional()
+  @IsUUID()
+  establishmentId?: string;
 }
 
 export class UpdateOrganizationDto {
