@@ -7,7 +7,7 @@ import { createDomainEvent } from '../events/domain-event.factory.js';
 import { createRequestContext, currentEventContext } from '../events/event-context.js';
 import type { AuthPrincipal, AuthorizationContext } from '../auth/auth.types.js';
 import { AuthorizationService } from './authorization.service.js';
-import type { CreateEstablishmentDto, CreateOrganizationDto, UpdateOrganizationDto } from './organization.dto.js';
+import type { CreateEstablishmentDto, CreateOrganizationDto, UpdateEstablishmentDto, UpdateOrganizationDto } from './organization.dto.js';
 import type { UpdateMembershipDto } from './membership.dto.js';
 
 @Injectable()
@@ -111,6 +111,33 @@ export class OrganizationService {
     }
   }
 
+  async getEstablishment(principal: AuthPrincipal, organizationId: string, establishmentId: string): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'establishments:read');
+    await this.authorization.assertEstablishment(context, establishmentId);
+    const establishment = await this.prisma.establishment.findFirst({ where: { id: establishmentId, organizationId, status: 'ACTIVE' }, select: { id: true, code: true, name: true, type: true, isPrimary: true, status: true } });
+    if (!establishment) throw new NotFoundException();
+    return establishment;
+  }
+
+  async updateEstablishment(principal: AuthPrincipal, organizationId: string, establishmentId: string, input: UpdateEstablishmentDto): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'establishments:write');
+    await this.authorization.assertEstablishment(context, establishmentId);
+    const eventContext = currentEventContext() ?? createRequestContext();
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const establishment = await tx.establishment.update({ where: { id: establishmentId, organizationId }, data: { ...(input.name ? { name: input.name.trim() } : {}), ...(input.type ? { type: input.type } : {}) }, select: { id: true, code: true, name: true, type: true, isPrimary: true, status: true } });
+        await tx.auditEvent.create({ data: { id: randomUUID(), action: 'ESTABLISHMENT_UPDATED', actorUserId: principal.userId, organizationId, establishmentId, targetType: 'Establishment', targetId: establishmentId, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { fields: Object.keys(input) } } });
+        await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'establishment.updated', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'Establishment', id: establishmentId }, organizationId, establishmentId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'identity-tenancy-audit', payload: { fields: Object.keys(input) } }));
+        return establishment;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') throw new NotFoundException();
+      throw error;
+    }
+  }
+
   async members(principal: AuthPrincipal, organizationId: string): Promise<unknown[]> {
     const context = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(context, 'organization:read');
@@ -146,12 +173,13 @@ export class OrganizationService {
     });
   }
 
-  async capabilities(principal: AuthPrincipal, organizationId: string): Promise<unknown> {
+  async capabilities(principal: AuthPrincipal, organizationId: string, activeEstablishmentId?: string): Promise<unknown> {
     const context: AuthorizationContext = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(context, 'capabilities:read');
+    if (activeEstablishmentId) await this.authorization.assertEstablishment(context, activeEstablishmentId);
     const organization = await this.prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { businessTypeCode: true, defaultCurrency: true } });
     const establishments = await this.establishments(principal, organizationId);
-    return { organizationId, businessTypeCode: organization.businessTypeCode, defaultCurrency: organization.defaultCurrency, role: context.role, scopeMode: context.scopeMode, establishments, modules: [], permissions: this.permissions(context) };
+    return { organizationId, businessTypeCode: organization.businessTypeCode, defaultCurrency: organization.defaultCurrency, role: context.role, scopeMode: context.scopeMode, activeEstablishmentId: activeEstablishmentId ?? null, establishments, modules: [], permissions: this.permissions(context) };
   }
 
   private permissions(context: AuthorizationContext): string[] {

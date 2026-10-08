@@ -46,7 +46,7 @@
 
 ## 6. Delivery and closure
 
-- [ ] Run migrations from an empty PostgreSQL database and upgrade path.
-- [ ] Run lint, typecheck, build, unit, integration, contract, and HTTP E2E suites.
-- [ ] Update Phase 1 status/tracker documentation and issue evidence.
-- [ ] Open PR, obtain review/CI, squash merge, delete feature branch and worktree, and verify only useful branches remain.
+- [x] Run migrations from an empty PostgreSQL database and upgrade path.
+- [x] Run lint, typecheck, build, unit, integration, contract, and HTTP E2E suites.
+- [x] Update Phase 1 status/tracker documentation and issue evidence.
+- [x] Open PR, obtain review/CI, squash merge, delete feature branch and worktree, and verify only useful branches remain.

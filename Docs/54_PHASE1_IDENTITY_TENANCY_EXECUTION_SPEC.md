@@ -22,7 +22,7 @@ Implémenter l'identité, l'isolation tenant/établissement et l'autorisation de
 3. Le serveur revalide identité, membership, rôle, scope et statut du tenant à chaque action.
 4. La création d'une organisation crée son établissement principal et les invariants associés dans une transaction unique.
 5. Les refus d'autorisation sont deny-by-default et couverts par des tests cross-tenant/cross-establishment.
-6. Les contrats OpenAPI des parcours `login → me → organizations → active establishment → capabilities` sont détaillés et versionnés.
+6. Les contrats OpenAPI des parcours `login → me → organizations → active establishment → capabilities` sont détaillés et versionnés. L'établissement actif est un contexte de requête explicite (`establishmentId`), validé par l'autorisation serveur à chaque appel ; il n'est pas copié dans les claims JWT.
 
 ## Gate
 

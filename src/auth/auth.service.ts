@@ -107,7 +107,15 @@ export class AuthService {
   }
 
   async logout(principal: AuthPrincipal): Promise<void> {
-    await this.prisma.refreshSession.updateMany({ where: { id: principal.sessionId, userId: principal.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    const context = this.context();
+    await this.prisma.$transaction(async (tx) => {
+      const revoked = await tx.refreshSession.updateMany({ where: { id: principal.sessionId, userId: principal.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      if (revoked.count === 1) {
+        await this.recordAuditAndEvent(tx, 'SESSION_REVOKED', principal.userId, undefined, context, {
+          aggregateType: 'RefreshSession', aggregateId: principal.sessionId, payload: { reason: 'logout' },
+        });
+      }
+    });
   }
 
   async changePassword(principal: AuthPrincipal, input: ChangePasswordDto): Promise<void> {

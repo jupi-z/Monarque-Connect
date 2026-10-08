@@ -12,19 +12,20 @@ Phase 1 implementation slice is merged on `main` through PR #22 (`c2e5e383`). Th
 - business types with idempotent seed data;
 - atomic organization + primary establishment + owner membership creation;
 - organization and establishment reads/writes with active-user, active-membership, role and establishment-scope checks;
+- establishment detail read/update routes with explicit request-scoped `activeEstablishmentId` capability validation;
 - membership listing/update, invitation creation/acceptance, hashed single-use invitation tokens and last-owner protection;
 - append-only audit rows and transactional identity/tenancy domain events;
 - detailed OpenAPI schemas for register/login/refresh/me/organizations/establishments/capabilities/memberships/invitations;
-- real PostgreSQL integration tests and HTTP E2E coverage proving the canonical client flow and cross-tenant denial.
+- real PostgreSQL integration tests and HTTP E2E coverage proving the canonical client flow, cross-tenant denial, cross-establishment denial, RBAC boundaries and auditable logout.
 
 ## Verification snapshot
 
-- `npm test`: 18 files, 48 tests passing;
+- `npm test`: 19 files, 51 tests passing;
 - `npm run lint`: passing;
 - `npm run typecheck`: passing;
 - `npm run build`: passing locally and in GitHub Actions;
 - `npm run openapi:validate`: 85 operations valid;
-- migrations and seed verified from an empty PostgreSQL database.
+- migrations and seed verified from an empty PostgreSQL database; `db:seed` now invokes Prisma generation so a fresh clone has a deterministic bootstrap command.
 
 ## Explicit boundary
 
