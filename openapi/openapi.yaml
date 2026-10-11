@@ -298,6 +298,22 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /organizations/{organizationId}/quotas:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Capabilities]
+      operationId: listOrganizationQuotas
+      responses:
+        "200":
+          description: Effective quota limits and current period usage
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/QuotaUsage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /organizations/{organizationId}/establishments:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -1130,6 +1146,18 @@ components:
         moduleCode: { type: string }
         enabled: { type: boolean }
         changed: { type: boolean }
+    QuotaUsage:
+      type: object
+      additionalProperties: false
+      required: [quotaCode, unit, limit, used, reserved, available, periodKey]
+      properties:
+        quotaCode: { type: string }
+        unit: { type: string, enum: [COUNT, BYTES] }
+        limit: { type: string, pattern: "^[0-9]+$" }
+        used: { type: string, pattern: "^[0-9]+$" }
+        reserved: { type: string, pattern: "^[0-9]+$" }
+        available: { type: string, pattern: "^[0-9]+$" }
+        periodKey: { type: string }
     CreateOrganizationRequest:
       type: object
       additionalProperties: false

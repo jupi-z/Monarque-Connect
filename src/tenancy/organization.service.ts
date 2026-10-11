@@ -10,6 +10,7 @@ import { AuthorizationService } from './authorization.service.js';
 import type { CreateEstablishmentDto, CreateOrganizationDto, UpdateEstablishmentDto, UpdateOrganizationDto } from './organization.dto.js';
 import type { UpdateMembershipDto } from './membership.dto.js';
 import { EffectiveEntitlementsService } from '../entitlements/effective-entitlements.service.js';
+import { QuotaService } from '../entitlements/quota.service.js';
 
 @Injectable()
 export class OrganizationService {
@@ -18,6 +19,7 @@ export class OrganizationService {
     private readonly authorization: AuthorizationService,
     private readonly outbox: PrismaOutboxWriter,
     private readonly entitlements: EffectiveEntitlementsService,
+    private readonly quotasService: QuotaService,
   ) {}
 
   async create(principal: AuthPrincipal, input: CreateOrganizationDto): Promise<unknown> {
@@ -189,6 +191,12 @@ export class OrganizationService {
     const context = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(context, 'capabilities:read');
     return (await this.entitlements.resolve(organizationId)).modules;
+  }
+
+  async quotas(principal: AuthPrincipal, organizationId: string): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'capabilities:read');
+    return this.quotasService.list(organizationId);
   }
 
   async updateModuleActivation(principal: AuthPrincipal, organizationId: string, moduleCode: string, enabled: boolean, reason: string): Promise<unknown> {

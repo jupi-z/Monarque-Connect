@@ -105,6 +105,18 @@ enum QuotaUnit {
   BYTES
 }
 
+enum QuotaReservationStatus {
+  HELD
+  COMMITTED
+  RELEASED
+}
+
+enum QuotaLedgerOperation {
+  RESERVED
+  COMMITTED
+  RELEASED
+}
+
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
@@ -133,6 +145,9 @@ enum AuditAction {
   SUBSCRIPTION_CREATED
   SUBSCRIPTION_TRANSITIONED
   MODULE_ACTIVATION_CHANGED
+  QUOTA_RESERVED
+  QUOTA_COMMITTED
+  QUOTA_RELEASED
 }
 
 model OutboxEvent {
@@ -346,6 +361,9 @@ model Organization {
   auditEvents       AuditEvent[]
   subscriptions     Subscription[]
   moduleActivations  OrganizationModuleActivation[]
+  quotaUsages        OrganizationQuotaUsage[]
+  quotaReservations  QuotaReservation[]
+  quotaLedgers       QuotaLedger[]
 
   @@index([businessTypeCode])
   @@index([status])
@@ -383,6 +401,64 @@ model OrganizationModuleActivation {
   @@unique([organizationId, moduleCode])
   @@index([organizationId, enabled])
   @@map("organization_module_activations")
+}
+
+model OrganizationQuotaUsage {
+  id             String       @id @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  quotaCode      String       @map("quota_code") @db.VarChar(80)
+  periodKey      String       @map("period_key") @db.VarChar(32)
+  limitValue     BigInt       @map("limit_value")
+  usedValue      BigInt       @default(0) @map("used_value")
+  reservedValue  BigInt       @default(0) @map("reserved_value")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reservations   QuotaReservation[]
+  ledgers        QuotaLedger[]
+
+  @@unique([organizationId, quotaCode, periodKey])
+  @@index([organizationId, periodKey])
+  @@map("organization_quota_usages")
+}
+
+model QuotaReservation {
+  id             String                  @id @db.Uuid
+  organizationId String                  @map("organization_id") @db.Uuid
+  quotaCode      String                  @map("quota_code") @db.VarChar(80)
+  periodKey      String                  @map("period_key") @db.VarChar(32)
+  amount         BigInt
+  limitValue     BigInt                  @map("limit_value")
+  status         QuotaReservationStatus
+  idempotencyKey String                  @map("idempotency_key") @db.VarChar(200)
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  usage          OrganizationQuotaUsage  @relation(fields: [organizationId, quotaCode, periodKey], references: [organizationId, quotaCode, periodKey], onDelete: Cascade)
+  ledgers        QuotaLedger[]
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, quotaCode, periodKey, status])
+  @@map("quota_reservations")
+}
+
+model QuotaLedger {
+  id             String                  @id @db.Uuid
+  organizationId String                  @map("organization_id") @db.Uuid
+  quotaCode      String                  @map("quota_code") @db.VarChar(80)
+  periodKey      String                  @map("period_key") @db.VarChar(32)
+  reservationId  String                  @map("reservation_id") @db.Uuid
+  operation      QuotaLedgerOperation
+  amount         BigInt
+  metadataJson   Json                    @default("{}") @map("metadata_json")
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  usage          OrganizationQuotaUsage  @relation(fields: [organizationId, quotaCode, periodKey], references: [organizationId, quotaCode, periodKey], onDelete: Cascade)
+  reservation    QuotaReservation        @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@unique([reservationId, operation])
+  @@index([organizationId, quotaCode, periodKey, createdAt])
+  @@map("quota_ledgers")
 }
 
 model Establishment {

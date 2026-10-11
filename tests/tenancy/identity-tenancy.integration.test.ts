@@ -13,6 +13,7 @@ import { PrismaOutboxWriter } from '../../src/events/prisma-outbox.writer.js';
 import { OrganizationService } from '../../src/tenancy/organization.service.js';
 import { EffectiveEntitlementsService } from '../../src/entitlements/effective-entitlements.service.js';
 import { SubscriptionService } from '../../src/entitlements/subscription.service.js';
+import { QuotaService } from '../../src/entitlements/quota.service.js';
 import { AuthorizationService } from '../../src/tenancy/authorization.service.js';
 import { InvitationService } from '../../src/tenancy/invitation.service.js';
 import { seedReferenceData } from '../../prisma/seed.js';
@@ -41,7 +42,7 @@ describe('Identity and tenancy integration', () => {
     const prismaService = prisma as never;
     const authorization = new AuthorizationService(prismaService);
     auth = new AuthService(prismaService, password, token, outbox, new LoginRateLimiter(prismaService));
-    organizations = new OrganizationService(prismaService, authorization, outbox, new EffectiveEntitlementsService(prismaService, new SubscriptionService(prismaService, outbox)));
+    organizations = new OrganizationService(prismaService, authorization, outbox, new EffectiveEntitlementsService(prismaService, new SubscriptionService(prismaService, outbox)), new QuotaService(prismaService, new SubscriptionService(prismaService, outbox), outbox));
     invitations = new InvitationService(prismaService, authorization, outbox);
     await prisma.$connect();
   });
@@ -115,6 +116,7 @@ describe('Identity and tenancy integration', () => {
     const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
     const subscriptions = new SubscriptionService(prisma as never, outbox);
     await subscriptions.create({ organizationId: created.id, planVersionId: planVersion.id, startsAt: new Date('2026-10-01T00:00:00.000Z') });
+    await expect(organizations.quotas({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id)).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5', used: '0', reserved: '0' })]));
 
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', false, 'disable for onboarding')).resolves.toMatchObject({ moduleCode: 'CATALOG', enabled: false, changed: true });
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', false, 'duplicate callback')).resolves.toMatchObject({ changed: false });
