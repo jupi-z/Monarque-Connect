@@ -6,9 +6,10 @@ import { OrganizationController } from './organization.controller.js';
 import { OrganizationService } from './organization.service.js';
 import { InvitationController } from './invitation.controller.js';
 import { InvitationService } from './invitation.service.js';
+import { EntitlementsModule } from '../entitlements/entitlements.module.js';
 
 @Module({
-  imports: [EventModule, AuthModule],
+  imports: [EventModule, AuthModule, EntitlementsModule],
   controllers: [OrganizationController, InvitationController],
   providers: [AuthorizationService, OrganizationService, InvitationService],
   exports: [AuthorizationService, OrganizationService, InvitationService],
