@@ -2,7 +2,7 @@
 
 ## État
 
-Phase 2 est ouverte en préparation sur `main`. La Phase 1 Identity & Tenancy est clôturée et fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
+Phase 2 est ouverte et sa première tranche est en implémentation sur `monarque/phase2-catalog-plans`. La Phase 1 Identity & Tenancy est clôturée et fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
 
 ## Première tranche recommandée
 
@@ -13,7 +13,18 @@ Phase 2 est ouverte en préparation sur `main`. La Phase 1 Identity & Tenancy es
 5. projection capabilities versionnée ;
 6. quotas et activation des modules.
 
-La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.md](57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.md). Aucune implémentation métier n'est considérée commencée avant la validation de cette spécification et de son plan d'exécution.
+La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.md](57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.md). Le plan d'exécution est [2026-10-11-phase-2-product-entitlements-plan.md](superpowers/plans/2026-10-11-phase-2-product-entitlements-plan.md).
+
+## Avancement de la première tranche
+
+- [x] Modèle Prisma du catalogue canonique (modules core et commerciaux) ;
+- [x] Plans et versions avec devise, période, modules inclus et limites initiales ;
+- [x] Migration PostgreSQL depuis la baseline Phase 1 ;
+- [x] Seed de référence idempotent ;
+- [x] Immutabilité SQL des versions actives et de leurs modules/quotas ;
+- [x] Tests d'intégration seed idempotent et versionnement ;
+- [x] Suite complète, build, lint, OpenAPI et contrats vérifiés localement ;
+- [ ] Revue PR et merge sur `main`.
 
 ## Conditions de travail
 
