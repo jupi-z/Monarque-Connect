@@ -2,7 +2,7 @@
 
 ## État
 
-Phase 2 est ouverte et sa première tranche est intégrée sur `main` via la PR #28. La Phase 1 Identity & Tenancy est clôturée et fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
+Phase 2 est ouverte et sa deuxième tranche est en implémentation sur `monarque/phase2-subscriptions`. La première tranche est intégrée sur `main` via la PR #28. La Phase 1 Identity & Tenancy est clôturée et fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
 
 ## Première tranche recommandée
 
@@ -24,7 +24,13 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 - [x] Immutabilité SQL des versions actives et de leurs modules/quotas ;
 - [x] Tests d'intégration seed idempotent et versionnement ;
 - [x] Suite complète, build, lint, OpenAPI et contrats vérifiés localement ;
+- [x] Modèle d'abonnement avec historique, fenêtre UTC et états de cycle de vie ;
+- [x] Résolution déterministe de l'abonnement effectif aux bornes de dates ;
+- [x] Transitions autorisées, transitions terminales et répétitions idempotentes ;
+- [x] Audit et événements Outbox transactionnels pour création et transition ;
+- [x] Seed de référence robuste face aux invocations concurrentes ;
 - [x] Revue PR, CI GitHub et squash merge sur `main` (commit `030e3bd`).
+- [ ] Revue PR et merge de la tranche abonnements.
 
 ## Conditions de travail
 

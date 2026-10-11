@@ -1,5 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const connectionString =
   process.env.DATABASE_URL ??
@@ -113,7 +113,7 @@ const plans = [
   },
 ] as const;
 
-export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
+async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
   for (const businessType of businessTypes) {
     await prisma.businessType.upsert({
       where: { code: businessType.code },
@@ -155,59 +155,63 @@ export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
         description: plan.description,
       },
     });
-    const existingVersion = await prisma.planVersion.findUnique({
+    const planVersion = await prisma.planVersion.upsert({
       where: { planCode_version: { planCode: plan.code, version: 1 } },
+      update: {},
+      create: {
+        id: crypto.randomUUID(),
+        planCode: plan.code,
+        version: 1,
+        status: "ACTIVE",
+        currency: "EUR",
+        billingPeriod: "MONTHLY",
+        publishedAt: new Date("2026-10-11T00:00:00.000Z"),
+      },
     });
-    const planVersion =
-      existingVersion ??
-      (await prisma.planVersion.create({
-        data: {
-          id: crypto.randomUUID(),
-          planCode: plan.code,
-          version: 1,
-          status: "ACTIVE",
-          currency: "EUR",
-          billingPeriod: "MONTHLY",
-          publishedAt: new Date("2026-10-11T00:00:00.000Z"),
-        },
-      }));
     for (const moduleCode of plan.modules) {
-      const existingModule = await prisma.planVersionModule.findUnique({
+      await prisma.planVersionModule.upsert({
         where: {
           planVersionId_moduleCode: {
             planVersionId: planVersion.id,
             moduleCode,
           },
         },
+        update: {},
+        create: {
+          planVersionId: planVersion.id,
+          moduleCode,
+          defaultEnabled: true,
+        },
       });
-      if (!existingModule)
-        await prisma.planVersionModule.create({
-          data: {
-            planVersionId: planVersion.id,
-            moduleCode,
-            defaultEnabled: true,
-          },
-        });
     }
     for (const [quotaCode, limitValue] of [
       ["MAX_USERS", plan.maxUsers],
       ["MAX_ESTABLISHMENTS", plan.maxEstablishments],
     ] as const) {
-      const existingQuota = await prisma.planVersionQuota.findUnique({
+      await prisma.planVersionQuota.upsert({
         where: {
           planVersionId_quotaCode: { planVersionId: planVersion.id, quotaCode },
         },
+        update: {},
+        create: {
+          id: crypto.randomUUID(),
+          planVersionId: planVersion.id,
+          quotaCode,
+          unit: "COUNT",
+          limitValue,
+        },
       });
-      if (!existingQuota)
-        await prisma.planVersionQuota.create({
-          data: {
-            id: crypto.randomUUID(),
-            planVersionId: planVersion.id,
-            quotaCode,
-            unit: "COUNT",
-            limitValue,
-          },
-        });
+    }
+  }
+}
+
+export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await seedReferenceDataOnce(prisma);
+      return;
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002" || attempt === 3) throw error;
     }
   }
 }

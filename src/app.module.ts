@@ -8,6 +8,7 @@ import { requestContextMiddleware } from './events/request-context.middleware.js
 import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { TenancyModule } from './tenancy/tenancy.module.js';
+import { EntitlementsModule } from './entitlements/entitlements.module.js';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TenancyModule } from './tenancy/tenancy.module.js';
     DatabaseModule,
     AuthModule,
     TenancyModule,
+    EntitlementsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,

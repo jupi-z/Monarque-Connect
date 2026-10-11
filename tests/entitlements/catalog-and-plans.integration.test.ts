@@ -85,4 +85,12 @@ describe("Product entitlements catalog and plan reference data", () => {
       status: "DRAFT",
     });
   });
+
+  it("remains idempotent when two seed invocations overlap", async () => {
+    await expect(
+      Promise.all([seedReferenceData(prisma), seedReferenceData(prisma)]),
+    ).resolves.toBeDefined();
+    await expect(prisma.planVersion.count()).resolves.toBe(4);
+    await expect(prisma.planVersionModule.count()).resolves.toBe(51);
+  });
 });
