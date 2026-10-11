@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
 import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
@@ -183,6 +183,42 @@ export class OrganizationService {
     const establishments = await this.establishments(principal, organizationId);
     const effective = await this.entitlements.resolve(organizationId);
     return { ...effective, businessTypeCode: organization.businessTypeCode, defaultCurrency: organization.defaultCurrency, role: context.role, scopeMode: context.scopeMode, activeEstablishmentId: activeEstablishmentId ?? null, establishments, permissions: this.permissions(context) };
+  }
+
+  async modules(principal: AuthPrincipal, organizationId: string): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'capabilities:read');
+    return (await this.entitlements.resolve(organizationId)).modules;
+  }
+
+  async updateModuleActivation(principal: AuthPrincipal, organizationId: string, moduleCode: string, enabled: boolean, reason: string): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'organization:write');
+    if (!reason.trim()) throw new BadRequestException('Activation reason is required');
+    const module = await this.prisma.moduleCatalog.findUnique({ where: { code: moduleCode }, select: { code: true, isCore: true } });
+    if (!module) throw new NotFoundException();
+    if (module.isCore) throw new BadRequestException('Core modules cannot be activated or deactivated');
+    const projection = await this.entitlements.resolve(organizationId);
+    const target = projection.modules.find((item) => item.code === moduleCode);
+    if (!target) throw new NotFoundException();
+    if (enabled && (!target.entitled || target.reason === 'MODULE_NOT_INCLUDED' || target.reason === 'NO_ACTIVE_SUBSCRIPTION' || target.reason === 'SUBSCRIPTION_INACTIVE' || target.reason === 'MODULE_RETIRED' || target.reason === 'DEPENDENCY_NOT_ENTITLED')) {
+      throw new ForbiddenException('Module entitlement or dependencies are not active');
+    }
+    const eventContext = currentEventContext() ?? createRequestContext();
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.organizationModuleActivation.findUnique({ where: { organizationId_moduleCode: { organizationId, moduleCode } }, select: { enabled: true } });
+      const previousEnabled = current?.enabled ?? true;
+      if (previousEnabled === enabled) return { moduleCode, enabled, changed: false };
+      const activation = await tx.organizationModuleActivation.upsert({
+        where: { organizationId_moduleCode: { organizationId, moduleCode } },
+        update: { enabled },
+        create: { id: randomUUID(), organizationId, moduleCode, enabled },
+        select: { id: true },
+      });
+      await tx.auditEvent.create({ data: { id: randomUUID(), action: 'MODULE_ACTIVATION_CHANGED', actorUserId: principal.userId, organizationId, targetType: 'OrganizationModuleActivation', targetId: activation.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { moduleCode, previousEnabled, enabled, reason } } });
+      await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'module.activation_changed', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'Organization', id: organizationId }, organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-module-activation', payload: { moduleCode, previousEnabled, enabled, reason } }));
+      return { moduleCode, enabled, changed: true };
+    });
   }
 
   private permissions(context: AuthorizationContext): string[] {

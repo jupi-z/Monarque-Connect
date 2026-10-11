@@ -76,4 +76,17 @@ describe('Effective organization entitlements', () => {
       expect.objectContaining({ code: 'SALES', allowed: false, reason: 'DEPENDENCY_NOT_ENTITLED', dependencies: ['CATALOG'] }),
     ]));
   });
+
+  it('removes access immediately when a commercial module is explicitly deactivated', async () => {
+    const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt: at });
+    await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId, moduleCode: 'NETWORK_PROFILE', enabled: false } });
+
+    const result = await entitlements.resolve(organizationId, at);
+
+    expect(result.modules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'NETWORK_PROFILE', entitled: true, active: false, allowed: false, reason: 'MODULE_DEACTIVATED' }),
+      expect.objectContaining({ code: 'NETWORK_INQUIRIES', allowed: false, reason: 'DEPENDENCY_NOT_ENTITLED' }),
+    ]));
+  });
 });

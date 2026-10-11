@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class CreateOrganizationDto {
   @IsString()
@@ -79,6 +79,22 @@ export class CapabilitiesQuery {
   @IsOptional()
   @IsUUID()
   establishmentId?: string;
+}
+
+export class ModuleCodeParam extends OrganizationIdParam {
+  @IsString()
+  @Matches(/^[A-Z][A-Z0-9_]{1,63}$/)
+  moduleCode!: string;
+}
+
+export class UpdateModuleActivationDto {
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  reason!: string;
 }
 
 export class UpdateOrganizationDto {

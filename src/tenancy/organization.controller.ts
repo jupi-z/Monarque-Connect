@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@ne
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
-import { CapabilitiesQuery, CreateEstablishmentDto, CreateOrganizationDto, EstablishmentIdParam, OrganizationIdParam, UpdateEstablishmentDto, UpdateOrganizationDto } from './organization.dto.js';
+import { CapabilitiesQuery, CreateEstablishmentDto, CreateOrganizationDto, EstablishmentIdParam, ModuleCodeParam, OrganizationIdParam, UpdateEstablishmentDto, UpdateModuleActivationDto, UpdateOrganizationDto } from './organization.dto.js';
 import { UpdateMembershipDto } from './membership.dto.js';
 import { OrganizationService } from './organization.service.js';
 
@@ -43,4 +43,10 @@ export class OrganizationController {
 
   @Get(':organizationId/capabilities')
   async capabilities(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: OrganizationIdParam, @Query() query: CapabilitiesQuery): Promise<unknown> { return this.organizations.capabilities(principal, params.organizationId, query.establishmentId); }
+
+  @Get(':organizationId/modules')
+  async modules(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: OrganizationIdParam): Promise<unknown> { return this.organizations.modules(principal, params.organizationId); }
+
+  @Patch(':organizationId/modules/:moduleCode')
+  async updateModuleActivation(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: ModuleCodeParam, @Body() input: UpdateModuleActivationDto): Promise<unknown> { return this.organizations.updateModuleActivation(principal, params.organizationId, params.moduleCode, input.enabled, input.reason); }
 }
