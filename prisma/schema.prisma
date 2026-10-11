@@ -105,6 +105,15 @@ enum QuotaUnit {
   BYTES
 }
 
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  EXPIRED
+  CANCELED
+}
+
 enum AuditAction {
   USER_REGISTERED
   USER_LOGIN_SUCCEEDED
@@ -121,6 +130,8 @@ enum AuditAction {
   MEMBERSHIP_UPDATED
   INVITATION_CREATED
   INVITATION_ACCEPTED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_TRANSITIONED
 }
 
 model OutboxEvent {
@@ -284,6 +295,7 @@ model PlanVersion {
   plan          Plan                @relation(fields: [planCode], references: [code])
   modules       PlanVersionModule[]
   quotas        PlanVersionQuota[]
+  subscriptions Subscription[]
 
   @@unique([planCode, version])
   @@index([planCode, status])
@@ -330,10 +342,29 @@ model Organization {
   memberships       Membership[]
   invitations       Invitation[]
   auditEvents       AuditEvent[]
+  subscriptions     Subscription[]
 
   @@index([businessTypeCode])
   @@index([status])
   @@map("organizations")
+}
+
+model Subscription {
+  id            String           @id @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  planVersionId String            @map("plan_version_id") @db.Uuid
+  status        SubscriptionStatus
+  startsAt      DateTime         @map("starts_at") @db.Timestamptz(6)
+  endsAt        DateTime?        @map("ends_at") @db.Timestamptz(6)
+  canceledAt    DateTime?        @map("canceled_at") @db.Timestamptz(6)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  planVersion   PlanVersion      @relation(fields: [planVersionId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, startsAt, endsAt])
+  @@index([planVersionId])
+  @@map("subscriptions")
 }
 
 model Establishment {
