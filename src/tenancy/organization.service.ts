@@ -9,6 +9,7 @@ import type { AuthPrincipal, AuthorizationContext } from '../auth/auth.types.js'
 import { AuthorizationService } from './authorization.service.js';
 import type { CreateEstablishmentDto, CreateOrganizationDto, UpdateEstablishmentDto, UpdateOrganizationDto } from './organization.dto.js';
 import type { UpdateMembershipDto } from './membership.dto.js';
+import { EffectiveEntitlementsService } from '../entitlements/effective-entitlements.service.js';
 
 @Injectable()
 export class OrganizationService {
@@ -16,6 +17,7 @@ export class OrganizationService {
     private readonly prisma: PrismaService,
     private readonly authorization: AuthorizationService,
     private readonly outbox: PrismaOutboxWriter,
+    private readonly entitlements: EffectiveEntitlementsService,
   ) {}
 
   async create(principal: AuthPrincipal, input: CreateOrganizationDto): Promise<unknown> {
@@ -179,7 +181,8 @@ export class OrganizationService {
     if (activeEstablishmentId) await this.authorization.assertEstablishment(context, activeEstablishmentId);
     const organization = await this.prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { businessTypeCode: true, defaultCurrency: true } });
     const establishments = await this.establishments(principal, organizationId);
-    return { organizationId, businessTypeCode: organization.businessTypeCode, defaultCurrency: organization.defaultCurrency, role: context.role, scopeMode: context.scopeMode, activeEstablishmentId: activeEstablishmentId ?? null, establishments, modules: [], permissions: this.permissions(context) };
+    const effective = await this.entitlements.resolve(organizationId);
+    return { ...effective, businessTypeCode: organization.businessTypeCode, defaultCurrency: organization.defaultCurrency, role: context.role, scopeMode: context.scopeMode, activeEstablishmentId: activeEstablishmentId ?? null, establishments, permissions: this.permissions(context) };
   }
 
   private permissions(context: AuthorizationContext): string[] {

@@ -29,6 +29,6 @@ Phase 1 implementation slice is merged on `main` through PR #22 (`c2e5e383`). Th
 
 ## Explicit boundary
 
-The capabilities endpoint currently exposes the identity/tenancy projection and an empty commercial-module list. Plans, module catalog, subscriptions, entitlements, quotas, and module activation remain the Phase 2 Control Plane work; they must be implemented before any commercial endpoint treats `modules` as authoritative.
+The capabilities endpoint exposes the identity/tenancy projection plus the Phase 2 effective module decision. Commercial authorization remains denied without an active subscription, and module activation/quotas remain later Phase 2 work; no commercial endpoint may treat a missing or denied module as authorized.
 
 The Phase 1 implementation slice is closed after contract-level RFC 9457 response verification, green CI, PR review gate, squash merge, and branch cleanup. Commercial module catalog, plans, entitlements, quotas and activations remain the explicitly documented Phase 2 boundary.

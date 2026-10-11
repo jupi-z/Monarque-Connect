@@ -1031,9 +1031,11 @@ components:
     Capabilities:
       type: object
       additionalProperties: false
-      required: [organizationId, businessTypeCode, defaultCurrency, role, scopeMode, activeEstablishmentId, establishments, modules, permissions]
+      required: [capabilitiesVersion, organizationId, evaluatedAt, businessTypeCode, defaultCurrency, role, scopeMode, activeEstablishmentId, establishments, plan, subscription, modules, permissions]
       properties:
+        capabilitiesVersion: { type: integer, const: 1 }
         organizationId: { type: string, format: uuid }
+        evaluatedAt: { type: string, format: date-time }
         businessTypeCode: { type: string }
         defaultCurrency: { type: string, pattern: "^[A-Z]{3}$" }
         role: { type: string, enum: [OWNER, ADMIN, SALES, FINANCE, OPERATIONS, VIEWER] }
@@ -1042,12 +1044,51 @@ components:
         establishments:
           type: array
           items: { $ref: "#/components/schemas/Establishment" }
+        plan:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [code, version]
+              properties:
+                code: { type: string }
+                version: { type: integer, minimum: 1 }
+        subscription:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [id, status, startsAt, endsAt]
+              properties:
+                id: { type: string, format: uuid }
+                status: { type: string, enum: [TRIALING, ACTIVE, PAST_DUE] }
+                startsAt: { type: string, format: date-time }
+                endsAt: { type: [string, 'null'], format: date-time }
         modules:
           type: array
-          items: { type: object, additionalProperties: true }
+          items: { $ref: "#/components/schemas/ModuleEntitlement" }
         permissions:
           type: array
           items: { type: string }
+    ModuleEntitlement:
+      type: object
+      additionalProperties: false
+      required: [code, displayName, pillar, isCore, availability, dependencies, allowed, reason, source]
+      properties:
+        code: { type: string }
+        displayName: { type: string }
+        pillar: { type: string }
+        isCore: { type: boolean }
+        availability: { type: string, enum: [MVP, BETA, FUTURE, RETIRED] }
+        dependencies:
+          type: array
+          uniqueItems: true
+          items: { type: string }
+        allowed: { type: boolean }
+        reason:
+          type: string
+          enum: [CORE_MODULE, PLAN_INCLUDED, MODULE_NOT_INCLUDED, NO_ACTIVE_SUBSCRIPTION, SUBSCRIPTION_INACTIVE, DEPENDENCY_NOT_ENTITLED, MODULE_RETIRED]
+        source: { type: string, enum: [CORE, PLAN, NONE] }
     CreateOrganizationRequest:
       type: object
       additionalProperties: false

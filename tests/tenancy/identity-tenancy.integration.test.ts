@@ -11,6 +11,8 @@ import { TokenService } from '../../src/auth/token.service.js';
 import { LoginRateLimiter } from '../../src/auth/login-rate-limiter.service.js';
 import { PrismaOutboxWriter } from '../../src/events/prisma-outbox.writer.js';
 import { OrganizationService } from '../../src/tenancy/organization.service.js';
+import { EffectiveEntitlementsService } from '../../src/entitlements/effective-entitlements.service.js';
+import { SubscriptionService } from '../../src/entitlements/subscription.service.js';
 import { AuthorizationService } from '../../src/tenancy/authorization.service.js';
 import { InvitationService } from '../../src/tenancy/invitation.service.js';
 import { createTestPool } from '../events/test-database.js';
@@ -38,7 +40,7 @@ describe('Identity and tenancy integration', () => {
     const prismaService = prisma as never;
     const authorization = new AuthorizationService(prismaService);
     auth = new AuthService(prismaService, password, token, outbox, new LoginRateLimiter(prismaService));
-    organizations = new OrganizationService(prismaService, authorization, outbox);
+    organizations = new OrganizationService(prismaService, authorization, outbox, new EffectiveEntitlementsService(prismaService, new SubscriptionService(prismaService, outbox)));
     invitations = new InvitationService(prismaService, authorization, outbox);
     await prisma.$connect();
   });
