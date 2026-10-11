@@ -2,7 +2,7 @@
 
 ## État
 
-Phase 2 est ouverte et ses quatre premières tranches sont intégrées sur `main` via les PR #28, #30, #32 et #33. La Phase 1 Identity & Tenancy est clôturée et fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
+Phase 2 est ouverte et ses cinq premières tranches sont intégrées sur `main` via les PR #28, #30, #32, #33 et #34. La Phase 1 Identity & Tenancy est clôturée et fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
 
 ## Première tranche recommandée
 
@@ -40,6 +40,14 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 - [x] Audit et Outbox transactionnels pour chaque changement effectif d'activation ;
 - [x] Tests d'intégration de désactivation, dépendances, idempotence et isolation par membership ;
 - [x] Contrat OpenAPI des modules et transitions d'activation.
+- [x] Définitions de quotas héritées des versions de plans actifs ;
+- [x] Usages organisationnels par période avec réservations et ledger persistants ;
+- [x] Réservations atomiques PostgreSQL avec limite `used + reserved`, sûres sous concurrence ;
+- [x] Commit/libération idempotents, invariants d'état et idempotency keys ;
+- [x] Audit et événements Outbox transactionnels pour réservation, commit et libération ;
+- [x] Endpoint GET quotas avec valeurs BigInt sérialisées explicitement en chaînes JSON ;
+- [x] Tests PostgreSQL de concurrence, capacité, idempotence, commit/libération et isolation tenant ;
+- [x] Contrat OpenAPI quotas validé et suite complète vérifiée (65 tests).
 
 ## Conditions de travail
 

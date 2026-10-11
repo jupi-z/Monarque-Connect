@@ -47,6 +47,9 @@ export class OrganizationController {
   @Get(':organizationId/modules')
   async modules(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: OrganizationIdParam): Promise<unknown> { return this.organizations.modules(principal, params.organizationId); }
 
+  @Get(':organizationId/quotas')
+  async quotas(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: OrganizationIdParam): Promise<unknown> { return this.organizations.quotas(principal, params.organizationId); }
+
   @Patch(':organizationId/modules/:moduleCode')
   async updateModuleActivation(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: ModuleCodeParam, @Body() input: UpdateModuleActivationDto): Promise<unknown> { return this.organizations.updateModuleActivation(principal, params.organizationId, params.moduleCode, input.enabled, input.reason); }
 }
