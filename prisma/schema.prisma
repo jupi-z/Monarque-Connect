@@ -82,6 +82,29 @@ enum InvitationStatus {
   REVOKED
 }
 
+enum ModuleAvailability {
+  MVP
+  BETA
+  FUTURE
+  RETIRED
+}
+
+enum PlanVersionStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum QuotaUnit {
+  COUNT
+  BYTES
+}
+
 enum AuditAction {
   USER_REGISTERED
   USER_LOGIN_SUCCEEDED
@@ -220,6 +243,76 @@ model BusinessType {
 
   @@index([active, sortOrder])
   @@map("business_types")
+}
+
+model ModuleCatalog {
+  code                String             @id @db.VarChar(64)
+  displayName         String             @map("display_name") @db.VarChar(160)
+  pillar              String             @db.VarChar(80)
+  description         String?            @db.VarChar(500)
+  availability        ModuleAvailability @default(MVP)
+  isCore              Boolean            @default(false) @map("is_core")
+  dependenciesJson    Json               @default("[]") @map("dependencies_json")
+  clientMetadataJson  Json               @default("{}") @map("client_metadata_json")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  planModules         PlanVersionModule[]
+
+  @@index([availability, isCore])
+  @@map("module_catalog")
+}
+
+model Plan {
+  code           String        @id @db.VarChar(64)
+  name           String        @db.VarChar(160)
+  description    String?       @db.VarChar(500)
+  managedService Boolean       @default(false) @map("managed_service")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  versions       PlanVersion[]
+
+  @@map("plans")
+}
+
+model PlanVersion {
+  id            String              @id @db.Uuid
+  planCode      String              @map("plan_code") @db.VarChar(64)
+  version       Int
+  status        PlanVersionStatus
+  currency      String              @db.Char(3)
+  billingPeriod BillingPeriod       @map("billing_period")
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt   DateTime?           @map("published_at") @db.Timestamptz(6)
+  plan          Plan                @relation(fields: [planCode], references: [code])
+  modules       PlanVersionModule[]
+  quotas        PlanVersionQuota[]
+
+  @@unique([planCode, version])
+  @@index([planCode, status])
+  @@map("plan_versions")
+}
+
+model PlanVersionModule {
+  planVersionId         String        @map("plan_version_id") @db.Uuid
+  moduleCode            String        @map("module_code") @db.VarChar(64)
+  defaultEnabled        Boolean       @default(true) @map("default_enabled")
+  entitlementConfigJson Json          @default("{}") @map("entitlement_config_json")
+  planVersion           PlanVersion   @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+  module                ModuleCatalog @relation(fields: [moduleCode], references: [code])
+
+  @@id([planVersionId, moduleCode])
+  @@index([moduleCode])
+  @@map("plan_version_modules")
+}
+
+model PlanVersionQuota {
+  id            String      @id @db.Uuid
+  planVersionId String      @map("plan_version_id") @db.Uuid
+  quotaCode     String      @map("quota_code") @db.VarChar(80)
+  unit          QuotaUnit
+  limitValue    BigInt      @map("limit_value")
+  planVersion   PlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([planVersionId, quotaCode])
+  @@map("plan_version_quotas")
 }
 
 model Organization {
