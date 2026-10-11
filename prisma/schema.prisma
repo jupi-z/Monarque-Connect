@@ -132,6 +132,7 @@ enum AuditAction {
   INVITATION_ACCEPTED
   SUBSCRIPTION_CREATED
   SUBSCRIPTION_TRANSITIONED
+  MODULE_ACTIVATION_CHANGED
 }
 
 model OutboxEvent {
@@ -267,6 +268,7 @@ model ModuleCatalog {
   clientMetadataJson  Json               @default("{}") @map("client_metadata_json")
   createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   planModules         PlanVersionModule[]
+  organizationActivations OrganizationModuleActivation[]
 
   @@index([availability, isCore])
   @@map("module_catalog")
@@ -343,6 +345,7 @@ model Organization {
   invitations       Invitation[]
   auditEvents       AuditEvent[]
   subscriptions     Subscription[]
+  moduleActivations  OrganizationModuleActivation[]
 
   @@index([businessTypeCode])
   @@index([status])
@@ -365,6 +368,21 @@ model Subscription {
   @@index([organizationId, status, startsAt, endsAt])
   @@index([planVersionId])
   @@map("subscriptions")
+}
+
+model OrganizationModuleActivation {
+  id             String        @id @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  moduleCode     String        @map("module_code") @db.VarChar(64)
+  enabled        Boolean       @default(true)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  module         ModuleCatalog @relation(fields: [moduleCode], references: [code], onDelete: Restrict)
+
+  @@unique([organizationId, moduleCode])
+  @@index([organizationId, enabled])
+  @@map("organization_module_activations")
 }
 
 model Establishment {

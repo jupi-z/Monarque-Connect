@@ -15,6 +15,7 @@ import { EffectiveEntitlementsService } from '../../src/entitlements/effective-e
 import { SubscriptionService } from '../../src/entitlements/subscription.service.js';
 import { AuthorizationService } from '../../src/tenancy/authorization.service.js';
 import { InvitationService } from '../../src/tenancy/invitation.service.js';
+import { seedReferenceData } from '../../prisma/seed.js';
 import { createTestPool } from '../events/test-database.js';
 
 const generateKeyPairAsync = promisify(generateKeyPair);
@@ -50,6 +51,7 @@ describe('Identity and tenancy integration', () => {
     await pool.query('TRUNCATE TABLE audit_events, membership_establishment_scopes, invitations, memberships, establishments, organizations, business_types, refresh_sessions, users, event_consumer_receipts, outbox_events RESTART IDENTITY CASCADE');
     await pool.end();
     await prisma.businessType.create({ data: { code: 'COMMERCE_DISTRIBUTION', name: 'Commerce & distribution', sortOrder: 10 } });
+    await seedReferenceData(prisma);
   });
 
   afterAll(async () => prisma.$disconnect());
@@ -103,5 +105,24 @@ describe('Identity and tenancy integration', () => {
     const tokens = await auth.login({ identifier: owner.email, password: 'correct horse battery staple' });
     await auth.logout({ userId: owner.id, sessionId: tokens.sessionId });
     await expect(prisma.auditEvent.findFirst({ where: { actorUserId: owner.id, action: 'SESSION_REVOKED' }, orderBy: { occurredAt: 'desc' } })).resolves.toMatchObject({ targetType: 'RefreshSession' });
+  });
+
+  it('enforces explicit commercial module activation with idempotent audit and outbox behavior', async () => {
+    const owner = await auth.register({ email: 'activation@example.com', password: 'correct horse battery staple', firstName: 'Activation', lastName: 'Owner' });
+    const created = await organizations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, {
+      businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Activation tenant', handle: 'activation-tenant', defaultCurrency: 'EUR', establishmentName: 'Head office',
+    }) as { id: string };
+    const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    const subscriptions = new SubscriptionService(prisma as never, outbox);
+    await subscriptions.create({ organizationId: created.id, planVersionId: planVersion.id, startsAt: new Date('2026-10-01T00:00:00.000Z') });
+
+    await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', false, 'disable for onboarding')).resolves.toMatchObject({ moduleCode: 'CATALOG', enabled: false, changed: true });
+    await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', false, 'duplicate callback')).resolves.toMatchObject({ changed: false });
+    const capabilities = await organizations.capabilities({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id) as { modules: Array<{ code: string; allowed: boolean; reason: string }> };
+    expect(capabilities.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CATALOG', allowed: false, reason: 'MODULE_DEACTIVATED' })]));
+    await expect(prisma.auditEvent.count({ where: { organizationId: created.id, action: 'MODULE_ACTIVATION_CHANGED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: created.id, eventType: 'module.activation_changed' } })).resolves.toBe(1);
+    await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'AUTH', false, 'must fail')).rejects.toThrow();
+    await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', true, 're-enable after onboarding')).resolves.toMatchObject({ enabled: true, changed: true });
   });
 });

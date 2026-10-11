@@ -257,6 +257,47 @@ paths:
               schema: { $ref: "#/components/schemas/Capabilities" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /organizations/{organizationId}/modules:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Capabilities]
+      operationId: listOrganizationModules
+      responses:
+        "200":
+          description: Effective module entitlements and activation state
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ModuleEntitlement" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/modules/{moduleCode}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: moduleCode
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
+    patch:
+      tags: [Capabilities]
+      operationId: updateOrganizationModuleActivation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateModuleActivationRequest" }
+      responses:
+        "200":
+          description: Activation transition result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModuleActivationResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /organizations/{organizationId}/establishments:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -313,23 +354,6 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Establishment" }
         "403": { $ref: "#/components/responses/Forbidden" }
-
-  /organizations/{organizationId}/modules/{moduleCode}:
-    parameters:
-      - $ref: "#/components/parameters/OrganizationId"
-      - $ref: "#/components/parameters/ModuleCode"
-    patch:
-      tags: [Capabilities]
-      operationId: setOrganizationModuleActivation
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/SetModuleActivationRequest" }
-      responses:
-        "200": { description: Module activation updated }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/parties:
     parameters:
@@ -1073,7 +1097,7 @@ components:
     ModuleEntitlement:
       type: object
       additionalProperties: false
-      required: [code, displayName, pillar, isCore, availability, dependencies, allowed, reason, source]
+      required: [code, displayName, pillar, isCore, availability, dependencies, entitled, active, allowed, reason, source]
       properties:
         code: { type: string }
         displayName: { type: string }
@@ -1084,11 +1108,28 @@ components:
           type: array
           uniqueItems: true
           items: { type: string }
+        entitled: { type: boolean }
+        active: { type: boolean }
         allowed: { type: boolean }
         reason:
           type: string
-          enum: [CORE_MODULE, PLAN_INCLUDED, MODULE_NOT_INCLUDED, NO_ACTIVE_SUBSCRIPTION, SUBSCRIPTION_INACTIVE, DEPENDENCY_NOT_ENTITLED, MODULE_RETIRED]
+          enum: [CORE_MODULE, PLAN_INCLUDED, MODULE_NOT_INCLUDED, NO_ACTIVE_SUBSCRIPTION, SUBSCRIPTION_INACTIVE, DEPENDENCY_NOT_ENTITLED, MODULE_RETIRED, MODULE_DEACTIVATED]
         source: { type: string, enum: [CORE, PLAN, NONE] }
+    UpdateModuleActivationRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled, reason]
+      properties:
+        enabled: { type: boolean }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+    ModuleActivationResult:
+      type: object
+      additionalProperties: false
+      required: [moduleCode, enabled, changed]
+      properties:
+        moduleCode: { type: string }
+        enabled: { type: boolean }
+        changed: { type: boolean }
     CreateOrganizationRequest:
       type: object
       additionalProperties: false
