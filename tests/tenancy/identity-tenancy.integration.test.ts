@@ -118,7 +118,8 @@ describe('Identity and tenancy integration', () => {
 
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', false, 'disable for onboarding')).resolves.toMatchObject({ moduleCode: 'CATALOG', enabled: false, changed: true });
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', false, 'duplicate callback')).resolves.toMatchObject({ changed: false });
-    await expect(organizations.capabilities({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id)).resolves.toMatchObject({ modules: expect.arrayContaining([expect.objectContaining({ code: 'CATALOG', allowed: false, reason: 'MODULE_DEACTIVATED' })]) });
+    const capabilities = await organizations.capabilities({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id) as { modules: Array<{ code: string; allowed: boolean; reason: string }> };
+    expect(capabilities.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CATALOG', allowed: false, reason: 'MODULE_DEACTIVATED' })]));
     await expect(prisma.auditEvent.count({ where: { organizationId: created.id, action: 'MODULE_ACTIVATION_CHANGED' } })).resolves.toBe(1);
     await expect(prisma.outboxEvent.count({ where: { organizationId: created.id, eventType: 'module.activation_changed' } })).resolves.toBe(1);
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'AUTH', false, 'must fail')).rejects.toThrow();
