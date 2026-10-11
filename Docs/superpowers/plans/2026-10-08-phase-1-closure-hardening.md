@@ -89,6 +89,6 @@
 
 ### Task 5: Delivery gate
 
-- [ ] Review the complete branch diff and requirements checklist.
-- [ ] Run the complete verification suite from a clean worktree state.
-- [ ] Open a pull request, obtain CI/review, squash merge, delete the feature branch/worktree, and verify only useful branches remain.
+- [x] Review the complete branch diff and requirements checklist.
+- [x] Run the complete verification suite from a clean worktree state.
+- [x] Open a pull request, obtain CI/review, squash merge, delete the feature branch/worktree, and verify only useful branches remain.
