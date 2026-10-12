@@ -17,6 +17,7 @@ describe('Catalog items referential', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let ownerToken = '';
+  let viewerToken = '';
   let organizationId = '';
 
   beforeAll(async () => {
@@ -62,6 +63,11 @@ describe('Catalog items referential', () => {
     organizationId = bodyOf<{ id: string }>(organization).id;
     const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });
     await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id } });
+    const viewerRegistration = await request(serverOf(app)).post('/api/v1/auth/register').send({ email: 'phase3-items-viewer@example.com', password: 'correct horse battery staple', firstName: 'Catalog', lastName: 'Viewer' }).expect(201);
+    const viewerLogin = await request(serverOf(app)).post('/api/v1/auth/login').send({ identifier: bodyOf<{ email: string }>(viewerRegistration).email, password: 'correct horse battery staple' }).expect(200);
+    viewerToken = bodyOf<{ accessToken: string }>(viewerLogin).accessToken;
+    const viewer = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: 'phase3-items-viewer@example.com' } });
+    await prisma.membership.create({ data: { id: crypto.randomUUID(), organizationId, userId: viewer.id, role: 'VIEWER', scopeMode: 'ALL_ESTABLISHMENTS' } });
   });
 
   afterAll(async () => {
@@ -94,6 +100,18 @@ describe('Catalog items referential', () => {
     await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CATALOG' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CATALOG', enabled: false } });
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', name: 'Blocked', unit: 'piece', referencePrice: '1', currency: 'EUR' }).expect(403);
     await prisma.organizationModuleActivation.update({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CATALOG' } }, data: { enabled: true } });
+  });
+
+  it('rejects a role without catalog write permission', async () => {
+    await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${viewerToken}`).send({ type: 'PRODUCT', name: 'Role blocked', unit: 'piece', referencePrice: '1', currency: 'EUR' }).expect(403);
+  });
+
+  it('lets PostgreSQL decide one winner for concurrent duplicate SKUs', async () => {
+    const responses = await Promise.all([
+      request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', sku: 'RACE-SKU', name: 'Race one', unit: 'piece', referencePrice: '1', currency: 'EUR' }),
+      request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', sku: 'RACE-SKU', name: 'Race two', unit: 'piece', referencePrice: '1', currency: 'EUR' }),
+    ]);
+    expect(responses.map((response) => response.status).sort((a, b) => a - b)).toEqual([201, 409]);
   });
 });
 

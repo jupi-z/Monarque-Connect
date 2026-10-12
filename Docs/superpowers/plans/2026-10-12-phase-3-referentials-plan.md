@@ -1,5 +1,7 @@
 # Phase 3 Référentiels Implementation Plan
 
+> **Execution status:** complete on `main`. Tasks 1–4 were delivered by PRs #45 and #46; Task 5 evidence and closure are recorded in `Docs/62_PHASE_3_CLOSURE_EVIDENCE.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans (recommended) to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Construire les référentiels tenant-scoped de business parties, items de catalogue et warehouses avec autorisation, audit, Outbox et contrats API vérifiables.
@@ -44,32 +46,32 @@
 - Consumes: `AuthorizationService.requireMembership`, `assertEstablishment`, `EffectiveEntitlementsService.resolve`.
 - Produces: Prisma models `BusinessParty`, `Item`, `Warehouse`; permissions `parties:*`, `catalog:*`, `inventory:*`; module wiring shared by later services.
 
-- [ ] **Step 1: Write failing authorization and schema tests**
+- [x] **Step 1: Write failing authorization and schema tests**
 
   Pin the exact role matrix, module codes, unique SKU/warehouse code constraints,
   same-organization warehouse parent rule and non-destructive `active` fields.
 
-- [ ] **Step 2: Run tests and verify the expected missing-model/permission failure**
+- [x] **Step 2: Run tests and verify the expected missing-model/permission failure**
 
   Run: `node node_modules/vitest/vitest.mjs run tests/tenancy/authorization.policy.test.ts tests/referentials/referentials.schema.integration.test.ts --pool=forks --poolOptions.forks.singleFork`
   Expected: FAIL because Phase 3 models and permissions do not yet exist.
 
-- [ ] **Step 3: Add the Prisma models and additive migration**
+- [x] **Step 3: Add the Prisma models and additive migration**
 
   Use UUID keys, tenant foreign keys, timestamps, soft status, explicit indexes,
   non-null tenant ownership and constraints from the Phase 3 specification.
 
-- [ ] **Step 4: Add permissions and register a shared referentials module**
+- [x] **Step 4: Add permissions and register a shared referentials module**
 
   Extend the existing role permission map without creating a parallel policy
   engine; expose one module for the three bounded services/controllers.
 
-- [ ] **Step 5: Run schema and authorization tests**
+- [x] **Step 5: Run schema and authorization tests**
 
   Run: `node node_modules/vitest/vitest.mjs run tests/tenancy/authorization.policy.test.ts tests/referentials/referentials.schema.integration.test.ts --pool=forks --poolOptions.forks.singleFork`
   Expected: PASS.
 
-- [ ] **Step 6: Verify migration paths and commit**
+- [x] **Step 6: Verify migration paths and commit**
 
   Run: `npm run prisma:validate` and the Phase 3 migration proof command once
   it exists; commit only schema, migration, wiring and tests.
@@ -81,39 +83,39 @@
 - Create: `src/referentials/party.service.ts`
 - Create: `src/referentials/party.controller.ts`
 - Test: `tests/referentials/parties.integration.test.ts`
-- Test: `tests/e2e/phase3-referentials.e2e.test.ts`
+- Test: HTTP PostgreSQL integration coverage in `tests/referentials/parties.integration.test.ts`
 - Modify: `openapi/openapi.yaml`
 
 **Interfaces:**
 - Consumes: Task 1 `parties:read/write`, `CRM` entitlement and shared tenant authorization.
 - Produces: paginated party list, create/update, idempotent activate/deactivate and `business_party.*` events.
 
-- [ ] **Step 1: Write the failing PostgreSQL integration tests**
+- [x] **Step 1: Write the failing PostgreSQL integration tests**
 
   Cover CUSTOMER/SUPPLIER/BOTH, normalization, list filtering, tenant isolation,
   role denial, missing/disabled CRM, idempotent status transitions and atomic
   audit/Outbox.
 
-- [ ] **Step 2: Run the party tests and verify they fail for the absent route/service**
+- [x] **Step 2: Run the party tests and verify they fail for the absent route/service**
 
   Run: `node node_modules/vitest/vitest.mjs run tests/referentials/parties.integration.test.ts --pool=forks --poolOptions.forks.singleFork`
   Expected: FAIL because the route and model behavior are absent.
 
-- [ ] **Step 3: Implement DTO validation, authorization and transactional service**
+- [x] **Step 3: Implement DTO validation, authorization and transactional service**
 
   Apply tenant predicates before loading rows. Use soft status transitions and
   create exactly one audit/event for an effective mutation.
 
-- [ ] **Step 4: Add controller, OpenAPI schemas and error contract**
+- [x] **Step 4: Add controller, OpenAPI schemas and error contract**
 
   Reuse existing pagination/problem-details conventions and never expose
   `linked_organization_id` as a network capability in this phase.
 
-- [ ] **Step 5: Run party and E2E tests to green**
+- [x] **Step 5: Run party and HTTP integration tests to green**
 
   Run the focused tests and the Phase 3 E2E file; expected PASS with no cross-tenant leakage.
 
-- [ ] **Step 6: Commit the party slice**
+- [x] **Step 6: Commit the party slice**
 
   Commit: `feat: add tenant business parties`.
 
@@ -131,12 +133,12 @@
 - Consumes: Task 1 shared authorization and `CATALOG` entitlement.
 - Produces: product/service CRUD, SKU uniqueness, decimal string serialization, soft status and `catalog.item.*` events.
 
-- [ ] **Step 1: Write failing tests for product/service and SKU invariants**
-- [ ] **Step 2: Verify RED with the focused item test command**
-- [ ] **Step 3: Implement the item service with server-side module/role checks**
-- [ ] **Step 4: Add OpenAPI and HTTP behavior, including decimal serialization**
-- [ ] **Step 5: Verify focused, E2E and contract tests are green**
-- [ ] **Step 6: Commit the catalog slice**
+- [x] **Step 1: Write failing tests for product/service and SKU invariants**
+- [x] **Step 2: Verify RED with the focused item test command**
+- [x] **Step 3: Implement the item service with server-side module/role checks**
+- [x] **Step 4: Add OpenAPI and HTTP behavior, including decimal serialization**
+- [x] **Step 5: Verify focused, HTTP integration and contract tests are green**
+- [x] **Step 6: Commit the catalog slice**
 
   Commit: `feat: add tenant catalog items`.
 
@@ -154,12 +156,12 @@
 - Consumes: Task 1 establishment scope and `INVENTORY` entitlement.
 - Produces: establishment-scoped warehouse CRUD, code uniqueness and `warehouse.*` events.
 
-- [ ] **Step 1: Write failing tests for same-tenant parent and selected scope**
-- [ ] **Step 2: Verify RED with the focused warehouse test command**
-- [ ] **Step 3: Implement scope-first queries and transactional mutations**
-- [ ] **Step 4: Add OpenAPI and controlled conflict/not-found behavior**
-- [ ] **Step 5: Verify concurrency, isolation and E2E tests are green**
-- [ ] **Step 6: Commit the warehouse slice**
+- [x] **Step 1: Write failing tests for same-tenant parent and selected scope**
+- [x] **Step 2: Verify RED with the focused warehouse test command**
+- [x] **Step 3: Implement scope-first queries and transactional mutations**
+- [x] **Step 4: Add OpenAPI and controlled conflict/not-found behavior**
+- [x] **Step 5: Verify concurrency, isolation and HTTP integration tests are green**
+- [x] **Step 6: Commit the warehouse slice**
 
 ### Task 5: Phase 3 proofs and closure preparation
 
@@ -176,17 +178,17 @@
 - Consumes: Tasks 1–4 migrations, routes, events, tests and OpenAPI.
 - Produces: reproducible migration proof, final gate matrix and synchronized tracker evidence.
 
-- [ ] **Step 1: Add failing migration proof and contract assertions**
-- [ ] **Step 2: Implement empty-database and Phase 2-upgrade proof**
-- [ ] **Step 3: Run full verification**
+- [x] **Step 1: Add failing migration proof and contract assertions**
+- [x] **Step 2: Implement empty-database and Phase 2-upgrade proof**
+- [x] **Step 3: Run full verification**
 
   Run: `npm test`, `npm run test:e2e`, `npm run lint`, `npm run typecheck`,
   `npm run build`, `npm run openapi:validate`, `npm run contracts:validate`,
   `npm run prisma:validate`, `npm run prisma:phase3:migration-proof`.
 
-- [ ] **Step 4: Fill the evidence document only with observed outputs**
-- [ ] **Step 5: Open a final review PR, wait for green CI, then update issue #43 and tracker #11**
-- [ ] **Step 6: Delete the merged branch and verify only useful branches remain**
+- [x] **Step 4: Fill the evidence document only with observed outputs**
+- [x] **Step 5: Open a final review PR, wait for green CI, then update issue #43 and tracker #11**
+- [x] **Step 6: Delete the merged branch and verify only useful branches remain**
 
 ## Self-review
 
