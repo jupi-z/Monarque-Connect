@@ -36,6 +36,15 @@ confiance plateforme, le statut `UNVERIFIED` par défaut, les filtres de
 découverte publique et la pagination par curseur. La Phase 4 globale reste
 ouverte.
 
+**Tranche Network connections : fusionnée sur `main` par la PR
+[#58](https://github.com/jupi-z/Monarque-Connect/pull/58), commit
+`c7a6cff9978c70dcaa6af7e35e0b89fbbc9a2781`.** Elle couvre les demandes de
+connexion B2B tenant-scoped, l'éligibilité publique et les entitlements de la
+cible, les transitions source/cible, la concurrence PostgreSQL et les
+événements audit + Outbox transactionnels. La preuve détaillée est dans
+[`69_PHASE_4_NETWORK_CONNECTIONS_EVIDENCE.md`](69_PHASE_4_NETWORK_CONNECTIONS_EVIDENCE.md).
+La Phase 4 globale reste ouverte pour `NetworkInquiry` et sa conversion CRM.
+
 ## Périmètre
 
 - [x] modèle persistant leads/opportunités avec source, statut et scope ;
@@ -46,9 +55,11 @@ ouverte.
 - [x] projection publique de vérification/trust, plateforme-gérée et
   `UNVERIFIED` par défaut ;
 - [x] découverte réseau paginée et allowlistée ;
-- [ ] connexions B2B ;
+- [x] connexions B2B ;
 - [ ] `NetworkInquiry → CRM` idempotent ;
-- [ ] migrations, OpenAPI, événements, audit, E2E et preuves de concurrence.
+- [x] migrations, OpenAPI, événements, audit, E2E et preuves de concurrence
+  pour les tranches livrées ;
+- [ ] preuves globales de clôture Phase 4, incluant `NetworkInquiry → CRM`.
 
 ## Conditions d'entrée vérifiées
 
@@ -96,9 +107,9 @@ leur migration respective. Les preuves détaillées de cette tranche sont dans
 
 ## Prochain jalon
 
-La prochaine tranche peut construire les connexions B2B puis les
-`NetworkInquiry`, en réutilisant les projections et permissions gelées. La
-conversion `NetworkInquiry → CRM` attend la livraison du domaine Network.
+La prochaine tranche peut construire les `NetworkInquiry`, en réutilisant les
+projections, connexions et permissions gelées. La conversion
+`NetworkInquiry → CRM` reste le dernier jalon métier avant la clôture globale.
 
 ## Risques connus
 

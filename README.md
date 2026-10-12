@@ -8,7 +8,7 @@ Le produit combine dans un même écosystème un **réseau économique entre ent
 >
 > La baseline fonctionnelle et architecturale **v1.2 — AI-Native Foundation** est figée.  
 > La fondation technique du backend est validée et **Phase 0.5 — Event Fabric** est terminée sur `main`.  
-> **Phase 1 — Identity & Tenancy**, **Phase 2 — Product Entitlements** et **Phase 3 — Référentiels** sont terminées et vérifiées sur `main`. La Phase 3 livre les business parties, le catalogue métier et les warehouses ; ses preuves sont dans `Docs/62_PHASE_3_CLOSURE_EVIDENCE.md`. **Phase 4 — CRM + Network entry est ouverte en conception**, sans endpoint métier déclaré livré ; son cadrage est dans `Docs/64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`.
+> **Phase 1 — Identity & Tenancy**, **Phase 2 — Product Entitlements** et **Phase 3 — Référentiels** sont terminées et vérifiées sur `main`. La Phase 3 livre les business parties, le catalogue métier et les warehouses ; ses preuves sont dans `Docs/62_PHASE_3_CLOSURE_EVIDENCE.md`. **Phase 4 — CRM + Network entry est ouverte en exécution par tranches** : CRM fondation, profils, trust/discovery et connexions B2B sont livrés ; `NetworkInquiry → CRM` reste à construire et à prouver. Son cadrage est dans `Docs/64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`.
 >
 > Les modules métier décrits ci-dessous représentent la **cible du MVP**. Ils ne sont pas tous encore implémentés.
 
@@ -293,8 +293,8 @@ Monarque Connect ne repose ni sur ERPNext ni sur Frappe.
 3. **Phase 3 — Référentiels — terminée**
    Business parties, catalogue métier et warehouses. Les preuves de clôture sont dans `Docs/62_PHASE_3_CLOSURE_EVIDENCE.md`.
 
-4. **Phase 4 — CRM + Network entry — ouverte en conception**
-   Leads, opportunités, profils publics, confiance, découverte, connexions et `NetworkInquiry → CRM`. Voir `Docs/64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`.
+4. **Phase 4 — CRM + Network entry — ouverte en exécution par tranches**
+   Leads, opportunités, profils publics, confiance, découverte et connexions sont livrés ; `NetworkInquiry → CRM` reste à construire. Voir `Docs/64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`.
 
 Les phases ventes, achats, opérations, messaging et intelligence viennent ensuite selon la roadmap normative.
 
