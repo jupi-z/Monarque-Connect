@@ -175,6 +175,7 @@ enum AuditAction {
   OPPORTUNITY_CREATED
   OPPORTUNITY_UPDATED
   OPPORTUNITY_STATUS_CHANGED
+  NETWORK_PROFILE_UPDATED
 }
 
 enum CrmSource {
@@ -420,10 +421,28 @@ model Organization {
   warehouses        Warehouse[]
   leads             Lead[]
   opportunities     Opportunity[]
+  networkProfile     OrganizationNetworkProfile?
 
   @@index([businessTypeCode])
   @@index([status])
   @@map("organizations")
+}
+
+model OrganizationNetworkProfile {
+  id               String       @id @db.Uuid
+  organizationId   String       @unique @map("organization_id") @db.Uuid
+  isPublic         Boolean      @default(false) @map("is_public")
+  displayName      String       @map("display_name") @db.VarChar(160)
+  description      String?      @db.VarChar(2000)
+  categories       Json         @default("[]")
+  publicLocation   String?      @map("public_location") @db.VarChar(160)
+  publishedItemIds Json         @default("[]") @map("published_item_ids")
+  publishedAt      DateTime?    @map("published_at") @db.Timestamptz(6)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_network_profiles")
 }
 
 model Subscription {

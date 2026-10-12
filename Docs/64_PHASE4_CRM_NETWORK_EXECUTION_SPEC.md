@@ -197,7 +197,9 @@ points suivants :
   explicitement publiés ;
 - [x] conversion commandée explicitement par le client (`LEAD` ou
   `OPPORTUNITY`), avec établissement obligatoire pour une opportunity ;
-- catégories/localisations publiques et stratégie d'indexation PostgreSQL ;
+- [x] catégories/localisations publiques : valeurs allowlistées dans la
+  projection Network et stockées en JSONB ; la recherche paginée dédiée reste
+  dans la tranche discovery, sans recherche full-text implicite ;
 - quotas éventuels d'inquiries et de connexions, s'ils sont activés par le
   catalogue commercial.
 
