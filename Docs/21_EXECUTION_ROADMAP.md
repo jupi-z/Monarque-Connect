@@ -46,6 +46,11 @@ achats et mouvements de stock restent dans les phases suivantes.
 ## Phase 4 — CRM + Network entry
 Leads, opportunities, organization public profiles, verification/trust, discovery, connections, NetworkInquiry → CRM.
 
+**État :** ouverte en conception et préparation d'exécution. Voir
+`64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`, `65_PHASE_4_STATUS.md` et l'issue
+GitHub #49. Aucun endpoint métier Phase 4 n'est déclaré livré par cette
+ouverture.
+
 ## Phase 5 — Sales
 Quotes → Sales Orders → Invoices → PaymentRecords.
 
