@@ -2,7 +2,7 @@
 
 ## État
 
-Phase 2 est **clôturée à 100 %** sur `main` après intégration de la tranche de durcissement normative. Ses tranches sont intégrées via les PR #28, #30, #32, #33, #34 puis la PR de hardening, et la clôture stricte est documentée dans [59_PHASE_2_CLOSURE_EVIDENCE.md](59_PHASE_2_CLOSURE_EVIDENCE.md). La Phase 1 Identity & Tenancy fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
+Phase 2 est **clôturée à 100 %** sur `main` après intégration de la tranche de durcissement normative et de la PR corrective #41. Ses tranches sont intégrées via les PR #28, #30, #32, #33, #34, #37, #39 puis #41, et la clôture stricte est documentée dans [59_PHASE_2_CLOSURE_EVIDENCE.md](59_PHASE_2_CLOSURE_EVIDENCE.md). La Phase 1 Identity & Tenancy fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
 
 ## Tranches livrées
 
@@ -64,7 +64,8 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 - [x] E2E HTTP des endpoints modules, activation et quotas ;
 - [x] documentation normative, statut, roadmap et baseline de seeds synchronisés ;
 - [x] tests de régression HTTP et PostgreSQL sur l'attribution libre de plan, la persistance des capacités entre périodes, les overrides core et le scope des `LIMIT_OVERRIDE` ;
-- [x] PR #37 puis PR #39 revues, CI #142 (`38240149219`) et CI #146 (`38240905003`) vertes, squash merges dans `main` (`63284e3` puis `6ea2bbb`) et branches de travail supprimées.
+- [x] PR #37 puis PR #39 revues, CI #142 (`38240149219`) et CI #146 (`38240905003`) vertes, squash merges dans `main` (`63284e3` puis `6ea2bbb`) et branches de travail supprimées ;
+- [x] PR corrective #41, CI #150 (`38246058967`) verte, squash merge dans `main` (`0993bed`) et branche de travail supprimée.
 
 ## Conditions de travail
 

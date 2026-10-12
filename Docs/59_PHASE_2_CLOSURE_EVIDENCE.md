@@ -68,7 +68,7 @@ npm run build
 
 ## Tracé Git
 
-Les tranches ont été livrées par PR courtes et squash-mergées sur `main` : #28, #30, #32, #33, #34, #35, puis les hardenings #37 et #39. Les CI Backend #142 (`38240149219`) et #146 (`38240905003`) sont vertes; les merges squash ont produit `63284e3960efa5648a00b9e7eeb82c407fe9fdb7` puis `6ea2bbbd01058cec1d93e9880d52f8d2afb3d5c8`.
+Les tranches ont été livrées par PR courtes et squash-mergées sur `main` : #28, #30, #32, #33, #34, #35, puis les hardenings #37, #39 et la correction finale #41. Les CI Backend #142 (`38240149219`), #146 (`38240905003`) et #150 (`38246058967`) sont vertes; les merges squash ont produit `63284e3960efa5648a00b9e7eeb82c407fe9fdb7`, `6ea2bbbd01058cec1d93e9880d52f8d2afb3d5c8` puis `0993bed303b265c14060304e4ad295e0e01e88da`.
 
 Après merge, `main` doit être le seul checkout et la branche de clôture doit être supprimée localement et sur `origin`.
 
