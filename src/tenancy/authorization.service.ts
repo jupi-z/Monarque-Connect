@@ -2,10 +2,11 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { type TenantRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
 import type { AuthPrincipal, AuthorizationContext } from '../auth/auth.types.js';
+import { EffectiveEntitlementsService } from '../entitlements/effective-entitlements.service.js';
 
 @Injectable()
 export class AuthorizationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly entitlements: EffectiveEntitlementsService) {}
 
   async requireMembership(principal: AuthPrincipal, organizationId: string): Promise<AuthorizationContext> {
     const membership = await this.prisma.membership.findFirst({
@@ -30,6 +31,14 @@ export class AuthorizationService {
 
   assertPermission(context: AuthorizationContext, permission: Permission): void {
     if (!this.can(context, permission)) throw new ForbiddenException('Permission denied');
+  }
+
+  async requireModule(principal: AuthPrincipal, organizationId: string, moduleCode: string, permission: Permission): Promise<AuthorizationContext> {
+    const context = await this.requireMembership(principal, organizationId);
+    this.assertPermission(context, permission);
+    const module = (await this.entitlements.resolve(organizationId)).modules.find((candidate) => candidate.code === moduleCode);
+    if (!module?.allowed) throw new ForbiddenException('Module access denied');
+    return context;
   }
 
   async assertEstablishment(context: AuthorizationContext, establishmentId: string): Promise<void> {

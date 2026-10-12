@@ -40,11 +40,12 @@ describe('Identity and tenancy integration', () => {
     const password = new PasswordService();
     const token = new TokenService(config);
     const prismaService = prisma as never;
-    const authorization = new AuthorizationService(prismaService);
-    auth = new AuthService(prismaService, password, token, outbox, new LoginRateLimiter(prismaService));
     const subscriptions = new SubscriptionService(prismaService, outbox);
+    const entitlements = new EffectiveEntitlementsService(prismaService, subscriptions);
+    const authorization = new AuthorizationService(prismaService, entitlements);
+    auth = new AuthService(prismaService, password, token, outbox, new LoginRateLimiter(prismaService));
     const quotas = new QuotaService(prismaService, subscriptions, outbox);
-    organizations = new OrganizationService(prismaService, authorization, outbox, new EffectiveEntitlementsService(prismaService, subscriptions), quotas, subscriptions);
+    organizations = new OrganizationService(prismaService, authorization, outbox, entitlements, quotas, subscriptions);
     invitations = new InvitationService(prismaService, authorization, outbox, quotas);
     await prisma.$connect();
   });
