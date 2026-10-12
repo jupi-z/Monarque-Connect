@@ -65,6 +65,9 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `60_PHASE3_REFERENTIALS_EXECUTION_SPEC.md` | Spécification d'exécution Phase 3 |
 | `61_PHASE_3_STATUS.md` | État et statut de clôture Phase 3 |
 | `62_PHASE_3_CLOSURE_EVIDENCE.md` | Preuves de clôture Phase 3 |
+| `63_CROSS_PHASE_STABILIZATION_EVIDENCE.md` | Preuves de stabilisation cross-phase |
+| `64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md` | Spécification d'exécution Phase 4 |
+| `65_PHASE_4_STATUS.md` | État d'ouverture Phase 4 |
 
 ## Gel documentaire
 
