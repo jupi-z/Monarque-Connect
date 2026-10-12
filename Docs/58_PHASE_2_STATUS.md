@@ -55,7 +55,7 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 - [x] preuve automatisée d'upgrade depuis la baseline Phase 1 ;
 - [x] E2E HTTP des endpoints modules, activation et quotas ;
 - [x] documentation normative, statut, roadmap et baseline de seeds synchronisés ;
-- [x] PR de clôture revue, CI verte, squash merge et branches de travail supprimées.
+- [x] PR #35 revue, CI #138 verte, squash merge et branches de travail supprimées.
 
 ## Conditions de travail
 
