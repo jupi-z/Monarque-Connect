@@ -9,10 +9,11 @@ import type { AuthPrincipal } from '../auth/auth.types.js';
 import { normalizeEmail } from '../auth/identity.js';
 import { AuthorizationService } from './authorization.service.js';
 import type { CreateInvitationDto } from './invitation.dto.js';
+import { QuotaService } from '../entitlements/quota.service.js';
 
 @Injectable()
 export class InvitationService {
-  constructor(private readonly prisma: PrismaService, private readonly authorization: AuthorizationService, private readonly outbox: PrismaOutboxWriter) {}
+  constructor(private readonly prisma: PrismaService, private readonly authorization: AuthorizationService, private readonly outbox: PrismaOutboxWriter, private readonly quotas: QuotaService) {}
 
   async create(principal: AuthPrincipal, organizationId: string, input: CreateInvitationDto): Promise<unknown> {
     const context = await this.authorization.requireMembership(principal, organizationId);
@@ -55,6 +56,7 @@ export class InvitationService {
       const existing = await tx.membership.findUnique({ where: { organizationId_userId: { organizationId: invitation.organizationId, userId: principal.userId } } });
       if (existing) throw new ConflictException('User already has a membership in this organization');
       const membershipId = randomUUID();
+      await this.quotas.consume(tx, { organizationId: invitation.organizationId, quotaCode: 'MAX_USERS', amount: 1n, idempotencyKey: `organization:${invitation.organizationId}:membership:${membershipId}`, resourceType: 'Membership', resourceId: membershipId });
       await tx.membership.create({ data: { id: membershipId, organizationId: invitation.organizationId, userId: principal.userId, role: invitation.role, scopeMode: invitation.scopeMode } });
       if (invitation.scopeMode === 'SELECTED_ESTABLISHMENTS') await tx.membershipEstablishmentScope.createMany({ data: invitation.scopeLinks.map((scope) => ({ membershipId, establishmentId: scope.establishmentId, organizationId: invitation.organizationId })) });
       await tx.invitation.update({ where: { id: invitation.id }, data: { status: 'ACCEPTED', acceptedAt: new Date() } });

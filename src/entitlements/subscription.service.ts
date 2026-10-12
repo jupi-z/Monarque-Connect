@@ -30,47 +30,49 @@ export class SubscriptionService {
   constructor(private readonly prisma: PrismaService, private readonly outbox: PrismaOutboxWriter) {}
 
   async create(input: CreateSubscriptionInput): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null }> {
-    const status = input.status ?? 'ACTIVE';
     this.assertDateWindow(input.startsAt, input.endsAt);
     const context = currentEventContext() ?? createRequestContext();
-    const id = randomUUID();
-
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const [organization, planVersion] = await Promise.all([
-          tx.organization.findUnique({ where: { id: input.organizationId }, select: { id: true, status: true } }),
-          tx.planVersion.findUnique({ where: { id: input.planVersionId }, select: { id: true, status: true, planCode: true, version: true } }),
-        ]);
-        if (!organization || organization.status !== 'ACTIVE') throw new ConflictException('Organization is not active');
-        if (!planVersion || planVersion.status !== 'ACTIVE') throw new ConflictException('Plan version is not active');
-
-        const overlap = await tx.subscription.findFirst({
-          where: {
-            organizationId: input.organizationId,
-            status: { in: effectiveStatuses },
-            startsAt: { lt: input.endsAt ?? new Date('9999-12-31T23:59:59.999Z') },
-            OR: [{ endsAt: null }, { endsAt: { gt: input.startsAt } }],
-          },
-          select: { id: true },
-        });
-        if (overlap) throw new ConflictException('Organization already has an overlapping effective subscription');
-
-        const subscription = await tx.subscription.create({
-          data: { id, organizationId: input.organizationId, planVersionId: input.planVersionId, status, startsAt: input.startsAt, endsAt: input.endsAt ?? null },
-          select: { id: true, status: true, startsAt: true, endsAt: true },
-        });
-        await tx.auditEvent.create({
-          data: { id: randomUUID(), action: 'SUBSCRIPTION_CREATED', organizationId: input.organizationId, targetType: 'Subscription', targetId: id, requestId: context.requestId ?? null, correlationId: context.correlationId, metadataJson: { planCode: planVersion.planCode, planVersion: planVersion.version, status, startsAt: input.startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null } },
-        });
-        await this.outbox.enqueue(tx, createDomainEvent({
-          eventType: 'subscription.created', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'Subscription', id }, organizationId: input.organizationId, correlationId: context.correlationId, ...(context.requestId ? { requestId: context.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-lifecycle', payload: { planCode: planVersion.planCode, planVersion: planVersion.version, status, startsAt: input.startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null },
-        }));
-        return subscription;
-      });
+      return await this.prisma.$transaction((tx) => this.createInTransaction(tx, input, context));
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('Organization already has an open subscription');
+      if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2002', 'P2004', 'P2010'].includes(error.code)) throw new ConflictException('Organization already has an overlapping effective subscription');
+      if (error instanceof Error && error.message.includes('subscriptions_no_overlapping_effective_periods')) throw new ConflictException('Organization already has an overlapping effective subscription');
       throw error;
     }
+  }
+
+  async createInTransaction(tx: Prisma.TransactionClient, input: CreateSubscriptionInput, context = currentEventContext() ?? createRequestContext()): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null }> {
+    const status = input.status ?? 'ACTIVE';
+    const id = randomUUID();
+    const [organization, planVersion] = await Promise.all([
+      tx.organization.findUnique({ where: { id: input.organizationId }, select: { id: true, status: true } }),
+      tx.planVersion.findUnique({ where: { id: input.planVersionId }, select: { id: true, status: true, planCode: true, version: true } }),
+    ]);
+    if (!organization || organization.status !== 'ACTIVE') throw new ConflictException('Organization is not active');
+    if (!planVersion || planVersion.status !== 'ACTIVE') throw new ConflictException('Plan version is not active');
+
+    const overlap = await tx.subscription.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] },
+        startsAt: { lt: input.endsAt ?? new Date('9999-12-31T23:59:59.999Z') },
+        OR: [{ endsAt: null }, { endsAt: { gt: input.startsAt } }],
+      },
+      select: { id: true },
+    });
+    if (overlap) throw new ConflictException('Organization already has an overlapping effective subscription');
+
+    const subscription = await tx.subscription.create({
+      data: { id, organizationId: input.organizationId, planVersionId: input.planVersionId, status, startsAt: input.startsAt, endsAt: input.endsAt ?? null },
+      select: { id: true, status: true, startsAt: true, endsAt: true },
+    });
+    await tx.auditEvent.create({
+      data: { id: randomUUID(), action: 'SUBSCRIPTION_CREATED', organizationId: input.organizationId, targetType: 'Subscription', targetId: id, requestId: context.requestId ?? null, correlationId: context.correlationId, metadataJson: { planCode: planVersion.planCode, planVersion: planVersion.version, status, startsAt: input.startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null } },
+    });
+    await this.outbox.enqueue(tx, createDomainEvent({
+      eventType: 'subscription.created', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'Subscription', id }, organizationId: input.organizationId, correlationId: context.correlationId, ...(context.requestId ? { requestId: context.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-lifecycle', payload: { planCode: planVersion.planCode, planVersion: planVersion.version, status, startsAt: input.startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null },
+    }));
+    return subscription;
   }
 
   async resolveEffective(organizationId: string, at: Date): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null; planVersionId: string } | null> {

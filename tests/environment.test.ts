@@ -28,6 +28,10 @@ describe('validateEnvironment', () => {
     });
   });
 
+  it('normalizes the platform administrator allowlist', () => {
+    expect(validateEnvironment({ DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test', PLATFORM_ADMIN_USER_IDS: ' user-a, user-b ' })).toMatchObject({ PLATFORM_ADMIN_USER_IDS: ['user-a', 'user-b'] });
+  });
+
   it('rejects an invalid port', () => {
     expect(() =>
       validateEnvironment({

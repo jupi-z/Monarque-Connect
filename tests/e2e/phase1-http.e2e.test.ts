@@ -9,7 +9,6 @@ import type { Response } from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
 import { ProblemDetailsFilter } from '../../src/http/problem-details.filter.js';
-import { SubscriptionService } from '../../src/entitlements/subscription.service.js';
 import { seedReferenceData } from '../../prisma/seed.js';
 
 const generateKeyPairAsync = promisify(generateKeyPair);
@@ -81,8 +80,6 @@ describe('Identity, tenancy and Phase 2 HTTP flows', () => {
     const capabilities = await request(server).get(`/api/v1/organizations/${organizationId}/capabilities?establishmentId=${establishment.id}`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<{ role: string; activeEstablishmentId: string; establishments: unknown[] }>(capabilities)).toMatchObject({ role: 'OWNER', activeEstablishmentId: establishment.id });
     expect(bodyOf<{ role: string; establishments: unknown[] }>(capabilities).establishments).toHaveLength(1);
-    const connectPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
-    await app.get(SubscriptionService).create({ organizationId, planVersionId: connectPlan.id, startsAt: new Date('2026-10-01T00:00:00.000Z') });
     const modules = await request(server).get(`/api/v1/organizations/${organizationId}/modules`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<Array<{ code: string; entitled: boolean; active: boolean }>>(modules).find((module) => module.code === 'CATALOG')).toMatchObject({ entitled: true, active: true });
     await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: false, reason: 'HTTP E2E deactivation proof' }).expect(200);
@@ -90,7 +87,7 @@ describe('Identity, tenancy and Phase 2 HTTP flows', () => {
     expect(bodyOf<{ modules: Array<{ code: string; allowed: boolean; reason: string }> }>(deactivatedCapabilities).modules.find((module) => module.code === 'CATALOG')).toMatchObject({ allowed: false, reason: 'MODULE_DEACTIVATED' });
     await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: true, reason: 'HTTP E2E reactivation proof' }).expect(200);
     const quotas = await request(server).get(`/api/v1/organizations/${organizationId}/quotas`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
-    expect(bodyOf<Array<{ quotaCode: string; limit: string; used: string; reserved: string }>>(quotas)).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5', used: '0', reserved: '0' })]));
+    expect(bodyOf<Array<{ quotaCode: string; limit: string; used: string; reserved: string }>>(quotas)).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5', used: '1', reserved: '0' })]));
     const otherRegistration = await request(server).post('/api/v1/auth/register').send({ email: 'http-other@example.com', password: 'correct horse battery staple', firstName: 'HTTP', lastName: 'Other' }).expect(201);
     const otherRegistrationBody = bodyOf<{ email: string }>(otherRegistration);
     const otherLogin = await request(server).post('/api/v1/auth/login').send({ identifier: otherRegistrationBody.email, password: 'correct horse battery staple' }).expect(200);

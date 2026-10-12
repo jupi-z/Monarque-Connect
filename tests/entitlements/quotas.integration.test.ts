@@ -31,8 +31,8 @@ describe('Organization quota reservations', () => {
   afterAll(async () => prisma.$disconnect());
 
   it('reserves atomically against the persisted plan limit and makes retries idempotent', async () => {
-    const first = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 3n, periodKey: '2026-10', idempotencyKey: 'invite-batch-1' });
-    const retry = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 3n, periodKey: '2026-10', idempotencyKey: 'invite-batch-1' });
+    const first = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 3n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'invite-batch-1' });
+    const retry = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 3n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'invite-batch-1' });
 
     expect(retry).toMatchObject({ id: first.id, status: 'HELD', amount: 3n, limit: 5n });
     await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId, quotaCode: 'MAX_USERS', periodKey: '2026-10' } } })).resolves.toMatchObject({ usedValue: 0n, reservedValue: 3n, limitValue: 5n });
@@ -41,9 +41,9 @@ describe('Organization quota reservations', () => {
 
   it('allows only capacity-fitting concurrent reservations', async () => {
     const results = await Promise.allSettled([
-      quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 2n, periodKey: '2026-10', idempotencyKey: 'concurrent-1' }),
-      quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 2n, periodKey: '2026-10', idempotencyKey: 'concurrent-2' }),
-      quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 2n, periodKey: '2026-10', idempotencyKey: 'concurrent-3' }),
+      quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 2n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'concurrent-1' }),
+      quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 2n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'concurrent-2' }),
+      quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 2n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'concurrent-3' }),
     ]);
 
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(2);
@@ -52,15 +52,23 @@ describe('Organization quota reservations', () => {
   });
 
   it('commits and releases reservations exactly once with auditable events', async () => {
-    const held = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 2n, periodKey: '2026-10', idempotencyKey: 'commit-1' });
+    const held = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 2n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'commit-1' });
     await expect(quotas.commit(held.id)).resolves.toMatchObject({ id: held.id, status: 'COMMITTED' });
     await expect(quotas.commit(held.id)).resolves.toMatchObject({ id: held.id, status: 'COMMITTED' });
-    const released = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 1n, periodKey: '2026-10', idempotencyKey: 'release-1' });
+    const released = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 1n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'release-1' });
     await expect(quotas.release(released.id)).resolves.toMatchObject({ id: released.id, status: 'RELEASED' });
     await expect(quotas.release(released.id)).resolves.toMatchObject({ id: released.id, status: 'RELEASED' });
 
     await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId, quotaCode: 'MAX_USERS', periodKey: '2026-10' } } })).resolves.toMatchObject({ usedValue: 2n, reservedValue: 0n });
     await expect(prisma.auditEvent.count({ where: { organizationId, action: { in: ['QUOTA_RESERVED', 'QUOTA_COMMITTED', 'QUOTA_RELEASED'] } } })).resolves.toBe(4);
     await expect(prisma.outboxEvent.count({ where: { organizationId, eventType: { in: ['quota.reserved', 'quota.committed', 'quota.released'] } } })).resolves.toBe(4);
+  });
+
+  it('derives the period on the server and applies an entitlement limit override', async () => {
+    await prisma.organizationEntitlement.create({ data: { id: crypto.randomUUID(), organizationId, moduleCode: 'CATALOG', effect: 'LIMIT_OVERRIDE', startsAt: new Date('2026-10-01T00:00:00.000Z'), reason: 'Temporary cap', limitsJson: { MAX_USERS: '2' }, createdByActor: 'PLATFORM:test' } });
+    await expect(quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 3n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'override-cap' })).rejects.toThrow('Quota capacity exceeded');
+    await expect(quotas.list(organizationId, new Date('2026-10-15T00:00:00.000Z'))).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '2', periodKey: '2026-10' })]));
+    await expect(quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 1n, at: new Date('2026-11-15T00:00:00.000Z'), idempotencyKey: 'canonical-november' })).resolves.toMatchObject({ periodKey: '2026-11' });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId, quotaCode: 'MAX_USERS', periodKey: '2026-11' } } })).resolves.toMatchObject({ reservedValue: 1n });
   });
 });

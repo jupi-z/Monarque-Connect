@@ -11,6 +11,7 @@ import type { CreateEstablishmentDto, CreateOrganizationDto, UpdateEstablishment
 import type { UpdateMembershipDto } from './membership.dto.js';
 import { EffectiveEntitlementsService } from '../entitlements/effective-entitlements.service.js';
 import { QuotaService } from '../entitlements/quota.service.js';
+import { SubscriptionService } from '../entitlements/subscription.service.js';
 
 @Injectable()
 export class OrganizationService {
@@ -20,6 +21,7 @@ export class OrganizationService {
     private readonly outbox: PrismaOutboxWriter,
     private readonly entitlements: EffectiveEntitlementsService,
     private readonly quotasService: QuotaService,
+    private readonly subscriptions: SubscriptionService,
   ) {}
 
   async create(principal: AuthPrincipal, input: CreateOrganizationDto): Promise<unknown> {
@@ -34,24 +36,30 @@ export class OrganizationService {
           ...(input.legalName ? { legalName: input.legalName.trim() } : {}), handle: input.handle,
           defaultCurrency: input.defaultCurrency,
         } });
+        const planCode = input.planCode ?? 'CONNECT';
+        const planVersion = await tx.planVersion.findUnique({ where: { planCode_version: { planCode, version: 1 } }, select: { id: true } });
+        if (!planVersion) throw new ConflictException('Requested plan is not available');
+        await this.subscriptions.createInTransaction(tx, { organizationId, planVersionId: planVersion.id, startsAt: new Date(), status: 'ACTIVE' }, context);
         const establishment = await tx.establishment.create({ data: {
           id: establishmentId, organizationId, code: input.establishmentCode ?? 'HEAD-OFFICE',
           name: input.establishmentName.trim(), type: input.establishmentType ?? 'HEAD_OFFICE', isPrimary: true,
         } });
         await tx.membership.create({ data: { id: membershipId, organizationId, userId: principal.userId, role: 'OWNER', scopeMode: 'ALL_ESTABLISHMENTS' } });
+        await this.quotasService.consume(tx, { organizationId, quotaCode: 'MAX_ESTABLISHMENTS', amount: 1n, idempotencyKey: `organization:${organizationId}:establishment:${establishmentId}`, resourceType: 'Establishment', resourceId: establishmentId });
+        await this.quotasService.consume(tx, { organizationId, quotaCode: 'MAX_USERS', amount: 1n, idempotencyKey: `organization:${organizationId}:membership:${membershipId}`, resourceType: 'Membership', resourceId: membershipId });
         await tx.auditEvent.create({ data: {
           id: randomUUID(), action: 'ORGANIZATION_CREATED', actorUserId: principal.userId, organizationId,
           targetType: 'Organization', targetId: organizationId, requestId: context.requestId ?? null,
-          correlationId: context.correlationId, metadataJson: { businessTypeCode: input.businessTypeCode },
+          correlationId: context.correlationId, metadataJson: { businessTypeCode: input.businessTypeCode, planCode },
         } });
         await this.outbox.enqueue(tx, createDomainEvent({
           eventType: 'organization.created', eventVersion: 1, occurredAt: new Date().toISOString(),
           actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'Organization', id: organizationId },
           organizationId, correlationId: context.correlationId, ...(context.requestId ? { requestId: context.requestId } : {}),
           dataClassification: 'CONFIDENTIAL', purpose: 'identity-tenancy-audit',
-          payload: { businessTypeCode: input.businessTypeCode, establishmentId },
+          payload: { businessTypeCode: input.businessTypeCode, establishmentId, planCode },
         }));
-        return { id: organization.id, name: organization.name, handle: organization.handle, defaultCurrency: organization.defaultCurrency, establishment };
+        return { id: organization.id, name: organization.name, handle: organization.handle, defaultCurrency: organization.defaultCurrency, planCode, establishment };
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2003')) {
@@ -104,6 +112,7 @@ export class OrganizationService {
     const eventContext = currentEventContext() ?? createRequestContext();
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await this.quotasService.consume(tx, { organizationId, quotaCode: 'MAX_ESTABLISHMENTS', amount: 1n, idempotencyKey: `organization:${organizationId}:establishment:${establishmentId}`, resourceType: 'Establishment', resourceId: establishmentId });
         const establishment = await tx.establishment.create({ data: { id: establishmentId, organizationId, code: input.code, name: input.name.trim(), type: input.type } });
         await tx.auditEvent.create({ data: { id: randomUUID(), action: 'ESTABLISHMENT_CREATED', actorUserId: principal.userId, organizationId, establishmentId, targetType: 'Establishment', targetId: establishmentId, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { code: input.code, type: input.type } } });
         await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'establishment.created', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'Establishment', id: establishmentId }, organizationId, establishmentId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'identity-tenancy-audit', payload: { code: input.code, type: input.type } }));
@@ -215,7 +224,7 @@ export class OrganizationService {
     const eventContext = currentEventContext() ?? createRequestContext();
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.organizationModuleActivation.findUnique({ where: { organizationId_moduleCode: { organizationId, moduleCode } }, select: { enabled: true } });
-      const previousEnabled = current?.enabled ?? true;
+      const previousEnabled = current?.enabled ?? target.active;
       if (previousEnabled === enabled) return { moduleCode, enabled, changed: false };
       const activation = await tx.organizationModuleActivation.upsert({
         where: { organizationId_moduleCode: { organizationId, moduleCode } },

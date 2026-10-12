@@ -1,33 +1,26 @@
-# 55 — Baseline des seeds et données de référence
+# 55 — Seed et baseline des données de référence
 
-## Objectif
+## Finalité
 
-Définir les données de référence nécessaires aux parcours Identity/Tenancy et Product Entitlements, sans enfermer les valeurs métier dans des enums PostgreSQL fermés lorsque leur évolution est attendue.
+Le seed fournit uniquement les données de référence nécessaires au fonctionnement déterministe de la Phase 2. Il est idempotent, rejouable et ne réécrit pas une version de plan publiée.
 
-## Principes
+## Référentiels livrés
 
-- les seeds sont idempotents et rejouables sur une base vide ou existante ;
-- chaque ligne de référence possède une clé stable et une sémantique documentée ;
-- les données tenant sont séparées des données de plateforme ;
-- les seeds ne contiennent aucun secret, compte utilisateur réel ou donnée personnelle ;
-- les migrations créent le schéma, les seeds remplissent les références ;
-- les changements de référence sont revus comme du code et testés en CI.
+- cinq types d'entreprise actifs : `COMMERCE_DISTRIBUTION`, `SERVICE_PROVIDER`, `MINING_SUPPLIER_B2B`, `SMALL_INDUSTRY` et `OTHER` ;
+- catalogue des modules core et commerciaux défini dans `prisma/seed.ts` ;
+- recommandations de modules persistées dans `module_business_type_presets` ;
+- plans `CONNECT`, `OPERATIONS`, `BUSINESS` et `ENTERPRISE`, chacun avec une version active `1` ;
+- modules inclus, `defaultEnabled` et quotas `MAX_USERS`/`MAX_ESTABLISHMENTS` par version de plan.
 
-## Première tranche Phase 1
+## Règles d'exploitation
 
-- types d'entreprise de base, extensibles par la plateforme ;
-- rôles tenant et permissions/capabilities canoniques ;
-- statuts d'organisation et d'établissement ;
-- scopes d'établissement ;
-- valeurs de classification et statuts nécessaires aux contrats API.
+1. Une nouvelle recommandation métier est ajoutée par une modification explicite du seed et une migration si le schéma évolue.
+2. Une version active de plan est immuable : une correction commerciale crée une nouvelle version.
+3. Le seed ne donne jamais à lui seul un droit d'accès : le resolver combine organisation active, abonnement effectif, inclusion au plan, overrides, activation et dépendances.
+4. Les presets sont des recommandations d'onboarding et ne remplacent ni une permission ni un entitlement.
+5. Une organisation créée sans `planCode` reçoit `CONNECT`; un autre plan actif peut être demandé explicitement par `planCode`.
+6. Les quotas initiaux du owner et de l'établissement principal sont consommés dans la transaction de création.
 
-## Première tranche Phase 2
+## Preuves
 
-- catalogue des modules ;
-- presets de business types ;
-- plans et versions de plans ;
-- règles d'entitlements et dépendances de modules.
-
-La baseline Phase 2 est livrée et vérifiée : cinq types d'entreprise, vingt-deux modules canoniques, quatre plans version 1, modules inclus et quotas `MAX_USERS` / `MAX_ESTABLISHMENTS`. Le seed reste idempotent et rejouable après migration depuis une base vide ou une baseline Phase 1.
-
-Chaque ajout doit préciser propriétaire, clé stable, description, état actif et stratégie de compatibilité.
+Les tests `tests/entitlements/catalog-and-plans.integration.test.ts` vérifient le seed idempotent, l'immutabilité des versions et les invocations concurrentes. Les tests d'entitlements vérifient que les recommandations ne deviennent pas une autorité d'autorisation.

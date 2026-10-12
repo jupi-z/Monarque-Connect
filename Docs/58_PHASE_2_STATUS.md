@@ -2,7 +2,7 @@
 
 ## État
 
-Phase 2 est **clôturée à 100 %** sur `main`. Ses tranches sont intégrées via les PR #28, #30, #32, #33 et #34, et la clôture stricte est documentée dans [59_PHASE_2_CLOSURE_EVIDENCE.md](59_PHASE_2_CLOSURE_EVIDENCE.md). La Phase 1 Identity & Tenancy fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
+Phase 2 est **clôturée à 100 %** sur `main` après intégration de la tranche de durcissement normative. Ses tranches sont intégrées via les PR #28, #30, #32, #33, #34 puis la PR de hardening, et la clôture stricte est documentée dans [59_PHASE_2_CLOSURE_EVIDENCE.md](59_PHASE_2_CLOSURE_EVIDENCE.md). La Phase 1 Identity & Tenancy fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
 
 ## Tranches livrées
 
@@ -11,7 +11,9 @@ Phase 2 est **clôturée à 100 %** sur `main`. Ses tranches sont intégrées vi
 3. abonnements d'organisation et transitions ;
 4. résolution des entitlements effectifs ;
 5. projection capabilities versionnée ;
-6. quotas et activation des modules.
+6. quotas, activation des modules et consommation transactionnelle des ressources ;
+7. overrides d'entitlement plateforme et presets métier persistés ;
+8. invariants PostgreSQL de non-chevauchement des abonnements.
 
 La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.md](57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.md). Le plan d'exécution est [2026-10-11-phase-2-product-entitlements-plan.md](superpowers/plans/2026-10-11-phase-2-product-entitlements-plan.md).
 
@@ -47,7 +49,12 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 - [x] Audit et événements Outbox transactionnels pour réservation, commit et libération ;
 - [x] Endpoint GET quotas avec valeurs BigInt sérialisées explicitement en chaînes JSON ;
 - [x] Tests PostgreSQL de concurrence, capacité, idempotence, commit/libération et isolation tenant ;
-- [x] Contrat OpenAPI quotas validé et suite complète vérifiée (65 tests).
+- [x] Contrat OpenAPI quotas validé et suite complète vérifiée, y compris les tests de hardening Phase 2.
+- [x] Overrides `ALLOW`, `DENY` et `LIMIT_OVERRIDE` persistés, bornés, audités et exposés par les routes plateforme ;
+- [x] Inclusion au plan séparée de `defaultEnabled`, avec recommandations métier persistées et règle Intelligence validée ;
+- [x] Période quota calculée côté serveur, limites override appliquées et enforcement atomique sur établissements/memberships ;
+- [x] Provisionnement atomique du plan initial et consommation des quotas owner/établissement ;
+- [x] Contrainte PostgreSQL d'exclusion sur les périodes d'abonnement et test de concurrence.
 
 ## Clôture stricte
 
@@ -60,6 +67,6 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 ## Conditions de travail
 
 - travailler par branche courte et PR obligatoire ;
-- conserver `main` protégée par la ruleset GitHub configurée ;
+- suivre le workflow branche courte → PR → CI → revue → squash merge ; la protection technique de `main` reste indisponible sur le plan GitHub courant et ne doit pas être affirmée comme active ;
 - réutiliser `AuthorizationService`, `PrismaService` et `PrismaOutboxWriter` ;
 - ne jamais contourner l'isolation Identity/Tenancy avec un contrôle d'entitlement parallèle.

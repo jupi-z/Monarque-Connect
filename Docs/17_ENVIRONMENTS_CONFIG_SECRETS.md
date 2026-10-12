@@ -18,6 +18,7 @@ Variables actuellement utilisées :
 - `PORT` — défaut `3000` ;
 - `DATABASE_URL` — obligatoire, PostgreSQL ;
 - `CORS_ORIGINS` — liste exacte séparée par virgules ; vide = aucun origin navigateur autorisé.
+- `PLATFORM_ADMIN_USER_IDS` — allowlist séparée par virgules des comptes autorisés aux routes Control Plane Phase 2 ; vide par défaut.
 
 `.env.example` contient uniquement des placeholders/données de développement.
 

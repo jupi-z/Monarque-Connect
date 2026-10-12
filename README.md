@@ -288,7 +288,7 @@ Monarque Connect ne repose ni sur ERPNext ni sur Frappe.
    Auth, utilisateurs, organisations, types d’entreprise, établissements, memberships, invitations, RBAC et isolation multi-tenant.
 
 2. **Phase 2 — Product Entitlements — terminée**
-   Plans, modules, subscriptions, entitlements, quotas, activations et endpoint capabilities. Les preuves de clôture sont dans `Docs/59_PHASE_2_CLOSURE_EVIDENCE.md`.
+   Plans, modules, subscriptions, overrides d'entitlements, presets métier, quotas appliqués aux ressources, activations et endpoint capabilities. Les preuves de clôture sont dans `Docs/59_PHASE_2_CLOSURE_EVIDENCE.md`.
 
 3. **Phase 3 — Référentiels**
    Business parties, catalogue métier et warehouses.
