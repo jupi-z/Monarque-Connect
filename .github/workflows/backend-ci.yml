@@ -44,6 +44,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run prisma:validate
+      - name: Verify empty-database and Phase 1 upgrade migrations
+        run: npm run prisma:phase2:migration-proof
       - run: npm run prisma:deploy
       - run: npm run openapi:validate
       - run: npm run contracts:validate

@@ -33,6 +33,8 @@ Module catalog, business type presets, plans versionnés, subscriptions, organiz
 
 **Gate :** changement de plan/override prend effet côté serveur sans modification du client.
 
+**État :** terminée et clôturée à 100 %. Voir `59_PHASE_2_CLOSURE_EVIDENCE.md` pour les preuves de migration, concurrence, isolation, audit, E2E HTTP et CI.
+
 ## Phase 3 — Référentiels
 Business parties, catalog, warehouses.
 
