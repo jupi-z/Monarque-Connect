@@ -46,7 +46,26 @@ Sur PostgreSQL réel avec `TEST_DATABASE_URL` :
 - `npm run prisma:phase2:migration-proof` : passé, base vide et upgrade Phase 1 ;
 - `npm run prisma:phase3:migration-proof` : passé, base vide et upgrade Phase 2.
 
-La preuve GitHub Actions et le commit `main` correspondant seront ajoutés
-après fusion de la PR de cette tranche. Tant que cette vérification post-merge
-n'est pas observée, cette tranche n'est pas déclarée fusionnée ni la Phase 4
-clôturée.
+## Preuves GitHub observées
+
+- PR fusionnée : [#52](https://github.com/jupi-z/Monarque-Connect/pull/52) ;
+- commit `main` fusionné :
+  `3a6e7ba229978ab5af8ccf6b031c0e10b41c93f5` ;
+- CI PR corrective verte, run #170 :
+  [38304124761](https://github.com/jupi-z/Monarque-Connect/actions/runs/38304124761) ;
+- CI post-merge `main` verte, run #171 :
+  [38304449756](https://github.com/jupi-z/Monarque-Connect/actions/runs/38304449756) ;
+- job GitHub observé : `validate`, conclusion `success`, avec lint,
+  typecheck, Prisma, migrations, OpenAPI, contrats, tests, build et smoke
+  HTTP réussis ;
+- branche de livraison `monarque/phase4-crm-foundation` supprimée après
+  fusion ; `origin` ne conserve que `main`.
+
+Le premier run PR #169 a échoué sur l'attendu de statut d'une course
+concurrente (`400` observé contre `409` attendu). Le service a été corrigé,
+le test ciblé et le run #170 ont ensuite été validés avant la fusion. Il ne
+reste aucun contrôle obligatoire échoué sur le commit fusionné.
+
+Cette preuve confirme la livraison de la tranche CRM, mais ne clôt pas la
+Phase 4 : le Network, les connexions, les `NetworkInquiry` et la conversion
+idempotente vers le CRM restent à implémenter et à prouver.

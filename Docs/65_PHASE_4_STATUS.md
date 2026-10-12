@@ -18,8 +18,10 @@ Baseline de départ : `main` après la fusion de la stabilisation cross-phase PR
 
 ## Progression
 
-**Tranche CRM fondation : implémentée dans la branche de livraison en cours.**
-La Phase 4 globale reste ouverte et aucun jalon de clôture n'est avancé.
+**Tranche CRM fondation : fusionnée sur `main` par la PR
+[#52](https://github.com/jupi-z/Monarque-Connect/pull/52), commit
+`3a6e7ba229978ab5af8ccf6b031c0e10b41c93f5`.** La Phase 4 globale reste
+ouverte et aucun jalon de clôture n'est avancé.
 
 ## Périmètre
 
