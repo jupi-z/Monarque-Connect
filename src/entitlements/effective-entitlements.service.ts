@@ -10,6 +10,8 @@ export type EntitlementDecisionReason =
   | 'MODULE_NOT_INCLUDED'
   | 'NO_ACTIVE_SUBSCRIPTION'
   | 'SUBSCRIPTION_INACTIVE'
+  | 'ORGANIZATION_SUSPENDED'
+  | 'ORGANIZATION_INACTIVE'
   | 'DEPENDENCY_NOT_ENTITLED'
   | 'MODULE_REQUIRES_ACTIVE_MODULE'
   | 'MODULE_RETIRED'
@@ -81,11 +83,14 @@ export class EffectiveEntitlementsService {
       const dependencies = this.dependencies(module.dependenciesJson);
       const override = overridesByCode.get(moduleCode);
       let entitled = false;
-      let reason: EntitlementDecisionReason = effectiveSubscription ? 'MODULE_NOT_INCLUDED' : latestSubscription ? 'SUBSCRIPTION_INACTIVE' : 'NO_ACTIVE_SUBSCRIPTION';
+      let reason: EntitlementDecisionReason = organization.status === 'SUSPENDED' ? 'ORGANIZATION_SUSPENDED' : organization.status !== 'ACTIVE' ? 'ORGANIZATION_INACTIVE' : effectiveSubscription ? 'MODULE_NOT_INCLUDED' : latestSubscription ? 'SUBSCRIPTION_INACTIVE' : 'NO_ACTIVE_SUBSCRIPTION';
       let source: EffectiveModuleEntitlement['source'] = effectiveSubscription ? 'PLAN' : 'NONE';
 
       if (module.availability === 'RETIRED') reason = 'MODULE_RETIRED';
-      else if (override?.effect === 'DENY') {
+      else if (organization.status !== 'ACTIVE') {
+        entitled = false;
+        source = 'NONE';
+      } else if (override?.effect === 'DENY') {
         reason = 'EXPLICIT_DENY';
         source = 'OVERRIDE';
       } else if (module.isCore) {
