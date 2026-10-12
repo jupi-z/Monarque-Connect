@@ -377,13 +377,114 @@ paths:
     get:
       tags: [Parties]
       operationId: listParties
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: type
+          in: query
+          schema: { type: string, enum: [CUSTOMER, SUPPLIER, BOTH] }
+        - name: active
+          in: query
+          schema: { type: boolean }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 160 }
       responses:
-        "200": { description: Parties }
+        "200":
+          description: Business parties
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartyPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Parties]
       operationId: createParty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePartyRequest" }
       responses:
-        "201": { description: Party created }
+        "201":
+          description: Business party created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessParty" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/parties/{partyId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: partyId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Parties]
+      operationId: getParty
+      responses:
+        "200":
+          description: Business party
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessParty" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Parties]
+      operationId: updateParty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdatePartyRequest" }
+      responses:
+        "200":
+          description: Business party updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessParty" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/parties/{partyId}/deactivate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: partyId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Parties]
+      operationId: deactivateParty
+      responses:
+        "200":
+          description: Business party deactivated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessParty" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/parties/{partyId}/reactivate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: partyId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Parties]
+      operationId: reactivateParty
+      responses:
+        "200":
+          description: Business party reactivated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessParty" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /organizations/{organizationId}/items:
     parameters:
@@ -967,6 +1068,11 @@ components:
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
     Conflict:
       description: State conflict
       content:
@@ -983,6 +1089,54 @@ components:
         detail: { type: string }
         requestId: { type: string }
         code: { type: string }
+    BusinessParty:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, type, displayName, active, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        type: { type: string, enum: [CUSTOMER, SUPPLIER, BOTH] }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: [string, 'null'], format: email }
+        phone: { type: [string, 'null'] }
+        taxId: { type: [string, 'null'], maxLength: 80 }
+        linkedOrganizationId: { type: [string, 'null'], format: uuid }
+        notes: { type: [string, 'null'], maxLength: 5000 }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreatePartyRequest:
+      type: object
+      additionalProperties: false
+      required: [type, displayName]
+      properties:
+        type: { type: string, enum: [CUSTOMER, SUPPLIER, BOTH] }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: string, format: email }
+        phone: { type: string }
+        taxId: { type: string, maxLength: 80 }
+        notes: { type: string, maxLength: 5000 }
+    UpdatePartyRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        type: { type: string, enum: [CUSTOMER, SUPPLIER, BOTH] }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: [string, 'null'], format: email }
+        phone: { type: [string, 'null'] }
+        taxId: { type: [string, 'null'], maxLength: 80 }
+        notes: { type: [string, 'null'], maxLength: 5000 }
+    PartyPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BusinessParty" }
+        nextCursor: { type: [string, 'null'] }
     RegisterRequest:
       type: object
       additionalProperties: false

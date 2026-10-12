@@ -17,4 +17,28 @@ describe('tenant authorization policy', () => {
       expect(rolePermissions[role]).toEqual(expect.arrayContaining(['organization:read', 'establishments:read', 'capabilities:read']));
     }
   });
+
+  it('applies the Phase 3 role matrix to parties, catalog and inventory', () => {
+    for (const role of ['OWNER', 'ADMIN', 'SALES', 'FINANCE', 'OPERATIONS', 'VIEWER'] as const) {
+      expect(rolePermissions[role]).toEqual(expect.arrayContaining(['parties:read', 'catalog:read', 'inventory:read']));
+    }
+
+    for (const role of ['OWNER', 'ADMIN', 'SALES', 'OPERATIONS'] as const) {
+      expect(rolePermissions[role]).toEqual(expect.arrayContaining(['parties:write', 'catalog:write']));
+    }
+
+    for (const role of ['OWNER', 'ADMIN', 'OPERATIONS'] as const) {
+      expect(rolePermissions[role]).toContain('inventory:write');
+    }
+
+    expect(rolePermissions.SALES).not.toContain('inventory:write');
+    expect(rolePermissions.FINANCE).not.toContain('inventory:write');
+    expect(rolePermissions.VIEWER).not.toContain('inventory:write');
+
+    for (const role of ['FINANCE', 'VIEWER'] as const) {
+      expect(rolePermissions[role]).not.toContain('parties:write');
+      expect(rolePermissions[role]).not.toContain('catalog:write');
+      expect(rolePermissions[role]).not.toContain('inventory:write');
+    }
+  });
 });
