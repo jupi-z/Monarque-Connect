@@ -62,7 +62,7 @@ export class OpportunityService {
     if (!current) throw new NotFoundException();
     await this.authorization.assertEstablishment(context, current.establishmentId);
     if (current.status === input.status) return this.getForResponse(organizationId, opportunityId);
-    if (current.status !== 'OPEN') throw new BadRequestException(`Opportunity cannot transition from ${current.status} to ${input.status}`);
+    if (current.status !== 'OPEN') throw new ConflictException(`Opportunity cannot transition from ${current.status} to ${input.status}`);
     const eventContext = currentEventContext();
     const event = eventContext?.requestId ? { requestId: eventContext.requestId, correlationId: eventContext.correlationId } : createRequestContext();
     return this.prisma.$transaction(async (tx) => {
