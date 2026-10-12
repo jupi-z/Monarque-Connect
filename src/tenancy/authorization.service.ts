@@ -40,13 +40,25 @@ export class AuthorizationService {
   }
 }
 
-export type Permission = 'organization:read' | 'organization:write' | 'establishments:read' | 'establishments:write' | 'memberships:write' | 'capabilities:read';
+export type Permission =
+  | 'organization:read'
+  | 'organization:write'
+  | 'establishments:read'
+  | 'establishments:write'
+  | 'memberships:write'
+  | 'capabilities:read'
+  | 'parties:read'
+  | 'parties:write'
+  | 'catalog:read'
+  | 'catalog:write'
+  | 'inventory:read'
+  | 'inventory:write';
 
 export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
-  OWNER: ['organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read'],
-  ADMIN: ['organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read'],
-  SALES: ['organization:read', 'establishments:read', 'capabilities:read'],
-  FINANCE: ['organization:read', 'establishments:read', 'capabilities:read'],
-  OPERATIONS: ['organization:read', 'establishments:read', 'capabilities:read'],
-  VIEWER: ['organization:read', 'establishments:read', 'capabilities:read'],
+  OWNER: ['organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write'],
+  ADMIN: ['organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write'],
+  SALES: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read'],
+  FINANCE: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read'],
+  OPERATIONS: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write'],
+  VIEWER: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read'],
 };

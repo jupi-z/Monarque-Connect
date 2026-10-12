@@ -9,6 +9,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { TenancyModule } from './tenancy/tenancy.module.js';
 import { EntitlementsModule } from './entitlements/entitlements.module.js';
+import { ReferentialsModule } from './referentials/referentials.module.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { EntitlementsModule } from './entitlements/entitlements.module.js';
     AuthModule,
     TenancyModule,
     EntitlementsModule,
+    ReferentialsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,
