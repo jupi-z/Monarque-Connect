@@ -45,11 +45,21 @@ Sur PostgreSQL réel avec `TEST_DATABASE_URL` :
 - migration `20261012210000_add_network_profile` : appliquée avec
   `prisma migrate deploy`.
 
-## Preuves GitHub
+## Preuves GitHub observées
 
-À compléter après création de la PR, validation de tous les jobs CI, fusion
-sur `main` et exécution de la CI post-merge. Aucun contrôle GitHub n'est
-déclaré réussi dans cette preuve avant observation effective.
+- PR fusionnée : [#54](https://github.com/jupi-z/Monarque-Connect/pull/54) ;
+- commit `main` fusionné : `2db7d8205436bd7cae5160e2eb502b95505cf2d6` ;
+- CI PR #174 :
+  [38307308522](https://github.com/jupi-z/Monarque-Connect/actions/runs/38307308522),
+  `Backend CI`, job `validate`, conclusion `success` ;
+- CI post-merge `main` #175 :
+  [38307633326](https://github.com/jupi-z/Monarque-Connect/actions/runs/38307633326),
+  `Backend CI`, job `validate`, conclusion `success` ;
+- pour les deux runs, les étapes observées sont toutes réussies : lint,
+  typecheck, Prisma generate/validate/deploy, preuves de migrations Phase 1 et
+  Phase 2, OpenAPI, contrats, suite complète, build et smoke HTTP ;
+- branche `monarque/phase4-network-profile` supprimée après fusion ; le dépôt
+  ne conserve que `main`.
 
 ## Limites assumées
 
