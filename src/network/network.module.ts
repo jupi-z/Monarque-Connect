@@ -2,14 +2,17 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { EventModule } from '../events/event.module.js';
 import { TenancyModule } from '../tenancy/tenancy.module.js';
+import { EntitlementsModule } from '../entitlements/entitlements.module.js';
 import { NetworkProfileController } from './profile.controller.js';
 import { NetworkProfileService } from './profile.service.js';
 import { NetworkDiscoveryService } from './discovery.service.js';
 import { NetworkTrustService } from './trust.service.js';
+import { NetworkConnectionController } from './connection.controller.js';
+import { ConnectionRequestService } from './connection.service.js';
 
 @Module({
-  imports: [AuthModule, EventModule, TenancyModule],
-  controllers: [NetworkProfileController],
-  providers: [NetworkProfileService, NetworkDiscoveryService, NetworkTrustService],
+  imports: [AuthModule, EventModule, TenancyModule, EntitlementsModule],
+  controllers: [NetworkProfileController, NetworkConnectionController],
+  providers: [NetworkProfileService, NetworkDiscoveryService, NetworkTrustService, ConnectionRequestService],
 })
 export class NetworkModule {}
