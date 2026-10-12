@@ -23,10 +23,11 @@ Baseline de départ : `main` après la fusion de la stabilisation cross-phase PR
 `3a6e7ba229978ab5af8ccf6b031c0e10b41c93f5`.** La Phase 4 globale reste
 ouverte et aucun jalon de clôture n'est avancé.
 
-**Tranche Network profile : implémentée dans le worktree de livraison et en
-attente de PR/CI.** Elle couvre le profil privé par défaut, la publication
-opt-in, la projection publique allowlistée et l'audit + Outbox transactionnels.
-La Phase 4 globale reste ouverte.
+**Tranche Network profile : fusionnée sur `main` par la PR
+[#54](https://github.com/jupi-z/Monarque-Connect/pull/54), commit
+`2db7d8205436bd7cae5160e2eb502b95505cf2d6`.** Elle couvre le profil privé par
+défaut, la publication opt-in, la projection publique allowlistée et l'audit +
+Outbox transactionnels. La Phase 4 globale reste ouverte.
 
 ## Périmètre
 
