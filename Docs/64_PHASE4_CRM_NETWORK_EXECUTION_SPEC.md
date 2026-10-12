@@ -110,6 +110,29 @@ Les routes authentifiées de connexion et d'inquiry vérifient : organisation
 source active, membership actif de l'acteur, capacités effectives des deux
 côtés lorsque nécessaire, policy de contact et absence d'auto-ciblage.
 
+### Permissions tenant gelées
+
+Les permissions tenant sont distinctes des entitlements de module et sont
+appliquées par `AuthorizationService` :
+
+| Permission | OWNER | ADMIN | SALES | FINANCE | OPERATIONS | VIEWER |
+|---|---:|---:|---:|---:|---:|---:|
+| `crm:read` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `crm:write` | ✓ | ✓ | ✓ | – | – | – |
+| `network:discovery:read` | ✓ | ✓ | ✓ | – | ✓ | ✓ |
+| `network:profile:read` | ✓ | ✓ | ✓ | – | – | – |
+| `network:profile:write` | ✓ | ✓ | – | – | – | – |
+| `network:trust:read` | ✓ | ✓ | ✓ | – | – | – |
+| `network:connections:read` | ✓ | ✓ | ✓ | – | ✓ | ✓ |
+| `network:connections:write` | ✓ | ✓ | ✓ | – | ✓ | – |
+| `network:inquiries:read` | ✓ | ✓ | ✓ | – | ✓ | ✓ |
+| `network:inquiries:write` | ✓ | ✓ | ✓ | – | ✓ | – |
+
+Les lectures publiques de découverte, profil et trust sont explicitement
+`security: []` et ne consomment pas une permission de membership ; elles restent
+limitées aux projections publiques. Les permissions ci-dessus contrôlent les
+routes authentifiées de gestion et de consultation tenant.
+
 ## API-first et événements
 
 Chaque tranche commence par les schémas OpenAPI détaillés : paramètres,
@@ -165,15 +188,19 @@ points suivants :
 - preuves documentaires et issue #49 synchronisées ;
 - branche de livraison supprimée après fusion.
 
-## Décisions ouvertes à trancher avant le code
+## Décisions ouvertes à trancher avant les migrations métier
 
-- permissions exactes par rôle pour lecture/écriture CRM et Network ;
-- définition de la policy de contact et de la visibilité par défaut ;
+- [x] permissions exactes par rôle pour lecture/écriture CRM et Network ;
+- [x] policy initiale : profil privé par défaut, contact authentifié uniquement,
+  pas d'auto-ciblage ;
+- [x] trust public limité au statut Monarque, à sa validité et aux credentials
+  explicitement publiés ;
+- [x] conversion commandée explicitement par le client (`LEAD` ou
+  `OPPORTUNITY`), avec établissement obligatoire pour une opportunity ;
 - catégories/localisations publiques et stratégie d'indexation PostgreSQL ;
-- niveau de détail du trust publiable et cycle d'expiration ;
-- choix `Lead` ou `Opportunity` lors de la conversion, ou commande explicite ;
 - quotas éventuels d'inquiries et de connexions, s'ils sont activés par le
   catalogue commercial.
 
-Ces décisions seront consignées dans la tranche contrats avant toute migration
-métier.
+Les deux décisions restantes seront consignées dans la tranche Network avant sa
+migration métier. Une migration CRM peut avancer avec les décisions gelées
+ci-dessus sans inventer de comportement de quota ou de recherche dédiée.

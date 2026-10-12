@@ -36,6 +36,8 @@ Les rôles plateforme sont séparés des memberships tenant.
 | Catalogue read | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Catalogue write | ✓ | ✓ | ✓ | – | ✓ | – |
 | CRM | ✓ | ✓ | ✓ | read | read | read |
+| CRM read (`crm:read`) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| CRM write (`crm:write`) | ✓ | ✓ | ✓ | – | – | – |
 | Quotes | ✓ | ✓ | ✓ | read | read | read |
 | Orders | ✓ | ✓ | ✓ | read | ✓ | read |
 | Invoices | ✓ | ✓ | read | ✓ | read | read |
@@ -46,6 +48,12 @@ Les rôles plateforme sont séparés des memberships tenant.
 | Inventory write | ✓ | ✓ | – | read | ✓ | read |
 | Projects write | ✓ | ✓ | ✓ | read | ✓ | read |
 | Network connection/inquiry | ✓ | ✓ | ✓ | – | ✓ | read |
+| Network discovery read (`network:discovery:read`) | ✓ | ✓ | ✓ | – | ✓ | ✓ |
+| Network profile read (`network:profile:read`) | ✓ | ✓ | ✓ | – | – | – |
+| Network profile write (`network:profile:write`) | ✓ | ✓ | – | – | – | – |
+| Network trust read (`network:trust:read`) | ✓ | ✓ | ✓ | – | – | – |
+| Network connections read/write | ✓/✓ | ✓/✓ | ✓/✓ | –/– | ✓/✓ | ✓/– |
+| Network inquiries read/write | ✓/✓ | ✓/✓ | ✓/✓ | –/– | ✓/✓ | ✓/– |
 | Messaging | ✓ | ✓ | ✓ | ✓ | ✓ | read |
 | Insights read | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Export tenant | ✓ | ✓ | – | – | – | – |

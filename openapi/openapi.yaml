@@ -722,13 +722,36 @@ paths:
     get:
       tags: [CRM]
       operationId: listLeads
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/LeadStatus" } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Leads }
+        "200":
+          description: Tenant-scoped CRM leads
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LeadPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [CRM]
       operationId: createLead
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateLeadRequest" }
       responses:
-        "201": { description: Lead created }
+        "201":
+          description: Lead created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lead" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/opportunities:
     parameters:
@@ -736,13 +759,36 @@ paths:
     get:
       tags: [CRM]
       operationId: listOpportunities
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/OpportunityStatus" } }
+        - { name: establishmentId, in: query, schema: { type: string, format: uuid } }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Opportunities }
+        "200":
+          description: Establishment-scoped opportunities
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OpportunityPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [CRM]
       operationId: createOpportunity
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOpportunityRequest" }
       responses:
-        "201": { description: Opportunity created }
+        "201":
+          description: Opportunity created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Opportunity" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/quotes:
     parameters:
@@ -984,10 +1030,16 @@ paths:
       operationId: discoverOrganizations
       parameters:
         - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: businessTypeCode, in: query, schema: { type: string, maxLength: 80 } }
+        - { name: verified, in: query, schema: { type: boolean } }
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Public organization profiles }
+        "200":
+          description: Public organization profiles only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicOrganizationProfilePage" }
 
 
   /organizations/{organizationId}/network/organizations/{targetOrganizationId}/inquiries:
@@ -998,8 +1050,50 @@ paths:
     post:
       tags: [Network]
       operationId: createNetworkInquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateNetworkInquiryRequest" }
       responses:
-        "201": { description: Commercial inquiry created }
+        "201":
+          description: Commercial inquiry created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NetworkInquiry" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/network-profile:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Network]
+      operationId: getOrganizationNetworkProfile
+      responses:
+        "200":
+          description: Authenticated tenant network profile configuration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationNetworkProfile" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    patch:
+      tags: [Network]
+      operationId: updateOrganizationNetworkProfile
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateOrganizationNetworkProfileRequest" }
+      responses:
+        "200":
+          description: Network profile configuration updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganizationNetworkProfile" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
 
@@ -1012,8 +1106,12 @@ paths:
       tags: [Network]
       operationId: getPublicNetworkOrganization
       responses:
-        "200": { description: Public organization profile }
-        "404": { description: Profile not public or not found }
+        "200":
+          description: Public organization profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicOrganizationProfile" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /network/organizations/{organizationId}/catalog:
     parameters:
@@ -1033,7 +1131,12 @@ paths:
       tags: [Network]
       operationId: getNetworkOrganizationTrust
       responses:
-        "200": { description: Public verification and explicitly published trust signals }
+        "200":
+          description: Public verification and explicitly published trust signals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicTrustProfile" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /organizations/{organizationId}/network-inquiries:
     parameters:
@@ -1041,8 +1144,17 @@ paths:
     get:
       tags: [Network]
       operationId: listNetworkInquiries
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/NetworkInquiryStatus" } }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Incoming commercial inquiries }
+        "200":
+          description: Incoming commercial inquiries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NetworkInquiryPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /organizations/{organizationId}/network-inquiries/{inquiryId}/convert:
     parameters:
@@ -1052,8 +1164,20 @@ paths:
     post:
       tags: [Network, CRM]
       operationId: convertNetworkInquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConvertNetworkInquiryRequest" }
       responses:
-        "201": { description: Lead or opportunity created from inquiry }
+        "201":
+          description: Lead or opportunity created from inquiry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NetworkInquiryConversion" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/connection-requests:
     parameters:
@@ -1061,8 +1185,59 @@ paths:
     post:
       tags: [Network]
       operationId: createConnectionRequest
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateConnectionRequest" }
       responses:
-        "201": { description: Connection request created }
+        "201":
+          description: Connection request created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectionRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    get:
+      tags: [Network]
+      operationId: listConnectionRequests
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ConnectionRequestStatus" } }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Tenant connection requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectionRequestPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/connection-requests/{connectionRequestId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: connectionRequestId, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [Network]
+      operationId: updateConnectionRequestStatus
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateConnectionRequest" }
+      responses:
+        "200":
+          description: Connection request status updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectionRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/conversations:
     parameters:
@@ -1291,6 +1466,258 @@ components:
         detail: { type: string }
         requestId: { type: string }
         code: { type: string }
+    LeadStatus:
+      type: string
+      enum: [NEW, QUALIFIED, CONVERTED, DISMISSED]
+    OpportunityStatus:
+      type: string
+      enum: [OPEN, WON, LOST, CANCELLED]
+    NetworkInquiryStatus:
+      type: string
+      enum: [NEW, QUALIFIED, DISMISSED, CONVERTED]
+    ConnectionRequestStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, DECLINED, CANCELLED]
+    Lead:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, status, source, displayName, active, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        partyId: { type: [string, 'null'], format: uuid }
+        networkInquiryId: { type: [string, 'null'], format: uuid }
+        status: { $ref: "#/components/schemas/LeadStatus" }
+        source: { type: string, enum: [DIRECT, NETWORK_INQUIRY] }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: [string, 'null'], format: email }
+        phone: { type: [string, 'null'], maxLength: 40 }
+        notes: { type: [string, 'null'], maxLength: 5000 }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateLeadRequest:
+      type: object
+      additionalProperties: false
+      required: [displayName]
+      properties:
+        partyId: { type: string, format: uuid }
+        networkInquiryId: { type: string, format: uuid }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: string, format: email }
+        phone: { type: string, maxLength: 40 }
+        notes: { type: string, maxLength: 5000 }
+    LeadPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Lead" }
+        nextCursor: { type: [string, 'null'] }
+    Opportunity:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, status, source, name, active, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        partyId: { type: [string, 'null'], format: uuid }
+        networkInquiryId: { type: [string, 'null'], format: uuid }
+        status: { $ref: "#/components/schemas/OpportunityStatus" }
+        source: { type: string, enum: [DIRECT, NETWORK_INQUIRY] }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        expectedValue: { type: [string, 'null'], pattern: "^[0-9]+(?:\\.[0-9]{1,4})?$" }
+        currency: { type: [string, 'null'], pattern: "^[A-Z]{3}$" }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateOpportunityRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, name]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        partyId: { type: string, format: uuid }
+        networkInquiryId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        expectedValue: { type: string, pattern: "^[0-9]+(?:\\.[0-9]{1,4})?$" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+    OpportunityPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Opportunity" }
+        nextCursor: { type: [string, 'null'] }
+    OrganizationNetworkProfile:
+      type: object
+      additionalProperties: false
+      required: [organizationId, isPublic, displayName, categories, publishedItemIds, updatedAt]
+      properties:
+        organizationId: { type: string, format: uuid }
+        isPublic: { type: boolean }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        categories:
+          type: array
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 80 }
+        publicLocation: { type: [string, 'null'], maxLength: 160 }
+        publishedItemIds:
+          type: array
+          maxItems: 200
+          items: { type: string, format: uuid }
+        updatedAt: { type: string, format: date-time }
+    UpdateOrganizationNetworkProfileRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        isPublic: { type: boolean }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        categories:
+          type: array
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 80 }
+        publicLocation: { type: [string, 'null'], maxLength: 160 }
+        publishedItemIds:
+          type: array
+          maxItems: 200
+          items: { type: string, format: uuid }
+    PublicOrganizationProfile:
+      type: object
+      additionalProperties: false
+      required: [organizationId, displayName, categories, verified, publishedItemIds]
+      properties:
+        organizationId: { type: string, format: uuid }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        businessTypeCode: { type: [string, 'null'], maxLength: 80 }
+        categories:
+          type: array
+          items: { type: string, maxLength: 80 }
+        publicLocation: { type: [string, 'null'], maxLength: 160 }
+        verified: { type: boolean }
+        publishedItemIds:
+          type: array
+          items: { type: string, format: uuid }
+        publishedAt: { type: [string, 'null'], format: date-time }
+    PublicOrganizationProfilePage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PublicOrganizationProfile" }
+        nextCursor: { type: [string, 'null'] }
+    PublicTrustProfile:
+      type: object
+      additionalProperties: false
+      required: [organizationId, verificationStatus, publishedCredentials]
+      properties:
+        organizationId: { type: string, format: uuid }
+        verificationStatus: { type: string, enum: [UNVERIFIED, VERIFIED, EXPIRED] }
+        verifiedAt: { type: [string, 'null'], format: date-time }
+        verificationExpiresAt: { type: [string, 'null'], format: date-time }
+        publishedCredentials:
+          type: array
+          items: { $ref: "#/components/schemas/PublishedCredential" }
+    PublishedCredential:
+      type: object
+      additionalProperties: false
+      required: [label, issuer]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 160 }
+        issuer: { type: string, minLength: 1, maxLength: 160 }
+        validUntil: { type: [string, 'null'], format: date }
+    CreateNetworkInquiryRequest:
+      type: object
+      additionalProperties: false
+      required: [subject, message]
+      properties:
+        subject: { type: string, minLength: 1, maxLength: 160 }
+        message: { type: string, minLength: 1, maxLength: 5000 }
+        requestedPartyType: { type: string, enum: [CUSTOMER, SUPPLIER, BOTH] }
+    NetworkInquiry:
+      type: object
+      additionalProperties: false
+      required: [id, sourceOrganizationId, targetOrganizationId, status, subject, message, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sourceOrganizationId: { type: string, format: uuid }
+        targetOrganizationId: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/NetworkInquiryStatus" }
+        subject: { type: string, minLength: 1, maxLength: 160 }
+        message: { type: string, minLength: 1, maxLength: 5000 }
+        convertedLeadId: { type: [string, 'null'], format: uuid }
+        convertedOpportunityId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    NetworkInquiryPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/NetworkInquiry" }
+        nextCursor: { type: [string, 'null'] }
+    ConvertNetworkInquiryRequest:
+      type: object
+      additionalProperties: false
+      required: [targetType]
+      properties:
+        targetType: { type: string, enum: [LEAD, OPPORTUNITY] }
+        establishmentId: { type: string, format: uuid }
+    NetworkInquiryConversion:
+      type: object
+      additionalProperties: false
+      required: [inquiryId, targetType, targetId]
+      properties:
+        inquiryId: { type: string, format: uuid }
+        targetType: { type: string, enum: [LEAD, OPPORTUNITY] }
+        targetId: { type: string, format: uuid }
+    CreateConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [targetOrganizationId]
+      properties:
+        targetOrganizationId: { type: string, format: uuid }
+        message: { type: string, maxLength: 2000 }
+    UpdateConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [ACCEPTED, DECLINED, CANCELLED] }
+    ConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [id, sourceOrganizationId, targetOrganizationId, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sourceOrganizationId: { type: string, format: uuid }
+        targetOrganizationId: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/ConnectionRequestStatus" }
+        message: { type: [string, 'null'], maxLength: 2000 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ConnectionRequestPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ConnectionRequest" }
+        nextCursor: { type: [string, 'null'] }
     BusinessParty:
       type: object
       additionalProperties: false

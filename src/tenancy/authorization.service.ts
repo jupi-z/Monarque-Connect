@@ -61,13 +61,43 @@ export type Permission =
   | 'catalog:read'
   | 'catalog:write'
   | 'inventory:read'
-  | 'inventory:write';
+  | 'inventory:write'
+  | 'crm:read'
+  | 'crm:write'
+  | 'network:discovery:read'
+  | 'network:connections:read'
+  | 'network:connections:write'
+  | 'network:inquiries:read'
+  | 'network:inquiries:write'
+  | 'network:profile:read'
+  | 'network:profile:write'
+  | 'network:trust:read';
 
 export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
-  OWNER: ['organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write'],
-  ADMIN: ['organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write'],
-  SALES: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read'],
-  FINANCE: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read'],
-  OPERATIONS: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write'],
-  VIEWER: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read'],
+  OWNER: [
+    'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
+    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
+    'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
+  ],
+  ADMIN: [
+    'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
+    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
+    'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
+  ],
+  SALES: [
+    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read',
+    'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
+    'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:trust:read',
+  ],
+  FINANCE: ['organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read', 'crm:read'],
+  OPERATIONS: [
+    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'crm:read', 'network:discovery:read', 'network:connections:read', 'network:connections:write', 'network:inquiries:read', 'network:inquiries:write',
+  ],
+  VIEWER: [
+    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read', 'crm:read',
+    'network:discovery:read', 'network:connections:read', 'network:inquiries:read',
+  ],
 };
