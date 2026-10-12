@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { TenancyModule } from './tenancy/tenancy.module.js';
 import { EntitlementsModule } from './entitlements/entitlements.module.js';
 import { ReferentialsModule } from './referentials/referentials.module.js';
+import { CrmModule } from './crm/crm.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ReferentialsModule } from './referentials/referentials.module.js';
     TenancyModule,
     EntitlementsModule,
     ReferentialsModule,
+    CrmModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,

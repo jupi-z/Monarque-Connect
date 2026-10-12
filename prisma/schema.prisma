@@ -169,6 +169,31 @@ enum AuditAction {
   WAREHOUSE_CREATED
   WAREHOUSE_UPDATED
   WAREHOUSE_STATUS_CHANGED
+  LEAD_CREATED
+  LEAD_UPDATED
+  LEAD_STATUS_CHANGED
+  OPPORTUNITY_CREATED
+  OPPORTUNITY_UPDATED
+  OPPORTUNITY_STATUS_CHANGED
+}
+
+enum CrmSource {
+  DIRECT
+  NETWORK_INQUIRY
+}
+
+enum LeadStatus {
+  NEW
+  QUALIFIED
+  CONVERTED
+  DISMISSED
+}
+
+enum OpportunityStatus {
+  OPEN
+  WON
+  LOST
+  CANCELLED
 }
 
 model OutboxEvent {
@@ -393,6 +418,8 @@ model Organization {
   businessParties   BusinessParty[]
   items             Item[]
   warehouses        Warehouse[]
+  leads             Lead[]
+  opportunities     Opportunity[]
 
   @@index([businessTypeCode])
   @@index([status])
@@ -537,6 +564,7 @@ model Establishment {
   scopeLinks           MembershipEstablishmentScope[]
   invitationScopeLinks InvitationEstablishmentScope[]
   warehouses           Warehouse[]
+  opportunities         Opportunity[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -562,6 +590,50 @@ model BusinessParty {
   @@index([organizationId, active, displayName])
   @@index([organizationId, type, active])
   @@map("business_parties")
+}
+
+model Lead {
+  id               String     @id @db.Uuid
+  organizationId   String     @map("organization_id") @db.Uuid
+  partyId          String?    @map("party_id") @db.Uuid
+  networkInquiryId String?    @map("network_inquiry_id") @db.Uuid
+  status           LeadStatus @default(NEW)
+  source           CrmSource  @default(DIRECT)
+  displayName      String     @map("display_name") @db.VarChar(160)
+  email            String?    @db.VarChar(320)
+  phone            String?    @db.VarChar(40)
+  notes            String?    @db.VarChar(5000)
+  active           Boolean    @default(true)
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, createdAt, id])
+  @@index([organizationId, active, createdAt, id])
+  @@index([organizationId, displayName])
+  @@map("leads")
+}
+
+model Opportunity {
+  id               String            @id @db.Uuid
+  organizationId   String            @map("organization_id") @db.Uuid
+  establishmentId  String            @map("establishment_id") @db.Uuid
+  partyId          String?           @map("party_id") @db.Uuid
+  networkInquiryId String?           @map("network_inquiry_id") @db.Uuid
+  status           OpportunityStatus @default(OPEN)
+  source           CrmSource         @default(DIRECT)
+  name             String            @db.VarChar(160)
+  expectedValue    Decimal?          @map("expected_value") @db.Decimal(19, 4)
+  currency         String?           @db.Char(3)
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment    Establishment     @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@index([organizationId, active, createdAt, id])
+  @@map("opportunities")
 }
 
 model Item {

@@ -39,6 +39,8 @@ describe('Catalog items referential', () => {
     app.useGlobalFilters(new ProblemDetailsFilter());
     await app.init();
     prisma = app.get(PrismaService);
+    await prisma.opportunity.deleteMany();
+    await prisma.lead.deleteMany();
     await prisma.warehouse.deleteMany();
     await prisma.item.deleteMany();
     await prisma.businessParty.deleteMany();

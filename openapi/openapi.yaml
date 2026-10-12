@@ -790,6 +790,60 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /organizations/{organizationId}/leads/{leadId}/status:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [CRM]
+      operationId: transitionLead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransitionLeadRequest" }
+      responses:
+        "200":
+          description: Lead transitioned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Lead" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/opportunities/{opportunityId}/status:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: opportunityId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [CRM]
+      operationId: transitionOpportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransitionOpportunityRequest" }
+      responses:
+        "200":
+          description: Opportunity transitioned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Opportunity" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/quotes:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -1545,6 +1599,18 @@ components:
         name: { type: string, minLength: 1, maxLength: 160 }
         expectedValue: { type: string, pattern: "^[0-9]+(?:\\.[0-9]{1,4})?$" }
         currency: { type: string, pattern: "^[A-Z]{3}$" }
+    TransitionLeadRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [NEW, QUALIFIED, CONVERTED, DISMISSED] }
+    TransitionOpportunityRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [WON, LOST, CANCELLED] }
     OpportunityPage:
       type: object
       additionalProperties: false
