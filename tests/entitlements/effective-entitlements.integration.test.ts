@@ -134,4 +134,17 @@ describe('Effective organization entitlements', () => {
     const intelligence = await entitlements.resolve(organizationId, new Date('2027-01-02T00:00:00.000Z'));
     expect(intelligence.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'INTELLIGENCE_BASIC', entitled: true, allowed: false, reason: 'MODULE_REQUIRES_ACTIVE_MODULE' })]));
   });
+
+  it('denies every module immediately when the organization is suspended', async () => {
+    const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt: at });
+    await prisma.organization.update({ where: { id: organizationId }, data: { status: 'SUSPENDED' } });
+
+    const result = await entitlements.resolve(organizationId, at);
+    expect(result.subscription).toBeNull();
+    expect(result.modules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'AUTH', entitled: false, active: false, allowed: false, reason: 'ORGANIZATION_SUSPENDED' }),
+      expect.objectContaining({ code: 'CATALOG', entitled: false, active: false, allowed: false, reason: 'ORGANIZATION_SUSPENDED' }),
+    ]));
+  });
 });
