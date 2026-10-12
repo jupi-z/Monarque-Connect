@@ -41,11 +41,21 @@ Sur PostgreSQL réel avec `TEST_DATABASE_URL` :
 - `npm run prisma:validate` : passé ;
 - preuves migrations Phase 2 et Phase 3 : passées avec **17 migrations**.
 
-## Preuves GitHub
+## Preuves GitHub observées
 
-À compléter après création de la PR, validation de tous les jobs CI, fusion
-sur `main`, suppression de la branche et exécution de la CI post-merge.
-Aucun contrôle GitHub n'est déclaré réussi avant observation effective.
+- PR fusionnée : [#56](https://github.com/jupi-z/Monarque-Connect/pull/56) ;
+- commit `main` fusionné : `4347c8c36cae59af067f991c00861af033c345da` ;
+- CI PR #178 :
+  [38309774047](https://github.com/jupi-z/Monarque-Connect/actions/runs/38309774047),
+  `Backend CI`, job `validate`, conclusion `success` ;
+- CI post-merge `main` #179 :
+  [38310060512](https://github.com/jupi-z/Monarque-Connect/actions/runs/38310060512),
+  `Backend CI`, job `validate`, conclusion `success` ;
+- pour les deux runs, les étapes observées sont toutes réussies : lint,
+  typecheck, Prisma generate/validate/deploy, preuves de migrations Phase 1 et
+  Phase 2, OpenAPI, contrats, suite complète, build et smoke HTTP ;
+- branche `monarque/phase4-network-trust-discovery` supprimée après fusion ;
+  le dépôt ne conserve que `main`.
 
 ## Limites assumées
 
