@@ -55,7 +55,7 @@ npm run build
 
 ## Tracé Git
 
-Les tranches ont été livrées par PR courtes et squash-mergées sur `main` : #28, #30, #32, #33 et #34. La présente clôture ajoute les preuves d'upgrade et d'E2E HTTP, synchronise les documents de statut et est elle-même livrée par PR avec CI obligatoire.
+Les tranches ont été livrées par PR courtes et squash-mergées sur `main` : #28, #30, #32, #33 et #34. La présente clôture a été livrée par la PR #35, squash-mergée dans `main` en `5fb9494`, avec le run GitHub Actions Backend CI #138 (`38226631236`) vert.
 
 Après merge, `main` doit être le seul checkout et la branche de clôture doit être supprimée localement et sur `origin`.
 
