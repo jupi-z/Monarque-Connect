@@ -178,6 +178,12 @@ enum AuditAction {
   NETWORK_PROFILE_UPDATED
 }
 
+enum NetworkVerificationStatus {
+  UNVERIFIED
+  VERIFIED
+  EXPIRED
+}
+
 enum CrmSource {
   DIRECT
   NETWORK_INQUIRY
@@ -422,6 +428,7 @@ model Organization {
   leads             Lead[]
   opportunities     Opportunity[]
   networkProfile     OrganizationNetworkProfile?
+  networkTrust       OrganizationNetworkTrust?
 
   @@index([businessTypeCode])
   @@index([status])
@@ -443,6 +450,20 @@ model OrganizationNetworkProfile {
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("organization_network_profiles")
+}
+
+model OrganizationNetworkTrust {
+  id                    String                   @id @db.Uuid
+  organizationId        String                   @unique @map("organization_id") @db.Uuid
+  verificationStatus    NetworkVerificationStatus @default(UNVERIFIED) @map("verification_status")
+  verifiedAt            DateTime?                @map("verified_at") @db.Timestamptz(6)
+  verificationExpiresAt DateTime?                @map("verification_expires_at") @db.Timestamptz(6)
+  publishedCredentials  Json                     @default("[]") @map("published_credentials")
+  createdAt             DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_network_trust")
 }
 
 model Subscription {
