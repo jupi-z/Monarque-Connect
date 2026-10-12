@@ -17,7 +17,7 @@ Aligner la livraison Phase 2 avec les invariants définis dans les spécificatio
    - Faire calculer la période par le serveur à partir du plan effectif et de la date d'évaluation; supprimer la confiance dans un `periodKey` fourni par l'appelant.
    - Ajouter des primitives transactionnelles partagées pour consommer une capacité de façon atomique.
    - Faire respecter `MAX_USERS` lors de l'acceptation d'une invitation et `MAX_ESTABLISHMENTS` lors de la création d'un établissement, y compris pour la création atomique d'une organisation.
-   - Provisionner explicitement le plan initial de l'organisation avec un choix par défaut documenté, dans la même transaction que l'organisation, son établissement et son owner.
+   - Provisionner explicitement le plan CONNECT pour le parcours public dans la même transaction que l'organisation, son établissement et son owner ; toute attribution supérieure passe par le Control Plane autorisé.
    - Tester les courses concurrentes et les rejets de dépassement.
 
 3. **Invariants PostgreSQL des abonnements**

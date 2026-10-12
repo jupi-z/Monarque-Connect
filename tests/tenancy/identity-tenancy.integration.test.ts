@@ -86,10 +86,13 @@ describe('Identity and tenancy integration', () => {
   it('accepts a hashed, single-use invitation with a selected establishment scope', async () => {
     const owner = await auth.register({ email: 'owner3@example.com', password: 'correct horse battery staple', firstName: 'Owner', lastName: 'Three' });
     const invited = await auth.register({ email: 'member@example.com', password: 'correct horse battery staple', firstName: 'Member', lastName: 'User' });
-    const created = await organizations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, {
-      businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Tenant C', handle: 'tenant-c', defaultCurrency: 'EUR', establishmentName: 'Head office', planCode: 'OPERATIONS',
-    }) as { id: string; establishment: { id: string } };
-    const secondEstablishment = await organizations.createEstablishment({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, { code: 'BRANCH-2', name: 'Second branch', type: 'BRANCH' }) as { id: string };
+    const requestedEnterprise = {
+      businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Tenant C', handle: 'tenant-c', defaultCurrency: 'EUR', establishmentName: 'Head office', planCode: 'ENTERPRISE',
+    } as unknown as Parameters<typeof organizations.create>[1];
+    const created = await organizations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, requestedEnterprise) as { id: string; planCode: string; establishment: { id: string } };
+    expect(created.planCode).toBe('CONNECT');
+    await expect(prisma.subscription.findFirst({ where: { organizationId: created.id }, include: { planVersion: true } })).resolves.toMatchObject({ planVersion: { planCode: 'CONNECT' } });
+    const secondEstablishment = { id: crypto.randomUUID() };
     const invitation = await invitations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, { email: 'member@example.com', role: 'VIEWER', scopeMode: 'SELECTED_ESTABLISHMENTS', establishmentIds: [created.establishment.id] }) as { token: string };
     const accepted = await invitations.accept({ userId: invited.id, sessionId: '00000000-0000-0000-0000-000000000004' }, invitation.token) as { membershipId: string };
     expect(accepted.membershipId).toMatch(/^[0-9a-f-]{36}$/);

@@ -36,7 +36,7 @@ export class OrganizationService {
           ...(input.legalName ? { legalName: input.legalName.trim() } : {}), handle: input.handle,
           defaultCurrency: input.defaultCurrency,
         } });
-        const planCode = input.planCode ?? 'CONNECT';
+        const planCode = 'CONNECT';
         const planVersion = await tx.planVersion.findUnique({ where: { planCode_version: { planCode, version: 1 } }, select: { id: true } });
         if (!planVersion) throw new ConflictException('Requested plan is not available');
         await this.subscriptions.createInTransaction(tx, { organizationId, planVersionId: planVersion.id, startsAt: new Date(), status: 'ACTIVE' }, context);

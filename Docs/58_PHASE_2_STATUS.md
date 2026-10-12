@@ -52,8 +52,9 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 - [x] Contrat OpenAPI quotas validé et suite complète vérifiée, y compris les tests de hardening Phase 2.
 - [x] Overrides `ALLOW`, `DENY` et `LIMIT_OVERRIDE` persistés, bornés, audités et exposés par les routes plateforme ;
 - [x] Inclusion au plan séparée de `defaultEnabled`, avec recommandations métier persistées et règle Intelligence validée ;
-- [x] Période quota calculée côté serveur, limites override appliquées et enforcement atomique sur établissements/memberships ;
-- [x] Provisionnement atomique du plan initial et consommation des quotas owner/établissement ;
+- [x] Mode de quota explicite `CAPACITY`/`PERIODIC`, compteur `CURRENT` sans remise à zéro pour `MAX_USERS`/`MAX_ESTABLISHMENTS`, et limites override bornées au module propriétaire ;
+- [x] Provisionnement public atomique du plan CONNECT et consommation des quotas owner/établissement ; toute attribution supérieure passe par le Control Plane autorisé ;
+- [x] Overrides commerciaux interdits sur les modules core, avec défense en profondeur du resolver contre les données historiques invalides ;
 - [x] Contrainte PostgreSQL d'exclusion sur les périodes d'abonnement et test de concurrence.
 
 ## Clôture stricte
@@ -62,6 +63,7 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 - [x] preuve automatisée d'upgrade depuis la baseline Phase 1 ;
 - [x] E2E HTTP des endpoints modules, activation et quotas ;
 - [x] documentation normative, statut, roadmap et baseline de seeds synchronisés ;
+- [x] tests de régression HTTP et PostgreSQL sur l'attribution libre de plan, la persistance des capacités entre périodes, les overrides core et le scope des `LIMIT_OVERRIDE` ;
 - [x] PR #37 puis PR #39 revues, CI #142 (`38240149219`) et CI #146 (`38240905003`) vertes, squash merges dans `main` (`63284e3` puis `6ea2bbb`) et branches de travail supprimées.
 
 ## Conditions de travail

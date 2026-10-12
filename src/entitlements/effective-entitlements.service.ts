@@ -81,7 +81,7 @@ export class EffectiveEntitlementsService {
       const module = catalogByCode.get(moduleCode);
       if (!module) throw new Error(`Unknown module dependency: ${moduleCode}`);
       const dependencies = this.dependencies(module.dependenciesJson);
-      const override = overridesByCode.get(moduleCode);
+      const override = module.isCore ? undefined : overridesByCode.get(moduleCode);
       let entitled = false;
       let reason: EntitlementDecisionReason = organization.status === 'SUSPENDED' ? 'ORGANIZATION_SUSPENDED' : organization.status !== 'ACTIVE' ? 'ORGANIZATION_INACTIVE' : effectiveSubscription ? 'MODULE_NOT_INCLUDED' : latestSubscription ? 'SUBSCRIPTION_INACTIVE' : 'NO_ACTIVE_SUBSCRIPTION';
       let source: EffectiveModuleEntitlement['source'] = effectiveSubscription ? 'PLAN' : 'NONE';
@@ -90,13 +90,13 @@ export class EffectiveEntitlementsService {
       else if (organization.status !== 'ACTIVE') {
         entitled = false;
         source = 'NONE';
-      } else if (override?.effect === 'DENY') {
-        reason = 'EXPLICIT_DENY';
-        source = 'OVERRIDE';
       } else if (module.isCore) {
         entitled = organization.status === 'ACTIVE';
         reason = 'CORE_MODULE';
         source = 'CORE';
+      } else if (override?.effect === 'DENY') {
+        reason = 'EXPLICIT_DENY';
+        source = 'OVERRIDE';
       } else if (override?.effect === 'ALLOW') {
         entitled = true;
         reason = 'EXPLICIT_ALLOW';

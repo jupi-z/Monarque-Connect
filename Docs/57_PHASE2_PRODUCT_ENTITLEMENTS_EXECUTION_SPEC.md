@@ -27,8 +27,8 @@ Transformer la projection `capabilities` de Phase 1 en une décision commerciale
 6. Les entitlements ne permettent jamais de franchir les contrôles Identity/Tenancy de Phase 1.
 7. Toute mutation du Control Plane crée son audit et son événement dans la même transaction via l'Outbox Writer.
 8. Les capabilities exposent la décision effective, sa version et la raison de chaque refus exploitable par le Web Client.
-9. Un `ALLOW` explicite peut ouvrir un module hors plan, un `DENY` explicite prime sur tout autre droit, et `LIMIT_OVERRIDE` ne modifie que les limites indiquées.
-10. Les périodes de quota sont calculées côté serveur à partir du plan effectif; les compteurs sont consommés atomiquement lors de la création des ressources concernées.
+9. Un `ALLOW` explicite peut ouvrir un module hors plan, un `DENY` explicite prime sur tout autre droit, et `LIMIT_OVERRIDE` ne modifie que les limites indiquées du module propriétaire du quota ; aucun override commercial ne s'applique à un module core.
+10. Le mode de quota est explicite : `CAPACITY` utilise le compteur canonique `CURRENT` sans remise à zéro, tandis que `PERIODIC` est calculé côté serveur à partir du plan effectif; les compteurs sont consommés atomiquement lors de la création des ressources concernées.
 11. Les abonnements effectifs ne peuvent pas avoir de fenêtres temporelles qui se chevauchent, y compris sous concurrence, grâce à une contrainte PostgreSQL.
 
 ## Modèle conceptuel minimal
@@ -65,7 +65,7 @@ Les réponses d'erreur restent en RFC 9457 et distinguent identité, scope, enti
 - tests d'audit/outbox et d'idempotence des activations ;
 - OpenAPI, contrats machine-readable, CI et revue PR verts ;
 - aucun endpoint métier ne traite `modules: []` comme une autorisation implicite.
-- la création d'une organisation provisionne le plan CONNECT par défaut (ou le plan demandé) et consomme les quotas owner/établissement dans la transaction ;
+- la création publique d'une organisation provisionne toujours le plan CONNECT et consomme les quotas owner/établissement dans la transaction ; toute attribution supérieure relève du Control Plane autorisé ;
 - l'acceptation d'une invitation et la création d'un établissement refusent atomiquement tout dépassement de quota.
 
 ## Hors périmètre

@@ -105,6 +105,11 @@ enum QuotaUnit {
   BYTES
 }
 
+enum QuotaMode {
+  CAPACITY
+  PERIODIC
+}
+
 enum QuotaReservationStatus {
   HELD
   COMMITTED
@@ -347,6 +352,7 @@ model PlanVersionQuota {
   planVersionId String      @map("plan_version_id") @db.Uuid
   quotaCode     String      @map("quota_code") @db.VarChar(80)
   unit          QuotaUnit
+  mode          QuotaMode   @default(PERIODIC)
   limitValue    BigInt      @map("limit_value")
   planVersion   PlanVersion @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
 

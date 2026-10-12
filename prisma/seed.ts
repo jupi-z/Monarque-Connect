@@ -215,6 +215,7 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
           planVersionId: planVersion.id,
           quotaCode,
           unit: "COUNT",
+          mode: "CAPACITY",
           limitValue,
         },
       });

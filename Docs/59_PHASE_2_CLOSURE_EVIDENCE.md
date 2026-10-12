@@ -15,8 +15,9 @@ La clôture porte sur le périmètre normatif de Phase 2. Elle ne clôt pas le M
 - overrides d'organisation `ALLOW`, `DENY` et `LIMIT_OVERRIDE`, avec validité, justification, auteur plateforme, audit et Outbox ;
 - presets métier persistés et exposés comme recommandations d'onboarding ;
 - activations organisationnelles explicites, idempotentes et auditées ;
-- quotas par période canonique serveur, réservations/consommations atomiques, commit/libération idempotents et ledger ;
-- provisionnement du plan initial et enforcement des quotas sur organisations, établissements et memberships ;
+- quotas avec mode explicite `CAPACITY`/`PERIODIC`, compteur `CURRENT` sans remise à zéro pour les capacités simultanées, réservations/consommations atomiques, commit/libération idempotents et ledger ;
+- provisionnement public forcé sur CONNECT et enforcement des quotas sur organisations, établissements et memberships ;
+- overrides commerciaux interdits sur les modules core et `LIMIT_OVERRIDE` strictement borné au module propriétaire du quota ;
 - contrainte PostgreSQL d'exclusion des périodes d'abonnement concurrentes ;
 - audit et Domain Events Outbox transactionnels pour chaque mutation du Control Plane ;
 - routes HTTP protégées : capabilities, modules, activation et quotas ;
@@ -25,12 +26,15 @@ La clôture porte sur le périmètre normatif de Phase 2. Elle ne clôt pas le M
 ## Gates vérifiés
 
 - [x] migration complète depuis une base PostgreSQL vide ;
-- [x] upgrade explicite depuis la baseline complète de Phase 1 vers les quatre migrations Phase 2 ;
+- [x] upgrade explicite depuis la baseline complète de Phase 1 vers les six migrations Phase 2 ;
 - [x] seed idempotent, y compris sous invocations concurrentes ;
 - [x] transitions d'abonnement, répétitions idempotentes et expiration aux bornes UTC ;
 - [x] concurrence des réservations de quotas avec limite atomique `used + reserved` ;
 - [x] consommation atomique des quotas lors de la création des ressources et refus sous concurrence ;
 - [x] période calculée côté serveur et `LIMIT_OVERRIDE` appliqué à la capacité effective ;
+- [x] capacité simultanée conservée entre périodes de facturation via le mode `CAPACITY` et le compteur `CURRENT` ;
+- [x] attribution libre d'un plan commercial refusée au parcours public ;
+- [x] overrides commerciaux core refusés et overrides de quota filtrés par module propriétaire ;
 - [x] commit/libération de réservation idempotents avec invariants et ledger ;
 - [x] isolation tenant/établissement réutilisant les contrôles Identity/Tenancy ;
 - [x] audit et Outbox atomiques pour abonnements, activations et quotas ;

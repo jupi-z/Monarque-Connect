@@ -64,6 +64,7 @@ describe('Identity, tenancy and Phase 2 HTTP flows', () => {
     ownerToken = bodyOf<{ accessToken: string }>(login).accessToken;
     const me = await request(server).get('/api/v1/auth/me').set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<{ email: string }>(me).email).toBe('http-owner@example.com');
+    await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Enterprise attempt', handle: 'enterprise-attempt', defaultCurrency: 'EUR', establishmentName: 'Main office', planCode: 'ENTERPRISE' }).expect(400);
     const organization = await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'HTTP Tenant', handle: 'http-tenant', defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
     const organizationBody = bodyOf<{ id: string; establishment: { isPrimary: boolean } }>(organization);
     organizationId = organizationBody.id;
@@ -87,7 +88,7 @@ describe('Identity, tenancy and Phase 2 HTTP flows', () => {
     expect(bodyOf<{ modules: Array<{ code: string; allowed: boolean; reason: string }> }>(deactivatedCapabilities).modules.find((module) => module.code === 'CATALOG')).toMatchObject({ allowed: false, reason: 'MODULE_DEACTIVATED' });
     await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: true, reason: 'HTTP E2E reactivation proof' }).expect(200);
     const quotas = await request(server).get(`/api/v1/organizations/${organizationId}/quotas`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
-    expect(bodyOf<Array<{ quotaCode: string; limit: string; used: string; reserved: string }>>(quotas)).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5', used: '1', reserved: '0' })]));
+    expect(bodyOf<Array<{ quotaCode: string; mode: string; limit: string; used: string; reserved: string }>>(quotas)).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', mode: 'CAPACITY', limit: '5', used: '1', reserved: '0' })]));
     const otherRegistration = await request(server).post('/api/v1/auth/register').send({ email: 'http-other@example.com', password: 'correct horse battery staple', firstName: 'HTTP', lastName: 'Other' }).expect(201);
     const otherRegistrationBody = bodyOf<{ email: string }>(otherRegistration);
     const otherLogin = await request(server).post('/api/v1/auth/login').send({ identifier: otherRegistrationBody.email, password: 'correct horse battery staple' }).expect(200);
