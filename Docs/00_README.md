@@ -69,6 +69,7 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md` | Spécification d'exécution Phase 4 |
 | `65_PHASE_4_STATUS.md` | État d'ouverture Phase 4 |
 | `66_PHASE_4_CRM_FOUNDATION_EVIDENCE.md` | Preuves de la tranche CRM fondation Phase 4 |
+| `67_PHASE_4_NETWORK_PROFILE_EVIDENCE.md` | Preuves de la tranche profil Network Phase 4 |
 
 ## Gel documentaire
 

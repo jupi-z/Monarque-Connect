@@ -23,13 +23,18 @@ Baseline de départ : `main` après la fusion de la stabilisation cross-phase PR
 `3a6e7ba229978ab5af8ccf6b031c0e10b41c93f5`.** La Phase 4 globale reste
 ouverte et aucun jalon de clôture n'est avancé.
 
+**Tranche Network profile : implémentée dans le worktree de livraison et en
+attente de PR/CI.** Elle couvre le profil privé par défaut, la publication
+opt-in, la projection publique allowlistée et l'audit + Outbox transactionnels.
+La Phase 4 globale reste ouverte.
+
 ## Périmètre
 
 - [x] modèle persistant leads/opportunités avec source, statut et scope ;
 - [x] création, lecture paginée et transitions CRM avec contrôle partagé ;
 - [x] audit + Outbox transactionnels et transitions concurrentes idempotentes ;
 - [x] contrats OpenAPI et tests HTTP PostgreSQL de la fondation CRM ;
-- [ ] profils publics d'organisation ;
+- [x] profils publics d'organisation opt-in et projection allowlistée ;
 - [ ] vérification et signaux de confiance publiables ;
 - [ ] découverte réseau paginée et allowlistée ;
 - [ ] connexions B2B ;
@@ -82,8 +87,8 @@ leur migration respective. Les preuves détaillées de cette tranche sont dans
 
 ## Prochain jalon
 
-La prochaine tranche peut construire le profil public Network et ses projections
-allowlistées, en réutilisant les permissions gelées. La conversion
+La prochaine tranche peut construire la confiance/vérification et la découverte
+Network, en réutilisant le profil et les permissions gelées. La conversion
 `NetworkInquiry → CRM` attend la livraison du domaine Network.
 
 ## Risques connus
@@ -93,7 +98,7 @@ allowlistées, en réutilisant les permissions gelées. La conversion
   suppression de branche ;
 - les opérations Phase 4 déjà présentes dans OpenAPI sont des surfaces
   placeholder et ne constituent pas une preuve de contrat détaillé ;
-- les profils publics et la découverte créent une frontière de données
+- la découverte et les profils publics créent une frontière de données
   cross-tenant qui doit rester explicitement limitée aux projections Network ;
 - la vérification/trust relève de la plateforme et ne doit jamais être une
   auto-déclaration tenant.
