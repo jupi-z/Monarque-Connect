@@ -1,5 +1,7 @@
 # 20 — Definition of Done MVP
 
+> Note de statut : cette checklist couvre le MVP global et reste volontairement ouverte pour les domaines non livrés. La clôture stricte de Phase 2 est indépendante et documentée dans `59_PHASE_2_CLOSURE_EVIDENCE.md` ; elle ne justifie pas de cocher les éléments des phases métier suivantes.
+
 Le MVP n'est terminé que lorsque :
 
 ## Produit

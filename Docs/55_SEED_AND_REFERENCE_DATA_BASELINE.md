@@ -28,4 +28,6 @@ Définir les données de référence nécessaires aux parcours Identity/Tenancy 
 - plans et versions de plans ;
 - règles d'entitlements et dépendances de modules.
 
+La baseline Phase 2 est livrée et vérifiée : cinq types d'entreprise, vingt-deux modules canoniques, quatre plans version 1, modules inclus et quotas `MAX_USERS` / `MAX_ESTABLISHMENTS`. Le seed reste idempotent et rejouable après migration depuis une base vide ou une baseline Phase 1.
+
 Chaque ajout doit préciser propriétaire, clé stable, description, état actif et stratégie de compatibilité.

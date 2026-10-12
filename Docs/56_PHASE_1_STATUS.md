@@ -24,11 +24,11 @@ Phase 1 implementation slice is merged on `main` through PR #22 (`c2e5e383`). Th
 - `npm run lint`: passing;
 - `npm run typecheck`: passing;
 - `npm run build`: passing locally and in GitHub Actions;
-- `npm run openapi:validate`: 85 operations valid;
+- `npm run openapi:validate`: 87 operations valid;
 - migrations and seed verified from an empty PostgreSQL database; `db:seed` now invokes Prisma generation so a fresh clone has a deterministic bootstrap command.
 
 ## Explicit boundary
 
 The capabilities endpoint exposes the identity/tenancy projection plus the Phase 2 effective module decision and explicit organization activation state. The quotas projection exposes persisted limits and period usage. Commercial authorization remains denied without an active subscription; no commercial endpoint may treat a missing, denied, deactivated, or quota-exhausted module as authorized.
 
-The Phase 1 implementation slice is closed after contract-level RFC 9457 response verification, green CI, PR review gate, squash merge, and branch cleanup. Commercial module catalog, plans, entitlements, quotas and activations remain the explicitly documented Phase 2 boundary.
+The Phase 1 implementation slice is closed after contract-level RFC 9457 response verification, green CI, PR review gate, squash merge, and branch cleanup. Its commercial boundary was subsequently implemented and closed by Phase 2; see `59_PHASE_2_CLOSURE_EVIDENCE.md` for the authoritative evidence.

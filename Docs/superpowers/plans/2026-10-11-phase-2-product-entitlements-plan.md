@@ -15,6 +15,8 @@
 3. Effective entitlement resolver and versioned capabilities contract.
 4. Module activation endpoint with permission, entitlement, dependency and audit enforcement.
 5. Quotas with atomic reservation/consumption and concurrent integration tests.
-6. OpenAPI, HTTP E2E, migration/upgrade proof, documentation and PR closure.
+6. [x] OpenAPI, HTTP E2E, migration/upgrade proof, documentation and PR closure.
+
+Closure evidence: `Docs/59_PHASE_2_CLOSURE_EVIDENCE.md`.
 
 Every slice follows failing test → minimal implementation → full suite → PR review. No commercial endpoint may use the Phase 1 empty module projection as an authorization decision.

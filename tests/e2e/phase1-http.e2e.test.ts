@@ -9,14 +9,17 @@ import type { Response } from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
 import { ProblemDetailsFilter } from '../../src/http/problem-details.filter.js';
+import { SubscriptionService } from '../../src/entitlements/subscription.service.js';
+import { seedReferenceData } from '../../prisma/seed.js';
 
 const generateKeyPairAsync = promisify(generateKeyPair);
 
-describe('Phase 1 HTTP flow', () => {
+describe('Identity, tenancy and Phase 2 HTTP flows', () => {
   const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/monarque_connect_test';
   let app: INestApplication;
   let ownerToken = '';
   let organizationId = '';
+  let prisma: PrismaService;
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await generateKeyPairAsync('rsa', { modulusLength: 2048 });
@@ -34,7 +37,7 @@ describe('Phase 1 HTTP flow', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     app.useGlobalFilters(new ProblemDetailsFilter());
     await app.init();
-    const prisma = app.get(PrismaService);
+    prisma = app.get(PrismaService);
     await prisma.businessType.upsert({ where: { code: 'COMMERCE_DISTRIBUTION' }, update: { active: true }, create: { code: 'COMMERCE_DISTRIBUTION', name: 'Commerce & distribution', sortOrder: 10 } });
     await prisma.auditEvent.deleteMany();
     await prisma.membershipEstablishmentScope.deleteMany();
@@ -48,6 +51,7 @@ describe('Phase 1 HTTP flow', () => {
     await prisma.loginRateLimitBucket.deleteMany();
     await prisma.eventConsumerReceipt.deleteMany();
     await prisma.outboxEvent.deleteMany();
+    await seedReferenceData(prisma);
   });
 
   afterAll(async () => { if (app) await app.close(); });
@@ -77,6 +81,16 @@ describe('Phase 1 HTTP flow', () => {
     const capabilities = await request(server).get(`/api/v1/organizations/${organizationId}/capabilities?establishmentId=${establishment.id}`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<{ role: string; activeEstablishmentId: string; establishments: unknown[] }>(capabilities)).toMatchObject({ role: 'OWNER', activeEstablishmentId: establishment.id });
     expect(bodyOf<{ role: string; establishments: unknown[] }>(capabilities).establishments).toHaveLength(1);
+    const connectPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    await app.get(SubscriptionService).create({ organizationId, planVersionId: connectPlan.id, startsAt: new Date('2026-10-01T00:00:00.000Z') });
+    const modules = await request(server).get(`/api/v1/organizations/${organizationId}/modules`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<Array<{ code: string; entitled: boolean; active: boolean }>>(modules).find((module) => module.code === 'CATALOG')).toMatchObject({ entitled: true, active: true });
+    await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: false, reason: 'HTTP E2E deactivation proof' }).expect(200);
+    const deactivatedCapabilities = await request(server).get(`/api/v1/organizations/${organizationId}/capabilities`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<{ modules: Array<{ code: string; allowed: boolean; reason: string }> }>(deactivatedCapabilities).modules.find((module) => module.code === 'CATALOG')).toMatchObject({ allowed: false, reason: 'MODULE_DEACTIVATED' });
+    await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: true, reason: 'HTTP E2E reactivation proof' }).expect(200);
+    const quotas = await request(server).get(`/api/v1/organizations/${organizationId}/quotas`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<Array<{ quotaCode: string; limit: string; used: string; reserved: string }>>(quotas)).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5', used: '0', reserved: '0' })]));
     const otherRegistration = await request(server).post('/api/v1/auth/register').send({ email: 'http-other@example.com', password: 'correct horse battery staple', firstName: 'HTTP', lastName: 'Other' }).expect(201);
     const otherRegistrationBody = bodyOf<{ email: string }>(otherRegistration);
     const otherLogin = await request(server).post('/api/v1/auth/login').send({ identifier: otherRegistrationBody.email, password: 'correct horse battery staple' }).expect(200);

@@ -2,9 +2,9 @@
 
 ## État
 
-Phase 2 est ouverte et ses cinq premières tranches sont intégrées sur `main` via les PR #28, #30, #32, #33 et #34. La Phase 1 Identity & Tenancy est clôturée et fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
+Phase 2 est **clôturée à 100 %** sur `main`. Ses tranches sont intégrées via les PR #28, #30, #32, #33 et #34, et la clôture stricte est documentée dans [59_PHASE_2_CLOSURE_EVIDENCE.md](59_PHASE_2_CLOSURE_EVIDENCE.md). La Phase 1 Identity & Tenancy fournit l'identité, l'isolation, l'autorisation, l'audit et l'Event Fabric nécessaires au Control Plane.
 
-## Première tranche recommandée
+## Tranches livrées
 
 1. Catalogue des modules et versions publiées ;
 2. plans et versions immuables ;
@@ -15,7 +15,7 @@ Phase 2 est ouverte et ses cinq premières tranches sont intégrées sur `main` 
 
 La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.md](57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.md). Le plan d'exécution est [2026-10-11-phase-2-product-entitlements-plan.md](superpowers/plans/2026-10-11-phase-2-product-entitlements-plan.md).
 
-## Avancement de la première tranche
+## Checklist de livraison
 
 - [x] Modèle Prisma du catalogue canonique (modules core et commerciaux) ;
 - [x] Plans et versions avec devise, période, modules inclus et limites initiales ;
@@ -48,6 +48,14 @@ La spécification normative est [57_PHASE2_PRODUCT_ENTITLEMENTS_EXECUTION_SPEC.m
 - [x] Endpoint GET quotas avec valeurs BigInt sérialisées explicitement en chaînes JSON ;
 - [x] Tests PostgreSQL de concurrence, capacité, idempotence, commit/libération et isolation tenant ;
 - [x] Contrat OpenAPI quotas validé et suite complète vérifiée (65 tests).
+
+## Clôture stricte
+
+- [x] preuve automatisée de migration depuis une base vide ;
+- [x] preuve automatisée d'upgrade depuis la baseline Phase 1 ;
+- [x] E2E HTTP des endpoints modules, activation et quotas ;
+- [x] documentation normative, statut, roadmap et baseline de seeds synchronisés ;
+- [x] PR de clôture revue, CI verte, squash merge et branches de travail supprimées.
 
 ## Conditions de travail
 
