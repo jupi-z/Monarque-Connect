@@ -29,6 +29,11 @@ ouverte et aucun jalon de clôture n'est avancé.
 défaut, la publication opt-in, la projection publique allowlistée et l'audit +
 Outbox transactionnels. La Phase 4 globale reste ouverte.
 
+**Tranche Network trust/discovery : implémentée dans le worktree de livraison
+et en attente de PR/CI.** Elle couvre la projection de confiance plateforme,
+le statut `UNVERIFIED` par défaut, les filtres de découverte publique et la
+pagination par curseur. La Phase 4 globale reste ouverte.
+
 ## Périmètre
 
 - [x] modèle persistant leads/opportunités avec source, statut et scope ;
@@ -36,8 +41,9 @@ Outbox transactionnels. La Phase 4 globale reste ouverte.
 - [x] audit + Outbox transactionnels et transitions concurrentes idempotentes ;
 - [x] contrats OpenAPI et tests HTTP PostgreSQL de la fondation CRM ;
 - [x] profils publics d'organisation opt-in et projection allowlistée ;
-- [ ] vérification et signaux de confiance publiables ;
-- [ ] découverte réseau paginée et allowlistée ;
+- [x] projection publique de vérification/trust, plateforme-gérée et
+  `UNVERIFIED` par défaut ;
+- [x] découverte réseau paginée et allowlistée ;
 - [ ] connexions B2B ;
 - [ ] `NetworkInquiry → CRM` idempotent ;
 - [ ] migrations, OpenAPI, événements, audit, E2E et preuves de concurrence.
@@ -88,9 +94,9 @@ leur migration respective. Les preuves détaillées de cette tranche sont dans
 
 ## Prochain jalon
 
-La prochaine tranche peut construire la confiance/vérification et la découverte
-Network, en réutilisant le profil et les permissions gelées. La conversion
-`NetworkInquiry → CRM` attend la livraison du domaine Network.
+La prochaine tranche peut construire les connexions B2B puis les
+`NetworkInquiry`, en réutilisant les projections et permissions gelées. La
+conversion `NetworkInquiry → CRM` attend la livraison du domaine Network.
 
 ## Risques connus
 

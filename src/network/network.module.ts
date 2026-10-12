@@ -4,10 +4,12 @@ import { EventModule } from '../events/event.module.js';
 import { TenancyModule } from '../tenancy/tenancy.module.js';
 import { NetworkProfileController } from './profile.controller.js';
 import { NetworkProfileService } from './profile.service.js';
+import { NetworkDiscoveryService } from './discovery.service.js';
+import { NetworkTrustService } from './trust.service.js';
 
 @Module({
   imports: [AuthModule, EventModule, TenancyModule],
   controllers: [NetworkProfileController],
-  providers: [NetworkProfileService],
+  providers: [NetworkProfileService, NetworkDiscoveryService, NetworkTrustService],
 })
 export class NetworkModule {}

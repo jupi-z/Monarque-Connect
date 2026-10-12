@@ -1,13 +1,16 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import { NetworkProfileService } from './profile.service.js';
 import { OrganizationNetworkProfileParams, PublicNetworkOrganizationParams, UpdateOrganizationNetworkProfileDto } from './profile.dto.js';
+import { DiscoveryQuery } from './discovery.dto.js';
+import { NetworkDiscoveryService } from './discovery.service.js';
+import { NetworkTrustService } from './trust.service.js';
 
 @Controller()
 export class NetworkProfileController {
-  constructor(private readonly profiles: NetworkProfileService) {}
+  constructor(private readonly profiles: NetworkProfileService, private readonly discovery: NetworkDiscoveryService, private readonly trust: NetworkTrustService) {}
 
   @Get('organizations/:organizationId/network-profile')
   @UseGuards(AuthGuard)
@@ -19,4 +22,10 @@ export class NetworkProfileController {
 
   @Get('network/organizations/:organizationId')
   async getPublic(@Param() params: PublicNetworkOrganizationParams): Promise<unknown> { return this.profiles.getPublic(params.organizationId); }
+
+  @Get('network/organizations')
+  async discover(@Query() query: DiscoveryQuery): Promise<unknown> { return this.discovery.list(query); }
+
+  @Get('network/organizations/:organizationId/trust')
+  async getTrust(@Param() params: PublicNetworkOrganizationParams): Promise<unknown> { return this.trust.getPublic(params.organizationId); }
 }
