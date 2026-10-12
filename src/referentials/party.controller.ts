@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
@@ -23,8 +23,10 @@ export class PartyController {
   async update(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: PartyParams, @Body() input: UpdatePartyDto): Promise<unknown> { return this.parties.update(principal, params.organizationId, params.partyId, input); }
 
   @Post(':partyId/deactivate')
+  @HttpCode(200)
   async deactivate(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: PartyParams): Promise<unknown> { return this.parties.setActive(principal, params.organizationId, params.partyId, false); }
 
   @Post(':partyId/reactivate')
+  @HttpCode(200)
   async reactivate(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: PartyParams): Promise<unknown> { return this.parties.setActive(principal, params.organizationId, params.partyId, true); }
 }

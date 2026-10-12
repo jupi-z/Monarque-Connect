@@ -38,6 +38,9 @@ describe('Identity, tenancy and Phase 2 HTTP flows', () => {
     await app.init();
     prisma = app.get(PrismaService);
     await prisma.businessType.upsert({ where: { code: 'COMMERCE_DISTRIBUTION' }, update: { active: true }, create: { code: 'COMMERCE_DISTRIBUTION', name: 'Commerce & distribution', sortOrder: 10 } });
+    await prisma.warehouse.deleteMany();
+    await prisma.item.deleteMany();
+    await prisma.businessParty.deleteMany();
     await prisma.auditEvent.deleteMany();
     await prisma.membershipEstablishmentScope.deleteMany();
     await prisma.invitationEstablishmentScope.deleteMany();

@@ -40,6 +40,9 @@ describe('Business parties referential', () => {
     app.useGlobalFilters(new ProblemDetailsFilter());
     await app.init();
     prisma = app.get(PrismaService);
+    await prisma.warehouse.deleteMany();
+    await prisma.item.deleteMany();
+    await prisma.businessParty.deleteMany();
     await prisma.auditEvent.deleteMany();
     await prisma.membershipEstablishmentScope.deleteMany();
     await prisma.invitationEstablishmentScope.deleteMany();

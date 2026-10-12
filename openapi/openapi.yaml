@@ -492,13 +492,229 @@ paths:
     get:
       tags: [Catalog]
       operationId: listItems
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: type
+          in: query
+          schema: { type: string, enum: [PRODUCT, SERVICE] }
+        - name: active
+          in: query
+          schema: { type: boolean }
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 160 }
       responses:
-        "200": { description: Items }
+        "200":
+          description: Catalog items
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItemPage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Catalog]
       operationId: createItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateItemRequest" }
       responses:
-        "201": { description: Item created }
+        "201":
+          description: Catalog item created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItem" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/items/{itemId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Catalog]
+      operationId: getItem
+      responses:
+        "200":
+          description: Catalog item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItem" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Catalog]
+      operationId: updateItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateItemRequest" }
+      responses:
+        "200":
+          description: Catalog item updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItem" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/items/{itemId}/deactivate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Catalog]
+      operationId: deactivateItem
+      responses:
+        "200":
+          description: Catalog item deactivated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItem" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/items/{itemId}/reactivate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Catalog]
+      operationId: reactivateItem
+      responses:
+        "200":
+          description: Catalog item reactivated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CatalogItem" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/establishments/{establishmentId}/warehouses:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - $ref: "#/components/parameters/EstablishmentId"
+    get:
+      tags: [Inventory]
+      operationId: listWarehouses
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: active
+          in: query
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Establishment warehouses
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WarehousePage" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Inventory]
+      operationId: createWarehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateWarehouseRequest" }
+      responses:
+        "201":
+          description: Warehouse created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Warehouse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/establishments/{establishmentId}/warehouses/{warehouseId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - $ref: "#/components/parameters/EstablishmentId"
+      - name: warehouseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Inventory]
+      operationId: getWarehouse
+      responses:
+        "200":
+          description: Warehouse
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Warehouse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Inventory]
+      operationId: updateWarehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateWarehouseRequest" }
+      responses:
+        "200":
+          description: Warehouse updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Warehouse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/establishments/{establishmentId}/warehouses/{warehouseId}/deactivate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - $ref: "#/components/parameters/EstablishmentId"
+      - name: warehouseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Inventory]
+      operationId: deactivateWarehouse
+      responses:
+        "200":
+          description: Warehouse deactivated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Warehouse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/establishments/{establishmentId}/warehouses/{warehouseId}/reactivate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - $ref: "#/components/parameters/EstablishmentId"
+      - name: warehouseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Inventory]
+      operationId: reactivateWarehouse
+      responses:
+        "200":
+          description: Warehouse reactivated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Warehouse" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /organizations/{organizationId}/leads:
     parameters:
@@ -650,20 +866,6 @@ paths:
       operationId: createExpense
       responses:
         "201": { description: Expense created }
-
-  /organizations/{organizationId}/warehouses:
-    parameters:
-      - $ref: "#/components/parameters/OrganizationId"
-    get:
-      tags: [Inventory]
-      operationId: listWarehouses
-      responses:
-        "200": { description: Warehouses }
-    post:
-      tags: [Inventory]
-      operationId: createWarehouse
-      responses:
-        "201": { description: Warehouse created }
 
   /organizations/{organizationId}/stock-movements:
     parameters:
@@ -1136,6 +1338,95 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/BusinessParty" }
+        nextCursor: { type: [string, 'null'] }
+    CatalogItem:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, type, name, unit, referencePrice, currency, trackInventory, active, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        type: { type: string, enum: [PRODUCT, SERVICE] }
+        sku: { type: [string, 'null'], maxLength: 80 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        unit: { type: string, minLength: 1, maxLength: 32 }
+        referencePrice: { type: string, pattern: "^[0-9]+(?:\\.[0-9]{1,4})?$" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        trackInventory: { type: boolean }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateItemRequest:
+      type: object
+      additionalProperties: false
+      required: [type, name, unit, referencePrice, currency]
+      properties:
+        type: { type: string, enum: [PRODUCT, SERVICE] }
+        sku: { type: string, minLength: 1, maxLength: 80 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, maxLength: 2000 }
+        unit: { type: string, minLength: 1, maxLength: 32 }
+        referencePrice: { type: string, pattern: "^[0-9]+(?:\\.[0-9]{1,4})?$" }
+        currency: { type: string, pattern: "^[A-Za-z]{3}$" }
+        trackInventory: { type: boolean, default: false }
+    UpdateItemRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        type: { type: string, enum: [PRODUCT, SERVICE] }
+        sku: { type: [string, 'null'], minLength: 1, maxLength: 80 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        unit: { type: string, minLength: 1, maxLength: 32 }
+        referencePrice: { type: string, pattern: "^[0-9]+(?:\\.[0-9]{1,4})?$" }
+        currency: { type: string, pattern: "^[A-Za-z]{3}$" }
+        trackInventory: { type: boolean }
+    ItemPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CatalogItem" }
+        nextCursor: { type: [string, 'null'] }
+    Warehouse:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, code, name, active, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        code: { type: string, minLength: 1, maxLength: 50 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateWarehouseRequest:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 50 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+    UpdateWarehouseRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        code: { type: string, minLength: 1, maxLength: 50 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+    WarehousePage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Warehouse" }
         nextCursor: { type: [string, 'null'] }
     RegisterRequest:
       type: object
