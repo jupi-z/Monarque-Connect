@@ -178,6 +178,9 @@ enum AuditAction {
   NETWORK_PROFILE_UPDATED
   CONNECTION_REQUEST_CREATED
   CONNECTION_REQUEST_STATUS_CHANGED
+  NETWORK_INQUIRY_CREATED
+  NETWORK_INQUIRY_STATUS_CHANGED
+  NETWORK_INQUIRY_CONVERTED
 }
 
 enum ConnectionRequestStatus {
@@ -185,6 +188,19 @@ enum ConnectionRequestStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+enum NetworkInquiryStatus {
+  NEW
+  QUALIFIED
+  DISMISSED
+  CONVERTED
+}
+
+enum NetworkInquiryPartyType {
+  CUSTOMER
+  SUPPLIER
+  BOTH
 }
 
 enum NetworkVerificationStatus {
@@ -440,6 +456,8 @@ model Organization {
   networkTrust       OrganizationNetworkTrust?
   connectionRequestsSent     ConnectionRequest[] @relation("ConnectionRequestsSent")
   connectionRequestsReceived ConnectionRequest[] @relation("ConnectionRequestsReceived")
+  networkInquiriesSent       NetworkInquiry[] @relation("NetworkInquiriesSent")
+  networkInquiriesReceived   NetworkInquiry[] @relation("NetworkInquiriesReceived")
 
   @@index([businessTypeCode])
   @@index([status])
@@ -674,10 +692,12 @@ model Lead {
   createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  networkInquiry   NetworkInquiry? @relation("NetworkInquiryLead", fields: [networkInquiryId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, status, createdAt, id])
   @@index([organizationId, active, createdAt, id])
   @@index([organizationId, displayName])
+  @@unique([networkInquiryId])
   @@map("leads")
 }
 
@@ -697,10 +717,32 @@ model Opportunity {
   updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   establishment    Establishment     @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  networkInquiry   NetworkInquiry?    @relation("NetworkInquiryOpportunity", fields: [networkInquiryId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, establishmentId, status, createdAt, id])
   @@index([organizationId, active, createdAt, id])
+  @@unique([networkInquiryId])
   @@map("opportunities")
+}
+
+model NetworkInquiry {
+  id                   String                   @id @db.Uuid
+  sourceOrganizationId String                   @map("source_organization_id") @db.Uuid
+  targetOrganizationId String                   @map("target_organization_id") @db.Uuid
+  status               NetworkInquiryStatus     @default(NEW)
+  subject              String                   @db.VarChar(160)
+  message              String                   @db.VarChar(5000)
+  requestedPartyType   NetworkInquiryPartyType? @map("requested_party_type")
+  createdAt            DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sourceOrganization   Organization             @relation("NetworkInquiriesSent", fields: [sourceOrganizationId], references: [id], onDelete: Cascade)
+  targetOrganization   Organization             @relation("NetworkInquiriesReceived", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+  convertedLead        Lead?                    @relation("NetworkInquiryLead")
+  convertedOpportunity Opportunity?             @relation("NetworkInquiryOpportunity")
+
+  @@index([sourceOrganizationId, status, createdAt, id])
+  @@index([targetOrganizationId, status, createdAt, id])
+  @@map("network_inquiries")
 }
 
 model Item {

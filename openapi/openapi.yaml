@@ -168,6 +168,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/OrganizationDetail" }
         "403": { $ref: "#/components/responses/Forbidden" }
+
     patch:
       tags: [Organizations]
       operationId: updateOrganization
@@ -1210,6 +1211,29 @@ paths:
               schema: { $ref: "#/components/schemas/NetworkInquiryPage" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /organizations/{organizationId}/network-inquiries/{inquiryId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: inquiryId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    patch:
+      tags: [Network]
+      operationId: transitionNetworkInquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransitionNetworkInquiryRequest" }
+      responses:
+        "200":
+          description: Network inquiry transitioned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NetworkInquiry" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/network-inquiries/{inquiryId}/convert:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -1722,6 +1746,7 @@ components:
         status: { $ref: "#/components/schemas/NetworkInquiryStatus" }
         subject: { type: string, minLength: 1, maxLength: 160 }
         message: { type: string, minLength: 1, maxLength: 5000 }
+        requestedPartyType: { type: [string, 'null'], enum: [CUSTOMER, SUPPLIER, BOTH, null] }
         convertedLeadId: { type: [string, 'null'], format: uuid }
         convertedOpportunityId: { type: [string, 'null'], format: uuid }
         createdAt: { type: string, format: date-time }
@@ -1742,6 +1767,12 @@ components:
       properties:
         targetType: { type: string, enum: [LEAD, OPPORTUNITY] }
         establishmentId: { type: string, format: uuid }
+    TransitionNetworkInquiryRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [QUALIFIED, DISMISSED] }
     NetworkInquiryConversion:
       type: object
       additionalProperties: false
