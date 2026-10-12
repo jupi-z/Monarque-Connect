@@ -44,3 +44,13 @@ Une feature PR référence :
 Pour une ressource établissement-scopée, la trace inclut aussi le test de scope.
 
 Aucune case cochée dans la DoD sans preuve.
+
+## Phase 3 — Référentiels
+
+| Exigence | Module | Endpoint / invariant | Données / événements | Preuve |
+|---|---|---|---|---|
+| `PARTY-*` | `CRM` | parties tenant-scoped, filtres, lifecycle | `business_parties`, `business_party.*` | `tests/referentials/parties.integration.test.ts`, PR #45 |
+| `CAT-*` | `CATALOG` | produits/services, SKU unique, prix décimal chaîne | `items`, `catalog.item.*` | `tests/referentials/items.integration.test.ts`, PR #46 |
+| `INV-*` | `INVENTORY` | warehouses sous établissement et scope membership | `warehouses`, `warehouse.*` | `tests/referentials/warehouses.integration.test.ts`, PR #46 |
+| `AUTH-*` / `TENANT-*` | modules actifs + RBAC | tenant → membership → entitlement → activation → permission → scope | audit et Outbox transactionnels | `tests/tenancy/authorization.policy.test.ts`, tests HTTP et CI #158 |
+| `OPS-*` | PostgreSQL | migrations additive, unicités et concurrence | migration Phase 3 | `prisma:phase3:migration-proof`, `Docs/62_PHASE_3_CLOSURE_EVIDENCE.md` |

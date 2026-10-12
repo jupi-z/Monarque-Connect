@@ -2,54 +2,51 @@
 
 ## État
 
-La Phase 3 est **ouverte** par l'issue GitHub [#43](https://github.com/jupi-z/Monarque-Connect/issues/43).
-La Phase 2 reste la baseline fonctionnelle et normative sur `main`.
+La Phase 3 — Référentiels est **terminée et clôturée à 100 %** sur `main`.
+L'issue de suivi [#43](https://github.com/jupi-z/Monarque-Connect/issues/43) a
+été livrée par les PR [#45](https://github.com/jupi-z/Monarque-Connect/pull/45),
+[#46](https://github.com/jupi-z/Monarque-Connect/pull/46) et la PR de clôture
+documentaire. La Phase 2 constitue la baseline fonctionnelle et normative.
 
-Le périmètre de cette phase est défini par
+Le périmètre est défini par
 [`60_PHASE3_REFERENTIALS_EXECUTION_SPEC.md`](60_PHASE3_REFERENTIALS_EXECUTION_SPEC.md)
-et son exécution est découpée dans
+et son exécution est tracée dans
 [`superpowers/plans/2026-10-12-phase-3-referentials-plan.md`](superpowers/plans/2026-10-12-phase-3-referentials-plan.md).
+Les preuves reproductibles sont regroupées dans
+[`62_PHASE_3_CLOSURE_EVIDENCE.md`](62_PHASE_3_CLOSURE_EVIDENCE.md).
 
-**Progression : 0 % — préparation documentaire uniquement.**
+**Progression : 100 % — implémentation, preuves, revue, CI, merge et nettoyage terminés.**
 
-## Périmètre
+## Périmètre livré
 
-- [ ] Business parties tenant-scoped ;
-- [ ] items du catalogue métier ;
-- [ ] warehouses établissement-scoped ;
-- [ ] permissions, entitlements, activations et scopes appliqués côté serveur ;
-- [ ] migrations PostgreSQL, audit et Outbox ;
-- [ ] contrats OpenAPI et preuves HTTP ;
-- [ ] tests d'isolation, concurrence et idempotence ;
-- [ ] CI, revue PR, merge et nettoyage de branche ;
-- [ ] preuve de clôture et tracker synchronisés.
+- [x] Business parties tenant-scoped : CRUD, pagination, filtres, états soft et événements lifecycle ;
+- [x] items du catalogue métier : produits/services, SKU normalisé unique et prix décimal sérialisé ;
+- [x] warehouses établissement-scoped : CRUD, codes uniques et scope de membership ;
+- [x] permissions, entitlements, activations et scopes appliqués côté serveur ;
+- [x] migration PostgreSQL additive, audit et Outbox transactionnels ;
+- [x] contrats OpenAPI détaillés et validation des contrats ;
+- [x] tests PostgreSQL HTTP d'isolation, refus d'entitlement, refus de rôle, scope, concurrence et idempotence ;
+- [x] CI GitHub verte, PR revues et merges squash ;
+- [x] branches de livraison supprimées après merge et tracker synchronisé.
 
-## Décisions de démarrage
-
-- Le travail commence depuis `main` après la clôture stricte Phase 2.
-- Chaque tranche passe par branche courte, PR, CI, revue et squash merge.
-- Les parties utilisent le module `CRM`, les items `CATALOG` et les warehouses
-  `INVENTORY`.
-- Les désactivations sont non destructives ; les workflows transactionnels et
-  les mouvements de stock restent hors périmètre.
-- Aucun endpoint métier ne réimplémente l'autorisation : les services réutilisent
-  les primitives tenancy/entitlement existantes.
-
-## Journal de preuve
-
-À compléter au fil des PR :
+## Preuves de livraison
 
 | Gate | Preuve | État |
 |---|---|---|
-| Migration base vide | À produire | [ ] |
-| Upgrade depuis Phase 2 | À produire | [ ] |
-| Parties | PR/CI à produire | [ ] |
-| Catalogue | PR/CI à produire | [ ] |
-| Warehouses | PR/CI à produire | [ ] |
-| Isolation et scopes | Tests à produire | [ ] |
-| Audit et Outbox | Tests à produire | [ ] |
-| OpenAPI/contrats | Validation à produire | [ ] |
-| Clôture GitHub | Issue/PR à produire | [ ] |
+| Migration base vide | `prisma:phase3:migration-proof` : 14 migrations appliquées | [x] |
+| Upgrade depuis Phase 2 | même preuve : 13 migrations Phase 2 puis 1 migration Phase 3 | [x] |
+| Parties | PR #45, tests HTTP PostgreSQL, audit et Outbox | [x] |
+| Catalogue | PR #46, tests produits/services, SKU et décimaux | [x] |
+| Warehouses | PR #46, tests parent tenant, scope sélectionné et codes | [x] |
+| Isolation et scopes | parties inter-tenant ; warehouses hors scope refusés en lecture/écriture | [x] |
+| Audit et Outbox | mutations et transitions auditées atomiquement ; répétitions sans doublon | [x] |
+| Concurrence | PostgreSQL arbitre les doublons SKU et code warehouse : un succès, un conflit | [x] |
+| OpenAPI/contrats | OpenAPI validé à 99 opérations et contrats domaine validés | [x] |
+| CI et clôture GitHub | Backend CI #158 verte ; PR squash mergées ; issue/tracker synchronisés | [x] |
 
-La phase reste ouverte tant que toutes les cases n'ont pas une preuve
-reproductible et versionnée.
+## Règle de passage
+
+La phase est fermée. Les endpoints CRM, ventes, achats, mouvements de stock,
+réseau et intelligence restent hors périmètre et commencent dans les phases
+suivantes avec le même contrôle partagé : tenant actif → membership →
+entitlement → activation → permission → scope établissement.

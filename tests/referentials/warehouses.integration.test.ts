@@ -21,6 +21,7 @@ describe('Warehouses referential', () => {
   let organizationId = '';
   let primaryEstablishmentId = '';
   let secondaryEstablishmentId = '';
+  let mainWarehouseId = '';
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await generateKeyPairAsync('rsa', { modulusLength: 2048 });
@@ -86,6 +87,7 @@ describe('Warehouses referential', () => {
   it('creates and lists a warehouse under the same tenant establishment with atomic events', async () => {
     const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'MAIN', name: 'Main warehouse' }).expect(201);
     const warehouse = bodyOf<{ id: string; organizationId: string; establishmentId: string; code: string; active: boolean }>(created);
+    mainWarehouseId = warehouse.id;
     expect(warehouse).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, code: 'MAIN', active: true });
     const listed = await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses?active=true`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<{ items: Array<{ id: string }> }>(listed).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: warehouse.id })]));
@@ -94,10 +96,21 @@ describe('Warehouses referential', () => {
   });
 
   it('enforces selected establishment scope and organization-wide code uniqueness', async () => {
+    await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses/${mainWarehouseId}`).set('Authorization', `Bearer ${scopedToken}`).expect(200);
+    await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${scopedToken}`).expect(403);
+    await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses/${mainWarehouseId}`).set('Authorization', `Bearer ${scopedToken}`).expect(403);
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${scopedToken}`).send({ code: 'SECOND', name: 'Blocked warehouse' }).expect(403);
     const allowed = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${scopedToken}`).send({ code: 'SCOPED', name: 'Scoped warehouse' }).expect(201);
     expect(bodyOf<{ establishmentId: string }>(allowed).establishmentId).toBe(primaryEstablishmentId);
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'MAIN', name: 'Duplicate code' }).expect(409);
+  });
+
+  it('lets PostgreSQL decide one winner for concurrent duplicate warehouse codes', async () => {
+    const responses = await Promise.all([
+      request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'RACE', name: 'Race one' }),
+      request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'RACE', name: 'Race two' }),
+    ]);
+    expect(responses.map((response) => response.status).sort((a, b) => a - b)).toEqual([201, 409]);
   });
 
   it('supports idempotent deactivation and refuses disabled INVENTORY', async () => {

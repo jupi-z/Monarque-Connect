@@ -38,11 +38,10 @@ Module catalog, business type presets, plans versionnés, subscriptions, organiz
 ## Phase 3 — Référentiels
 Business parties, catalog, warehouses.
 
-**État :** ouverte par l'issue GitHub #43. La spécification d'exécution est
-`60_PHASE3_REFERENTIALS_EXECUTION_SPEC.md` et le plan versionné est
-`superpowers/plans/2026-10-12-phase-3-referentials-plan.md`. La phase reste à
-0 % tant que les migrations, contrats, tests d'isolation, audit/Outbox et CI
-n'ont pas fourni leurs preuves.
+**État :** terminée et clôturée à 100 %. Les preuves reproductibles sont dans
+`62_PHASE_3_CLOSURE_EVIDENCE.md` ; les contrôles d'entitlement, activation,
+permission et scope sont appliqués côté serveur. Les workflows CRM, ventes,
+achats et mouvements de stock restent dans les phases suivantes.
 
 ## Phase 4 — CRM + Network entry
 Leads, opportunities, organization public profiles, verification/trust, discovery, connections, NetworkInquiry → CRM.
