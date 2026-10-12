@@ -72,6 +72,11 @@ Codes possibles :
 
 Une absence de quota signifie "non borné par ce mécanisme", pas nécessairement illimité contractuellement.
 
+Les quotas distinguent explicitement deux modes :
+
+- `CAPACITY` : capacité simultanée, stockée dans le compteur canonique `CURRENT` et jamais réinitialisée par la période de facturation (`MAX_USERS`, `MAX_ESTABLISHMENTS`) ;
+- `PERIODIC` : consommation de flux, partitionnée par mois ou par année selon le plan (`MONTHLY_*`, `YEARLY_*`).
+
 ## 5. Résolution d'un entitlement
 
 Pour un module M :
@@ -79,7 +84,7 @@ Pour un module M :
 1. vérifier organization ACTIVE ;
 2. charger subscription active ;
 3. calculer `baseAllowed` depuis `PlanModule(M)` ;
-4. appliquer l'override actif : `ALLOW` force allowed, `DENY` force denied, `LIMIT_OVERRIDE` conserve `baseAllowed` ;
+4. appliquer l'override actif : `ALLOW` force allowed, `DENY` force denied, `LIMIT_OVERRIDE` conserve `baseAllowed`; les overrides sont interdits sur les modules core et un override de limite ne s'applique qu'au module propriétaire du quota ;
 5. résoudre les limites effectives depuis plan puis override ;
 6. vérifier dépendances du module ;
 7. vérifier `OrganizationModuleActivation(M)` ;

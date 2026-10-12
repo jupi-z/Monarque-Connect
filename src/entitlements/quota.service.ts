@@ -35,6 +35,9 @@ export interface QuotaReservationResult {
   status: 'HELD' | 'COMMITTED' | 'RELEASED';
 }
 
+type QuotaMode = 'CAPACITY' | 'PERIODIC';
+type QuotaDefinition = { quotaCode: string; unit: 'COUNT' | 'BYTES'; mode: QuotaMode; limitValue: bigint };
+
 @Injectable()
 export class QuotaService {
   constructor(private readonly prisma: PrismaService, private readonly subscriptions: SubscriptionService, private readonly outbox: PrismaOutboxWriter) {}
@@ -45,14 +48,14 @@ export class QuotaService {
     const subscription = await this.subscriptions.resolveEffective(input.organizationId, at);
     if (!subscription) throw new ConflictException('Organization has no active subscription');
     const plan = await this.prisma.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { billingPeriod: true } });
-    const periodKey = this.periodKey(plan.billingPeriod, at);
+    const quota = await this.prisma.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: subscription.planVersionId, quotaCode: input.quotaCode } } });
+    if (!quota) throw new ConflictException('Quota is not included in the active plan');
+    const periodKey = this.periodKey(quota.mode, plan.billingPeriod, at);
     const existing = await this.prisma.quotaReservation.findUnique({ where: { organizationId_idempotencyKey: { organizationId: input.organizationId, idempotencyKey: input.idempotencyKey } } });
     if (existing) {
       if (existing.quotaCode !== input.quotaCode || existing.periodKey !== periodKey || existing.amount !== input.amount) throw new ConflictException('Quota idempotency key was already used with different parameters');
       return this.result(existing);
     }
-    const quota = await this.prisma.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: subscription.planVersionId, quotaCode: input.quotaCode } } });
-    if (!quota) throw new ConflictException('Quota is not included in the active plan');
     const limit = await this.effectiveLimit(this.prisma, input.organizationId, input.quotaCode, quota.limitValue, at);
     const context = currentEventContext() ?? createRequestContext();
 
@@ -97,9 +100,9 @@ export class QuotaService {
     const subscription = await tx.subscription.findFirst({ where: { organizationId: input.organizationId, organization: { status: 'ACTIVE' }, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersionId: true } });
     if (!subscription) throw new ConflictException('Organization has no active subscription');
     const plan = await tx.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { billingPeriod: true } });
-    const periodKey = this.periodKey(plan.billingPeriod, at);
     const quota = await tx.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: subscription.planVersionId, quotaCode: input.quotaCode } } });
     if (!quota) throw new ConflictException('Quota is not included in the active plan');
+    const periodKey = this.periodKey(quota.mode, plan.billingPeriod, at);
     const limit = await this.effectiveLimit(tx, input.organizationId, input.quotaCode, quota.limitValue, at);
     const existing = await tx.quotaReservation.findUnique({ where: { organizationId_idempotencyKey: { organizationId: input.organizationId, idempotencyKey: input.idempotencyKey } } });
     if (existing) {
@@ -137,20 +140,21 @@ export class QuotaService {
     return this.finish(id, 'RELEASED');
   }
 
-  async list(organizationId: string, at = new Date()): Promise<Array<{ quotaCode: string; unit: string; limit: string; used: string; reserved: string; available: string; periodKey: string }>> {
+  async list(organizationId: string, at = new Date()): Promise<Array<{ quotaCode: string; unit: string; mode: QuotaMode; limit: string; used: string; reserved: string; available: string; periodKey: string }>> {
     const subscription = await this.subscriptions.resolveEffective(organizationId, at);
     if (!subscription) return [];
-    const plan = await this.prisma.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { billingPeriod: true, quotas: { select: { quotaCode: true, unit: true, limitValue: true } } } });
-    const periodKey = this.periodKey(plan.billingPeriod, at);
+    const plan = await this.prisma.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { billingPeriod: true, quotas: { select: { quotaCode: true, unit: true, mode: true, limitValue: true } } } });
+    const periodKeys = [...new Set(plan.quotas.map((quota) => this.periodKey(quota.mode, plan.billingPeriod, at)))];
     const limits = await this.effectiveLimits(this.prisma, organizationId, plan.quotas, at);
-    const usages = await this.prisma.organizationQuotaUsage.findMany({ where: { organizationId, periodKey }, select: { quotaCode: true, usedValue: true, reservedValue: true } });
-    const usageByCode = new Map(usages.map((usage) => [usage.quotaCode, usage]));
+    const usages = await this.prisma.organizationQuotaUsage.findMany({ where: { organizationId, periodKey: { in: periodKeys } }, select: { quotaCode: true, periodKey: true, usedValue: true, reservedValue: true } });
+    const usageByCode = new Map(usages.map((usage) => [`${usage.quotaCode}:${usage.periodKey}`, usage]));
     return plan.quotas.map((quota) => {
-      const usage = usageByCode.get(quota.quotaCode);
+      const periodKey = this.periodKey(quota.mode, plan.billingPeriod, at);
+      const usage = usageByCode.get(`${quota.quotaCode}:${periodKey}`);
       const used = usage?.usedValue ?? 0n;
       const reserved = usage?.reservedValue ?? 0n;
       const limit = limits.get(quota.quotaCode) ?? quota.limitValue;
-      return { quotaCode: quota.quotaCode, unit: quota.unit, limit: limit.toString(), used: used.toString(), reserved: reserved.toString(), available: (limit - used - reserved).toString(), periodKey };
+      return { quotaCode: quota.quotaCode, unit: quota.unit, mode: quota.mode, limit: limit.toString(), used: used.toString(), reserved: reserved.toString(), available: (limit - used - reserved).toString(), periodKey };
     });
   }
 
@@ -189,12 +193,13 @@ export class QuotaService {
     if (!input.idempotencyKey.trim() || input.idempotencyKey.length > 200) throw new BadRequestException('Quota idempotency key is invalid');
   }
 
-  private periodKey(billingPeriod: 'MONTHLY' | 'YEARLY', at: Date): string {
+  private periodKey(mode: QuotaMode, billingPeriod: 'MONTHLY' | 'YEARLY', at: Date): string {
+    if (mode === 'CAPACITY') return 'CURRENT';
     return billingPeriod === 'YEARLY' ? `${at.getUTCFullYear()}` : `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, '0')}`;
   }
 
   private async effectiveLimit(client: PrismaService | Prisma.TransactionClient, organizationId: string, quotaCode: string, baseLimit: bigint, at: Date): Promise<bigint> {
-    const overrides = await client.organizationEntitlement.findMany({ where: { organizationId, effect: 'LIMIT_OVERRIDE', startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ createdAt: 'desc' }, { startsAt: 'desc' }], select: { limitsJson: true } });
+    const overrides = await client.organizationEntitlement.findMany({ where: { organizationId, moduleCode: this.quotaModuleCode(quotaCode), effect: 'LIMIT_OVERRIDE', startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ createdAt: 'desc' }, { startsAt: 'desc' }], select: { limitsJson: true } });
     for (const override of overrides) {
       const value = override.limitsJson && typeof override.limitsJson === 'object' && !Array.isArray(override.limitsJson) ? (override.limitsJson as Record<string, unknown>)[quotaCode] : undefined;
       if ((typeof value === 'string' && /^\d+$/.test(value)) || (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)) return BigInt(value);
@@ -202,9 +207,15 @@ export class QuotaService {
     return baseLimit;
   }
 
-  private async effectiveLimits(client: PrismaService | Prisma.TransactionClient, organizationId: string, quotas: Array<{ quotaCode: string; limitValue: bigint }>, at: Date): Promise<Map<string, bigint>> {
+  private async effectiveLimits(client: PrismaService | Prisma.TransactionClient, organizationId: string, quotas: Array<QuotaDefinition>, at: Date): Promise<Map<string, bigint>> {
     const result = new Map<string, bigint>();
     for (const quota of quotas) result.set(quota.quotaCode, await this.effectiveLimit(client, organizationId, quota.quotaCode, quota.limitValue, at));
     return result;
+  }
+
+  private quotaModuleCode(quotaCode: string): string {
+    if (quotaCode === 'MAX_USERS') return 'MEMBERSHIPS';
+    if (quotaCode === 'MAX_ESTABLISHMENTS') return 'ESTABLISHMENTS';
+    return quotaCode;
   }
 }

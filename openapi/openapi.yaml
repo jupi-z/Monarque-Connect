@@ -1153,10 +1153,11 @@ components:
     QuotaUsage:
       type: object
       additionalProperties: false
-      required: [quotaCode, unit, limit, used, reserved, available, periodKey]
+      required: [quotaCode, unit, mode, limit, used, reserved, available, periodKey]
       properties:
         quotaCode: { type: string }
         unit: { type: string, enum: [COUNT, BYTES] }
+        mode: { type: string, enum: [CAPACITY, PERIODIC] }
         limit: { type: string, pattern: "^[0-9]+$" }
         used: { type: string, pattern: "^[0-9]+$" }
         reserved: { type: string, pattern: "^[0-9]+$" }
@@ -1179,7 +1180,6 @@ components:
         establishmentType:
           type: string
           enum: [HEAD_OFFICE, BRANCH, SHOP, OFFICE, SERVICE_POINT, OTHER]
-        planCode: { type: string, default: CONNECT }
     UpdateOrganizationRequest:
       type: object
       additionalProperties: false

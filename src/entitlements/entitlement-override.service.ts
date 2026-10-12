@@ -39,10 +39,11 @@ export class EntitlementOverrideService {
       return await this.prisma.$transaction(async (tx) => {
         const [organization, module] = await Promise.all([
           tx.organization.findUnique({ where: { id: input.organizationId }, select: { id: true, status: true } }),
-          tx.moduleCatalog.findUnique({ where: { code: input.moduleCode }, select: { code: true } }),
+          tx.moduleCatalog.findUnique({ where: { code: input.moduleCode }, select: { code: true, isCore: true } }),
         ]);
         if (!organization) throw new NotFoundException('Organization not found');
         if (!module) throw new NotFoundException('Module not found');
+        if (module.isCore) throw new ConflictException('Core modules cannot receive commercial entitlement overrides');
         if (organization.status !== 'ACTIVE') throw new ConflictException('Organization is not active');
 
         const created = await tx.organizationEntitlement.create({

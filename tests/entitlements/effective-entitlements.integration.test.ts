@@ -122,6 +122,17 @@ describe('Effective organization entitlements', () => {
     await expect(prisma.outboxEvent.count({ where: { organizationId, eventType: 'entitlement.override_set' } })).resolves.toBe(3);
   });
 
+  it('rejects commercial overrides on core modules and ignores legacy core overrides', async () => {
+    const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt: at });
+
+    await expect(overrides.set({ organizationId, moduleCode: 'AUTH', effect: 'DENY', reason: 'Must be rejected', actorId: crypto.randomUUID(), startsAt: at })).rejects.toThrow('Core modules cannot receive commercial entitlement overrides');
+    await prisma.organizationEntitlement.create({ data: { id: crypto.randomUUID(), organizationId, moduleCode: 'AUTH', effect: 'DENY', startsAt: at, reason: 'Legacy invalid override', createdByActor: 'PLATFORM:test' } });
+
+    const result = await entitlements.resolve(organizationId, at);
+    expect(result.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'AUTH', entitled: true, active: true, allowed: true, reason: 'CORE_MODULE', source: 'CORE' })]));
+  });
+
   it('persists business-type recommendations and enforces the intelligence active-module rule', async () => {
     const seeded = await entitlements.resolve(organizationId, at);
     expect(seeded.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CATALOG', recommended: true })]));

@@ -37,10 +37,6 @@ export class CreateOrganizationDto {
   @IsIn(['HEAD_OFFICE', 'BRANCH', 'SHOP', 'OFFICE', 'SERVICE_POINT', 'OTHER'])
   establishmentType?: 'HEAD_OFFICE' | 'BRANCH' | 'SHOP' | 'OFFICE' | 'SERVICE_POINT' | 'OTHER';
 
-  @IsOptional()
-  @IsString()
-  @Matches(/^[A-Z][A-Z0-9_]{1,63}$/)
-  planCode?: string;
 }
 
 export class OrganizationIdParam {
