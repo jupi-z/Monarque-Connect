@@ -8,7 +8,7 @@ Le produit combine dans un même écosystème un **réseau économique entre ent
 >
 > La baseline fonctionnelle et architecturale **v1.2 — AI-Native Foundation** est figée.  
 > La fondation technique du backend est validée et **Phase 0.5 — Event Fabric** est terminée sur `main`.  
-> **Phase 1 — Identity & Tenancy** et **Phase 2 — Product Entitlements** sont terminées et vérifiées sur `main`. Le prochain jalon est **Phase 3 — Référentiels**.
+> **Phase 1 — Identity & Tenancy** et **Phase 2 — Product Entitlements** sont terminées et vérifiées sur `main`. **Phase 3 — Référentiels** est ouverte pour livrer les business parties, le catalogue métier et les warehouses.
 >
 > Les modules métier décrits ci-dessous représentent la **cible du MVP**. Ils ne sont pas tous encore implémentés.
 

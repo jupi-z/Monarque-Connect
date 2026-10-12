@@ -62,6 +62,8 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `53_PHASE_0_5_STATUS.md` | État et preuves de livraison Phase 0.5 |
 | `54_PHASE1_IDENTITY_TENANCY_EXECUTION_SPEC.md` | Spécification d'exécution Phase 1 |
 | `55_SEED_AND_REFERENCE_DATA_BASELINE.md` | Baseline des seeds et données de référence |
+| `60_PHASE3_REFERENTIALS_EXECUTION_SPEC.md` | Spécification d'exécution Phase 3 |
+| `61_PHASE_3_STATUS.md` | État de préparation Phase 3 |
 
 ## Gel documentaire
 
