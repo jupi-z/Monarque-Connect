@@ -63,10 +63,12 @@ OpenAPI/Prisma.
 
 ### Task 3: Implémenter le CRM fondation
 
-- [ ] Implémenter leads et opportunités avec contrôle partagé.
-- [ ] Implémenter les transitions idempotentes et audit/outbox transactionnels.
-- [ ] Ajouter isolation tenant, scope établissement et tests PostgreSQL de concurrence.
-- [ ] Publier les contrats OpenAPI et E2E correspondants.
+- [x] Implémenter leads et opportunités avec contrôle partagé.
+- [x] Implémenter les transitions idempotentes et audit/outbox transactionnels.
+- [x] Ajouter isolation tenant, scope établissement et tests PostgreSQL de concurrence.
+- [x] Publier les contrats OpenAPI et tests HTTP PostgreSQL correspondants.
+
+**Preuve de tranche :** `Docs/66_PHASE_4_CRM_FOUNDATION_EVIDENCE.md`.
 
 ### Task 4: Implémenter le Network entry
 

@@ -2,9 +2,10 @@
 
 ## État courant
 
-La Phase 4 — CRM + Network entry est **ouverte en conception et préparation
-d'exécution**. Elle n'est pas déclarée livrée et aucun endpoint métier Phase 4
-n'est déclaré stable par ce document.
+La Phase 4 — CRM + Network entry est **ouverte en exécution par tranches**.
+Elle n'est pas déclarée livrée : la fondation CRM est implémentée dans une
+tranche dédiée, tandis que le Network et la conversion `NetworkInquiry → CRM`
+restent à construire.
 
 L'ouverture est portée par l'issue [#49](https://github.com/jupi-z/Monarque-Connect/issues/49)
 et la spécification normative
@@ -17,14 +18,15 @@ Baseline de départ : `main` après la fusion de la stabilisation cross-phase PR
 
 ## Progression
 
-**Ouverture : 0 % de livraison métier — 100 % du cadrage d'ouverture.**
-
-Ce ratio distingue explicitement le cadrage documentaire de l'implémentation.
-Il ne doit pas être utilisé pour annoncer une fonctionnalité disponible.
+**Tranche CRM fondation : implémentée dans la branche de livraison en cours.**
+La Phase 4 globale reste ouverte et aucun jalon de clôture n'est avancé.
 
 ## Périmètre
 
-- [ ] leads et opportunités CRM ;
+- [x] modèle persistant leads/opportunités avec source, statut et scope ;
+- [x] création, lecture paginée et transitions CRM avec contrôle partagé ;
+- [x] audit + Outbox transactionnels et transitions concurrentes idempotentes ;
+- [x] contrats OpenAPI et tests HTTP PostgreSQL de la fondation CRM ;
 - [ ] profils publics d'organisation ;
 - [ ] vérification et signaux de confiance publiables ;
 - [ ] découverte réseau paginée et allowlistée ;
@@ -46,20 +48,23 @@ Il ne doit pas être utilisé pour annoncer une fonctionnalité disponible.
 
 ## Jalon contrats CRM/Network
 
-Le premier jalon d'exécution est préparé dans la branche
-`monarque/phase4-contracts` :
+Le jalon de contrats a été fusionné par la PR
+[#51](https://github.com/jupi-z/Monarque-Connect/pull/51), puis la fondation CRM
+a été implémentée dans une tranche dédiée :
 
 - matrice de permissions tenant CRM/Network ajoutée à `AuthorizationService` ;
 - états, transitions, visibilité publique et policy de contact initiale figés
   dans la spécification ;
 - surfaces OpenAPI CRM/Network détaillées, avec schémas, pagination,
-  idempotence et erreurs (`103` opérations validées localement) ;
+  idempotence et erreurs (`105` opérations validées localement) ;
 - événements, classification, audit, Outbox et contraintes de concurrence
   définis avant modèle métier.
 
-Ce jalon ne crée encore aucune table, migration ou route métier Phase 4. Les
-choix d'indexation publique et de quotas Network restent explicitement ouverts
-et doivent être résolus avant leur migration respective.
+La fondation CRM ajoute désormais les tables, la migration et les routes
+tenant-scoped de leads/opportunités. Les choix d'indexation publique et de
+quotas Network restent explicitement ouverts et doivent être résolus avant
+leur migration respective. Les preuves détaillées de cette tranche sont dans
+[`66_PHASE_4_CRM_FOUNDATION_EVIDENCE.md`](66_PHASE_4_CRM_FOUNDATION_EVIDENCE.md).
 
 ## Règles de travail
 
@@ -75,9 +80,9 @@ et doivent être résolus avant leur migration respective.
 
 ## Prochain jalon
 
-La prochaine tranche peut définir puis tester le modèle Prisma CRM, en
-réutilisant les permissions gelées. Le modèle Network attend encore la décision
-sur l'indexation publique et les quotas éventuels avant migration.
+La prochaine tranche peut construire le profil public Network et ses projections
+allowlistées, en réutilisant les permissions gelées. La conversion
+`NetworkInquiry → CRM` attend la livraison du domaine Network.
 
 ## Risques connus
 

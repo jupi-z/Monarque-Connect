@@ -68,6 +68,7 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `63_CROSS_PHASE_STABILIZATION_EVIDENCE.md` | Preuves de stabilisation cross-phase |
 | `64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md` | Spécification d'exécution Phase 4 |
 | `65_PHASE_4_STATUS.md` | État d'ouverture Phase 4 |
+| `66_PHASE_4_CRM_FOUNDATION_EVIDENCE.md` | Preuves de la tranche CRM fondation Phase 4 |
 
 ## Gel documentaire
 
