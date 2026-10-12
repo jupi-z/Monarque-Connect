@@ -41,4 +41,53 @@ describe('tenant authorization policy', () => {
       expect(rolePermissions[role]).not.toContain('inventory:write');
     }
   });
+
+  it('applies the Phase 4 CRM role matrix', () => {
+    for (const role of ['OWNER', 'ADMIN', 'SALES', 'FINANCE', 'OPERATIONS', 'VIEWER'] as const) {
+      expect(rolePermissions[role]).toContain('crm:read');
+    }
+
+    for (const role of ['OWNER', 'ADMIN', 'SALES'] as const) {
+      expect(rolePermissions[role]).toContain('crm:write');
+    }
+
+    for (const role of ['FINANCE', 'OPERATIONS', 'VIEWER'] as const) {
+      expect(rolePermissions[role]).not.toContain('crm:write');
+    }
+  });
+
+  it('keeps Network entry permissions separate and deny-by-default for finance', () => {
+    for (const role of ['OWNER', 'ADMIN', 'SALES', 'OPERATIONS', 'VIEWER'] as const) {
+      expect(rolePermissions[role]).toEqual(
+        expect.arrayContaining(['network:discovery:read', 'network:connections:read', 'network:inquiries:read']),
+      );
+    }
+
+    for (const role of ['OWNER', 'ADMIN', 'SALES', 'OPERATIONS'] as const) {
+      expect(rolePermissions[role]).toEqual(
+        expect.arrayContaining(['network:connections:write', 'network:inquiries:write']),
+      );
+    }
+
+    expect(rolePermissions.OWNER).toEqual(expect.arrayContaining(['network:profile:read', 'network:profile:write', 'network:trust:read']));
+    expect(rolePermissions.ADMIN).toEqual(expect.arrayContaining(['network:profile:read', 'network:profile:write', 'network:trust:read']));
+
+    for (const role of ['FINANCE', 'VIEWER'] as const) {
+      expect(rolePermissions[role]).not.toContain('network:connections:write');
+      expect(rolePermissions[role]).not.toContain('network:inquiries:write');
+    }
+
+    for (const permission of [
+      'network:discovery:read',
+      'network:connections:read',
+      'network:connections:write',
+      'network:inquiries:read',
+      'network:inquiries:write',
+      'network:profile:read',
+      'network:profile:write',
+      'network:trust:read',
+    ] as const) {
+      expect(rolePermissions.FINANCE).not.toContain(permission);
+    }
+  });
 });

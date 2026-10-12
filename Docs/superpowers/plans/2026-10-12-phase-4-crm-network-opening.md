@@ -49,11 +49,17 @@
 - Test: `tests/crm/*.integration.test.ts`
 - Test: `tests/network/*.integration.test.ts`
 
-- [ ] Écrire les tests de permissions, d'entitlements, d'activation et de scope.
-- [ ] Figer les états, transitions, règles de visibilité et policy de contact.
-- [ ] Définir les schémas OpenAPI complets, erreurs, pagination et idempotence.
-- [ ] Définir les événements, classifications, audit et contraintes concurrentes.
-- [ ] Vérifier les décisions ouvertes dans la spécification avant migration.
+- [x] Écrire les tests de permissions, d'entitlements, d'activation et de scope.
+- [x] Figer les états, transitions, règles de visibilité et policy de contact.
+- [x] Définir les schémas OpenAPI complets, erreurs, pagination et idempotence.
+- [x] Définir les événements, classifications, audit et contraintes concurrentes.
+- [x] Vérifier les décisions ouvertes dans la spécification avant migration ; indexation publique et quotas Network restent explicitement différés avant leur migration.
+
+**Ruling:** le modèle Prisma et les migrations sont différés aux tâches CRM et
+Network dédiées. La matrice d'autorisation et les contrats API peuvent être
+gelés sans créer de tables vides ; le coût si cette séparation est erronée est
+un changement contractuel avant migration, limité et détectable par les tests
+OpenAPI/Prisma.
 
 ### Task 3: Implémenter le CRM fondation
 

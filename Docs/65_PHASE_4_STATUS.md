@@ -44,6 +44,23 @@ Il ne doit pas être utilisé pour annoncer une fonctionnalité disponible.
 - [x] spécification d'exécution créée ;
 - [x] plan d'exécution versionné créé.
 
+## Jalon contrats CRM/Network
+
+Le premier jalon d'exécution est préparé dans la branche
+`monarque/phase4-contracts` :
+
+- matrice de permissions tenant CRM/Network ajoutée à `AuthorizationService` ;
+- états, transitions, visibilité publique et policy de contact initiale figés
+  dans la spécification ;
+- surfaces OpenAPI CRM/Network détaillées, avec schémas, pagination,
+  idempotence et erreurs (`103` opérations validées localement) ;
+- événements, classification, audit, Outbox et contraintes de concurrence
+  définis avant modèle métier.
+
+Ce jalon ne crée encore aucune table, migration ou route métier Phase 4. Les
+choix d'indexation publique et de quotas Network restent explicitement ouverts
+et doivent être résolus avant leur migration respective.
+
 ## Règles de travail
 
 - branche courte `monarque/phase4-*` puis PR vers `main` ;
@@ -58,10 +75,9 @@ Il ne doit pas être utilisé pour annoncer une fonctionnalité disponible.
 
 ## Prochain jalon
 
-La prochaine PR doit figer le contrat CRM/Network : permissions, états,
-projections publiques, règles de visibilité, événements, quotas éventuels,
-schémas OpenAPI et modèle de données. Elle ne doit pas implémenter les
-workflows métier avant la validation de ces contrats.
+La prochaine tranche peut définir puis tester le modèle Prisma CRM, en
+réutilisant les permissions gelées. Le modèle Network attend encore la décision
+sur l'indexation publique et les quotas éventuels avant migration.
 
 ## Risques connus
 
