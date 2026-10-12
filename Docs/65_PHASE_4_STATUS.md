@@ -29,10 +29,12 @@ ouverte et aucun jalon de clôture n'est avancé.
 défaut, la publication opt-in, la projection publique allowlistée et l'audit +
 Outbox transactionnels. La Phase 4 globale reste ouverte.
 
-**Tranche Network trust/discovery : implémentée dans le worktree de livraison
-et en attente de PR/CI.** Elle couvre la projection de confiance plateforme,
-le statut `UNVERIFIED` par défaut, les filtres de découverte publique et la
-pagination par curseur. La Phase 4 globale reste ouverte.
+**Tranche Network trust/discovery : fusionnée sur `main` par la PR
+[#56](https://github.com/jupi-z/Monarque-Connect/pull/56), commit
+`4347c8c36cae59af067f991c00861af033c345da`.** Elle couvre la projection de
+confiance plateforme, le statut `UNVERIFIED` par défaut, les filtres de
+découverte publique et la pagination par curseur. La Phase 4 globale reste
+ouverte.
 
 ## Périmètre
 
