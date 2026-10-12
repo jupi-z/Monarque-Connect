@@ -2,130 +2,51 @@
 
 ## État courant
 
-La Phase 4 — CRM + Network entry est **ouverte en exécution par tranches**.
-Elle n'est pas déclarée livrée : la fondation CRM est implémentée dans une
-tranche dédiée, tandis que le Network et la conversion `NetworkInquiry → CRM`
-restent à construire.
+La Phase 4 — CRM + Network entry est **terminée à 100 %** selon les gates de
+la spécification. Les preuves consolidées sont dans
+[`70_PHASE_4_CLOSURE_EVIDENCE.md`](70_PHASE_4_CLOSURE_EVIDENCE.md).
 
-L'ouverture est portée par l'issue [#49](https://github.com/jupi-z/Monarque-Connect/issues/49)
+L'ouverture était portée par l'issue [#49](https://github.com/jupi-z/Monarque-Connect/issues/49)
 et la spécification normative
 [`64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`](64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md).
 
-Baseline de départ : `main` après la fusion de la stabilisation cross-phase PR
-[#48](https://github.com/jupi-z/Monarque-Connect/pull/48), commit
-`17095fe83a32328d3bf3d898b7adba2f4bfe5ff8`. La Phase 1, la Phase 2 et la Phase
-3 sont considérées comme clôturées selon leurs preuves respectives.
+## Livraisons
 
-## Progression
+- [x] CRM fondation, leads et opportunités : PR [#52](https://github.com/jupi-z/Monarque-Connect/pull/52), commit `3a6e7ba229978ab5af8ccf6b031c0e10b41c93f5` ;
+- [x] profil Network : PR [#54](https://github.com/jupi-z/Monarque-Connect/pull/54), commit `2db7d8205436bd7cae5160e2eb502b95505cf2d6` ;
+- [x] trust et discovery Network : PR [#56](https://github.com/jupi-z/Monarque-Connect/pull/56), commit `4347c8c36cae59af067f991c00861af033c345da` ;
+- [x] connexions B2B : PR [#58](https://github.com/jupi-z/Monarque-Connect/pull/58), commit `c7a6cff9978c70dcaa6af7e35e0b89fbbc9a2781` ;
+- [x] `NetworkInquiry → CRM` : PR [#60](https://github.com/jupi-z/Monarque-Connect/pull/60), commit `5c27de33a47ae3dbc90bc1d107c39b6b5a4da47b`.
 
-**Tranche CRM fondation : fusionnée sur `main` par la PR
-[#52](https://github.com/jupi-z/Monarque-Connect/pull/52), commit
-`3a6e7ba229978ab5af8ccf6b031c0e10b41c93f5`.** La Phase 4 globale reste
-ouverte et aucun jalon de clôture n'est avancé.
+## Périmètre et gates
 
-**Tranche Network profile : fusionnée sur `main` par la PR
-[#54](https://github.com/jupi-z/Monarque-Connect/pull/54), commit
-`2db7d8205436bd7cae5160e2eb502b95505cf2d6`.** Elle couvre le profil privé par
-défaut, la publication opt-in, la projection publique allowlistée et l'audit +
-Outbox transactionnels. La Phase 4 globale reste ouverte.
+- [x] modèle persistant, états, transitions et contrôle partagé ;
+- [x] isolation tenant, scope établissement et projections publiques allowlistées ;
+- [x] audit + Outbox transactionnels pour les mutations significatives ;
+- [x] idempotence et concurrence pour CRM, connexions et conversion inquiry ;
+- [x] OpenAPI, contrats, migrations et tests PostgreSQL ;
+- [x] preuves base vide et upgrades depuis les baselines précédentes ;
+- [x] CI PR et post-merge `main` vertes ;
+- [x] documentation et tracker synchronisés ;
+- [x] branches de livraison supprimées après fusion.
 
-**Tranche Network trust/discovery : fusionnée sur `main` par la PR
-[#56](https://github.com/jupi-z/Monarque-Connect/pull/56), commit
-`4347c8c36cae59af067f991c00861af033c345da`.** Elle couvre la projection de
-confiance plateforme, le statut `UNVERIFIED` par défaut, les filtres de
-découverte publique et la pagination par curseur. La Phase 4 globale reste
-ouverte.
+## Preuves
 
-**Tranche Network connections : fusionnée sur `main` par la PR
-[#58](https://github.com/jupi-z/Monarque-Connect/pull/58), commit
-`c7a6cff9978c70dcaa6af7e35e0b89fbbc9a2781`.** Elle couvre les demandes de
-connexion B2B tenant-scoped, l'éligibilité publique et les entitlements de la
-cible, les transitions source/cible, la concurrence PostgreSQL et les
-événements audit + Outbox transactionnels. La preuve détaillée est dans
-[`69_PHASE_4_NETWORK_CONNECTIONS_EVIDENCE.md`](69_PHASE_4_NETWORK_CONNECTIONS_EVIDENCE.md).
-La Phase 4 globale reste ouverte pour `NetworkInquiry` et sa conversion CRM.
+La preuve consolidée, les runs GitHub et les résultats locaux sont dans
+[`70_PHASE_4_CLOSURE_EVIDENCE.md`](70_PHASE_4_CLOSURE_EVIDENCE.md). Les preuves
+détaillées par tranche sont dans `66_PHASE_4_CRM_FOUNDATION_EVIDENCE.md`,
+`67_PHASE_4_NETWORK_PROFILE_EVIDENCE.md`,
+`68_PHASE_4_NETWORK_TRUST_DISCOVERY_EVIDENCE.md` et
+`69_PHASE_4_NETWORK_CONNECTIONS_EVIDENCE.md`.
 
-## Périmètre
+## Prochaine étape
 
-- [x] modèle persistant leads/opportunités avec source, statut et scope ;
-- [x] création, lecture paginée et transitions CRM avec contrôle partagé ;
-- [x] audit + Outbox transactionnels et transitions concurrentes idempotentes ;
-- [x] contrats OpenAPI et tests HTTP PostgreSQL de la fondation CRM ;
-- [x] profils publics d'organisation opt-in et projection allowlistée ;
-- [x] projection publique de vérification/trust, plateforme-gérée et
-  `UNVERIFIED` par défaut ;
-- [x] découverte réseau paginée et allowlistée ;
-- [x] connexions B2B ;
-- [ ] `NetworkInquiry → CRM` idempotent ;
-- [x] migrations, OpenAPI, événements, audit, E2E et preuves de concurrence
-  pour les tranches livrées ;
-- [ ] preuves globales de clôture Phase 4, incluant `NetworkInquiry → CRM`.
+La Phase 4 est clôturée. Le prochain travail relève de la Phase 5 — Sales,
+après ouverture formelle de son cadrage et de son issue dédiée.
 
-## Conditions d'entrée vérifiées
+## Gouvernance
 
-- [x] Phase 1 Identity & Tenancy sur `main` ;
-- [x] Phase 2 Product Entitlements sur `main` ;
-- [x] Phase 3 Référentiels sur `main` ;
-- [x] stabilisation cross-phase PR #48 fusionnée avec CI verte ;
-- [x] `main` synchronisée et sans branche distante résiduelle ;
-- [x] roadmap et invariants existants relus ;
-- [x] issue dédiée #49 créée ;
-- [x] spécification d'exécution créée ;
-- [x] plan d'exécution versionné créé.
-
-## Jalon contrats CRM/Network
-
-Le jalon de contrats a été fusionné par la PR
-[#51](https://github.com/jupi-z/Monarque-Connect/pull/51), puis la fondation CRM
-a été implémentée dans une tranche dédiée :
-
-- matrice de permissions tenant CRM/Network ajoutée à `AuthorizationService` ;
-- états, transitions, visibilité publique et policy de contact initiale figés
-  dans la spécification ;
-- surfaces OpenAPI CRM/Network détaillées, avec schémas, pagination,
-  idempotence et erreurs (`105` opérations validées localement) ;
-- événements, classification, audit, Outbox et contraintes de concurrence
-  définis avant modèle métier.
-
-La fondation CRM ajoute désormais les tables, la migration et les routes
-tenant-scoped de leads/opportunités. Les choix d'indexation publique et de
-quotas Network restent explicitement ouverts et doivent être résolus avant
-leur migration respective. Les preuves détaillées de cette tranche sont dans
-[`66_PHASE_4_CRM_FOUNDATION_EVIDENCE.md`](66_PHASE_4_CRM_FOUNDATION_EVIDENCE.md).
-
-## Règles de travail
-
-- branche courte `monarque/phase4-*` puis PR vers `main` ;
-- CI obligatoire et merge squash ;
-- pas de push direct sur `main` ;
-- aucun fichier de travail ou artefact local généré dans le dépôt ;
-- contrôle partagé obligatoire :
-  `tenant actif → membership → entitlement → activation → permission → scope établissement` ;
-- chaque décision structurante est documentée avant d'être codée ;
-- une phase reste ouverte tant que chaque gate de sa spécification n'est pas
-  prouvé, même si une tranche fonctionnelle est déjà utilisable.
-
-## Prochain jalon
-
-La prochaine tranche peut construire les `NetworkInquiry`, en réutilisant les
-projections, connexions et permissions gelées. La conversion
-`NetworkInquiry → CRM` reste le dernier jalon métier avant la clôture globale.
-
-## Risques connus
-
-- la protection server-side de `main` reste indisponible sur le plan GitHub
-  privé courant ; la gouvernance compensatoire est donc PR + CI + squash +
-  suppression de branche ;
-- les opérations Phase 4 déjà présentes dans OpenAPI sont des surfaces
-  placeholder et ne constituent pas une preuve de contrat détaillé ;
-- la découverte et les profils publics créent une frontière de données
-  cross-tenant qui doit rester explicitement limitée aux projections Network ;
-- la vérification/trust relève de la plateforme et ne doit jamais être une
-  auto-déclaration tenant.
-
-## Règle de clôture
-
-Ce document sera remplacé ou complété par une preuve de clôture uniquement
-après exécution complète des gates de
-[`64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`](64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md),
-avec résultats observés sur le commit fusionné de `main`.
+La protection server-side de `main` reste indisponible sur le plan GitHub
+privé courant ; la gouvernance compensatoire appliquée est PR + CI + squash +
+suppression de branche. Aucun push direct sur `main` n'a été utilisé pour les
+livraisons Phase 4.

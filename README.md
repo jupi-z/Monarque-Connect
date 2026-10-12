@@ -293,8 +293,8 @@ Monarque Connect ne repose ni sur ERPNext ni sur Frappe.
 3. **Phase 3 — Référentiels — terminée**
    Business parties, catalogue métier et warehouses. Les preuves de clôture sont dans `Docs/62_PHASE_3_CLOSURE_EVIDENCE.md`.
 
-4. **Phase 4 — CRM + Network entry — ouverte en exécution par tranches**
-   Leads, opportunités, profils publics, confiance, découverte et connexions sont livrés ; `NetworkInquiry → CRM` reste à construire. Voir `Docs/64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`.
+4. **Phase 4 — CRM + Network entry — terminée**
+   Leads, opportunités, profils publics, confiance, découverte, connexions et `NetworkInquiry → CRM` sont livrés et prouvés. Voir `Docs/70_PHASE_4_CLOSURE_EVIDENCE.md`.
 
 Les phases ventes, achats, opérations, messaging et intelligence viennent ensuite selon la roadmap normative.
 
