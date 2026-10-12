@@ -176,6 +176,15 @@ enum AuditAction {
   OPPORTUNITY_UPDATED
   OPPORTUNITY_STATUS_CHANGED
   NETWORK_PROFILE_UPDATED
+  CONNECTION_REQUEST_CREATED
+  CONNECTION_REQUEST_STATUS_CHANGED
+}
+
+enum ConnectionRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
 }
 
 enum NetworkVerificationStatus {
@@ -429,6 +438,8 @@ model Organization {
   opportunities     Opportunity[]
   networkProfile     OrganizationNetworkProfile?
   networkTrust       OrganizationNetworkTrust?
+  connectionRequestsSent     ConnectionRequest[] @relation("ConnectionRequestsSent")
+  connectionRequestsReceived ConnectionRequest[] @relation("ConnectionRequestsReceived")
 
   @@index([businessTypeCode])
   @@index([status])
@@ -464,6 +475,22 @@ model OrganizationNetworkTrust {
   organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("organization_network_trust")
+}
+
+model ConnectionRequest {
+  id                   String                  @id @db.Uuid
+  sourceOrganizationId String                  @map("source_organization_id") @db.Uuid
+  targetOrganizationId String                  @map("target_organization_id") @db.Uuid
+  status               ConnectionRequestStatus @default(PENDING)
+  message              String?                 @db.VarChar(2000)
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sourceOrganization   Organization            @relation("ConnectionRequestsSent", fields: [sourceOrganizationId], references: [id], onDelete: Cascade)
+  targetOrganization   Organization            @relation("ConnectionRequestsReceived", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+
+  @@index([sourceOrganizationId, status, createdAt, id])
+  @@index([targetOrganizationId, status, createdAt, id])
+  @@map("connection_requests")
 }
 
 model Subscription {
