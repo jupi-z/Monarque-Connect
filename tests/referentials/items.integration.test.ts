@@ -96,6 +96,30 @@ describe('Catalog items referential', () => {
     await expect(prisma.auditEvent.count({ where: { targetType: 'Item', targetId: item.id, action: 'CATALOG_ITEM_STATUS_CHANGED' } })).resolves.toBe(1);
   });
 
+  it('excludes inactive items by default while allowing an explicit inactive filter', async () => {
+    const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
+    const created = await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', name: 'Inactive item', unit: 'hour', referencePrice: '20', currency: 'EUR' }).expect(201);
+    const itemId = bodyOf<{ id: string }>(created).id;
+    await request(server).post(`/api/v1/organizations/${organizationId}/items/${itemId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    const defaultList = await request(server).get(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    const inactiveList = await request(server).get(`/api/v1/organizations/${organizationId}/items?active=false`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<{ items: Array<{ id: string }> }>(defaultList).items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: itemId })]));
+    expect(bodyOf<{ items: Array<{ id: string }> }>(inactiveList).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: itemId })]));
+  });
+
+  it('emits one status event for concurrent item deactivation requests', async () => {
+    const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
+    const created = await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', name: 'Concurrent item', unit: 'hour', referencePrice: '20', currency: 'EUR' }).expect(201);
+    const itemId = bodyOf<{ id: string }>(created).id;
+    const responses = await Promise.all([
+      request(server).post(`/api/v1/organizations/${organizationId}/items/${itemId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`),
+      request(server).post(`/api/v1/organizations/${organizationId}/items/${itemId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    await expect(prisma.auditEvent.count({ where: { targetType: 'Item', targetId: itemId, action: 'CATALOG_ITEM_STATUS_CHANGED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { aggregateType: 'Item', aggregateId: itemId, eventType: 'catalog.item.status_changed' } })).resolves.toBe(1);
+  });
+
   it('rejects item creation when CATALOG is disabled', async () => {
     await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CATALOG' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CATALOG', enabled: false } });
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', name: 'Blocked', unit: 'piece', referencePrice: '1', currency: 'EUR' }).expect(403);

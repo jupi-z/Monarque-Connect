@@ -67,7 +67,8 @@ describe('Identity and tenancy integration', () => {
     const rotated = await auth.refresh({ refreshToken: tokens.refreshToken });
     await expect(auth.me({ userId: ownerId, sessionId: rotated.sessionId })).resolves.toMatchObject({ email: 'owner@example.com' });
     await expect(auth.refresh({ refreshToken: tokens.refreshToken })).rejects.toThrow();
-    await expect(prisma.refreshSession.count({ where: { userId: ownerId, revokedAt: { not: null } } })).resolves.toBeGreaterThan(0);
+    await expect(prisma.refreshSession.count({ where: { userId: ownerId, familyId: { in: (await prisma.refreshSession.findMany({ where: { userId: ownerId }, select: { familyId: true } })).map((session) => session.familyId) }, revokedAt: { not: null } } })).resolves.toBe(2);
+    await expect(prisma.auditEvent.count({ where: { actorUserId: ownerId, action: 'SESSION_REPLAY_REVOKED' } })).resolves.toBe(1);
   });
 
   it('creates the primary establishment atomically and denies another tenant', async () => {
@@ -101,6 +102,12 @@ describe('Identity and tenancy integration', () => {
     const membership = await prisma.membership.findUnique({ where: { id: accepted.membershipId }, include: { scopeLinks: true } });
     expect(membership?.scopeMode).toBe('SELECTED_ESTABLISHMENTS');
     expect(membership?.scopeLinks).toHaveLength(1);
+    await expect(organizations.updateMember({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, accepted.membershipId, { role: 'SALES' })).resolves.toMatchObject({ role: 'SALES', scopeMode: 'SELECTED_ESTABLISHMENTS', establishmentIds: [created.establishment.id] });
+    await expect(prisma.membershipEstablishmentScope.count({ where: { membershipId: accepted.membershipId } })).resolves.toBe(1);
+    await expect(organizations.updateMember({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, accepted.membershipId, { status: 'SUSPENDED' })).resolves.toMatchObject({ status: 'SUSPENDED' });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId: created.id, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 1n });
+    await expect(organizations.updateMember({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, accepted.membershipId, { status: 'ACTIVE' })).resolves.toMatchObject({ status: 'ACTIVE' });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId: created.id, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 2n });
     await expect(organizations.update({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, { name: 'Tenant C updated' })).resolves.toMatchObject({ name: 'Tenant C updated' });
     await expect(organizations.update({ userId: invited.id, sessionId: '00000000-0000-0000-0000-000000000004' }, created.id, { name: 'Unauthorized update' })).rejects.toThrow();
     await expect(organizations.getEstablishment({ userId: invited.id, sessionId: '00000000-0000-0000-0000-000000000004' }, created.id, created.establishment.id)).resolves.toMatchObject({ id: created.establishment.id });

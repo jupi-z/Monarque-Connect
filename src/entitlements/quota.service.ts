@@ -25,6 +25,10 @@ export interface ConsumeQuotaInput {
   at?: Date;
 }
 
+export interface ReconcileCapacityInput extends ConsumeQuotaInput {
+  direction: 'INCREASE' | 'DECREASE';
+}
+
 export interface QuotaReservationResult {
   id: string;
   organizationId: string;
@@ -129,6 +133,46 @@ export class QuotaService {
     const reservation = await tx.quotaReservation.create({ data: { id: randomUUID(), organizationId: input.organizationId, quotaCode: input.quotaCode, periodKey, amount: input.amount, limitValue: limit, status: 'COMMITTED', idempotencyKey: input.idempotencyKey } });
     const context = currentEventContext() ?? createRequestContext();
     await this.recordMutation(tx, 'QUOTA_COMMITTED', 'quota.committed', reservation, context, { resourceType: input.resourceType, resourceId: input.resourceId });
+    return this.result(reservation);
+  }
+
+  async reconcileCapacity(tx: Prisma.TransactionClient, input: ReconcileCapacityInput): Promise<QuotaReservationResult> {
+    if (input.direction === 'INCREASE') return this.consume(tx, input);
+    this.assertInput(input);
+    if (!input.resourceType.trim() || !input.resourceId.trim()) throw new BadRequestException('Quota resource is invalid');
+    const at = input.at ?? new Date();
+    const subscription = await tx.subscription.findFirst({ where: { organizationId: input.organizationId, organization: { status: 'ACTIVE' }, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersionId: true } });
+    if (!subscription) throw new ConflictException('Organization has no active subscription');
+    const plan = await tx.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { billingPeriod: true } });
+    const quota = await tx.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: subscription.planVersionId, quotaCode: input.quotaCode } } });
+    if (!quota || quota.mode !== 'CAPACITY') throw new ConflictException('Quota is not a capacity quota');
+    const periodKey = this.periodKey(quota.mode, plan.billingPeriod, at);
+    const limit = await this.effectiveLimit(tx, input.organizationId, input.quotaCode, quota.limitValue, at);
+    const existing = await tx.quotaReservation.findUnique({ where: { organizationId_idempotencyKey: { organizationId: input.organizationId, idempotencyKey: input.idempotencyKey } } });
+    if (existing) {
+      if (existing.quotaCode !== input.quotaCode || existing.periodKey !== periodKey || existing.amount !== input.amount) throw new ConflictException('Quota idempotency key was already used with different parameters');
+      return this.result(existing);
+    }
+    const usageId = randomUUID();
+    await tx.$executeRaw(Prisma.sql`
+      INSERT INTO "organization_quota_usages" ("id", "organization_id", "quota_code", "period_key", "limit_value")
+      VALUES (${usageId}::uuid, ${input.organizationId}::uuid, ${input.quotaCode}, ${periodKey}, ${limit})
+      ON CONFLICT ("organization_id", "quota_code", "period_key") DO NOTHING
+    `);
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE "organization_quota_usages" SET "limit_value" = ${limit}, "updated_at" = CURRENT_TIMESTAMP
+      WHERE "organization_id" = ${input.organizationId}::uuid AND "quota_code" = ${input.quotaCode} AND "period_key" = ${periodKey}
+    `);
+    const changed = await tx.$executeRaw(Prisma.sql`
+      UPDATE "organization_quota_usages"
+      SET "used_value" = "used_value" - ${input.amount}, "updated_at" = CURRENT_TIMESTAMP
+      WHERE "organization_id" = ${input.organizationId}::uuid AND "quota_code" = ${input.quotaCode} AND "period_key" = ${periodKey}
+        AND "used_value" >= ${input.amount}
+    `);
+    if (changed !== 1) throw new ConflictException('Quota capacity state is inconsistent');
+    const reservation = await tx.quotaReservation.create({ data: { id: randomUUID(), organizationId: input.organizationId, quotaCode: input.quotaCode, periodKey, amount: input.amount, limitValue: limit, status: 'RELEASED', idempotencyKey: input.idempotencyKey } });
+    const context = currentEventContext() ?? createRequestContext();
+    await this.recordMutation(tx, 'QUOTA_RELEASED', 'quota.released', reservation, context, { resourceType: input.resourceType, resourceId: input.resourceId });
     return this.result(reservation);
   }
 

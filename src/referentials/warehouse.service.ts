@@ -24,7 +24,7 @@ export class WarehouseService {
       where: {
         organizationId,
         establishmentId,
-        ...(query.active === undefined ? {} : { active: query.active }),
+        active: query.active ?? true,
         ...(cursor ? { OR: [{ createdAt: { gt: new Date(cursor.createdAt) } }, { createdAt: new Date(cursor.createdAt), id: { gt: cursor.id } }] } : {}),
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -91,7 +91,13 @@ export class WarehouseService {
       const current = await tx.warehouse.findFirst({ where: { id: warehouseId, organizationId, establishmentId }, select: this.select });
       if (!current) throw new NotFoundException();
       if (current.active === active) return this.serialize(current);
-      const warehouse = await tx.warehouse.update({ where: { id: warehouseId }, data: { active }, select: this.select });
+      const changed = await tx.warehouse.updateMany({ where: { id: warehouseId, organizationId, establishmentId, active: !active }, data: { active } });
+      if (changed.count === 0) {
+        const latest = await tx.warehouse.findFirst({ where: { id: warehouseId, organizationId, establishmentId }, select: this.select });
+        if (!latest) throw new NotFoundException();
+        return this.serialize(latest);
+      }
+      const warehouse = await tx.warehouse.findFirstOrThrow({ where: { id: warehouseId, organizationId, establishmentId }, select: this.select });
       await this.recordMutation(tx, 'WAREHOUSE_STATUS_CHANGED', 'warehouse.status_changed', principal, organizationId, establishmentId, warehouseId, event, { active });
       return this.serialize(warehouse);
     });

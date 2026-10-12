@@ -23,7 +23,7 @@ export class PartyService {
       where: {
         organizationId,
         ...(query.type ? { type: query.type } : {}),
-        ...(query.active === undefined ? {} : { active: query.active }),
+        active: query.active ?? true,
         ...(query.search ? { displayName: { contains: query.search.trim(), mode: 'insensitive' } } : {}),
         ...(cursor ? { OR: [{ createdAt: { gt: new Date(cursor.createdAt) } }, { createdAt: new Date(cursor.createdAt), id: { gt: cursor.id } }] } : {}),
       },
@@ -80,7 +80,13 @@ export class PartyService {
       const current = await tx.businessParty.findFirst({ where: { id: partyId, organizationId }, select: this.select });
       if (!current) throw new NotFoundException();
       if (current.active === active) return this.serialize(current);
-      const party = await tx.businessParty.update({ where: { id: partyId }, data: { active }, select: this.select });
+      const changed = await tx.businessParty.updateMany({ where: { id: partyId, organizationId, active: !active }, data: { active } });
+      if (changed.count === 0) {
+        const latest = await tx.businessParty.findFirst({ where: { id: partyId, organizationId }, select: this.select });
+        if (!latest) throw new NotFoundException();
+        return this.serialize(latest);
+      }
+      const party = await tx.businessParty.findFirstOrThrow({ where: { id: partyId, organizationId }, select: this.select });
       await this.recordMutation(tx, 'BUSINESS_PARTY_STATUS_CHANGED', 'business_party.status_changed', principal, organizationId, partyId, context, { active });
       return this.serialize(party);
     });

@@ -78,7 +78,7 @@ export class AuthService {
   async refresh(input: RefreshDto): Promise<TokenPair> {
     const tokenHash = this.hashOpaqueToken(input.refreshToken);
     const context = this.context();
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const session = await tx.refreshSession.findUnique({ where: { tokenHash }, include: { user: true } });
       if (!session) throw new UnauthorizedException('Invalid refresh token');
       const now = new Date();
@@ -87,7 +87,7 @@ export class AuthService {
         await this.recordAuditAndEvent(tx, 'SESSION_REPLAY_REVOKED', session.userId, undefined, context, {
           aggregateType: 'RefreshSession', aggregateId: session.id, payload: { familyId: session.familyId },
         });
-        throw new UnauthorizedException('Invalid refresh token');
+        return { replayRevoked: true as const };
       }
       const replacement = this.newOpaqueToken();
       const replacementId = randomUUID();
@@ -102,8 +102,10 @@ export class AuthService {
       await this.recordAuditAndEvent(tx, 'SESSION_REFRESHED', session.userId, undefined, context, {
         aggregateType: 'RefreshSession', aggregateId: replacementId, payload: { familyId: session.familyId },
       });
-      return { accessToken, refreshToken: replacement, sessionId: replacementId };
+      return { replayRevoked: false as const, tokenPair: { accessToken, refreshToken: replacement, sessionId: replacementId } };
     });
+    if (result.replayRevoked) throw new UnauthorizedException('Invalid refresh token');
+    return result.tokenPair;
   }
 
   async logout(principal: AuthPrincipal): Promise<void> {
