@@ -160,7 +160,7 @@ export class OrganizationService {
   async updateMember(principal: AuthPrincipal, organizationId: string, membershipId: string, input: UpdateMembershipDto): Promise<unknown> {
     const actor = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(actor, 'memberships:write');
-    const target = await this.prisma.membership.findFirst({ where: { id: membershipId, organizationId } });
+    const target = await this.prisma.membership.findFirst({ where: { id: membershipId, organizationId }, include: { scopeLinks: { select: { establishmentId: true } } } });
     if (!target) throw new NotFoundException();
     const nextRole = input.role ?? target.role;
     const nextStatus = input.status ?? target.status;
@@ -169,7 +169,9 @@ export class OrganizationService {
       const ownerCount = await this.prisma.membership.count({ where: { organizationId, role: 'OWNER', status: 'ACTIVE' } });
       if (ownerCount <= 1) throw new ConflictException('The last active owner cannot be removed');
     }
-    const establishmentIds = nextScopeMode === 'SELECTED_ESTABLISHMENTS' ? Array.from(new Set(input.establishmentIds ?? [])) : [];
+    const establishmentIds = nextScopeMode === 'SELECTED_ESTABLISHMENTS'
+      ? Array.from(new Set(input.establishmentIds ?? target.scopeLinks.map((scope) => scope.establishmentId)))
+      : [];
     if (nextScopeMode === 'SELECTED_ESTABLISHMENTS' && establishmentIds.length === 0) throw new ConflictException('Selected scope requires at least one establishment');
     const eventContext = currentEventContext() ?? createRequestContext();
     return this.prisma.$transaction(async (tx) => {
@@ -180,6 +182,11 @@ export class OrganizationService {
       const membership = await tx.membership.update({ where: { id: membershipId }, data: { role: nextRole, status: nextStatus, scopeMode: nextScopeMode } });
       await tx.membershipEstablishmentScope.deleteMany({ where: { membershipId } });
       if (establishmentIds.length > 0) await tx.membershipEstablishmentScope.createMany({ data: establishmentIds.map((establishmentId) => ({ membershipId, establishmentId, organizationId })) });
+      if (target.status === 'ACTIVE' && nextStatus !== 'ACTIVE') {
+        await this.quotasService.reconcileCapacity(tx, { organizationId, quotaCode: 'MAX_USERS', amount: 1n, direction: 'DECREASE', idempotencyKey: `organization:${organizationId}:membership:${membershipId}:status:${target.status}:${nextStatus}:${target.updatedAt.toISOString()}`, resourceType: 'Membership', resourceId: membershipId });
+      } else if (target.status !== 'ACTIVE' && nextStatus === 'ACTIVE') {
+        await this.quotasService.reconcileCapacity(tx, { organizationId, quotaCode: 'MAX_USERS', amount: 1n, direction: 'INCREASE', idempotencyKey: `organization:${organizationId}:membership:${membershipId}:status:${target.status}:${nextStatus}:${target.updatedAt.toISOString()}`, resourceType: 'Membership', resourceId: membershipId });
+      }
       await tx.auditEvent.create({ data: { id: randomUUID(), action: 'MEMBERSHIP_UPDATED', actorUserId: principal.userId, organizationId, targetType: 'Membership', targetId: membershipId, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { role: nextRole, status: nextStatus, scopeMode: nextScopeMode } } });
       await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'membership.updated', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'Membership', id: membershipId }, organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'identity-tenancy-audit', payload: { role: nextRole, status: nextStatus, scopeMode: nextScopeMode } }));
       return { id: membership.id, role: membership.role, status: membership.status, scopeMode: membership.scopeMode, establishmentIds };

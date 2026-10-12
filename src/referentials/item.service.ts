@@ -23,7 +23,7 @@ export class ItemService {
       where: {
         organizationId,
         ...(query.type ? { type: query.type } : {}),
-        ...(query.active === undefined ? {} : { active: query.active }),
+        active: query.active ?? true,
         ...(query.search ? { name: { contains: query.search.trim(), mode: 'insensitive' } } : {}),
         ...(cursor ? { OR: [{ createdAt: { gt: new Date(cursor.createdAt) } }, { createdAt: new Date(cursor.createdAt), id: { gt: cursor.id } }] } : {}),
       },
@@ -110,7 +110,13 @@ export class ItemService {
       const current = await tx.item.findFirst({ where: { id: itemId, organizationId }, select: this.select });
       if (!current) throw new NotFoundException();
       if (current.active === active) return this.serialize(current);
-      const item = await tx.item.update({ where: { id: itemId }, data: { active }, select: this.select });
+      const changed = await tx.item.updateMany({ where: { id: itemId, organizationId, active: !active }, data: { active } });
+      if (changed.count === 0) {
+        const latest = await tx.item.findFirst({ where: { id: itemId, organizationId }, select: this.select });
+        if (!latest) throw new NotFoundException();
+        return this.serialize(latest);
+      }
+      const item = await tx.item.findFirstOrThrow({ where: { id: itemId, organizationId }, select: this.select });
       await this.recordMutation(tx, 'CATALOG_ITEM_STATUS_CHANGED', 'catalog.item.status_changed', principal, organizationId, itemId, context, { active });
       return this.serialize(item);
     });

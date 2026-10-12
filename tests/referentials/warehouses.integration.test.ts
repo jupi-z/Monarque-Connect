@@ -124,6 +124,28 @@ describe('Warehouses referential', () => {
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'BLOCKED', name: 'Blocked warehouse' }).expect(403);
     await prisma.organizationModuleActivation.update({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'INVENTORY' } }, data: { enabled: true } });
   });
+
+  it('excludes inactive warehouses by default while allowing an explicit inactive filter', async () => {
+    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'INACTIVE', name: 'Inactive warehouse' }).expect(201);
+    const warehouseId = bodyOf<{ id: string }>(created).id;
+    await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses/${warehouseId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    const defaultList = await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    const inactiveList = await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses?active=false`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<{ items: Array<{ id: string }> }>(defaultList).items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: warehouseId })]));
+    expect(bodyOf<{ items: Array<{ id: string }> }>(inactiveList).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: warehouseId })]));
+  });
+
+  it('emits one status event for concurrent warehouse deactivation requests', async () => {
+    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'CONCURRENT', name: 'Concurrent warehouse' }).expect(201);
+    const warehouseId = bodyOf<{ id: string }>(created).id;
+    const responses = await Promise.all([
+      request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses/${warehouseId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`),
+      request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses/${warehouseId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    await expect(prisma.auditEvent.count({ where: { targetType: 'Warehouse', targetId: warehouseId, action: 'WAREHOUSE_STATUS_CHANGED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { aggregateType: 'Warehouse', aggregateId: warehouseId, eventType: 'warehouse.status_changed' } })).resolves.toBe(1);
+  });
 });
 
 function bodyOf<T>(response: Response): T {

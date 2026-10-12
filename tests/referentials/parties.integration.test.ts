@@ -88,6 +88,30 @@ describe('Business parties referential', () => {
     await expect(prisma.outboxEvent.findFirst({ where: { aggregateType: 'BusinessParty', aggregateId: party.id, eventType: 'business_party.created' } })).resolves.not.toBeNull();
   });
 
+  it('excludes inactive parties by default while allowing an explicit inactive filter', async () => {
+    const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
+    const created = await request(server).post(`/api/v1/organizations/${organizationId}/parties`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SUPPLIER', displayName: 'Inactive Supplier' }).expect(201);
+    const partyId = bodyOf<{ id: string }>(created).id;
+    await request(server).post(`/api/v1/organizations/${organizationId}/parties/${partyId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    const defaultList = await request(server).get(`/api/v1/organizations/${organizationId}/parties`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    const inactiveList = await request(server).get(`/api/v1/organizations/${organizationId}/parties?active=false`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(bodyOf<{ items: Array<{ id: string }> }>(defaultList).items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: partyId })]));
+    expect(bodyOf<{ items: Array<{ id: string }> }>(inactiveList).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: partyId })]));
+  });
+
+  it('emits one status event for concurrent party deactivation requests', async () => {
+    const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
+    const created = await request(server).post(`/api/v1/organizations/${organizationId}/parties`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'CUSTOMER', displayName: 'Concurrent Party' }).expect(201);
+    const partyId = bodyOf<{ id: string }>(created).id;
+    const responses = await Promise.all([
+      request(server).post(`/api/v1/organizations/${organizationId}/parties/${partyId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`),
+      request(server).post(`/api/v1/organizations/${organizationId}/parties/${partyId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    await expect(prisma.auditEvent.count({ where: { targetType: 'BusinessParty', targetId: partyId, action: 'BUSINESS_PARTY_STATUS_CHANGED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { aggregateType: 'BusinessParty', aggregateId: partyId, eventType: 'business_party.status_changed' } })).resolves.toBe(1);
+  });
+
   it('rejects party creation when CRM is disabled', async () => {
     await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CRM' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CRM', enabled: false } });
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/parties`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SUPPLIER', displayName: 'Blocked Supplier' }).expect(403);
