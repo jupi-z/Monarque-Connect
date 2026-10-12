@@ -126,6 +126,12 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+enum EntitlementEffect {
+  ALLOW
+  DENY
+  LIMIT_OVERRIDE
+}
+
 enum AuditAction {
   USER_REGISTERED
   USER_LOGIN_SUCCEEDED
@@ -145,6 +151,7 @@ enum AuditAction {
   SUBSCRIPTION_CREATED
   SUBSCRIPTION_TRANSITIONED
   MODULE_ACTIVATION_CHANGED
+  ENTITLEMENT_OVERRIDE_SET
   QUOTA_RESERVED
   QUOTA_COMMITTED
   QUOTA_RELEASED
@@ -267,6 +274,7 @@ model BusinessType {
   active        Boolean        @default(true)
   sortOrder     Int            @default(0) @map("sort_order")
   organizations Organization[]
+  modulePresets  ModuleBusinessTypePreset[]
 
   @@index([active, sortOrder])
   @@map("business_types")
@@ -284,6 +292,8 @@ model ModuleCatalog {
   createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   planModules         PlanVersionModule[]
   organizationActivations OrganizationModuleActivation[]
+  businessTypePresets  ModuleBusinessTypePreset[]
+  organizationEntitlements OrganizationEntitlement[]
 
   @@index([availability, isCore])
   @@map("module_catalog")
@@ -364,6 +374,7 @@ model Organization {
   quotaUsages        OrganizationQuotaUsage[]
   quotaReservations  QuotaReservation[]
   quotaLedgers       QuotaLedger[]
+  entitlements       OrganizationEntitlement[]
 
   @@index([businessTypeCode])
   @@index([status])
@@ -401,6 +412,38 @@ model OrganizationModuleActivation {
   @@unique([organizationId, moduleCode])
   @@index([organizationId, enabled])
   @@map("organization_module_activations")
+}
+
+model ModuleBusinessTypePreset {
+  businessTypeCode String        @map("business_type_code") @db.VarChar(64)
+  moduleCode       String        @map("module_code") @db.VarChar(64)
+  recommended      Boolean       @default(true)
+  defaultEnabled   Boolean       @default(true) @map("default_enabled")
+  businessType     BusinessType  @relation(fields: [businessTypeCode], references: [code], onDelete: Cascade)
+  module           ModuleCatalog @relation(fields: [moduleCode], references: [code], onDelete: Cascade)
+
+  @@id([businessTypeCode, moduleCode])
+  @@index([moduleCode])
+  @@map("module_business_type_presets")
+}
+
+model OrganizationEntitlement {
+  id             String            @id @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  moduleCode     String            @map("module_code") @db.VarChar(64)
+  effect         EntitlementEffect
+  startsAt       DateTime          @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime?         @map("ends_at") @db.Timestamptz(6)
+  reason         String            @db.VarChar(500)
+  limitsJson     Json              @default("{}") @map("limits_json")
+  createdByActor String            @map("created_by_actor") @db.VarChar(160)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  module         ModuleCatalog     @relation(fields: [moduleCode], references: [code], onDelete: Restrict)
+
+  @@index([organizationId, moduleCode, startsAt, endsAt])
+  @@index([organizationId, effect, startsAt, endsAt])
+  @@map("organization_entitlements")
 }
 
 model OrganizationQuotaUsage {

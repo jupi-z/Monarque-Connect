@@ -64,4 +64,18 @@ describe('Organization subscriptions', () => {
     await expect(prisma.auditEvent.count({ where: { organizationId, action: 'SUBSCRIPTION_TRANSITIONED' } })).resolves.toBe(2);
     await expect(prisma.outboxEvent.count({ where: { organizationId, eventType: 'subscription.transitioned' } })).resolves.toBe(2);
   });
+
+  it('rejects concurrent overlapping finite subscriptions at the database boundary', async () => {
+    const connect = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    const operations = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });
+    const startsAt = new Date('2027-01-01T00:00:00.000Z');
+    const endsAt = new Date('2027-02-01T00:00:00.000Z');
+    const results = await Promise.allSettled([
+      subscriptions.create({ organizationId, planVersionId: connect.id, startsAt, endsAt }),
+      subscriptions.create({ organizationId, planVersionId: operations.id, startsAt, endsAt }),
+    ]);
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    await expect(prisma.subscription.count({ where: { organizationId } })).resolves.toBe(1);
+  });
 });

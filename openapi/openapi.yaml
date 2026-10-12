@@ -1113,7 +1113,7 @@ components:
     ModuleEntitlement:
       type: object
       additionalProperties: false
-      required: [code, displayName, pillar, isCore, availability, dependencies, entitled, active, allowed, reason, source]
+      required: [code, displayName, pillar, isCore, availability, dependencies, recommended, limitOverrides, entitled, active, allowed, reason, source]
       properties:
         code: { type: string }
         displayName: { type: string }
@@ -1124,13 +1124,17 @@ components:
           type: array
           uniqueItems: true
           items: { type: string }
+        recommended: { type: boolean }
+        limitOverrides:
+          type: object
+          additionalProperties: { type: string, pattern: "^[0-9]+$" }
         entitled: { type: boolean }
         active: { type: boolean }
         allowed: { type: boolean }
         reason:
           type: string
-          enum: [CORE_MODULE, PLAN_INCLUDED, MODULE_NOT_INCLUDED, NO_ACTIVE_SUBSCRIPTION, SUBSCRIPTION_INACTIVE, DEPENDENCY_NOT_ENTITLED, MODULE_RETIRED, MODULE_DEACTIVATED]
-        source: { type: string, enum: [CORE, PLAN, NONE] }
+          enum: [CORE_MODULE, PLAN_INCLUDED, EXPLICIT_ALLOW, EXPLICIT_DENY, MODULE_NOT_INCLUDED, NO_ACTIVE_SUBSCRIPTION, SUBSCRIPTION_INACTIVE, DEPENDENCY_NOT_ENTITLED, MODULE_REQUIRES_ACTIVE_MODULE, MODULE_RETIRED, MODULE_DEFAULT_DISABLED, MODULE_DEACTIVATED]
+        source: { type: string, enum: [CORE, PLAN, OVERRIDE, NONE] }
     UpdateModuleActivationRequest:
       type: object
       additionalProperties: false
@@ -1175,6 +1179,7 @@ components:
         establishmentType:
           type: string
           enum: [HEAD_OFFICE, BRANCH, SHOP, OFFICE, SERVICE_POINT, OTHER]
+        planCode: { type: string, default: CONNECT }
     UpdateOrganizationRequest:
       type: object
       additionalProperties: false
@@ -1262,6 +1267,8 @@ components:
           type: string
           enum: [ALLOW, DENY, LIMIT_OVERRIDE]
         reason: { type: string, minLength: 1, maxLength: 500 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
         limits:
           type: object
           additionalProperties: true

@@ -12,8 +12,12 @@ La clôture porte sur le périmètre normatif de Phase 2. Elle ne clôt pas le M
 - plans et versions de plans immuables avec modules inclus et limites ;
 - abonnements d'organisation, fenêtre d'effet UTC, transitions et expiration ;
 - résolution déterministe des entitlements effectifs et projection `capabilities` versionnée ;
+- overrides d'organisation `ALLOW`, `DENY` et `LIMIT_OVERRIDE`, avec validité, justification, auteur plateforme, audit et Outbox ;
+- presets métier persistés et exposés comme recommandations d'onboarding ;
 - activations organisationnelles explicites, idempotentes et auditées ;
-- quotas par période, réservations atomiques, commit/libération idempotents et ledger ;
+- quotas par période canonique serveur, réservations/consommations atomiques, commit/libération idempotents et ledger ;
+- provisionnement du plan initial et enforcement des quotas sur organisations, établissements et memberships ;
+- contrainte PostgreSQL d'exclusion des périodes d'abonnement concurrentes ;
 - audit et Domain Events Outbox transactionnels pour chaque mutation du Control Plane ;
 - routes HTTP protégées : capabilities, modules, activation et quotas ;
 - contrats OpenAPI détaillés pour les réponses consommées par les clients.
@@ -25,13 +29,18 @@ La clôture porte sur le périmètre normatif de Phase 2. Elle ne clôt pas le M
 - [x] seed idempotent, y compris sous invocations concurrentes ;
 - [x] transitions d'abonnement, répétitions idempotentes et expiration aux bornes UTC ;
 - [x] concurrence des réservations de quotas avec limite atomique `used + reserved` ;
+- [x] consommation atomique des quotas lors de la création des ressources et refus sous concurrence ;
+- [x] période calculée côté serveur et `LIMIT_OVERRIDE` appliqué à la capacité effective ;
 - [x] commit/libération de réservation idempotents avec invariants et ledger ;
 - [x] isolation tenant/établissement réutilisant les contrôles Identity/Tenancy ;
 - [x] audit et Outbox atomiques pour abonnements, activations et quotas ;
 - [x] E2E HTTP du parcours identité/tenant/capabilities/modules/activation/quotas ;
 - [x] aucun endpoint ne traite `modules: []` comme une autorisation implicite ;
+- [x] `defaultEnabled` ne détermine plus l'inclusion au plan ;
+- [x] tests `ALLOW`, `DENY`, `LIMIT_OVERRIDE`, presets métier, règle Intelligence et chevauchement concurrent ;
 - [x] OpenAPI, contrats machine-readable, lint, typecheck, build et suite PostgreSQL verts ;
-- [x] PR obligatoires, revue, CI GitHub verte, squash merge et suppression de la branche de travail.
+- [x] PR obligatoires, revue, CI GitHub verte, squash merge et suppression de la branche de travail ;
+- [x] workflow de protection suivi ; la ruleset technique de `main` reste un prérequis externe non disponible sur le plan GitHub courant, documenté dans l'issue de gouvernance.
 
 ## Preuves reproductibles
 
@@ -51,11 +60,11 @@ npm run test:e2e
 npm run build
 ```
 
-`prisma:phase2:migration-proof` crée deux bases temporaires dédiées, applique les onze migrations depuis zéro, applique ensuite les sept migrations de la baseline Phase 1 puis les quatre migrations Phase 2, vérifie `_prisma_migrations` et supprime les bases temporaires.
+`prisma:phase2:migration-proof` crée deux bases temporaires dédiées, applique les migrations depuis zéro, applique ensuite la baseline Phase 1 puis toutes les migrations Phase 2, vérifie `_prisma_migrations` et supprime les bases temporaires.
 
 ## Tracé Git
 
-Les tranches ont été livrées par PR courtes et squash-mergées sur `main` : #28, #30, #32, #33 et #34. La présente clôture a été livrée par la PR #35, squash-mergée dans `main` en `5fb9494`, avec le run GitHub Actions Backend CI #138 (`38226631236`) vert.
+Les tranches ont été livrées par PR courtes et squash-mergées sur `main` : #28, #30, #32, #33, #34, #35, puis la PR de hardening avec son run CI vert.
 
 Après merge, `main` doit être le seul checkout et la branche de clôture doit être supprimée localement et sur `origin`.
 

@@ -66,5 +66,9 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
     PORT: port,
     DATABASE_URL: databaseUrl,
     CORS_ORIGINS: corsOrigins,
+    PLATFORM_ADMIN_USER_IDS:
+      typeof input.PLATFORM_ADMIN_USER_IDS === 'string'
+        ? input.PLATFORM_ADMIN_USER_IDS.split(',').map((id) => id.trim()).filter(Boolean)
+        : [],
   };
 }

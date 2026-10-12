@@ -42,8 +42,10 @@ describe('Identity and tenancy integration', () => {
     const prismaService = prisma as never;
     const authorization = new AuthorizationService(prismaService);
     auth = new AuthService(prismaService, password, token, outbox, new LoginRateLimiter(prismaService));
-    organizations = new OrganizationService(prismaService, authorization, outbox, new EffectiveEntitlementsService(prismaService, new SubscriptionService(prismaService, outbox)), new QuotaService(prismaService, new SubscriptionService(prismaService, outbox), outbox));
-    invitations = new InvitationService(prismaService, authorization, outbox);
+    const subscriptions = new SubscriptionService(prismaService, outbox);
+    const quotas = new QuotaService(prismaService, subscriptions, outbox);
+    organizations = new OrganizationService(prismaService, authorization, outbox, new EffectiveEntitlementsService(prismaService, subscriptions), quotas, subscriptions);
+    invitations = new InvitationService(prismaService, authorization, outbox, quotas);
     await prisma.$connect();
   });
 
@@ -85,7 +87,7 @@ describe('Identity and tenancy integration', () => {
     const owner = await auth.register({ email: 'owner3@example.com', password: 'correct horse battery staple', firstName: 'Owner', lastName: 'Three' });
     const invited = await auth.register({ email: 'member@example.com', password: 'correct horse battery staple', firstName: 'Member', lastName: 'User' });
     const created = await organizations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, {
-      businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Tenant C', handle: 'tenant-c', defaultCurrency: 'EUR', establishmentName: 'Head office',
+      businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Tenant C', handle: 'tenant-c', defaultCurrency: 'EUR', establishmentName: 'Head office', planCode: 'OPERATIONS',
     }) as { id: string; establishment: { id: string } };
     const secondEstablishment = await organizations.createEstablishment({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, { code: 'BRANCH-2', name: 'Second branch', type: 'BRANCH' }) as { id: string };
     const invitation = await invitations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000003' }, created.id, { email: 'member@example.com', role: 'VIEWER', scopeMode: 'SELECTED_ESTABLISHMENTS', establishmentIds: [created.establishment.id] }) as { token: string };
@@ -113,10 +115,7 @@ describe('Identity and tenancy integration', () => {
     const created = await organizations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, {
       businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Activation tenant', handle: 'activation-tenant', defaultCurrency: 'EUR', establishmentName: 'Head office',
     }) as { id: string };
-    const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
-    const subscriptions = new SubscriptionService(prisma as never, outbox);
-    await subscriptions.create({ organizationId: created.id, planVersionId: planVersion.id, startsAt: new Date('2026-10-01T00:00:00.000Z') });
-    await expect(organizations.quotas({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id)).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5', used: '0', reserved: '0' })]));
+    await expect(organizations.quotas({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id)).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5', used: '1', reserved: '0' })]));
 
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', false, 'disable for onboarding')).resolves.toMatchObject({ moduleCode: 'CATALOG', enabled: false, changed: true });
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', false, 'duplicate callback')).resolves.toMatchObject({ changed: false });

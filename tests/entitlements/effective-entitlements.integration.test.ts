@@ -6,12 +6,14 @@ import { seedReferenceData } from '../../prisma/seed.js';
 import { PrismaOutboxWriter } from '../../src/events/prisma-outbox.writer.js';
 import { SubscriptionService } from '../../src/entitlements/subscription.service.js';
 import { EffectiveEntitlementsService } from '../../src/entitlements/effective-entitlements.service.js';
+import { EntitlementOverrideService } from '../../src/entitlements/entitlement-override.service.js';
 
 describe('Effective organization entitlements', () => {
   const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/monarque_connect_test';
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   const subscriptions = new SubscriptionService(prisma as never, new PrismaOutboxWriter());
   const entitlements = new EffectiveEntitlementsService(prisma as never, subscriptions);
+  const overrides = new EntitlementOverrideService(prisma as never, new PrismaOutboxWriter());
   let organizationId: string;
   const at = new Date('2026-11-01T00:00:00.000Z');
 
@@ -88,5 +90,48 @@ describe('Effective organization entitlements', () => {
       expect.objectContaining({ code: 'NETWORK_PROFILE', entitled: true, active: false, allowed: false, reason: 'MODULE_DEACTIVATED' }),
       expect.objectContaining({ code: 'NETWORK_INQUIRIES', allowed: false, reason: 'DEPENDENCY_NOT_ENTITLED' }),
     ]));
+  });
+
+  it('separates plan inclusion from default activation and honors explicit activation', async () => {
+    const planCode = `DEFAULT_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    await prisma.plan.create({ data: { code: planCode, name: 'Default activation test' } });
+    const planVersion = await prisma.planVersion.create({ data: { id: crypto.randomUUID(), planCode, version: 1, status: 'ACTIVE', currency: 'EUR', billingPeriod: 'MONTHLY' } });
+    await prisma.planVersionModule.create({ data: { planVersionId: planVersion.id, moduleCode: 'CATALOG', defaultEnabled: false } });
+    await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt: at });
+
+    const disabled = await entitlements.resolve(organizationId, at);
+    expect(disabled.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CATALOG', entitled: true, active: false, allowed: false, reason: 'MODULE_DEFAULT_DISABLED' })]));
+    await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId, moduleCode: 'CATALOG', enabled: true } });
+    const enabled = await entitlements.resolve(organizationId, at);
+    expect(enabled.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CATALOG', entitled: true, active: true, allowed: true })]));
+  });
+
+  it('applies ALLOW, DENY and LIMIT_OVERRIDE overrides with deterministic precedence', async () => {
+    const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt: at });
+    await overrides.set({ organizationId, moduleCode: 'EXPENSES', effect: 'ALLOW', reason: 'Pilot access', actorId: crypto.randomUUID(), startsAt: new Date('2026-10-01T00:00:00.000Z') });
+    await overrides.set({ organizationId, moduleCode: 'CATALOG', effect: 'DENY', reason: 'Commercial hold', actorId: crypto.randomUUID(), startsAt: new Date('2026-10-01T00:00:00.000Z') });
+    await overrides.set({ organizationId, moduleCode: 'CATALOG', effect: 'LIMIT_OVERRIDE', reason: 'Temporary quota', limits: { MAX_USERS: '2' }, actorId: crypto.randomUUID(), startsAt: new Date('2026-10-01T00:00:00.000Z') });
+
+    const result = await entitlements.resolve(organizationId, at);
+    expect(result.modules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'EXPENSES', entitled: true, allowed: true, source: 'OVERRIDE', reason: 'EXPLICIT_ALLOW' }),
+      expect.objectContaining({ code: 'CATALOG', entitled: false, allowed: false, reason: 'EXPLICIT_DENY', limitOverrides: { MAX_USERS: '2' } }),
+    ]));
+    await expect(prisma.auditEvent.count({ where: { organizationId, action: 'ENTITLEMENT_OVERRIDE_SET' } })).resolves.toBe(3);
+    await expect(prisma.outboxEvent.count({ where: { organizationId, eventType: 'entitlement.override_set' } })).resolves.toBe(3);
+  });
+
+  it('persists business-type recommendations and enforces the intelligence active-module rule', async () => {
+    const seeded = await entitlements.resolve(organizationId, at);
+    expect(seeded.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CATALOG', recommended: true })]));
+
+    const planCode = `INTEL_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    await prisma.plan.create({ data: { code: planCode, name: 'Intelligence only test' } });
+    const planVersion = await prisma.planVersion.create({ data: { id: crypto.randomUUID(), planCode, version: 1, status: 'ACTIVE', currency: 'EUR', billingPeriod: 'MONTHLY' } });
+    await prisma.planVersionModule.create({ data: { planVersionId: planVersion.id, moduleCode: 'INTELLIGENCE_BASIC' } });
+    await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt: new Date('2027-01-01T00:00:00.000Z') });
+    const intelligence = await entitlements.resolve(organizationId, new Date('2027-01-02T00:00:00.000Z'));
+    expect(intelligence.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'INTELLIGENCE_BASIC', entitled: true, allowed: false, reason: 'MODULE_REQUIRES_ACTIVE_MODULE' })]));
   });
 });

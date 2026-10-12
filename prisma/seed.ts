@@ -17,6 +17,14 @@ const businessTypes = [
   { code: "OTHER", name: "Other activity", sortOrder: 50 },
 ] as const;
 
+const businessTypePresets = {
+  COMMERCE_DISTRIBUTION: ['CATALOG', 'SALES', 'INVENTORY', 'CASH'],
+  SERVICE_PROVIDER: ['CRM', 'PROJECTS', 'EXPENSES', 'DOCUMENTS'],
+  MINING_SUPPLIER_B2B: ['CATALOG', 'PURCHASES', 'INVENTORY', 'EXPENSES'],
+  SMALL_INDUSTRY: ['CATALOG', 'PURCHASES', 'INVENTORY', 'PROJECTS'],
+  OTHER: ['CATALOG', 'CRM'],
+} as const;
+
 const modules = [
   ["AUTH", "Authentication", "Core", true, []],
   ["ORGANIZATION", "Organizations", "Core", true, []],
@@ -144,6 +152,15 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
         dependenciesJson: dependencies,
       },
     });
+  }
+  for (const [businessTypeCode, moduleCodes] of Object.entries(businessTypePresets)) {
+    for (const moduleCode of moduleCodes) {
+      await prisma.moduleBusinessTypePreset.upsert({
+        where: { businessTypeCode_moduleCode: { businessTypeCode, moduleCode } },
+        update: { recommended: true, defaultEnabled: true },
+        create: { businessTypeCode, moduleCode, recommended: true, defaultEnabled: true },
+      });
+    }
   }
   for (const plan of plans) {
     await prisma.plan.upsert({
