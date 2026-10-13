@@ -21,6 +21,7 @@
     "prisma:phase2:migration-proof": "node scripts/verify-phase2-migrations.mjs",
     "prisma:phase3:migration-proof": "node scripts/verify-phase3-migrations.mjs",
     "prisma:phase5:migration-proof": "node scripts/verify-phase5-migrations.mjs",
+    "prisma:phase6:migration-proof": "node scripts/verify-phase6-migrations.mjs",
     "db:seed": "prisma generate && tsx prisma/seed.ts",
     "openapi:validate": "node scripts/validate-openapi.mjs",
     "contracts:validate": "node scripts/validate-contracts.mjs",
