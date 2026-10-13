@@ -4,11 +4,12 @@ import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import { CreateSalesOrderDto, OrganizationOrderParams, OrderListQuery, OrderParams, UpdateSalesOrderDto } from './order.dto.js';
 import { OrderService } from './order.service.js';
+import { InvoiceService } from './invoice.service.js';
 
 @Controller('organizations/:organizationId/orders')
 @UseGuards(AuthGuard)
 export class OrderController {
-  constructor(private readonly orders: OrderService) {}
+  constructor(private readonly orders: OrderService, private readonly invoices: InvoiceService) {}
 
   @Get()
   async list(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: OrganizationOrderParams, @Query() query: OrderListQuery): Promise<unknown> { return this.orders.list(principal, params.organizationId, query); }
@@ -29,4 +30,7 @@ export class OrderController {
   @Post(':orderId/cancel')
   @HttpCode(200)
   async cancel(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: OrderParams, @Headers('idempotency-key') idempotencyKey: string | undefined): Promise<unknown> { return this.orders.transition(principal, params.organizationId, params.orderId, 'CANCELLED', idempotencyKey); }
+
+  @Post(':orderId/convert-to-invoice')
+  async convertToInvoice(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: OrderParams, @Headers('idempotency-key') idempotencyKey: string | undefined): Promise<unknown> { return this.invoices.convertFromOrder(principal, params.organizationId, params.orderId, idempotencyKey); }
 }

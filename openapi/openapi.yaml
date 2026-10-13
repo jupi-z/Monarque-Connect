@@ -2771,8 +2771,13 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     UpdateInvoiceRequest:
-      allOf: [{ $ref: "#/components/schemas/UpdateQuoteRequest" }]
+      type: object
+      additionalProperties: false
+      minProperties: 1
       description: Only editable while the invoice is DRAFT.
+      properties:
+        dueAt: { type: string, format: date }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreateSalesLineRequest" } }
     InvoicePage:
       type: object
       additionalProperties: false
