@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type AuditAction, type SupplierRFQStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
@@ -32,6 +32,7 @@ const rfqSelect = {
 type RfqWithDetails = Prisma.SupplierRFQGetPayload<{ select: typeof rfqSelect }>;
 type PreparedLine = { id: string; organizationId: string; lineIndex: number; itemId: string | null; itemNameSnapshot: string; itemSkuSnapshot: string | null; descriptionSnapshot: string | null; unitSnapshot: string; quantity: string; requestedBy: string | null };
 type PreparedRecipient = { id: string; organizationId: string; recipientKind: 'LOCAL_PARTY' | 'NETWORK_ORGANIZATION'; localPartyId: string | null; networkOrganizationId: string | null; displayNameSnapshot: string; emailSnapshot: string | null; phoneSnapshot: string | null };
+type IdempotencyCommand = { organizationId: string; actorUserId: string; establishmentId: string; operation: string; key: string; payloadHash: string; resourceId: string };
 
 @Injectable()
 export class SupplierRFQService {
@@ -67,58 +68,78 @@ export class SupplierRFQService {
     const organization = await this.prisma.organization.findFirst({ where: { id: organizationId, status: 'ACTIVE' }, select: { defaultCurrency: true } });
     if (!organization) throw new NotFoundException('Organization not found');
     if (organization.defaultCurrency !== currency) throw new BadRequestException('Supplier RFQ currency must match the organization default currency');
+    const payloadHash = this.hashPayload({ establishmentId: input.establishmentId, input });
     const eventContext = this.eventContext();
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const existing = await tx.supplierRFQ.findFirst({ where: { organizationId, idempotencyKey }, select: rfqSelect });
-        if (existing) return this.serialize(existing);
+        const existingCommand = await tx.purchaseIdempotencyKey.findUnique({ where: { organizationId_actorUserId_operation_key: { organizationId, actorUserId: principal.userId, operation: 'SUPPLIER_RFQ_CREATE', key: idempotencyKey } } });
+        if (existingCommand) {
+          this.assertCommandMatches(existingCommand, payloadHash, input.establishmentId);
+          const existing = await tx.supplierRFQ.findFirst({ where: { id: existingCommand.resourceId, organizationId }, select: rfqSelect });
+          if (!existing) throw new ConflictException('Supplier RFQ idempotency record points to a missing resource');
+          return this.serialize(existing);
+        }
         const lines = await this.prepareLines(tx, organizationId, input.lines);
         const recipients = await this.prepareRecipients(tx, organizationId, input.recipients);
         const id = randomUUID();
         const number = await this.numbering.allocate(SalesDocumentType.SUPPLIER_RFQ, organizationId, new Date().getUTCFullYear(), tx);
-        await tx.supplierRFQ.create({ data: { id, organizationId, establishmentId: input.establishmentId, number, title: input.title.trim(), neededBy: this.dateOnly(this.requestedDate(input)), currency, notes: input.notes?.trim() || null, idempotencyKey, createdByUserId: principal.userId } });
+        await tx.supplierRFQ.create({ data: { id, organizationId, establishmentId: input.establishmentId, number, title: input.title.trim(), neededBy: this.dateOnly(this.requestedDate(input)), currency, notes: input.notes?.trim() || null, idempotencyKey: null, createdByUserId: principal.userId } });
         await tx.supplierRFQLine.createMany({ data: lines.map((line, index) => ({ ...line, id: randomUUID(), lineIndex: index + 1, supplierRfqId: id })) });
         await tx.supplierRFQRecipient.createMany({ data: recipients.map((recipient) => ({ ...recipient, id: randomUUID(), supplierRfqId: id })) });
         const rfq = await tx.supplierRFQ.findFirstOrThrow({ where: { id, organizationId }, select: rfqSelect });
+        await this.createIdempotencyCommand(tx, { organizationId, actorUserId: principal.userId, establishmentId: rfq.establishmentId, operation: 'SUPPLIER_RFQ_CREATE', key: idempotencyKey, payloadHash, resourceId: id });
         await this.recordMutation(tx, 'SUPPLIER_RFQ_CREATED', 'purchases.supplier_rfq.created.v1', principal, organizationId, rfq.establishmentId, id, eventContext, { number: rfq.number, status: rfq.status, recipientCount: rfq.recipients.length, lineCount: rfq.lines.length });
         return this.serialize(rfq);
       });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('Supplier RFQ conflicts with an existing record');
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return this.replayCommand(principal, organizationId, input.establishmentId, 'SUPPLIER_RFQ_CREATE', idempotencyKey, payloadHash);
       throw error;
     }
   }
 
   async update(principal: AuthPrincipal, organizationId: string, rfqId: string, input: UpdateSupplierRFQDto, rawIdempotencyKey?: string): Promise<unknown> {
     const context = await this.authorization.requireModule(principal, organizationId, 'PURCHASES', 'purchases:rfqs:write');
-    const current = await this.prisma.supplierRFQ.findFirst({ where: { id: rfqId, organizationId }, select: { id: true, status: true, establishmentId: true, currency: true, idempotencyKey: true } });
+    const current = await this.prisma.supplierRFQ.findFirst({ where: { id: rfqId, organizationId }, select: { id: true, status: true, establishmentId: true, currency: true } });
     if (!current) throw new NotFoundException('Supplier RFQ not found');
     await this.authorization.assertEstablishment(context, current.establishmentId);
     if (Object.keys(input).length === 0) throw new BadRequestException('At least one Supplier RFQ field is required');
     if (current.status !== 'DRAFT') throw new ConflictException(`Supplier RFQ cannot be edited from ${current.status}`);
     const idempotencyKey = this.requireIdempotencyKey(rawIdempotencyKey);
-    if (current.idempotencyKey === idempotencyKey) return this.get(principal, organizationId, rfqId);
+    const payloadHash = this.hashPayload({ rfqId, input });
     const eventContext = this.eventContext();
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw(Prisma.sql`SELECT id FROM supplier_rfqs WHERE id = ${rfqId}::uuid AND organization_id = ${organizationId}::uuid FOR UPDATE`);
-      const locked = await tx.supplierRFQ.findFirst({ where: { id: rfqId, organizationId }, select: { id: true, status: true, currency: true, establishmentId: true, idempotencyKey: true } });
-      if (!locked) throw new NotFoundException('Supplier RFQ not found');
-      if (locked.status !== 'DRAFT') throw new ConflictException(`Supplier RFQ cannot be edited from ${locked.status}`);
-      const lines = input.lines ? await this.prepareLines(tx, organizationId, input.lines) : undefined;
-      const recipients = input.recipients ? await this.prepareRecipients(tx, organizationId, input.recipients) : undefined;
-      await tx.supplierRFQ.update({ where: { id: rfqId }, data: { ...(input.title !== undefined ? { title: input.title.trim() } : {}), ...(this.hasDateInput(input) ? { neededBy: this.optionalDate(this.requestedDate(input)) } : {}), ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}), idempotencyKey } });
-      if (lines) {
-        await tx.supplierRFQLine.deleteMany({ where: { supplierRfqId: rfqId, organizationId } });
-        await tx.supplierRFQLine.createMany({ data: lines.map((line, index) => ({ ...line, id: randomUUID(), lineIndex: index + 1, supplierRfqId: rfqId })) });
-      }
-      if (recipients) {
-        await tx.supplierRFQRecipient.deleteMany({ where: { supplierRfqId: rfqId, organizationId } });
-        await tx.supplierRFQRecipient.createMany({ data: recipients.map((recipient) => ({ ...recipient, id: randomUUID(), supplierRfqId: rfqId })) });
-      }
-      const updated = await tx.supplierRFQ.findFirstOrThrow({ where: { id: rfqId, organizationId }, select: rfqSelect });
-      await this.recordMutation(tx, 'SUPPLIER_RFQ_UPDATED', 'purchases.supplier_rfq.updated.v1', principal, organizationId, updated.establishmentId, rfqId, eventContext, { fields: Object.keys(input), status: updated.status });
-      return this.serialize(updated);
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const existingCommand = await tx.purchaseIdempotencyKey.findUnique({ where: { organizationId_actorUserId_operation_key: { organizationId, actorUserId: principal.userId, operation: 'SUPPLIER_RFQ_UPDATE', key: idempotencyKey } } });
+        if (existingCommand) {
+          this.assertCommandMatches(existingCommand, payloadHash, current.establishmentId, rfqId);
+          const existing = await tx.supplierRFQ.findFirst({ where: { id: rfqId, organizationId }, select: rfqSelect });
+          if (!existing) throw new ConflictException('Supplier RFQ idempotency record points to a missing resource');
+          return this.serialize(existing);
+        }
+        await tx.$executeRaw(Prisma.sql`SELECT id FROM supplier_rfqs WHERE id = ${rfqId}::uuid AND organization_id = ${organizationId}::uuid FOR UPDATE`);
+        const locked = await tx.supplierRFQ.findFirst({ where: { id: rfqId, organizationId }, select: { id: true, status: true, currency: true, establishmentId: true } });
+        if (!locked) throw new NotFoundException('Supplier RFQ not found');
+        if (locked.status !== 'DRAFT') throw new ConflictException(`Supplier RFQ cannot be edited from ${locked.status}`);
+        const lines = input.lines ? await this.prepareLines(tx, organizationId, input.lines) : undefined;
+        const recipients = input.recipients ? await this.prepareRecipients(tx, organizationId, input.recipients) : undefined;
+        await tx.supplierRFQ.update({ where: { id: rfqId }, data: { ...(input.title !== undefined ? { title: input.title.trim() } : {}), ...(this.hasDateInput(input) ? { neededBy: this.optionalDate(this.requestedDate(input)) } : {}), ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}) } });
+        if (lines) {
+          await tx.supplierRFQLine.deleteMany({ where: { supplierRfqId: rfqId, organizationId } });
+          await tx.supplierRFQLine.createMany({ data: lines.map((line, index) => ({ ...line, id: randomUUID(), lineIndex: index + 1, supplierRfqId: rfqId })) });
+        }
+        if (recipients) {
+          await tx.supplierRFQRecipient.deleteMany({ where: { supplierRfqId: rfqId, organizationId } });
+          await tx.supplierRFQRecipient.createMany({ data: recipients.map((recipient) => ({ ...recipient, id: randomUUID(), supplierRfqId: rfqId })) });
+        }
+        const updated = await tx.supplierRFQ.findFirstOrThrow({ where: { id: rfqId, organizationId }, select: rfqSelect });
+        await this.createIdempotencyCommand(tx, { organizationId, actorUserId: principal.userId, establishmentId: updated.establishmentId, operation: 'SUPPLIER_RFQ_UPDATE', key: idempotencyKey, payloadHash, resourceId: rfqId });
+        await this.recordMutation(tx, 'SUPPLIER_RFQ_UPDATED', 'purchases.supplier_rfq.updated.v1', principal, organizationId, updated.establishmentId, rfqId, eventContext, { fields: Object.keys(input), status: updated.status });
+        return this.serialize(updated);
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return this.replayCommand(principal, organizationId, current.establishmentId, 'SUPPLIER_RFQ_UPDATE', idempotencyKey, payloadHash, rfqId);
+      throw error;
+    }
   }
 
   async transition(principal: AuthPrincipal, organizationId: string, rfqId: string, target: SupplierRFQStatus, rawIdempotencyKey?: string): Promise<unknown> {
@@ -127,23 +148,41 @@ export class SupplierRFQService {
     if (!current) throw new NotFoundException('Supplier RFQ not found');
     await this.authorization.assertEstablishment(context, current.establishmentId);
     const idempotencyKey = this.requireIdempotencyKey(rawIdempotencyKey);
-    if (current.status === target) return this.get(principal, organizationId, rfqId);
-    if (!this.isLegalTransition(current.status, target)) throw new ConflictException(`Supplier RFQ cannot transition from ${current.status} to ${target}`);
+    if (current.status !== target && !this.isLegalTransition(current.status, target)) throw new ConflictException(`Supplier RFQ cannot transition from ${current.status} to ${target}`);
+    const payloadHash = this.hashPayload({ rfqId, target });
     const eventContext = this.eventContext();
-    return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw(Prisma.sql`SELECT id FROM supplier_rfqs WHERE id = ${rfqId}::uuid AND organization_id = ${organizationId}::uuid FOR UPDATE`);
-      const locked = await tx.supplierRFQ.findFirst({ where: { id: rfqId, organizationId }, select: { status: true, establishmentId: true, number: true } });
-      if (!locked) throw new NotFoundException('Supplier RFQ not found');
-      if (locked.status === target) return this.get(principal, organizationId, rfqId);
-      if (!this.isLegalTransition(locked.status, target)) throw new ConflictException(`Supplier RFQ cannot transition from ${locked.status} to ${target}`);
-      const pending = target === 'SENT' ? await tx.supplierRFQRecipient.findMany({ where: { supplierRfqId: rfqId, organizationId, status: 'PENDING' }, select: { id: true } }) : [];
-      await tx.supplierRFQ.update({ where: { id: rfqId }, data: { status: target, idempotencyKey } });
-      if (target === 'SENT' && pending.length > 0) await tx.supplierRFQRecipient.updateMany({ where: { supplierRfqId: rfqId, organizationId, status: 'PENDING' }, data: { status: 'SENT', sentAt: new Date() } });
-      const updated = await tx.supplierRFQ.findFirstOrThrow({ where: { id: rfqId, organizationId }, select: rfqSelect });
-      await this.recordMutation(tx, 'SUPPLIER_RFQ_STATUS_CHANGED', 'purchases.supplier_rfq.status_changed.v1', principal, organizationId, updated.establishmentId, rfqId, eventContext, { previousStatus: locked.status, status: updated.status, number: locked.number });
-      if (target === 'SENT') for (const recipient of pending) await this.recordMutation(tx, 'SUPPLIER_RFQ_STATUS_CHANGED', 'purchases.supplier_rfq.recipient_sent.v1', principal, organizationId, updated.establishmentId, rfqId, eventContext, { recipientId: recipient.id, status: 'SENT' });
-      return this.serialize(updated);
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const existingCommand = await tx.purchaseIdempotencyKey.findUnique({ where: { organizationId_actorUserId_operation_key: { organizationId, actorUserId: principal.userId, operation: 'SUPPLIER_RFQ_TRANSITION', key: idempotencyKey } } });
+        if (existingCommand) {
+          this.assertCommandMatches(existingCommand, payloadHash, current.establishmentId, rfqId);
+          const existing = await tx.supplierRFQ.findFirst({ where: { id: rfqId, organizationId }, select: rfqSelect });
+          if (!existing) throw new ConflictException('Supplier RFQ idempotency record points to a missing resource');
+          return this.serialize(existing);
+        }
+        await tx.$executeRaw(Prisma.sql`SELECT id FROM supplier_rfqs WHERE id = ${rfqId}::uuid AND organization_id = ${organizationId}::uuid FOR UPDATE`);
+        const locked = await tx.supplierRFQ.findFirst({ where: { id: rfqId, organizationId }, select: { status: true, establishmentId: true, number: true } });
+        if (!locked) throw new NotFoundException('Supplier RFQ not found');
+        if (locked.status === target) {
+          const existing = await tx.supplierRFQ.findFirstOrThrow({ where: { id: rfqId, organizationId }, select: rfqSelect });
+          await this.createIdempotencyCommand(tx, { organizationId, actorUserId: principal.userId, establishmentId: existing.establishmentId, operation: 'SUPPLIER_RFQ_TRANSITION', key: idempotencyKey, payloadHash, resourceId: rfqId });
+          return this.serialize(existing);
+        }
+        if (!this.isLegalTransition(locked.status, target)) throw new ConflictException(`Supplier RFQ cannot transition from ${locked.status} to ${target}`);
+        const pending = target === 'SENT' ? await tx.supplierRFQRecipient.findMany({ where: { supplierRfqId: rfqId, organizationId, status: 'PENDING' }, select: { id: true, recipientKind: true, localPartyId: true, networkOrganizationId: true } }) : [];
+        if (target === 'SENT') await this.assertRecipientsEligible(tx, organizationId, pending);
+        await tx.supplierRFQ.update({ where: { id: rfqId }, data: { status: target } });
+        if (target === 'SENT' && pending.length > 0) await tx.supplierRFQRecipient.updateMany({ where: { supplierRfqId: rfqId, organizationId, status: 'PENDING' }, data: { status: 'SENT', sentAt: new Date() } });
+        const updated = await tx.supplierRFQ.findFirstOrThrow({ where: { id: rfqId, organizationId }, select: rfqSelect });
+        await this.createIdempotencyCommand(tx, { organizationId, actorUserId: principal.userId, establishmentId: updated.establishmentId, operation: 'SUPPLIER_RFQ_TRANSITION', key: idempotencyKey, payloadHash, resourceId: rfqId });
+        await this.recordMutation(tx, 'SUPPLIER_RFQ_STATUS_CHANGED', 'purchases.supplier_rfq.status_changed.v1', principal, organizationId, updated.establishmentId, rfqId, eventContext, { previousStatus: locked.status, status: updated.status, number: locked.number });
+        if (target === 'SENT') for (const recipient of pending) await this.recordMutation(tx, 'SUPPLIER_RFQ_STATUS_CHANGED', 'purchases.supplier_rfq.recipient_sent.v1', principal, organizationId, updated.establishmentId, rfqId, eventContext, { recipientId: recipient.id, status: 'SENT' });
+        return this.serialize(updated);
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') return this.replayCommand(principal, organizationId, current.establishmentId, 'SUPPLIER_RFQ_TRANSITION', idempotencyKey, payloadHash, rfqId);
+      throw error;
+    }
   }
 
   private async prepareLines(tx: Prisma.TransactionClient, organizationId: string, inputLines: CreateSupplierRFQLineDto[]): Promise<PreparedLine[]> {
@@ -184,6 +223,42 @@ export class SupplierRFQService {
     return recipients;
   }
 
+  private async assertRecipientsEligible(tx: Prisma.TransactionClient, organizationId: string, recipients: Array<{ recipientKind: 'LOCAL_PARTY' | 'NETWORK_ORGANIZATION'; localPartyId: string | null; networkOrganizationId: string | null }>): Promise<void> {
+    for (const recipient of recipients) {
+      if (recipient.recipientKind === 'LOCAL_PARTY' && recipient.localPartyId) {
+        const party = await tx.businessParty.findFirst({ where: { id: recipient.localPartyId, organizationId, active: true, type: { in: ['SUPPLIER', 'BOTH'] } }, select: { id: true } });
+        if (!party) throw new ConflictException('RFQ recipient is no longer an active supplier party');
+        continue;
+      }
+      if (recipient.recipientKind === 'NETWORK_ORGANIZATION' && recipient.networkOrganizationId) {
+        const target = await tx.organization.findFirst({ where: { id: recipient.networkOrganizationId, status: 'ACTIVE', networkProfile: { isPublic: true } }, select: { id: true } });
+        const connection = target ? await tx.connectionRequest.findFirst({ where: { status: 'ACCEPTED', OR: [{ sourceOrganizationId: organizationId, targetOrganizationId: target.id }, { sourceOrganizationId: target.id, targetOrganizationId: organizationId }] }, select: { id: true } }) : null;
+        if (!target || !connection) throw new ConflictException('RFQ recipient is no longer an eligible Network organization');
+        continue;
+      }
+      throw new ConflictException('RFQ recipient target is invalid');
+    }
+  }
+
+  private async createIdempotencyCommand(tx: Prisma.TransactionClient, command: IdempotencyCommand): Promise<void> {
+    await tx.purchaseIdempotencyKey.create({ data: { id: randomUUID(), ...command } });
+  }
+
+  private async replayCommand(principal: AuthPrincipal, organizationId: string, establishmentId: string, operation: string, key: string, payloadHash: string, resourceId?: string): Promise<unknown> {
+    const existing = await this.prisma.purchaseIdempotencyKey.findUnique({ where: { organizationId_actorUserId_operation_key: { organizationId, actorUserId: principal.userId, operation, key } } });
+    if (!existing) throw new ConflictException('Purchase command conflicts with an existing record');
+    this.assertCommandMatches(existing, payloadHash, establishmentId, resourceId);
+    const rfq = await this.prisma.supplierRFQ.findFirst({ where: { id: existing.resourceId, organizationId }, select: rfqSelect });
+    if (!rfq) throw new ConflictException('Supplier RFQ idempotency record points to a missing resource');
+    return this.serialize(rfq);
+  }
+
+  private assertCommandMatches(command: { establishmentId: string; payloadHash: string; resourceId: string }, payloadHash: string, establishmentId: string, resourceId?: string): void {
+    if (command.payloadHash !== payloadHash || command.establishmentId !== establishmentId || (resourceId !== undefined && command.resourceId !== resourceId)) throw new ConflictException('Idempotency-Key was already used with a different command');
+  }
+
+  private hashPayload(value: unknown): string { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
+
   private async recordMutation(tx: Prisma.TransactionClient, action: AuditAction, eventType: string, principal: AuthPrincipal, organizationId: string, establishmentId: string, rfqId: string, context: { requestId: string; correlationId: string }, payload: Record<string, unknown>): Promise<void> {
     await tx.auditEvent.create({ data: { id: randomUUID(), action, actorUserId: principal.userId, organizationId, establishmentId, targetType: 'SupplierRFQ', targetId: rfqId, requestId: context.requestId, correlationId: context.correlationId, metadataJson: payload as Prisma.InputJsonValue } });
     await this.outbox.enqueue(tx, createDomainEvent({ eventType, eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'SupplierRFQ', id: rfqId }, organizationId, establishmentId, correlationId: context.correlationId, requestId: context.requestId, dataClassification: 'CONFIDENTIAL', purpose: 'purchases-supplier-rfq', payload }));
@@ -191,7 +266,7 @@ export class SupplierRFQService {
 
   private serialize(rfq: RfqWithDetails): unknown {
     const date = rfq.neededBy?.toISOString().slice(0, 10) ?? null;
-    return { id: rfq.id, organizationId: rfq.organizationId, establishmentId: rfq.establishmentId, number: rfq.number, status: rfq.status, title: rfq.title, neededBy: date, needDate: date, currency: rfq.currency.trim(), notes: rfq.notes, lines: rfq.lines.map((line) => ({ id: line.id, lineIndex: line.lineIndex, itemId: line.itemId, itemNameSnapshot: line.itemNameSnapshot, skuSnapshot: line.itemSkuSnapshot, descriptionSnapshot: line.descriptionSnapshot ?? line.itemNameSnapshot, unitSnapshot: line.unitSnapshot, quantity: line.quantity.toFixed(6), requestedBy: line.requestedBy })), recipients: rfq.recipients.map((recipient) => ({ id: recipient.id, localPartyId: recipient.localPartyId, networkOrganizationId: recipient.networkOrganizationId, supplierKind: recipient.recipientKind, displayName: recipient.displayNameSnapshot, email: recipient.emailSnapshot, phone: recipient.phoneSnapshot, status: recipient.status, sentAt: recipient.sentAt?.toISOString() ?? null, respondedAt: recipient.respondedAt?.toISOString() ?? null, createdAt: recipient.createdAt.toISOString(), updatedAt: recipient.updatedAt.toISOString() })), createdAt: rfq.createdAt.toISOString(), updatedAt: rfq.updatedAt.toISOString() };
+    return { id: rfq.id, organizationId: rfq.organizationId, establishmentId: rfq.establishmentId, number: rfq.number, status: rfq.status, title: rfq.title, neededBy: date, needDate: date, currency: rfq.currency.trim(), notes: rfq.notes, lines: rfq.lines.map((line) => ({ id: line.id, lineIndex: line.lineIndex, itemId: line.itemId, itemNameSnapshot: line.itemNameSnapshot, skuSnapshot: line.itemSkuSnapshot, descriptionSnapshot: line.descriptionSnapshot ?? line.itemNameSnapshot, unitSnapshot: line.unitSnapshot, quantity: line.quantity.toFixed(6), requestedBy: line.requestedBy })), recipients: rfq.recipients.map((recipient) => ({ id: recipient.id, localPartyId: recipient.localPartyId, networkOrganizationId: recipient.networkOrganizationId, supplierKind: recipient.recipientKind, displayName: recipient.displayNameSnapshot, status: recipient.status, sentAt: recipient.sentAt?.toISOString() ?? null, respondedAt: recipient.respondedAt?.toISOString() ?? null, createdAt: recipient.createdAt.toISOString(), updatedAt: recipient.updatedAt.toISOString() })), createdAt: rfq.createdAt.toISOString(), updatedAt: rfq.updatedAt.toISOString() };
   }
 
   private isLegalTransition(current: SupplierRFQStatus, target: SupplierRFQStatus): boolean { return (current === 'DRAFT' && (target === 'SENT' || target === 'CANCELLED')) || (current === 'SENT' && (target === 'CLOSED' || target === 'CANCELLED')); }

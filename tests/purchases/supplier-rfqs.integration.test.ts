@@ -108,9 +108,12 @@ describe('Phase 6 Supplier RFQs', () => {
     expect(responseBody).toMatchObject({ organizationId: buyerOrganizationId, establishmentId: buyerEstablishmentId, status: 'DRAFT', title: 'Steel sourcing' });
     expect(responseBody.number).toMatch(/^RFQ-/);
     expect(responseBody.recipients).toEqual(expect.arrayContaining([expect.objectContaining({ localPartyId, supplierKind: 'LOCAL_PARTY', status: 'PENDING' }), expect.objectContaining({ networkOrganizationId: supplierOrganizationId, supplierKind: 'NETWORK_ORGANIZATION', status: 'PENDING' })]));
+    expect(responseBody.recipients[0]).not.toHaveProperty('email');
+    expect(responseBody.recipients[0]).not.toHaveProperty('phone');
     expect(responseBody.lines[0]).toMatchObject({ quantity: '100.500000', descriptionSnapshot: 'Steel coil' });
     await expect(prisma.auditEvent.count({ where: { action: 'SUPPLIER_RFQ_CREATED', organizationId: buyerOrganizationId } })).resolves.toBe(1);
     await expect(prisma.outboxEvent.count({ where: { eventType: 'purchases.supplier_rfq.created.v1', organizationId: buyerOrganizationId } })).resolves.toBe(1);
+    await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-create-1').send({ title: 'Different payload', establishmentId: buyerEstablishmentId, currency: 'EUR', lines: [{ descriptionSnapshot: 'Steel coil', unitSnapshot: 'KG', quantity: '101' }], recipients: [{ localPartyId }] }).expect(409);
   });
 
   it('enforces recipient validation, buyer scope and cross-tenant isolation', async () => {
@@ -130,6 +133,14 @@ describe('Phase 6 Supplier RFQs', () => {
     await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs/${id}/close`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-close-2').expect(200);
     await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs/${id}/cancel`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-cancel-after-close').expect(409);
     await expect(prisma.outboxEvent.count({ where: { eventType: 'purchases.supplier_rfq.recipient_sent.v1', aggregateId: id } })).resolves.toBe(1);
+  });
+
+  it('revalidates recipient eligibility when a draft is sent', async () => {
+    const created = await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-revalidation').send({ title: 'Revalidation', establishmentId: buyerEstablishmentId, currency: 'EUR', lines: [{ descriptionSnapshot: 'Copper', unitSnapshot: 'KG', quantity: '1' }], recipients: [{ localPartyId }] }).expect(201);
+    const id = bodyOf<{ id: string }>(created).id;
+    await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/parties/${localPartyId}/deactivate`).set('Authorization', `Bearer ${buyerToken}`).expect(200);
+    await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs/${id}/send`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-revalidation-send').expect(409);
+    await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/parties/${localPartyId}/reactivate`).set('Authorization', `Bearer ${buyerToken}`).expect(200);
   });
 });
 

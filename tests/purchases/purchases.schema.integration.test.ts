@@ -12,6 +12,7 @@ const purchaseTables = [
   'goods_receipt_lines',
   'goods_receipt_corrections',
   'goods_receipt_correction_lines',
+  'purchase_idempotency_keys',
 ];
 
 async function constraintsFor(pool: Pool, tableNames: string[]): Promise<string[]> {

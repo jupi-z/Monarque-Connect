@@ -1335,6 +1335,7 @@ paths:
       tags: [Purchases]
       operationId: listSupplierRfqs
       parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -3169,7 +3170,7 @@ components:
     SupplierRFQRecipient:
       type: object
       additionalProperties: false
-      required: [id, supplierKind, status, displayName, createdAt, updatedAt]
+      required: [id, supplierKind, status, displayName, sentAt, respondedAt, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         localPartyId: { type: [string, 'null'], format: uuid }
@@ -3177,6 +3178,8 @@ components:
         supplierKind: { type: string, enum: [LOCAL_PARTY, NETWORK_ORGANIZATION] }
         displayName: { type: string, minLength: 1, maxLength: 200 }
         status: { $ref: "#/components/schemas/SupplierRFQRecipientStatus" }
+        sentAt: { type: [string, 'null'], format: date-time }
+        respondedAt: { type: [string, 'null'], format: date-time }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     SupplierRFQ:
@@ -3217,7 +3220,9 @@ components:
       properties:
         localPartyId: { type: string, format: uuid }
         networkOrganizationId: { type: string, format: uuid }
-      minProperties: 1
+      oneOf:
+        - required: [localPartyId]
+        - required: [networkOrganizationId]
     UpdateSupplierRFQRequest:
       type: object
       additionalProperties: false

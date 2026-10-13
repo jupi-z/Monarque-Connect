@@ -566,6 +566,7 @@ model Organization {
   supplierRfqs               SupplierRFQ[]
   purchaseOrders             PurchaseOrder[]
   goodsReceipts              GoodsReceipt[]
+  purchaseIdempotencyKeys    PurchaseIdempotencyKey[]
   networkSupplierRfqRecipients SupplierRFQRecipient[] @relation("NetworkSupplierRFQRecipients")
   purchaseOrdersAsNetworkSupplier PurchaseOrder[] @relation("PurchaseOrderSupplierOrganization")
 
@@ -1239,6 +1240,23 @@ model SupplierRFQ {
   @@index([organizationId, establishmentId, status, createdAt, id])
   @@index([organizationId, status, neededBy])
   @@map("supplier_rfqs")
+}
+
+model PurchaseIdempotencyKey {
+  id             String       @id @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  actorUserId    String       @map("actor_user_id") @db.Uuid
+  establishmentId String      @map("establishment_id") @db.Uuid
+  operation      String       @db.VarChar(80)
+  key            String       @db.VarChar(200)
+  payloadHash    String       @map("payload_hash") @db.Char(64)
+  resourceId     String       @map("resource_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, actorUserId, operation, key])
+  @@index([organizationId, resourceId])
+  @@map("purchase_idempotency_keys")
 }
 
 model SupplierRFQLine {
