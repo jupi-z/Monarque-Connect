@@ -15,6 +15,11 @@ Le contrat expose notamment :
 
 Le fichier de baseline fixe la surface et les operationIds. Avant implémentation de chaque verticale, les schémas de requête/réponse, erreurs, exemples, scopes et règles d'idempotence doivent être détaillés dans la même PR que la verticale.
 
+La surface Sales est désormais implémentée par tranches contrôlées : Quotes,
+Sales Orders, Invoices et PaymentRecords. Les contrats restent validés par
+`npm run openapi:validate` et toute mutation Sales conserve une clé
+`Idempotency-Key` documentée.
+
 ## Règles
 
 - aucune route publique implémentée durablement hors contrat ;
