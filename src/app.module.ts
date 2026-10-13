@@ -13,6 +13,7 @@ import { ReferentialsModule } from './referentials/referentials.module.js';
 import { CrmModule } from './crm/crm.module.js';
 import { NetworkModule } from './network/network.module.js';
 import { SalesModule } from './sales/sales.module.js';
+import { PurchasesModule } from './purchases/purchases.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { SalesModule } from './sales/sales.module.js';
     CrmModule,
     NetworkModule,
     SalesModule,
+    PurchasesModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,
