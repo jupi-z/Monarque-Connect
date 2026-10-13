@@ -64,9 +64,9 @@ Quotes, Sales Orders, Invoices, PaymentRecords, les conversions idempotentes,
 les contrôles d'isolation et les preuves de migrations. Le commit de clôture
 de la livraison finale est
 `921d329a7c19e64b5f054a49c1d9c6fee7b8d2ba`; les CI PR #210 et post-merge
-Backend CI #211 sont vertes. Le suivi GitHub est l'issue #63, à synchroniser
-avec cette clôture. La Phase 6 pourra être ouverte séparément après cette
-synchronisation administrative.
+Backend CI #211 sont vertes. Le suivi GitHub est l'issue #63 et la clôture
+documentaire est intégrée sur `main@623fa9e79947e4608f7d2c66d841d053b22684e2`,
+avec la CI post-merge Backend #213 verte.
 
 ## Phase 6 — Purchases
 Supplier RFQ → Purchase Order → Goods Receipt.
@@ -80,13 +80,24 @@ est `75_PHASE_6_STATUS.md`, la preuve consolidée est
 `76_PHASE_6_CLOSURE_EVIDENCE.md` et le plan est
 `superpowers/plans/2026-10-13-phase-6-purchases-plan.md`.
 Le suivi GitHub est l'[issue #75](https://github.com/jupi-z/Monarque-Connect/issues/75).
-La CI PR #229 et la CI post-merge #230 sont vertes. La phase ne crée pas de
+Les CI PR #229 et #231 ainsi que les CI post-merge #230 et #232 sont vertes.
+La phase ne crée pas de
 moteur Inventory : les Goods Receipts constatent les réceptions et publient
 des événements ; mouvements, réservations et valorisation de stock restent
 réservés à la Phase 7.
 
 ## Phase 7 — Operations
 Inventory, expenses, cash accounts/movements.
+
+**État :** ouverte officiellement en cadrage sur
+`main@3b7245469a2b9ee2a2ccb19c04f621d1d75497ec`. Le périmètre, les frontières
+GoodsReceipt/Inventory, les contrats conceptuels, les invariants et le plan
+sont définis dans `77_PHASE7_OPERATIONS_EXECUTION_SPEC.md`,
+`78_PHASE_7_STATUS.md` et
+`superpowers/plans/2026-10-14-phase-7-operations-plan.md`.
+Le suivi est l'[issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
+La phase n'est pas encore implémentée : aucune migration ni code métier Phase
+7 ne doit être produit avant validation du contrat OpenAPI détaillé.
 
 ## Phase 8 — Projects & documents
 Projects, tasks, document linking, media.
