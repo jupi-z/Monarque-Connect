@@ -851,13 +851,75 @@ paths:
     get:
       tags: [Quotes]
       operationId: listQuotes
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Quotes }
+        "200":
+          description: Quotes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuotePage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
     post:
       tags: [Quotes]
       operationId: createQuote
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateQuoteRequest" }
       responses:
-        "201": { description: Quote created }
+        "201":
+          description: Quote created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/quotes/{quoteId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: quoteId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Quotes]
+      operationId: getQuote
+      responses:
+        "200":
+          description: Quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    patch:
+      tags: [Quotes]
+      operationId: updateQuote
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateQuoteRequest" }
+      responses:
+        "200":
+          description: Draft quote updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/quotes/{quoteId}/send:
     parameters:
@@ -868,7 +930,15 @@ paths:
       tags: [Quotes]
       operationId: sendQuote
       responses:
-        "200": { description: Quote sent }
+        "200":
+          description: Quote sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/quotes/{quoteId}/accept:
     parameters:
@@ -879,7 +949,53 @@ paths:
       tags: [Quotes]
       operationId: acceptQuote
       responses:
-        "200": { description: Quote accepted }
+        "200":
+          description: Quote accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/quotes/{quoteId}/reject:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: quoteId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Quotes]
+      operationId: rejectQuote
+      responses:
+        "200":
+          description: Quote rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/quotes/{quoteId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: quoteId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Quotes]
+      operationId: cancelQuote
+      responses:
+        "200":
+          description: Quote cancelled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/quotes/{quoteId}/convert-to-order:
     parameters:
@@ -890,7 +1006,15 @@ paths:
       tags: [Quotes, Orders]
       operationId: convertQuoteToOrder
       responses:
-        "201": { description: Order created }
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SalesOrder" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/orders:
     parameters:
@@ -898,8 +1022,75 @@ paths:
     get:
       tags: [Orders]
       operationId: listOrders
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Orders }
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SalesOrderPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    post:
+      tags: [Orders]
+      operationId: createOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSalesOrderRequest" }
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SalesOrder" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/orders/{orderId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Orders]
+      operationId: getOrder
+      responses:
+        "200":
+          description: Sales order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SalesOrder" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    patch:
+      tags: [Orders]
+      operationId: updateOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateSalesOrderRequest" }
+      responses:
+        "200":
+          description: Draft order updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SalesOrder" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/orders/{orderId}/confirm:
     parameters:
@@ -910,7 +1101,34 @@ paths:
       tags: [Orders]
       operationId: confirmOrder
       responses:
-        "200": { description: Confirmed }
+        "200":
+          description: Order confirmed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SalesOrder" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/orders/{orderId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Orders]
+      operationId: cancelOrder
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SalesOrder" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/orders/{orderId}/convert-to-invoice:
     parameters:
@@ -921,7 +1139,15 @@ paths:
       tags: [Orders, Invoices]
       operationId: convertOrderToInvoice
       responses:
-        "201": { description: Invoice created }
+        "201":
+          description: Invoice created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/invoices:
     parameters:
@@ -929,8 +1155,56 @@ paths:
     get:
       tags: [Invoices]
       operationId: listInvoices
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Invoices }
+        "200":
+          description: Invoices
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvoicePage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/invoices/{invoiceId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: invoiceId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Invoices]
+      operationId: getInvoice
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    patch:
+      tags: [Invoices]
+      operationId: updateInvoice
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateInvoiceRequest" }
+      responses:
+        "200":
+          description: Draft invoice updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/invoices/{invoiceId}/issue:
     parameters:
@@ -941,7 +1215,34 @@ paths:
       tags: [Invoices]
       operationId: issueInvoice
       responses:
-        "200": { description: Issued }
+        "200":
+          description: Invoice issued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/invoices/{invoiceId}/void:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: invoiceId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Invoices]
+      operationId: voidInvoice
+      responses:
+        "200":
+          description: Invoice voided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Invoice" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/invoices/{invoiceId}/payments:
     parameters:
@@ -951,8 +1252,56 @@ paths:
     post:
       tags: [Payments]
       operationId: recordPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePaymentRecordRequest" }
       responses:
-        "201": { description: Payment recorded }
+        "201":
+          description: Payment recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentRecord" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    get:
+      tags: [Payments]
+      operationId: listInvoicePayments
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Invoice payments
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentRecordPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/payments/{paymentId}/reverse:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: paymentId, in: path, required: true, schema: { type: string, format: uuid } }
+      - $ref: "#/components/parameters/IdempotencyKey"
+    post:
+      tags: [Payments]
+      operationId: reversePayment
+      responses:
+        "200":
+          description: Payment reversed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentRecord" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/expenses:
     parameters:
@@ -1513,6 +1862,11 @@ components:
       required: true
       schema: { type: string, minLength: 1, maxLength: 128 }
   responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
     Unauthorized:
       description: Authentication required or invalid
       content:
@@ -2241,3 +2595,206 @@ components:
         limits:
           type: object
           additionalProperties: true
+    SalesDecimal:
+      type: string
+      pattern: "^-?[0-9]+(?:\\.[0-9]{1,4})?$"
+      description: Decimal amount serialized as a string with up to four fractional digits.
+    SalesQuantity:
+      type: string
+      pattern: "^[0-9]+(?:\\.[0-9]{1,6})?$"
+      description: Non-negative quantity serialized as a string with up to six fractional digits.
+    QuoteStatus:
+      type: string
+      enum: [DRAFT, SENT, ACCEPTED, REJECTED, EXPIRED, CANCELLED]
+    SalesOrderStatus:
+      type: string
+      enum: [DRAFT, CONFIRMED, FULFILLED, CANCELLED]
+    InvoiceStatus:
+      type: string
+      enum: [DRAFT, ISSUED, PARTIALLY_PAID, PAID, VOID]
+    PaymentRecordStatus:
+      type: string
+      enum: [RECORDED, REVERSED]
+    SalesTaxMode:
+      type: string
+      enum: [EXCLUSIVE, INCLUSIVE, EXEMPT, NOT_APPLICABLE]
+    SalesDocumentLine:
+      type: object
+      additionalProperties: false
+      required: [lineIndex, descriptionSnapshot, unitSnapshot, quantity, unitPrice, discountAmount, taxMode, taxAmount, netAmount, grossAmount]
+      properties:
+        lineIndex: { type: integer, minimum: 1 }
+        itemId: { type: [string, 'null'], format: uuid }
+        skuSnapshot: { type: [string, 'null'], maxLength: 80 }
+        descriptionSnapshot: { type: string, minLength: 1, maxLength: 2000 }
+        unitSnapshot: { type: string, minLength: 1, maxLength: 32 }
+        quantity: { $ref: "#/components/schemas/SalesQuantity" }
+        unitPrice: { $ref: "#/components/schemas/SalesDecimal" }
+        discountAmount: { $ref: "#/components/schemas/SalesDecimal" }
+        taxMode: { $ref: "#/components/schemas/SalesTaxMode" }
+        taxCodeSnapshot: { type: [string, 'null'], maxLength: 80 }
+        taxRate: { $ref: "#/components/schemas/SalesDecimal" }
+        taxAmount: { $ref: "#/components/schemas/SalesDecimal" }
+        netAmount: { $ref: "#/components/schemas/SalesDecimal" }
+        grossAmount: { $ref: "#/components/schemas/SalesDecimal" }
+    QuoteLine:
+      allOf: [{ $ref: "#/components/schemas/SalesDocumentLine" }]
+    SalesOrderLine:
+      allOf: [{ $ref: "#/components/schemas/SalesDocumentLine" }]
+    InvoiceLine:
+      allOf: [{ $ref: "#/components/schemas/SalesDocumentLine" }]
+    Quote:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, number, partyId, status, currency, validUntil, lines, totalNet, totalTax, totalGross, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        number: { type: string, pattern: "^Q-[0-9]{4}-[0-9]{6}$" }
+        partyId: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/QuoteStatus" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        validUntil: { type: string, format: date }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/QuoteLine" } }
+        totalNet: { $ref: "#/components/schemas/SalesDecimal" }
+        totalTax: { $ref: "#/components/schemas/SalesDecimal" }
+        totalGross: { $ref: "#/components/schemas/SalesDecimal" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateQuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, partyId, validUntil, currency, lines]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        partyId: { type: string, format: uuid }
+        validUntil: { type: string, format: date }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreateSalesLineRequest" } }
+    UpdateQuoteRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        validUntil: { type: string, format: date }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreateSalesLineRequest" } }
+    CreateSalesLineRequest:
+      type: object
+      additionalProperties: false
+      required: [descriptionSnapshot, unitSnapshot, quantity, unitPrice, taxMode]
+      properties:
+        itemId: { type: string, format: uuid }
+        descriptionSnapshot: { type: string, minLength: 1, maxLength: 2000 }
+        unitSnapshot: { type: string, minLength: 1, maxLength: 32 }
+        quantity: { $ref: "#/components/schemas/SalesQuantity" }
+        unitPrice: { $ref: "#/components/schemas/SalesDecimal" }
+        discountAmount: { $ref: "#/components/schemas/SalesDecimal" }
+        taxMode: { $ref: "#/components/schemas/SalesTaxMode" }
+        taxCodeSnapshot: { type: string, maxLength: 80 }
+        taxRate: { $ref: "#/components/schemas/SalesDecimal" }
+    QuotePage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Quote" } }
+        nextCursor: { type: [string, 'null'] }
+    SalesOrder:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, number, partyId, status, currency, lines, totalNet, totalTax, totalGross, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        number: { type: string, pattern: "^SO-[0-9]{4}-[0-9]{6}$" }
+        sourceQuoteId: { type: [string, 'null'], format: uuid }
+        partyId: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/SalesOrderStatus" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/SalesOrderLine" } }
+        totalNet: { $ref: "#/components/schemas/SalesDecimal" }
+        totalTax: { $ref: "#/components/schemas/SalesDecimal" }
+        totalGross: { $ref: "#/components/schemas/SalesDecimal" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateSalesOrderRequest:
+      allOf: [{ $ref: "#/components/schemas/CreateQuoteRequest" }]
+    UpdateSalesOrderRequest:
+      allOf: [{ $ref: "#/components/schemas/UpdateQuoteRequest" }]
+    SalesOrderPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/SalesOrder" } }
+        nextCursor: { type: [string, 'null'] }
+    Invoice:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, number, partyId, status, currency, lines, totalNet, totalTax, totalGross, paidAmount, outstandingAmount, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        number: { type: string, pattern: "^INV-[0-9]{4}-[0-9]{6}$" }
+        sourceOrderId: { type: [string, 'null'], format: uuid }
+        partyId: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/InvoiceStatus" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        issuedAt: { type: [string, 'null'], format: date-time }
+        dueAt: { type: [string, 'null'], format: date-time }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/InvoiceLine" } }
+        totalNet: { $ref: "#/components/schemas/SalesDecimal" }
+        totalTax: { $ref: "#/components/schemas/SalesDecimal" }
+        totalGross: { $ref: "#/components/schemas/SalesDecimal" }
+        paidAmount: { $ref: "#/components/schemas/SalesDecimal" }
+        outstandingAmount: { $ref: "#/components/schemas/SalesDecimal" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    UpdateInvoiceRequest:
+      allOf: [{ $ref: "#/components/schemas/UpdateQuoteRequest" }]
+      description: Only editable while the invoice is DRAFT.
+    InvoicePage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Invoice" } }
+        nextCursor: { type: [string, 'null'] }
+    PaymentRecord:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, invoiceId, amount, currency, methodCode, paidAt, status, recordedBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        invoiceId: { type: string, format: uuid }
+        amount: { $ref: "#/components/schemas/SalesDecimal" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        methodCode: { type: string, minLength: 1, maxLength: 40 }
+        reference: { type: [string, 'null'], maxLength: 160 }
+        paidAt: { type: string, format: date-time }
+        status: { $ref: "#/components/schemas/PaymentRecordStatus" }
+        recordedBy: { type: string, format: uuid }
+        reversalOfId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+    CreatePaymentRecordRequest:
+      type: object
+      additionalProperties: false
+      required: [amount, currency, methodCode, paidAt]
+      properties:
+        amount: { $ref: "#/components/schemas/SalesDecimal" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        methodCode: { type: string, minLength: 1, maxLength: 40 }
+        reference: { type: string, maxLength: 160 }
+        paidAt: { type: string, format: date-time }
+    PaymentRecordPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/PaymentRecord" } }
+        nextCursor: { type: [string, 'null'] }
