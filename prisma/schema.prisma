@@ -184,6 +184,9 @@ enum AuditAction {
   QUOTE_CREATED
   QUOTE_UPDATED
   QUOTE_STATUS_CHANGED
+  ORDER_CREATED
+  ORDER_UPDATED
+  ORDER_STATUS_CHANGED
 }
 
 enum ConnectionRequestStatus {
@@ -1045,6 +1048,7 @@ model SalesOrderLine {
   unitPrice           Decimal    @map("unit_price") @db.Decimal(19, 4)
   discountAmount      Decimal    @map("discount_amount") @db.Decimal(19, 4)
   taxMode             TaxMode    @map("tax_mode")
+  taxCodeSnapshot     String?    @map("tax_code_snapshot") @db.VarChar(80)
   taxRate             Decimal    @map("tax_rate") @db.Decimal(9, 4)
   netAmount           Decimal    @map("net_amount") @db.Decimal(19, 4)
   taxAmount           Decimal    @map("tax_amount") @db.Decimal(19, 4)
