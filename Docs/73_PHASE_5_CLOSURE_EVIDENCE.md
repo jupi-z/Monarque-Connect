@@ -50,6 +50,25 @@ absent.
 
 Ce document décrit les contrôles à exécuter par la PR de clôture. Il ne fige
 pas le SHA final de `main` : le commit de fusion de cette PR et sa CI post-
-merge sont les références GitHub faisant foi. La Phase 5 ne doit être
-déclarée fermée qu'après leur conclusion `success`, synchronisation du
-checkout local et fermeture de l'issue #63.
+merge sont les références GitHub faisant foi.
+
+## Vérification finale
+
+Vérification effectuée le 13/10/2026 après fusion de la PR #73 :
+
+- commit final de livraison sur `main` :
+  `921d329a7c19e64b5f054a49c1d9c6fee7b8d2ba` ;
+- CI de la PR #73 :
+  [Backend CI #210](https://github.com/jupi-z/Monarque-Connect/actions/runs/38409251058),
+  conclusion `success` ;
+- CI post-merge déclenchée par `push` sur `main` :
+  [Backend CI #211](https://github.com/jupi-z/Monarque-Connect/actions/runs/38409757868),
+  conclusion `success`, avec 42 fichiers de tests et 156 tests réussis ;
+- checkout local vérifié sur `main` : HEAD et `origin/main` identiques au SHA
+  ci-dessus, arbre de travail propre ;
+- branches résiduelles vérifiées : uniquement `main` côté local et `origin/main`
+  côté distant.
+
+La Phase 5 est donc clôturée techniquement à 100 %. Cette décision ne vaut
+pas déclaration de préparation à la production publique et ne tranche aucune
+obligation fiscale, réglementaire ou de paiement propre à une juridiction.
