@@ -128,6 +128,14 @@ describe('Sales quotes', () => {
     await expect(prisma.outboxEvent.count({ where: { aggregateType: 'Quote', aggregateId: quoteId, eventType: 'sales.quote.status_changed' } })).resolves.toBe(1);
   });
 
+  it('lists and gets quotes without leaking outside the authorized establishment scope', async () => {
+    const created = bodyOf<{ id: string }>(await createQuote('quote-read-paths', scopedToken));
+    const listed = await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/quotes?establishmentId=${primaryEstablishmentId}`).set('Authorization', `Bearer ${scopedToken}`).expect(200);
+    expect(bodyOf<{ items: Array<{ id: string }>; nextCursor: string | null }>(listed).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: created.id })]));
+    const fetched = await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/quotes/${created.id}`).set('Authorization', `Bearer ${scopedToken}`).expect(200);
+    expect(bodyOf<{ id: string; establishmentId: string }>(fetched)).toMatchObject({ id: created.id, establishmentId: primaryEstablishmentId });
+  });
+
   it('allows draft edits, enforces legal transitions and rejects terminal mutations', async () => {
     const quote = bodyOf<{ id: string }>(await createQuote('quote-transitions', ownerToken)).id;
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationId}/quotes/${quote}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'quote-update-1').send({ validUntil: '2027-01-31' }).expect(200);
