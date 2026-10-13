@@ -1,11 +1,11 @@
-# Phase 6 — Purchases — Evidence de migration et E2E
+# Phase 6 — Purchases — Evidence de clôture
 
 ## Objet
 
-Ce document rassemble les preuves exécutables de la Task 6 de la Phase 6 —
-Purchases. Il ne clôt pas la phase à lui seul : la clôture normative reste
-conditionnée à la validation GitHub de la PR, à la CI post-merge sur `main` et
-à la synchronisation finale de l'issue #75, du tracker et de la roadmap.
+Ce document rassemble les preuves exécutables et GitHub de la clôture de la
+Phase 6 — Purchases. La livraison fonctionnelle est intégrée sur
+`main@8902b56ac8ffc265a1bab085bb6c5d1ffd86e860`; la PR documentaire dédiée
+synchronise les statuts sans modifier le code métier ni les migrations.
 
 Le périmètre vérifié est :
 
@@ -66,9 +66,24 @@ Test Files  1 passed (1)
 Tests       2 passed (2)
 ```
 
-La suite E2E complète (`npm run test:e2e`) et la suite de non-régression
-complète (`npm test`) restent des gates de PR et de clôture ; leurs résultats
-finaux doivent être consignés après exécution CI.
+Suite E2E complète : **3 fichiers / 6 tests réussis**. Suite de
+non-régression complète : **49 fichiers / 181 tests réussis**.
+
+## Preuves GitHub
+
+- PR Task 5 : [#81](https://github.com/jupi-z/Monarque-Connect/pull/81), CI
+  [#227](https://github.com/jupi-z/Monarque-Connect/actions/runs/38457709337)
+  et post-merge
+  [#228](https://github.com/jupi-z/Monarque-Connect/actions/runs/38458167296),
+  toutes `success`.
+- PR Task 6 : [#82](https://github.com/jupi-z/Monarque-Connect/pull/82), CI
+  [#229](https://github.com/jupi-z/Monarque-Connect/actions/runs/38461090820)
+  et post-merge
+  [#230](https://github.com/jupi-z/Monarque-Connect/actions/runs/38461554292),
+  toutes `success`.
+- Les jobs comprennent lint, typecheck, Prisma validate, migrations Phase 1,
+  2, 4 et 5/6, OpenAPI, contrats, suite Vitest, suite HTTP E2E, build et
+  smoke HTTP.
 
 ## Compatibilité inter-phases
 
@@ -82,12 +97,16 @@ finaux doivent être consignés après exécution CI.
   Phase 7 pourra traiter les événements versionnés selon ses propres
   invariants.
 
-## Gates restant à prouver
+## Gates de clôture
 
-- [ ] suite E2E complète et suite Vitest complète sur le commit de PR ;
-- [ ] lint, typecheck, Prisma validate, OpenAPI, contrats et build sur le
+- [x] suite E2E complète et suite Vitest complète sur le commit de PR ;
+- [x] lint, typecheck, Prisma validate, OpenAPI, contrats et build sur le
   commit de PR ;
-- [ ] CI PR verte et CI post-merge `main` verte ;
-- [ ] synchronisation finale du statut Phase 6, de la roadmap, du tracker et
+- [x] CI PR verte et CI post-merge `main` verte ;
+- [x] synchronisation finale du statut Phase 6, de la roadmap, du tracker et
   de l'issue #75 ;
-- [ ] suppression de la branche de livraison après fusion.
+- [x] suppression des branches de livraison après fusion.
+
+La Phase 7 — Operations n'est pas ouverte par cette clôture. L'Inventory, les
+mouvements, les réservations et la valorisation restent hors périmètre de la
+Phase 6.
