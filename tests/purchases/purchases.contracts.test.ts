@@ -8,6 +8,7 @@ type OpenApiSchema = {
   pattern?: string;
   properties?: Record<string, OpenApiSchema>;
   required?: string[];
+  oneOf?: Array<{ required?: string[] }>;
 };
 type OpenApiParameter = { $ref?: string };
 type OpenApiOperation = {
@@ -89,6 +90,20 @@ describe('Phase 6 Purchases OpenAPI contract', () => {
         expect(operation.requestBody?.content?.['application/json']?.schema, `${operation.operationId} must define a request schema`).toBeDefined();
       }
     }
+  });
+
+  it('documents exclusive recipient targets and the establishment filter', async () => {
+    const document = await loadSpec();
+    const recipient = requiredSchema(document.components.schemas, 'CreateSupplierRFQRecipientRequest');
+    expect(recipient.oneOf).toEqual(expect.arrayContaining([
+      { required: ['localPartyId'] },
+      { required: ['networkOrganizationId'] },
+    ]));
+    const listPath = document.paths['/organizations/{organizationId}/supplier-rfqs'];
+    if (!listPath) throw new Error('Supplier RFQ list path is missing');
+    const listOperation = listPath.get;
+    if (!listOperation) throw new Error('Supplier RFQ list operation is missing');
+    expect(listOperation.parameters ?? []).toEqual(expect.arrayContaining([{ $ref: '#/components/parameters/EstablishmentId' }]));
   });
 
   it('serializes money and quantities as bounded decimal strings and exposes cursor pages', async () => {
