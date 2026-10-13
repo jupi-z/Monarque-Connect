@@ -55,8 +55,12 @@ l'objet d'une nouvelle spécification ou d'un correctif explicitement tracé.
 ## Phase 5 — Sales
 Quotes → Sales Orders → Invoices → PaymentRecords.
 
-**État :** non ouverte. Son cadrage, sa spécification et son issue dédiée
-restent à préparer avant tout développement.
+**État :** ouverte en cadrage et préparation d'exécution. La spécification
+normative est `71_PHASE5_SALES_EXECUTION_SPEC.md`, le statut est
+`72_PHASE_5_STATUS.md`, le plan est
+`superpowers/plans/2026-10-13-phase-5-sales-plan.md` et le suivi GitHub est
+l'issue #63. Aucun endpoint métier ni migration Phase 5 n'est déclaré livré
+par cette ouverture.
 
 ## Phase 6 — Purchases
 Supplier RFQ → Purchase Order → Goods Receipt.
