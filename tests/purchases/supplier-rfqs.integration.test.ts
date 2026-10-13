@@ -62,6 +62,9 @@ describe('Phase 6 Supplier RFQs', () => {
     await prisma.salesOrder.deleteMany();
     await prisma.quoteLine.deleteMany();
     await prisma.quote.deleteMany();
+    await prisma.opportunity.deleteMany();
+    await prisma.lead.deleteMany();
+    await prisma.warehouse.deleteMany();
     await prisma.businessParty.deleteMany();
     await prisma.auditEvent.deleteMany();
     await prisma.membershipEstablishmentScope.deleteMany();
