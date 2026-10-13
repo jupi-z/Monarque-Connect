@@ -23,7 +23,11 @@ Destinataire = `BusinessParty` ou organization réseau.
 Lignes snapshotées.
 
 ### Goods Receipt
-Une réception confirmée est immuable fonctionnellement ; une correction utilise une opération compensatoire. Elle génère les mouvements stock entrants une seule fois.
+Une réception confirmée est immuable fonctionnellement ; une correction utilise
+une opération compensatoire. Elle publie un événement Purchases. Phase 6 ne
+génère pas directement les mouvements de stock : Phase 7 affecte explicitement
+la réception à un entrepôt puis poste les deltas dans son ledger Inventory,
+avec déduplication et rejeu idempotent.
 
 ## 2. Caisse
 
@@ -74,7 +78,7 @@ Le module PROJECTS sert aux prestataires et aux opérations simples, sans deveni
 - Expense peut référencer Project ;
 - Document peut être attaché à Project/RFQ/PO/Receipt ;
 - Opportunity peut créer Project après accord ;
-- GoodsReceipt alimente Inventory ;
+- GoodsReceipt publie un événement consommable par Inventory ;
 - PaymentRecord/Expense peuvent alimenter Cash.
 
 ## 5. Permissions / entitlements

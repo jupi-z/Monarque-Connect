@@ -59,7 +59,10 @@ Les lignes sont snapshotées.
 
 `SupplierRFQ` : demande de prix à un ou plusieurs fournisseurs.  
 `PurchaseOrder` : commande fournisseur.  
-`GoodsReceipt` : réception de produits et origine possible des mouvements de stock.
+`GoodsReceipt` : fait Purchases constatant une réception. Elle publie un
+événement consommable par Inventory mais n'écrit pas directement le stock.
+L'affectation à un entrepôt et le mouvement correspondant appartiennent à la
+Phase 7.
 
 Une RFQ peut viser des fournisseurs locaux ou des organisations connectées au réseau.
 

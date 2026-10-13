@@ -56,9 +56,12 @@ Une RFQ peut viser :
 ### Goods Receipt
 Une réception confirmée :
 - fige les quantités reçues ;
-- crée les `StockMovement IN` requis ;
-- ne peut pas être répétée à cause de l'idempotence ;
-- est établissement et warehouse-scopée.
+- publie un événement Purchases versionné ;
+- ne crée aucun mouvement de stock dans le domaine Purchases ;
+- est consommée par le moteur Inventory de Phase 7 seulement après une
+  affectation explicite à un entrepôt ;
+- ne peut pas produire deux écritures Inventory à cause de la déduplication
+  événement/source/révision.
 
 ## 8. Expenses
 

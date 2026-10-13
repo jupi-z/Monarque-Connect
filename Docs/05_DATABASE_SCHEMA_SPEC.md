@@ -122,7 +122,12 @@ Snapshot item/description, quantity, unit.
 Tenant + establishment + supplier party/network link, snapshots, status, currency, totals.
 
 ### goods_receipts / goods_receipt_lines
-Tenant + establishment + purchase order, warehouse, quantities reçues. Confirmation crée les stock movements de manière idempotente.
+Tenant + establishment + purchase order et quantités reçues. Phase 6 reste
+propriétaire de ces faits et de leurs corrections ; sa confirmation publie des
+événements versionnés mais ne crée aucun mouvement ni solde Inventory.
+Phase 7 ajoute une relation d'intégration explicite pour affecter une réception
+à un entrepôt et poster, de manière idempotente, les deltas dans son ledger
+Inventory. Une réception sans affectation n'a aucun effet de stock.
 
 ## Expenses & cash
 
