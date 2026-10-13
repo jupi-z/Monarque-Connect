@@ -79,7 +79,13 @@ export type Permission =
   | 'sales:invoices:read'
   | 'sales:invoices:write'
   | 'sales:payments:read'
-  | 'sales:payments:write';
+  | 'sales:payments:write'
+  | 'purchases:rfqs:read'
+  | 'purchases:rfqs:write'
+  | 'purchases:orders:read'
+  | 'purchases:orders:write'
+  | 'purchases:receipts:read'
+  | 'purchases:receipts:write';
 
 export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
   OWNER: [
@@ -89,6 +95,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write',
     'sales:invoices:read', 'sales:invoices:write', 'sales:payments:read', 'sales:payments:write',
+    'purchases:rfqs:read', 'purchases:rfqs:write', 'purchases:orders:read', 'purchases:orders:write', 'purchases:receipts:read', 'purchases:receipts:write',
   ],
   ADMIN: [
     'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
@@ -97,6 +104,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write',
     'sales:invoices:read', 'sales:invoices:write', 'sales:payments:read', 'sales:payments:write',
+    'purchases:rfqs:read', 'purchases:rfqs:write', 'purchases:orders:read', 'purchases:orders:write', 'purchases:receipts:read', 'purchases:receipts:write',
   ],
   SALES: [
     'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read',
@@ -107,15 +115,18 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
   FINANCE: [
     'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read', 'crm:read',
     'sales:quotes:read', 'sales:orders:read', 'sales:invoices:read', 'sales:invoices:write', 'sales:payments:read', 'sales:payments:write',
+    'purchases:rfqs:read', 'purchases:orders:read', 'purchases:receipts:read',
   ],
   OPERATIONS: [
     'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
     'crm:read', 'network:discovery:read', 'network:connections:read', 'network:connections:write', 'network:inquiries:read', 'network:inquiries:write',
     'sales:quotes:read', 'sales:orders:read', 'sales:orders:write', 'sales:invoices:read', 'sales:payments:read',
+    'purchases:rfqs:read', 'purchases:rfqs:write', 'purchases:orders:read', 'purchases:orders:write', 'purchases:receipts:read', 'purchases:receipts:write',
   ],
   VIEWER: [
     'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read', 'crm:read',
     'network:discovery:read', 'network:connections:read', 'network:inquiries:read',
     'sales:quotes:read', 'sales:orders:read', 'sales:invoices:read', 'sales:payments:read',
+    'purchases:rfqs:read', 'purchases:orders:read', 'purchases:receipts:read',
   ],
 };

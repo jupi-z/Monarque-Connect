@@ -1334,14 +1334,126 @@ paths:
     get:
       tags: [Purchases]
       operationId: listSupplierRfqs
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Supplier RFQs }
+        "200":
+          description: Supplier RFQ page
+          content: { application/json: { schema: { $ref: "#/components/schemas/SupplierRFQPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
     post:
       tags: [Purchases]
       operationId: createSupplierRfq
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateSupplierRFQRequest" } } }
       responses:
-        "201": { description: Supplier RFQ created }
+        "201":
+          description: Supplier RFQ created
+          content: { application/json: { schema: { $ref: "#/components/schemas/SupplierRFQ" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/supplier-rfqs/{supplierRfqId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: supplierRfqId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Purchases]
+      operationId: getSupplierRfq
+      responses:
+        "200":
+          description: Supplier RFQ
+          content: { application/json: { schema: { $ref: "#/components/schemas/SupplierRFQ" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    patch:
+      tags: [Purchases]
+      operationId: updateSupplierRfq
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UpdateSupplierRFQRequest" } } }
+      responses:
+        "200":
+          description: Supplier RFQ updated
+          content: { application/json: { schema: { $ref: "#/components/schemas/SupplierRFQ" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/supplier-rfqs/{supplierRfqId}/send:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: supplierRfqId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: sendSupplierRfq
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Supplier RFQ sent to its recipients
+          content: { application/json: { schema: { $ref: "#/components/schemas/SupplierRFQ" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/supplier-rfqs/{supplierRfqId}/close:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: supplierRfqId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: closeSupplierRfq
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Supplier RFQ closed
+          content: { application/json: { schema: { $ref: "#/components/schemas/SupplierRFQ" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/supplier-rfqs/{supplierRfqId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: supplierRfqId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: cancelSupplierRfq
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Supplier RFQ cancelled
+          content: { application/json: { schema: { $ref: "#/components/schemas/SupplierRFQ" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/purchase-orders:
     parameters:
@@ -1349,24 +1461,204 @@ paths:
     get:
       tags: [Purchases]
       operationId: listPurchaseOrders
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Purchase orders }
+        "200":
+          description: Purchase order page
+          content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseOrderPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
     post:
       tags: [Purchases]
       operationId: createPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreatePurchaseOrderRequest" } } }
       responses:
-        "201": { description: Purchase order created }
+        "201":
+          description: Purchase order created
+          content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseOrder" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Purchases]
+      operationId: getPurchaseOrder
+      responses:
+        "200":
+          description: Purchase order
+          content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseOrder" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    patch:
+      tags: [Purchases]
+      operationId: updatePurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UpdatePurchaseOrderRequest" } } }
+      responses:
+        "200":
+          description: Purchase order updated
+          content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseOrder" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/send:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: sendPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Purchase order sent
+          content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseOrder" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/confirm:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: confirmPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Purchase order confirmed
+          content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseOrder" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: cancelPurchaseOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Purchase order cancelled
+          content: { application/json: { schema: { $ref: "#/components/schemas/PurchaseOrder" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/receipts:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
       - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
-      - $ref: "#/components/parameters/IdempotencyKey"
-    post:
-      tags: [Purchases, Inventory]
-      operationId: createGoodsReceipt
+    get:
+      tags: [Purchases]
+      operationId: listGoodsReceipts
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "201": { description: Goods receipt created and stock effects applied once }
+        "200":
+          description: Goods receipt page
+          content: { application/json: { schema: { $ref: "#/components/schemas/GoodsReceiptPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    post:
+      tags: [Purchases]
+      operationId: createGoodsReceipt
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateGoodsReceiptRequest" } } }
+      responses:
+        "201":
+          description: Goods receipt recorded as a Purchases fact; Inventory effects are deferred to Phase 7
+          content: { application/json: { schema: { $ref: "#/components/schemas/GoodsReceipt" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/receipts/{receiptId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: receiptId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Purchases]
+      operationId: getGoodsReceipt
+      responses:
+        "200":
+          description: Goods receipt
+          content: { application/json: { schema: { $ref: "#/components/schemas/GoodsReceipt" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/receipts/{receiptId}/correct:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: receiptId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: correctGoodsReceipt
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CorrectGoodsReceiptRequest" } } }
+      responses:
+        "200":
+          description: Goods receipt correction applied as an append-only compensation
+          content: { application/json: { schema: { $ref: "#/components/schemas/GoodsReceipt" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/cash-accounts:
     parameters:
@@ -2819,4 +3111,239 @@ components:
       required: [items, nextCursor]
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/PaymentRecord" } }
+        nextCursor: { type: [string, 'null'] }
+    PurchaseDecimal:
+      type: string
+      pattern: "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,4})?$"
+      description: Monetary amount serialized as a string with up to four fractional digits.
+    PurchaseQuantity:
+      type: string
+      pattern: "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,6})?$"
+      description: Positive quantity validated by the server and serialized as a string with up to six fractional digits.
+    PurchaseTaxMode:
+      type: string
+      enum: [EXCLUSIVE, INCLUSIVE, EXEMPT, NOT_APPLICABLE]
+    SupplierRFQStatus:
+      type: string
+      enum: [DRAFT, SENT, CLOSED, CANCELLED]
+    SupplierRFQRecipientStatus:
+      type: string
+      enum: [PENDING, SENT, SELECTED, DECLINED, CANCELLED]
+    PurchaseOrderStatus:
+      type: string
+      enum: [DRAFT, SENT, CONFIRMED, PARTIALLY_RECEIVED, RECEIVED, CANCELLED]
+    GoodsReceiptStatus:
+      type: string
+      enum: [DRAFT, CONFIRMED, CANCELLED]
+    PurchaseDocumentLine:
+      type: object
+      additionalProperties: false
+      required: [lineIndex, descriptionSnapshot, unitSnapshot, quantity, unitPrice, taxMode, taxAmount, netAmount, grossAmount]
+      properties:
+        lineIndex: { type: integer, minimum: 1 }
+        itemId: { type: [string, 'null'], format: uuid }
+        descriptionSnapshot: { type: string, minLength: 1, maxLength: 2000 }
+        unitSnapshot: { type: string, minLength: 1, maxLength: 32 }
+        quantity: { $ref: "#/components/schemas/PurchaseQuantity" }
+        unitPrice: { $ref: "#/components/schemas/PurchaseDecimal" }
+        taxMode: { $ref: "#/components/schemas/PurchaseTaxMode" }
+        taxCodeSnapshot: { type: [string, 'null'], maxLength: 80 }
+        taxRate: { $ref: "#/components/schemas/PurchaseDecimal" }
+        taxAmount: { $ref: "#/components/schemas/PurchaseDecimal" }
+        netAmount: { $ref: "#/components/schemas/PurchaseDecimal" }
+        grossAmount: { $ref: "#/components/schemas/PurchaseDecimal" }
+    SupplierRFQLine:
+      allOf: [{ $ref: "#/components/schemas/PurchaseDocumentLine" }]
+    SupplierRFQRecipient:
+      type: object
+      additionalProperties: false
+      required: [id, supplierKind, status, displayName, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        localPartyId: { type: [string, 'null'], format: uuid }
+        networkOrganizationId: { type: [string, 'null'], format: uuid }
+        supplierKind: { type: string, enum: [LOCAL_PARTY, NETWORK_ORGANIZATION] }
+        displayName: { type: string, minLength: 1, maxLength: 200 }
+        status: { $ref: "#/components/schemas/SupplierRFQRecipientStatus" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SupplierRFQ:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, number, status, needDate, currency, lines, recipients, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        number: { type: string, pattern: "^RFQ-[0-9]{4}-[0-9]{6}$" }
+        status: { $ref: "#/components/schemas/SupplierRFQStatus" }
+        needDate: { type: string, format: date }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/SupplierRFQLine" } }
+        recipients: { type: array, minItems: 1, items: { $ref: "#/components/schemas/SupplierRFQRecipient" } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateSupplierRFQRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, needDate, currency, lines, recipients]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        needDate: { type: string, format: date }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreatePurchaseLineRequest" } }
+        recipients: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreateSupplierRFQRecipientRequest" } }
+    CreateSupplierRFQRecipientRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        localPartyId: { type: string, format: uuid }
+        networkOrganizationId: { type: string, format: uuid }
+      minProperties: 1
+    UpdateSupplierRFQRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        needDate: { type: string, format: date }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreatePurchaseLineRequest" } }
+        recipients: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreateSupplierRFQRecipientRequest" } }
+    CreatePurchaseLineRequest:
+      type: object
+      additionalProperties: false
+      required: [descriptionSnapshot, unitSnapshot, quantity, unitPrice, taxMode]
+      properties:
+        itemId: { type: string, format: uuid }
+        descriptionSnapshot: { type: string, minLength: 1, maxLength: 2000 }
+        unitSnapshot: { type: string, minLength: 1, maxLength: 32 }
+        quantity: { $ref: "#/components/schemas/PurchaseQuantity" }
+        unitPrice: { $ref: "#/components/schemas/PurchaseDecimal" }
+        taxMode: { $ref: "#/components/schemas/PurchaseTaxMode" }
+        taxCodeSnapshot: { type: string, maxLength: 80 }
+        taxRate: { $ref: "#/components/schemas/PurchaseDecimal" }
+    SupplierRFQPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/SupplierRFQ" } }
+        nextCursor: { type: [string, 'null'] }
+    PurchaseOrderLine:
+      allOf: [{ $ref: "#/components/schemas/PurchaseDocumentLine" }]
+    PurchaseOrder:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, number, status, currency, lines, totalNet, totalTax, totalGross, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        number: { type: string, pattern: "^PO-[0-9]{4}-[0-9]{6}$" }
+        sourceSupplierRfqId: { type: [string, 'null'], format: uuid }
+        sourceRecipientId: { type: [string, 'null'], format: uuid }
+        supplierDisplayName: { type: string, minLength: 1, maxLength: 200 }
+        status: { $ref: "#/components/schemas/PurchaseOrderStatus" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/PurchaseOrderLine" } }
+        totalNet: { $ref: "#/components/schemas/PurchaseDecimal" }
+        totalTax: { $ref: "#/components/schemas/PurchaseDecimal" }
+        totalGross: { $ref: "#/components/schemas/PurchaseDecimal" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreatePurchaseOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, currency, lines]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        sourceSupplierRfqId: { type: string, format: uuid }
+        sourceRecipientId: { type: string, format: uuid }
+        supplierPartyId: { type: string, format: uuid }
+        supplierNetworkOrganizationId: { type: string, format: uuid }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreatePurchaseLineRequest" } }
+    UpdatePurchaseOrderRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreatePurchaseLineRequest" } }
+    PurchaseOrderPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/PurchaseOrder" } }
+        nextCursor: { type: [string, 'null'] }
+    GoodsReceiptLine:
+      type: object
+      additionalProperties: false
+      required: [id, purchaseOrderLineId, quantity, cumulativeQuantity, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        purchaseOrderLineId: { type: string, format: uuid }
+        quantity: { $ref: "#/components/schemas/PurchaseQuantity" }
+        cumulativeQuantity: { $ref: "#/components/schemas/PurchaseQuantity" }
+        createdAt: { type: string, format: date-time }
+    GoodsReceiptCorrection:
+      type: object
+      additionalProperties: false
+      required: [id, goodsReceiptId, reason, createdBy, createdAt, lines]
+      properties:
+        id: { type: string, format: uuid }
+        goodsReceiptId: { type: string, format: uuid }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/GoodsReceiptCorrectionLine" } }
+    GoodsReceiptCorrectionLine:
+      type: object
+      additionalProperties: false
+      required: [purchaseOrderLineId, deltaQuantity]
+      properties:
+        purchaseOrderLineId: { type: string, format: uuid }
+        deltaQuantity: { $ref: "#/components/schemas/PurchaseDecimal" }
+    GoodsReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, purchaseOrderId, number, status, receivedAt, lines, corrections, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        purchaseOrderId: { type: string, format: uuid }
+        number: { type: string, pattern: "^GR-[0-9]{4}-[0-9]{6}$" }
+        status: { $ref: "#/components/schemas/GoodsReceiptStatus" }
+        receivedAt: { type: string, format: date-time }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/GoodsReceiptLine" } }
+        corrections: { type: array, items: { $ref: "#/components/schemas/GoodsReceiptCorrection" } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateGoodsReceiptRequest:
+      type: object
+      additionalProperties: false
+      required: [receivedAt, lines]
+      properties:
+        receivedAt: { type: string, format: date-time }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreateGoodsReceiptLineRequest" } }
+    CreateGoodsReceiptLineRequest:
+      type: object
+      additionalProperties: false
+      required: [purchaseOrderLineId, quantity]
+      properties:
+        purchaseOrderLineId: { type: string, format: uuid }
+        quantity: { $ref: "#/components/schemas/PurchaseQuantity" }
+    CorrectGoodsReceiptRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, lines]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/GoodsReceiptCorrectionLine" } }
+    GoodsReceiptPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/GoodsReceipt" } }
         nextCursor: { type: [string, 'null'] }
