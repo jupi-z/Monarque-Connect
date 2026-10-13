@@ -181,6 +181,9 @@ enum AuditAction {
   NETWORK_INQUIRY_CREATED
   NETWORK_INQUIRY_STATUS_CHANGED
   NETWORK_INQUIRY_CONVERTED
+  QUOTE_CREATED
+  QUOTE_UPDATED
+  QUOTE_STATUS_CHANGED
 }
 
 enum ConnectionRequestStatus {
@@ -981,6 +984,7 @@ model QuoteLine {
   itemSkuSnapshot     String? @map("item_sku_snapshot") @db.VarChar(80)
   descriptionSnapshot String? @map("description_snapshot") @db.VarChar(2000)
   unitSnapshot        String  @map("unit_snapshot") @db.VarChar(32)
+  taxCodeSnapshot     String? @map("tax_code_snapshot") @db.VarChar(80)
   quantity            Decimal @db.Decimal(19, 6)
   unitPrice           Decimal @map("unit_price") @db.Decimal(19, 4)
   discountAmount      Decimal @map("discount_amount") @db.Decimal(19, 4)

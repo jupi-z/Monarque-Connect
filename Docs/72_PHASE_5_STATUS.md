@@ -2,8 +2,9 @@
 
 ## État courant
 
-La Phase 5 — Sales est **ouverte en cadrage et préparation d'exécution** sur
-la baseline `main@7ff4c54f18a49460585bba2e145e73f590cdfe16`.
+La Phase 5 — Sales est **ouverte en exécution incrémentale**. Sa baseline de
+cadrage reste `main@7ff4c54f18a49460585bba2e145e73f590cdfe16`, mais les
+livraisons sont désormais intégrées progressivement sur `main` par PR.
 
 Le suivi est porté par l'[issue #63](https://github.com/jupi-z/Monarque-Connect/issues/63).
 La spécification normative est
@@ -11,12 +12,14 @@ La spécification normative est
 le plan séquencé est
 [`2026-10-13-phase-5-sales-plan.md`](superpowers/plans/2026-10-13-phase-5-sales-plan.md).
 
-La phase n'a pas encore livré d'endpoint métier ni de migration. Aucun statut
-de clôture ne doit être annoncé avant la preuve de tous les gates.
+Le socle contractuel, le modèle PostgreSQL Sales et le premier agrégat Quote
+sont maintenant livrés. Cette progression ne constitue pas une clôture de la
+phase : les commandes de conversion, Sales Orders, Invoices, PaymentRecords,
+les preuves cross-phase et les gates finaux restent obligatoires.
 
 ## Périmètre
 
-- [ ] Quotes ;
+- [x] Quotes — création, lecture, édition DRAFT et transitions livrées ;
 - [ ] Sales Orders ;
 - [ ] Invoices ;
 - [ ] PaymentRecords ;

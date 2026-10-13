@@ -43,6 +43,13 @@ describe('Network discovery and trust projections', () => {
     await prisma.organizationNetworkProfile.deleteMany();
     await prisma.opportunity.deleteMany();
     await prisma.lead.deleteMany();
+    await prisma.paymentRecord.deleteMany();
+    await prisma.invoiceLine.deleteMany();
+    await prisma.invoice.deleteMany();
+    await prisma.salesOrderLine.deleteMany();
+    await prisma.salesOrder.deleteMany();
+    await prisma.quoteLine.deleteMany();
+    await prisma.quote.deleteMany();
     await prisma.warehouse.deleteMany();
     await prisma.item.deleteMany();
     await prisma.businessParty.deleteMany();
