@@ -31,7 +31,7 @@ type OpenApiDocument = {
 const expectedOperations = [
   'listSupplierRfqs', 'createSupplierRfq', 'getSupplierRfq', 'updateSupplierRfq', 'sendSupplierRfq', 'closeSupplierRfq', 'cancelSupplierRfq',
   'listPurchaseOrders', 'createPurchaseOrder', 'getPurchaseOrder', 'updatePurchaseOrder', 'sendPurchaseOrder', 'confirmPurchaseOrder', 'cancelPurchaseOrder',
-  'listGoodsReceipts', 'createGoodsReceipt', 'getGoodsReceipt', 'correctGoodsReceipt',
+  'listGoodsReceipts', 'createGoodsReceipt', 'getGoodsReceipt', 'confirmGoodsReceipt', 'cancelGoodsReceipt', 'correctGoodsReceipt',
 ];
 
 const mutationOperationIds = new Set(expectedOperations.filter((operationId) => !operationId.startsWith('list') && !operationId.startsWith('get')));
