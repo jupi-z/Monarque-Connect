@@ -66,7 +66,7 @@ const invoiceSelect = {
       grossAmount: true,
     },
   },
-  payments: { select: { amount: true, status: true } },
+  payments: { select: { amount: true, status: true, reversalOfId: true } },
 } as const;
 
 type InvoiceWithLines = Prisma.InvoiceGetPayload<{ select: typeof invoiceSelect }>;
@@ -274,7 +274,7 @@ export class InvoiceService {
   }
 
   private serialize(invoice: InvoiceWithLines): unknown {
-    const paidAmount = invoice.payments.filter((payment) => payment.status === 'RECORDED').reduce((total, payment) => total.add(payment.amount), new Prisma.Decimal(0)).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
+    const paidAmount = invoice.payments.filter((payment) => payment.status === 'RECORDED' && payment.reversalOfId === null).reduce((total, payment) => total.add(payment.amount), new Prisma.Decimal(0)).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
     const outstandingAmount = invoice.totalGross.sub(paidAmount).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
     const status = paidAmount.gte(invoice.totalGross) && invoice.status !== 'DRAFT' && invoice.status !== 'VOID' ? 'PAID' : invoice.status;
     return { id: invoice.id, organizationId: invoice.organizationId, establishmentId: invoice.establishmentId, number: invoice.number, sourceOrderId: invoice.sourceOrderId, partyId: invoice.partyId, status, currency: invoice.currency.trim(), issuedAt: invoice.issuedAt?.toISOString() ?? null, dueAt: invoice.dueAt?.toISOString().slice(0, 10) ?? null, lines: invoice.lines.map((line) => ({ lineIndex: line.lineIndex, itemId: line.itemId, skuSnapshot: line.itemSkuSnapshot, descriptionSnapshot: line.descriptionSnapshot ?? '', unitSnapshot: line.unitSnapshot, quantity: line.quantity.toFixed(6), unitPrice: line.unitPrice.toFixed(4), discountAmount: line.discountAmount.toFixed(4), taxMode: line.taxMode, taxCodeSnapshot: line.taxCodeSnapshot, taxRate: line.taxRate.toFixed(4), taxAmount: line.taxAmount.toFixed(4), netAmount: line.netAmount.toFixed(4), grossAmount: line.grossAmount.toFixed(4) })), totalNet: invoice.totalNet.toFixed(4), totalTax: invoice.totalTax.toFixed(4), totalGross: invoice.totalGross.toFixed(4), paidAmount: paidAmount.toFixed(4), outstandingAmount: outstandingAmount.toFixed(4), createdAt: invoice.createdAt.toISOString(), updatedAt: invoice.updatedAt.toISOString() };

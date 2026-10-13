@@ -9,10 +9,12 @@ import { OrderController } from './order.controller.js';
 import { OrderService } from './order.service.js';
 import { InvoiceController } from './invoice.controller.js';
 import { InvoiceService } from './invoice.service.js';
+import { PaymentController } from './payment.controller.js';
+import { PaymentService } from './payment.service.js';
 
 @Module({
   imports: [AuthModule, EventModule, EntitlementsModule, TenancyModule],
-  controllers: [QuoteController, OrderController, InvoiceController],
-  providers: [QuoteService, OrderService, InvoiceService],
+  controllers: [QuoteController, OrderController, InvoiceController, PaymentController],
+  providers: [QuoteService, OrderService, InvoiceService, PaymentService],
 })
 export class SalesModule {}
