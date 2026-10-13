@@ -71,15 +71,19 @@ synchronisation administrative.
 ## Phase 6 — Purchases
 Supplier RFQ → Purchase Order → Goods Receipt.
 
-**État :** ouverte officiellement en cadrage normatif le 13/10/2026 sur
-`main@623fa9e79947e4608f7d2c66d841d053b22684e2`. La spécification est
-`74_PHASE6_PURCHASES_EXECUTION_SPEC.md`, le statut est
-`75_PHASE_6_STATUS.md`, le plan est
-`superpowers/plans/2026-10-13-phase-6-purchases-plan.md` et le suivi GitHub est
-l'[issue #75](https://github.com/jupi-z/Monarque-Connect/issues/75).
-La phase ne crée pas de moteur Inventory : les Goods Receipts constatent les
-réceptions et publient des événements ; mouvements, réservations et
-valorisation de stock restent réservés à la Phase 7.
+**État :** terminée et clôturée à 100 %. La baseline d'ouverture était
+`main@623fa9e79947e4608f7d2c66d841d053b22684e2`. La livraison et les preuves
+techniques sont intégrées sur
+`main@8902b56ac8ffc265a1bab085bb6c5d1ffd86e860`.
+La spécification est `74_PHASE6_PURCHASES_EXECUTION_SPEC.md`, le statut final
+est `75_PHASE_6_STATUS.md`, la preuve consolidée est
+`76_PHASE_6_CLOSURE_EVIDENCE.md` et le plan est
+`superpowers/plans/2026-10-13-phase-6-purchases-plan.md`.
+Le suivi GitHub est l'[issue #75](https://github.com/jupi-z/Monarque-Connect/issues/75).
+La CI PR #229 et la CI post-merge #230 sont vertes. La phase ne crée pas de
+moteur Inventory : les Goods Receipts constatent les réceptions et publient
+des événements ; mouvements, réservations et valorisation de stock restent
+réservés à la Phase 7.
 
 ## Phase 7 — Operations
 Inventory, expenses, cash accounts/movements.
