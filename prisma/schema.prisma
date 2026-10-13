@@ -192,6 +192,15 @@ enum AuditAction {
   INVOICE_STATUS_CHANGED
   PAYMENT_RECORDED
   PAYMENT_REVERSED
+  SUPPLIER_RFQ_CREATED
+  SUPPLIER_RFQ_UPDATED
+  SUPPLIER_RFQ_STATUS_CHANGED
+  PURCHASE_ORDER_CREATED
+  PURCHASE_ORDER_UPDATED
+  PURCHASE_ORDER_STATUS_CHANGED
+  GOODS_RECEIPT_CREATED
+  GOODS_RECEIPT_STATUS_CHANGED
+  GOODS_RECEIPT_CORRECTED
 }
 
 enum ConnectionRequestStatus {
@@ -243,6 +252,9 @@ enum SalesDocumentType {
   QUOTE
   SALES_ORDER
   INVOICE
+  SUPPLIER_RFQ
+  PURCHASE_ORDER
+  GOODS_RECEIPT
 }
 
 enum TaxMode {
@@ -279,6 +291,41 @@ enum InvoiceStatus {
 enum PaymentRecordStatus {
   RECORDED
   REVERSED
+}
+
+enum SupplierRFQStatus {
+  DRAFT
+  SENT
+  CLOSED
+  CANCELLED
+}
+
+enum SupplierRFQRecipientStatus {
+  PENDING
+  SENT
+  SELECTED
+  DECLINED
+  CANCELLED
+}
+
+enum SupplierRecipientKind {
+  LOCAL_PARTY
+  NETWORK_ORGANIZATION
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum GoodsReceiptStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
 }
 
 model OutboxEvent {
@@ -516,6 +563,11 @@ model Organization {
   salesOrders                SalesOrder[]
   invoices                   Invoice[]
   paymentRecords             PaymentRecord[]
+  supplierRfqs               SupplierRFQ[]
+  purchaseOrders             PurchaseOrder[]
+  goodsReceipts              GoodsReceipt[]
+  networkSupplierRfqRecipients SupplierRFQRecipient[] @relation("NetworkSupplierRFQRecipients")
+  purchaseOrdersAsNetworkSupplier PurchaseOrder[] @relation("PurchaseOrderSupplierOrganization")
 
   @@index([businessTypeCode])
   @@index([status])
@@ -712,6 +764,9 @@ model Establishment {
   salesOrders          SalesOrder[]
   invoices             Invoice[]
   paymentRecords       PaymentRecord[]
+  supplierRfqs         SupplierRFQ[]
+  purchaseOrders       PurchaseOrder[]
+  goodsReceipts        GoodsReceipt[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -736,6 +791,8 @@ model BusinessParty {
   quotes               Quote[]
   salesOrders          SalesOrder[]
   invoices             Invoice[]
+  supplierRfqRecipients SupplierRFQRecipient[]
+  purchaseOrdersAsSupplier PurchaseOrder[] @relation("PurchaseOrderSupplierParty")
 
   @@unique([id, organizationId])
   @@index([organizationId, active, displayName])
@@ -829,6 +886,9 @@ model Item {
   quoteLines      QuoteLine[]
   salesOrderLines SalesOrderLine[]
   invoiceLines    InvoiceLine[]
+  supplierRfqLines SupplierRFQLine[]
+  purchaseOrderLines PurchaseOrderLine[]
+  goodsReceiptLines GoodsReceiptLine[]
 
   @@unique([id, organizationId])
   @@index([organizationId, active, name])
@@ -1151,4 +1211,242 @@ model PaymentRecord {
   @@index([organizationId, invoiceId, recordedAt, id])
   @@index([organizationId, status])
   @@map("payment_records")
+}
+
+model SupplierRFQ {
+  id              String          @id @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  establishmentId String          @map("establishment_id") @db.Uuid
+  number          String          @db.VarChar(32)
+  status          SupplierRFQStatus @default(DRAFT)
+  title           String          @db.VarChar(160)
+  neededBy        DateTime?       @map("needed_by") @db.Date
+  currency        String          @db.Char(3)
+  notes           String?         @db.VarChar(5000)
+  idempotencyKey  String?         @map("idempotency_key") @db.VarChar(200)
+  createdByUserId String?         @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment   Establishment   @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  lines           SupplierRFQLine[]
+  recipients      SupplierRFQRecipient[]
+  purchaseOrders  PurchaseOrder[] @relation("PurchaseOrderSourceRFQ")
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, number])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@index([organizationId, status, neededBy])
+  @@map("supplier_rfqs")
+}
+
+model SupplierRFQLine {
+  id                  String       @id @db.Uuid
+  organizationId      String       @map("organization_id") @db.Uuid
+  supplierRfqId       String       @map("supplier_rfq_id") @db.Uuid
+  lineIndex           Int          @map("line_index")
+  itemId              String?      @map("item_id") @db.Uuid
+  itemNameSnapshot    String       @map("item_name_snapshot") @db.VarChar(160)
+  itemSkuSnapshot     String?      @map("item_sku_snapshot") @db.VarChar(80)
+  descriptionSnapshot String?      @map("description_snapshot") @db.VarChar(2000)
+  unitSnapshot        String       @map("unit_snapshot") @db.VarChar(32)
+  quantity            Decimal      @db.Decimal(19, 6)
+  requestedBy         String?      @map("requested_by") @db.Uuid
+  supplierRfq         SupplierRFQ  @relation(fields: [supplierRfqId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  item                Item?        @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  purchaseOrderLines  PurchaseOrderLine[]
+
+  @@unique([supplierRfqId, lineIndex])
+  @@unique([id, organizationId])
+  @@unique([supplierRfqId, id, organizationId])
+  @@index([organizationId, itemId])
+  @@map("supplier_rfq_lines")
+}
+
+model SupplierRFQRecipient {
+  id                    String                    @id @db.Uuid
+  organizationId        String                    @map("organization_id") @db.Uuid
+  supplierRfqId         String                    @map("supplier_rfq_id") @db.Uuid
+  recipientKind         SupplierRecipientKind     @map("recipient_kind")
+  localPartyId          String?                   @map("local_party_id") @db.Uuid
+  networkOrganizationId String?                   @map("network_organization_id") @db.Uuid
+  displayNameSnapshot   String                    @map("display_name_snapshot") @db.VarChar(160)
+  emailSnapshot         String?                   @map("email_snapshot") @db.VarChar(320)
+  phoneSnapshot         String?                   @map("phone_snapshot") @db.VarChar(40)
+  status                SupplierRFQRecipientStatus @default(PENDING)
+  sentAt                DateTime?                 @map("sent_at") @db.Timestamptz(6)
+  respondedAt           DateTime?                 @map("responded_at") @db.Timestamptz(6)
+  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  supplierRfq           SupplierRFQ               @relation(fields: [supplierRfqId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  localParty            BusinessParty?            @relation(fields: [localPartyId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  networkOrganization   Organization?             @relation("NetworkSupplierRFQRecipients", fields: [networkOrganizationId], references: [id], onDelete: Restrict)
+  purchaseOrders        PurchaseOrder[]           @relation("PurchaseOrderSourceRecipient")
+
+  @@unique([id, organizationId])
+  @@unique([supplierRfqId, id, organizationId])
+  @@index([organizationId, supplierRfqId, status, createdAt, id])
+  @@index([supplierRfqId, localPartyId])
+  @@index([supplierRfqId, networkOrganizationId])
+  @@map("supplier_rfq_recipients")
+}
+
+model PurchaseOrder {
+  id                    String                    @id @db.Uuid
+  organizationId        String                    @map("organization_id") @db.Uuid
+  establishmentId       String                    @map("establishment_id") @db.Uuid
+  number                String                    @db.VarChar(32)
+  status                PurchaseOrderStatus       @default(DRAFT)
+  supplierPartyId       String?                   @map("supplier_party_id") @db.Uuid
+  supplierOrganizationId String?                  @map("supplier_organization_id") @db.Uuid
+  supplierKind          SupplierRecipientKind     @map("supplier_kind")
+  supplierDisplayNameSnapshot String               @map("supplier_display_name_snapshot") @db.VarChar(160)
+  supplierEmailSnapshot String?                   @map("supplier_email_snapshot") @db.VarChar(320)
+  supplierPhoneSnapshot String?                   @map("supplier_phone_snapshot") @db.VarChar(40)
+  sourceRfqId           String?                   @map("source_rfq_id") @db.Uuid
+  sourceRfqRecipientId  String?                   @map("source_rfq_recipient_id") @db.Uuid
+  currency              String                    @db.Char(3)
+  orderedAt             DateTime?                 @map("ordered_at") @db.Timestamptz(6)
+  notes                 String?                   @db.VarChar(5000)
+  idempotencyKey        String?                   @map("idempotency_key") @db.VarChar(200)
+  createdByUserId       String?                   @map("created_by_user_id") @db.Uuid
+  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization          Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment         Establishment             @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  supplierParty         BusinessParty?            @relation("PurchaseOrderSupplierParty", fields: [supplierPartyId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  supplierOrganization  Organization?             @relation("PurchaseOrderSupplierOrganization", fields: [supplierOrganizationId], references: [id], onDelete: Restrict)
+  sourceRfq             SupplierRFQ?              @relation("PurchaseOrderSourceRFQ", fields: [sourceRfqId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sourceRfqRecipient    SupplierRFQRecipient?     @relation("PurchaseOrderSourceRecipient", fields: [sourceRfqId, sourceRfqRecipientId, organizationId], references: [supplierRfqId, id, organizationId], onDelete: Restrict)
+  lines                 PurchaseOrderLine[]
+  goodsReceipts         GoodsReceipt[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, number])
+  @@unique([organizationId, idempotencyKey])
+  @@unique([organizationId, sourceRfqId, sourceRfqRecipientId])
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@index([organizationId, supplierPartyId, createdAt])
+  @@index([organizationId, supplierOrganizationId, createdAt])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id                  String          @id @db.Uuid
+  organizationId      String          @map("organization_id") @db.Uuid
+  purchaseOrderId     String          @map("purchase_order_id") @db.Uuid
+  lineIndex           Int             @map("line_index")
+  sourceRfqLineId     String?         @map("source_rfq_line_id") @db.Uuid
+  sourceRfqId         String?         @map("source_rfq_id") @db.Uuid
+  itemId              String?         @map("item_id") @db.Uuid
+  itemNameSnapshot    String          @map("item_name_snapshot") @db.VarChar(160)
+  itemSkuSnapshot     String?         @map("item_sku_snapshot") @db.VarChar(80)
+  descriptionSnapshot String?         @map("description_snapshot") @db.VarChar(2000)
+  unitSnapshot        String          @map("unit_snapshot") @db.VarChar(32)
+  quantityOrdered     Decimal         @map("quantity_ordered") @db.Decimal(19, 6)
+  unitPrice           Decimal         @map("unit_price") @db.Decimal(19, 4)
+  discountAmount      Decimal         @map("discount_amount") @db.Decimal(19, 4)
+  taxMode             TaxMode         @map("tax_mode")
+  taxCodeSnapshot     String?         @map("tax_code_snapshot") @db.VarChar(80)
+  taxRate             Decimal         @map("tax_rate") @db.Decimal(9, 4)
+  netAmount           Decimal         @map("net_amount") @db.Decimal(19, 4)
+  taxAmount           Decimal         @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount         Decimal         @map("gross_amount") @db.Decimal(19, 4)
+  purchaseOrder       PurchaseOrder  @relation(fields: [purchaseOrderId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  sourceRfqLine       SupplierRFQLine? @relation(fields: [sourceRfqId, sourceRfqLineId, organizationId], references: [supplierRfqId, id, organizationId], onDelete: Restrict)
+  item                Item?           @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  goodsReceiptLines   GoodsReceiptLine[]
+
+  @@unique([purchaseOrderId, lineIndex])
+  @@unique([id, organizationId])
+  @@index([organizationId, itemId])
+  @@index([organizationId, sourceRfqId, sourceRfqLineId])
+  @@map("purchase_order_lines")
+}
+
+model GoodsReceipt {
+  id              String             @id @db.Uuid
+  organizationId  String             @map("organization_id") @db.Uuid
+  establishmentId String             @map("establishment_id") @db.Uuid
+  purchaseOrderId String             @map("purchase_order_id") @db.Uuid
+  number          String             @db.VarChar(32)
+  status          GoodsReceiptStatus @default(DRAFT)
+  receivedAt      DateTime           @map("received_at") @db.Timestamptz(6)
+  reference       String?            @db.VarChar(160)
+  notes           String?            @db.VarChar(5000)
+  idempotencyKey  String?            @map("idempotency_key") @db.VarChar(200)
+  createdByUserId String?            @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment   Establishment      @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  purchaseOrder   PurchaseOrder      @relation(fields: [purchaseOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  lines           GoodsReceiptLine[]
+  corrections     GoodsReceiptCorrection[]
+  correctionLines GoodsReceiptCorrectionLine[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, number])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, establishmentId, status, receivedAt, id])
+  @@index([organizationId, purchaseOrderId, receivedAt, id])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id                  String           @id @db.Uuid
+  organizationId      String           @map("organization_id") @db.Uuid
+  goodsReceiptId      String           @map("goods_receipt_id") @db.Uuid
+  purchaseOrderLineId String           @map("purchase_order_line_id") @db.Uuid
+  lineIndex           Int              @map("line_index")
+  itemId              String?          @map("item_id") @db.Uuid
+  itemNameSnapshot    String           @map("item_name_snapshot") @db.VarChar(160)
+  unitSnapshot        String           @map("unit_snapshot") @db.VarChar(32)
+  quantity            Decimal          @db.Decimal(19, 6)
+  goodsReceipt        GoodsReceipt     @relation(fields: [goodsReceiptId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  purchaseOrderLine   PurchaseOrderLine @relation(fields: [purchaseOrderLineId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  item                Item?            @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  correctionLines     GoodsReceiptCorrectionLine[]
+
+  @@unique([goodsReceiptId, lineIndex])
+  @@unique([goodsReceiptId, purchaseOrderLineId])
+  @@unique([id, organizationId])
+  @@unique([id, goodsReceiptId, organizationId])
+  @@index([organizationId, purchaseOrderLineId])
+  @@map("goods_receipt_lines")
+}
+
+model GoodsReceiptCorrection {
+  id              String                    @id @db.Uuid
+  organizationId  String                    @map("organization_id") @db.Uuid
+  goodsReceiptId  String                    @map("goods_receipt_id") @db.Uuid
+  reason          String                    @db.VarChar(2000)
+  createdByUserId String?                   @map("created_by_user_id") @db.Uuid
+  idempotencyKey  String?                   @map("idempotency_key") @db.VarChar(200)
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  goodsReceipt    GoodsReceipt              @relation(fields: [goodsReceiptId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  lines           GoodsReceiptCorrectionLine[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, goodsReceiptId, createdAt, id])
+  @@map("goods_receipt_corrections")
+}
+
+model GoodsReceiptCorrectionLine {
+  id                  String                  @id @db.Uuid
+  organizationId      String                  @map("organization_id") @db.Uuid
+  correctionId        String                  @map("correction_id") @db.Uuid
+  goodsReceiptId      String                  @map("goods_receipt_id") @db.Uuid
+  goodsReceiptLineId  String                  @map("goods_receipt_line_id") @db.Uuid
+  deltaQuantity       Decimal                 @map("delta_quantity") @db.Decimal(19, 6)
+  correction          GoodsReceiptCorrection @relation(fields: [correctionId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  goodsReceipt        GoodsReceipt            @relation(fields: [goodsReceiptId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  goodsReceiptLine    GoodsReceiptLine        @relation(fields: [goodsReceiptLineId, goodsReceiptId, organizationId], references: [id, goodsReceiptId, organizationId], onDelete: Restrict)
+
+  @@unique([correctionId, goodsReceiptLineId])
+  @@unique([id, organizationId])
+  @@index([organizationId, goodsReceiptLineId])
+  @@map("goods_receipt_correction_lines")
 }
