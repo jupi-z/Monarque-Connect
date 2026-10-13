@@ -1639,6 +1639,46 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/receipts/{receiptId}/confirm:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: receiptId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: confirmGoodsReceipt
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Goods receipt confirmed and cumulative quantities reconciled
+          content: { application/json: { schema: { $ref: "#/components/schemas/GoodsReceipt" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/receipts/{receiptId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: purchaseOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: receiptId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Purchases]
+      operationId: cancelGoodsReceipt
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Draft goods receipt cancelled
+          content: { application/json: { schema: { $ref: "#/components/schemas/GoodsReceipt" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/purchase-orders/{purchaseOrderId}/receipts/{receiptId}/correct:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -3122,6 +3162,10 @@ components:
       type: string
       pattern: "^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,6})?$"
       description: Positive quantity validated by the server and serialized as a string with up to six fractional digits.
+    PurchaseSignedQuantity:
+      type: string
+      pattern: "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,6})?$"
+      description: Signed quantity used only by append-only goods receipt corrections.
     PurchaseTaxMode:
       type: string
       enum: [EXCLUSIVE, INCLUSIVE, EXEMPT, NOT_APPLICABLE]
@@ -3316,13 +3360,15 @@ components:
     GoodsReceiptLine:
       type: object
       additionalProperties: false
-      required: [id, purchaseOrderLineId, quantity, cumulativeQuantity, createdAt]
+      required: [id, purchaseOrderLineId, itemNameSnapshot, unitSnapshot, quantity, cumulativeQuantity]
       properties:
         id: { type: string, format: uuid }
         purchaseOrderLineId: { type: string, format: uuid }
+        itemId: { type: [string, 'null'], format: uuid }
+        itemNameSnapshot: { type: string, minLength: 1, maxLength: 160 }
+        unitSnapshot: { type: string, minLength: 1, maxLength: 32 }
         quantity: { $ref: "#/components/schemas/PurchaseQuantity" }
         cumulativeQuantity: { $ref: "#/components/schemas/PurchaseQuantity" }
-        createdAt: { type: string, format: date-time }
     GoodsReceiptCorrection:
       type: object
       additionalProperties: false
@@ -3340,7 +3386,7 @@ components:
       required: [purchaseOrderLineId, deltaQuantity]
       properties:
         purchaseOrderLineId: { type: string, format: uuid }
-        deltaQuantity: { $ref: "#/components/schemas/PurchaseDecimal" }
+        deltaQuantity: { $ref: "#/components/schemas/PurchaseSignedQuantity" }
     GoodsReceipt:
       type: object
       additionalProperties: false
@@ -3353,6 +3399,8 @@ components:
         number: { type: string, pattern: "^GR-[0-9]{4}-[0-9]{6}$" }
         status: { $ref: "#/components/schemas/GoodsReceiptStatus" }
         receivedAt: { type: string, format: date-time }
+        reference: { type: [string, 'null'], maxLength: 160 }
+        notes: { type: [string, 'null'], maxLength: 5000 }
         lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/GoodsReceiptLine" } }
         corrections: { type: array, items: { $ref: "#/components/schemas/GoodsReceiptCorrection" } }
         createdAt: { type: string, format: date-time }
@@ -3363,6 +3411,8 @@ components:
       required: [receivedAt, lines]
       properties:
         receivedAt: { type: string, format: date-time }
+        reference: { type: string, maxLength: 160 }
+        notes: { type: string, maxLength: 5000 }
         lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/CreateGoodsReceiptLineRequest" } }
     CreateGoodsReceiptLineRequest:
       type: object
