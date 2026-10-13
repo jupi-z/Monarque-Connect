@@ -1463,6 +1463,7 @@ paths:
       tags: [Purchases]
       operationId: listPurchaseOrders
       parameters:
+        - $ref: "#/components/parameters/EstablishmentId"
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -3239,6 +3240,7 @@ components:
       additionalProperties: false
       required: [descriptionSnapshot, unitSnapshot, quantity, unitPrice, taxMode]
       properties:
+        sourceRfqLineId: { type: string, format: uuid }
         itemId: { type: string, format: uuid }
         descriptionSnapshot: { type: string, minLength: 1, maxLength: 2000 }
         unitSnapshot: { type: string, minLength: 1, maxLength: 32 }

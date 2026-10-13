@@ -106,6 +106,15 @@ describe('Phase 6 Purchases OpenAPI contract', () => {
     expect(listOperation.parameters ?? []).toEqual(expect.arrayContaining([{ $ref: '#/components/parameters/EstablishmentId' }]));
   });
 
+  it('documents Purchase Order establishment filtering and RFQ line attribution', async () => {
+    const document = await loadSpec();
+    const listPath = document.paths['/organizations/{organizationId}/purchase-orders'];
+    if (!listPath?.get) throw new Error('Purchase Order list operation is missing');
+    expect(listPath.get.parameters ?? []).toEqual(expect.arrayContaining([{ $ref: '#/components/parameters/EstablishmentId' }]));
+    const line = requiredSchema(document.components.schemas, 'CreatePurchaseLineRequest');
+    expect(requiredProperty(line, 'sourceRfqLineId')).toMatchObject({ type: 'string' });
+  });
+
   it('serializes money and quantities as bounded decimal strings and exposes cursor pages', async () => {
     const spec = await loadSpec();
     const schemas = spec.components.schemas;

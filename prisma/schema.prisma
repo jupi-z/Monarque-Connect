@@ -1325,6 +1325,9 @@ model PurchaseOrder {
   sourceRfqId           String?                   @map("source_rfq_id") @db.Uuid
   sourceRfqRecipientId  String?                   @map("source_rfq_recipient_id") @db.Uuid
   currency              String                    @db.Char(3)
+  totalNet              Decimal                   @map("total_net") @db.Decimal(19, 4)
+  totalTax              Decimal                   @map("total_tax") @db.Decimal(19, 4)
+  totalGross            Decimal                   @map("total_gross") @db.Decimal(19, 4)
   orderedAt             DateTime?                 @map("ordered_at") @db.Timestamptz(6)
   notes                 String?                   @db.VarChar(5000)
   idempotencyKey        String?                   @map("idempotency_key") @db.VarChar(200)
