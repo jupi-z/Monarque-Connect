@@ -2,6 +2,9 @@ export enum SalesDocumentType {
   QUOTE = 'QUOTE',
   SALES_ORDER = 'SALES_ORDER',
   INVOICE = 'INVOICE',
+  SUPPLIER_RFQ = 'SUPPLIER_RFQ',
+  PURCHASE_ORDER = 'PURCHASE_ORDER',
+  GOODS_RECEIPT = 'GOODS_RECEIPT',
 }
 
 export enum TaxMode {

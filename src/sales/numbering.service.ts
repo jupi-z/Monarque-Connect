@@ -5,6 +5,9 @@ const PREFIXES: Record<SalesDocumentType, string> = {
   [SalesDocumentType.QUOTE]: 'Q',
   [SalesDocumentType.SALES_ORDER]: 'SO',
   [SalesDocumentType.INVOICE]: 'INV',
+  [SalesDocumentType.SUPPLIER_RFQ]: 'RFQ',
+  [SalesDocumentType.PURCHASE_ORDER]: 'PO',
+  [SalesDocumentType.GOODS_RECEIPT]: 'GR',
 };
 
 export class NumberingService {
