@@ -2,11 +2,21 @@
 
 ## Décision
 
-La Phase 4 — CRM + Network entry est clôturée à 100 % sur le commit `main`
-`5c27de33a47ae3dbc90bc1d107c39b6b5a4da47b`. Toutes les gates de
+La Phase 4 — CRM + Network entry est clôturée à 100 %. La livraison
+fonctionnelle finale a été intégrée sur le commit `5c27de33a47ae3dbc90bc1d107c39b6b5a4da47b`
+(PR #60, tranche `NetworkInquiry → CRM`). La clôture documentaire a ensuite
+été fusionnée par la PR #61 sur le commit
+`279f4ea7fac9f3f0dc5db98f17ea29844c9bfa77`. La dernière CI de clôture
+observée sur `main` est `Backend CI #189`
+([run 38318234305](https://github.com/jupi-z/Monarque-Connect/actions/runs/38318234305)),
+avec le job `validate` en succès.
+
+Toutes les gates de
 [`64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`](64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md)
 sont couvertes par du code livré, des migrations, des tests et des preuves
-GitHub observables.
+GitHub observables. Les deux SHA ci-dessus sont des repères de provenance,
+pas une promesse d'immuabilité du HEAD : toute correction documentaire
+ultérieure créera nécessairement un nouveau commit.
 
 ## Périmètre livré
 
@@ -30,6 +40,9 @@ GitHub observables.
 - [x] contrats OpenAPI détaillés et contrats d'événements valides ;
 - [x] tests HTTP PostgreSQL et E2E présents dans la suite ;
 - [x] CI GitHub verte sur chaque PR et sur le commit `main` final ;
+- [x] traçabilité des revues GitHub vérifiée : aucune revue formelle
+      enregistrée n'a été retournée pour les PR #52, #60 et #61 ; aucune
+      approbation GitHub formelle n'est donc revendiquée ;
 - [x] documentation de phase synchronisée ;
 - [x] branches de livraison supprimées après fusion.
 
@@ -58,10 +71,32 @@ Sur les runs #182, #183, #186 et #187, le job unique `validate` est `success`
 et ses étapes obligatoires — lint, typecheck, Prisma, preuves de migrations,
 OpenAPI, contrats, tests, build et smoke HTTP — sont toutes `success`.
 
-Le checkout local final est `main`, propre et synchronisé avec `origin/main`
-sur `5c27de33a47ae3dbc90bc1d107c39b6b5a4da47b`. Les références distantes ne
-contiennent que `origin/main`; toutes les branches de livraison ont été
+## Audit de traçabilité du 13 octobre 2026
+
+Avant cette correction documentaire, le checkout local était `main`, propre
+et synchronisé avec `origin/main` sur le commit de clôture documentaire
+`279f4ea7fac9f3f0dc5db98f17ea29844c9bfa77`. Les références distantes ne
+contenaient que `origin/main`; toutes les branches de livraison avaient été
 supprimées après leurs fusions squash.
+
+La consultation GitHub des revues formelles des PR #52, #60 et #61 a retourné
+une liste vide pour chacune. Les contrôles effectivement démontrés sont donc
+la CI, les vérifications techniques et la fusion squash ; ce document ne
+présente pas ces contrôles comme une approbation formelle de reviewer.
+
+La protection server-side de `main` reste indisponible et suivie dans
+l'[issue #6](https://github.com/jupi-z/Monarque-Connect/issues/6). La
+politique compensatoire reste obligatoire : branche dédiée, PR, CI verte,
+fusion contrôlée et suppression de la branche.
+
+Les deux scripts de preuve de migration ont été relancés depuis le chemin
+Windows du checkout (`D:\Mes Projets\Projets Web\Monarque-Connect`). Ils n'ont
+pas atteint l'étape de migration pendant cet audit, car l'API Docker locale
+était indisponible (`ECONNREFUSED` sur `localhost:5432` et daemon Docker
+injoignable). Cette tentative ne démontre ni une régression du script ni sa
+correction ; aucune issue Windows supplémentaire n'est ouverte sur cette seule
+base. Une relance avec Docker/PostgreSQL joignable reste requise avant de
+requalifier cette réserve.
 
 ## Suite
 
