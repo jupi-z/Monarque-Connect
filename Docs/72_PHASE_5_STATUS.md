@@ -12,15 +12,20 @@ La spécification normative est
 le plan séquencé est
 [`2026-10-13-phase-5-sales-plan.md`](superpowers/plans/2026-10-13-phase-5-sales-plan.md).
 
-Le socle contractuel, le modèle PostgreSQL Sales et le premier agrégat Quote
-sont maintenant livrés. Cette progression ne constitue pas une clôture de la
-phase : les commandes de conversion, Sales Orders, Invoices, PaymentRecords,
-les preuves cross-phase et les gates finaux restent obligatoires.
+Le socle contractuel, le modèle PostgreSQL Sales, l’agrégat Quote et
+l’agrégat SalesOrder sont maintenant livrés. La PR
+[#69](https://github.com/jupi-z/Monarque-Connect/pull/69) a été squash-mergée
+sur `main` dans `b9ea9cff7c7e23419fabe392061544f5e55d41c2`, après la CI
+[Backend CI #202](https://github.com/jupi-z/Monarque-Connect/actions/runs/38401144958)
+conclue avec succès. Cette progression ne constitue pas une clôture de la
+phase : Invoices, PaymentRecords, la conversion Order → Invoice, les preuves
+cross-phase et les gates finaux restent obligatoires.
 
 ## Périmètre
 
 - [x] Quotes — création, lecture, édition DRAFT et transitions livrées ;
-- [ ] Sales Orders ;
+- [x] Sales Orders — création directe, lecture, édition DRAFT, confirmation,
+  annulation et conversion idempotente depuis un Quote ACCEPTED ;
 - [ ] Invoices ;
 - [ ] PaymentRecords ;
 - [ ] conversions idempotentes Quote → Order → Invoice ;
