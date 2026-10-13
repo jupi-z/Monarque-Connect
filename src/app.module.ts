@@ -12,6 +12,7 @@ import { EntitlementsModule } from './entitlements/entitlements.module.js';
 import { ReferentialsModule } from './referentials/referentials.module.js';
 import { CrmModule } from './crm/crm.module.js';
 import { NetworkModule } from './network/network.module.js';
+import { SalesModule } from './sales/sales.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { NetworkModule } from './network/network.module.js';
     ReferentialsModule,
     CrmModule,
     NetworkModule,
+    SalesModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,
