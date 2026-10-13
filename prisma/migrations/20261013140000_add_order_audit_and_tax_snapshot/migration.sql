@@ -1,0 +1,6 @@
+ALTER TYPE "AuditAction" ADD VALUE 'ORDER_CREATED';
+ALTER TYPE "AuditAction" ADD VALUE 'ORDER_UPDATED';
+ALTER TYPE "AuditAction" ADD VALUE 'ORDER_STATUS_CHANGED';
+
+ALTER TABLE "sales_order_lines"
+  ADD COLUMN "tax_code_snapshot" VARCHAR(80);

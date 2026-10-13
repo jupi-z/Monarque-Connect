@@ -4,11 +4,12 @@ import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import { CreateQuoteDto, OrganizationQuoteParams, QuoteListQuery, QuoteParams, UpdateQuoteDto } from './quote.dto.js';
 import { QuoteService } from './quote.service.js';
+import { OrderService } from './order.service.js';
 
 @Controller('organizations/:organizationId/quotes')
 @UseGuards(AuthGuard)
 export class QuoteController {
-  constructor(private readonly quotes: QuoteService) {}
+  constructor(private readonly quotes: QuoteService, private readonly orders: OrderService) {}
 
   @Get()
   async list(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: OrganizationQuoteParams, @Query() query: QuoteListQuery): Promise<unknown> { return this.quotes.list(principal, params.organizationId, query); }
@@ -37,4 +38,7 @@ export class QuoteController {
   @Post(':quoteId/cancel')
   @HttpCode(200)
   async cancel(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: QuoteParams, @Headers('idempotency-key') idempotencyKey: string | undefined): Promise<unknown> { return this.quotes.transition(principal, params.organizationId, params.quoteId, 'CANCELLED', idempotencyKey); }
+
+  @Post(':quoteId/convert-to-order')
+  async convertToOrder(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: QuoteParams, @Headers('idempotency-key') idempotencyKey: string | undefined): Promise<unknown> { return this.orders.convertFromQuote(principal, params.organizationId, params.quoteId, idempotencyKey); }
 }
