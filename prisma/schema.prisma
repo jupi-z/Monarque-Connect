@@ -228,6 +228,48 @@ enum OpportunityStatus {
   CANCELLED
 }
 
+enum SalesDocumentType {
+  QUOTE
+  SALES_ORDER
+  INVOICE
+}
+
+enum TaxMode {
+  EXCLUSIVE
+  INCLUSIVE
+  EXEMPT
+  NOT_APPLICABLE
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+  FULFILLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+enum PaymentRecordStatus {
+  RECORDED
+  REVERSED
+}
+
 model OutboxEvent {
   id                 String                  @id @db.Uuid
   eventType          String                  @map("event_type") @db.VarChar(160)
@@ -458,6 +500,11 @@ model Organization {
   connectionRequestsReceived ConnectionRequest[] @relation("ConnectionRequestsReceived")
   networkInquiriesSent       NetworkInquiry[] @relation("NetworkInquiriesSent")
   networkInquiriesReceived   NetworkInquiry[] @relation("NetworkInquiriesReceived")
+  salesNumberCounters        SalesNumberCounter[]
+  quotes                     Quote[]
+  salesOrders                SalesOrder[]
+  invoices                   Invoice[]
+  paymentRecords             PaymentRecord[]
 
   @@index([businessTypeCode])
   @@index([status])
@@ -650,6 +697,10 @@ model Establishment {
   invitationScopeLinks InvitationEstablishmentScope[]
   warehouses           Warehouse[]
   opportunities         Opportunity[]
+  quotes               Quote[]
+  salesOrders          SalesOrder[]
+  invoices             Invoice[]
+  paymentRecords       PaymentRecord[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -671,7 +722,11 @@ model BusinessParty {
   createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  quotes               Quote[]
+  salesOrders          SalesOrder[]
+  invoices             Invoice[]
 
+  @@unique([id, organizationId])
   @@index([organizationId, active, displayName])
   @@index([organizationId, type, active])
   @@map("business_parties")
@@ -760,7 +815,11 @@ model Item {
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  quoteLines      QuoteLine[]
+  salesOrderLines SalesOrderLine[]
+  invoiceLines    InvoiceLine[]
 
+  @@unique([id, organizationId])
   @@index([organizationId, active, name])
   @@index([organizationId, type, active])
   @@map("items")
@@ -866,4 +925,216 @@ model AuditEvent {
   @@index([organizationId, occurredAt])
   @@index([actorUserId, occurredAt])
   @@map("audit_events")
+}
+
+model SalesNumberCounter {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  documentType   SalesDocumentType @map("document_type")
+  year           Int
+  lastValue      Int               @default(0) @map("last_value")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, documentType, year])
+  @@index([organizationId, documentType, year])
+  @@map("sales_number_counters")
+}
+
+model Quote {
+  id              String         @id @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  establishmentId String         @map("establishment_id") @db.Uuid
+  number          String         @unique @db.VarChar(32)
+  status          QuoteStatus    @default(DRAFT)
+  partyId         String?        @map("party_id") @db.Uuid
+  currency        String         @db.Char(3)
+  validUntil      DateTime?      @map("valid_until") @db.Date
+  totalNet        Decimal        @map("total_net") @db.Decimal(19, 4)
+  totalTax        Decimal        @map("total_tax") @db.Decimal(19, 4)
+  totalGross      Decimal        @map("total_gross") @db.Decimal(19, 4)
+  idempotencyKey  String?        @map("idempotency_key") @db.VarChar(200)
+  createdByUserId String?        @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment   Establishment  @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  party           BusinessParty? @relation(fields: [partyId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  lines           QuoteLine[]
+  sourceOrders    SalesOrder[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@index([organizationId, partyId, createdAt])
+  @@map("quotes")
+}
+
+model QuoteLine {
+  id                  String  @id @db.Uuid
+  organizationId      String  @map("organization_id") @db.Uuid
+  quoteId             String  @map("quote_id") @db.Uuid
+  lineIndex           Int     @map("line_index")
+  itemId              String? @map("item_id") @db.Uuid
+  itemNameSnapshot    String  @map("item_name_snapshot") @db.VarChar(160)
+  itemSkuSnapshot     String? @map("item_sku_snapshot") @db.VarChar(80)
+  descriptionSnapshot String? @map("description_snapshot") @db.VarChar(2000)
+  unitSnapshot        String  @map("unit_snapshot") @db.VarChar(32)
+  quantity            Decimal @db.Decimal(19, 6)
+  unitPrice           Decimal @map("unit_price") @db.Decimal(19, 4)
+  discountAmount      Decimal @map("discount_amount") @db.Decimal(19, 4)
+  taxMode             TaxMode @map("tax_mode")
+  taxRate             Decimal @map("tax_rate") @db.Decimal(9, 4)
+  netAmount           Decimal @map("net_amount") @db.Decimal(19, 4)
+  taxAmount           Decimal @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount         Decimal @map("gross_amount") @db.Decimal(19, 4)
+  quote               Quote   @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  item                Item?   @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([quoteId, lineIndex])
+  @@index([organizationId, itemId])
+  @@map("quote_lines")
+}
+
+model SalesOrder {
+  id              String           @id @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  establishmentId String           @map("establishment_id") @db.Uuid
+  number          String           @unique @db.VarChar(32)
+  status          SalesOrderStatus @default(DRAFT)
+  partyId         String?          @map("party_id") @db.Uuid
+  sourceQuoteId   String?          @unique @map("source_quote_id") @db.Uuid
+  currency        String           @db.Char(3)
+  totalNet        Decimal          @map("total_net") @db.Decimal(19, 4)
+  totalTax        Decimal          @map("total_tax") @db.Decimal(19, 4)
+  totalGross      Decimal          @map("total_gross") @db.Decimal(19, 4)
+  idempotencyKey  String?          @map("idempotency_key") @db.VarChar(200)
+  createdByUserId String?          @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment   Establishment    @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  party           BusinessParty?   @relation(fields: [partyId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sourceQuote     Quote?           @relation(fields: [sourceQuoteId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  lines           SalesOrderLine[]
+  invoices        Invoice[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@index([organizationId, partyId, createdAt])
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id                  String     @id @db.Uuid
+  organizationId      String     @map("organization_id") @db.Uuid
+  salesOrderId        String     @map("sales_order_id") @db.Uuid
+  lineIndex           Int        @map("line_index")
+  itemId              String?    @map("item_id") @db.Uuid
+  itemNameSnapshot    String     @map("item_name_snapshot") @db.VarChar(160)
+  itemSkuSnapshot     String?    @map("item_sku_snapshot") @db.VarChar(80)
+  descriptionSnapshot String?    @map("description_snapshot") @db.VarChar(2000)
+  unitSnapshot        String     @map("unit_snapshot") @db.VarChar(32)
+  quantity            Decimal    @db.Decimal(19, 6)
+  unitPrice           Decimal    @map("unit_price") @db.Decimal(19, 4)
+  discountAmount      Decimal    @map("discount_amount") @db.Decimal(19, 4)
+  taxMode             TaxMode    @map("tax_mode")
+  taxRate             Decimal    @map("tax_rate") @db.Decimal(9, 4)
+  netAmount           Decimal    @map("net_amount") @db.Decimal(19, 4)
+  taxAmount           Decimal    @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount         Decimal    @map("gross_amount") @db.Decimal(19, 4)
+  salesOrder          SalesOrder @relation(fields: [salesOrderId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  item                Item?      @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([salesOrderId, lineIndex])
+  @@index([organizationId, itemId])
+  @@map("sales_order_lines")
+}
+
+model Invoice {
+  id              String          @id @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  establishmentId String          @map("establishment_id") @db.Uuid
+  number          String          @unique @db.VarChar(32)
+  status          InvoiceStatus   @default(DRAFT)
+  partyId         String?         @map("party_id") @db.Uuid
+  sourceOrderId   String?         @unique @map("source_order_id") @db.Uuid
+  currency        String          @db.Char(3)
+  issuedAt        DateTime?       @map("issued_at") @db.Timestamptz(6)
+  dueAt           DateTime?       @map("due_at") @db.Date
+  totalNet        Decimal         @map("total_net") @db.Decimal(19, 4)
+  totalTax        Decimal         @map("total_tax") @db.Decimal(19, 4)
+  totalGross      Decimal         @map("total_gross") @db.Decimal(19, 4)
+  idempotencyKey  String?         @map("idempotency_key") @db.VarChar(200)
+  createdByUserId String?         @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment   Establishment   @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  party           BusinessParty?  @relation(fields: [partyId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sourceOrder     SalesOrder?     @relation(fields: [sourceOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  lines           InvoiceLine[]
+  payments        PaymentRecord[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@index([organizationId, partyId, createdAt])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id                  String  @id @db.Uuid
+  organizationId      String  @map("organization_id") @db.Uuid
+  invoiceId           String  @map("invoice_id") @db.Uuid
+  lineIndex           Int     @map("line_index")
+  itemId              String? @map("item_id") @db.Uuid
+  itemNameSnapshot    String  @map("item_name_snapshot") @db.VarChar(160)
+  itemSkuSnapshot     String? @map("item_sku_snapshot") @db.VarChar(80)
+  descriptionSnapshot String? @map("description_snapshot") @db.VarChar(2000)
+  unitSnapshot        String  @map("unit_snapshot") @db.VarChar(32)
+  quantity            Decimal @db.Decimal(19, 6)
+  unitPrice           Decimal @map("unit_price") @db.Decimal(19, 4)
+  discountAmount      Decimal @map("discount_amount") @db.Decimal(19, 4)
+  taxMode             TaxMode @map("tax_mode")
+  taxRate             Decimal @map("tax_rate") @db.Decimal(9, 4)
+  netAmount           Decimal @map("net_amount") @db.Decimal(19, 4)
+  taxAmount           Decimal @map("tax_amount") @db.Decimal(19, 4)
+  grossAmount         Decimal @map("gross_amount") @db.Decimal(19, 4)
+  invoice             Invoice @relation(fields: [invoiceId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  item                Item?   @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([invoiceId, lineIndex])
+  @@index([organizationId, itemId])
+  @@map("invoice_lines")
+}
+
+model PaymentRecord {
+  id               String              @id @db.Uuid
+  organizationId   String              @map("organization_id") @db.Uuid
+  establishmentId  String              @map("establishment_id") @db.Uuid
+  invoiceId        String              @map("invoice_id") @db.Uuid
+  amount           Decimal             @db.Decimal(19, 4)
+  currency         String              @db.Char(3)
+  methodCode       String              @map("method_code") @db.VarChar(40)
+  reference        String?             @db.VarChar(160)
+  status           PaymentRecordStatus @default(RECORDED)
+  reversalOfId     String?             @map("reversal_of_id") @db.Uuid
+  idempotencyKey   String?             @map("idempotency_key") @db.VarChar(200)
+  recordedAt       DateTime            @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  reversedAt       DateTime?           @map("reversed_at") @db.Timestamptz(6)
+  recordedByUserId String?             @map("recorded_by_user_id") @db.Uuid
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment    Establishment       @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  invoice          Invoice             @relation(fields: [invoiceId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  reversalOf       PaymentRecord?      @relation("PaymentReversal", fields: [reversalOfId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  reversals        PaymentRecord[]     @relation("PaymentReversal")
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, invoiceId, recordedAt, id])
+  @@index([organizationId, status])
+  @@map("payment_records")
 }
