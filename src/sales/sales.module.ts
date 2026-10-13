@@ -7,10 +7,12 @@ import { QuoteController } from './quote.controller.js';
 import { QuoteService } from './quote.service.js';
 import { OrderController } from './order.controller.js';
 import { OrderService } from './order.service.js';
+import { InvoiceController } from './invoice.controller.js';
+import { InvoiceService } from './invoice.service.js';
 
 @Module({
   imports: [AuthModule, EventModule, EntitlementsModule, TenancyModule],
-  controllers: [QuoteController, OrderController],
-  providers: [QuoteService, OrderService],
+  controllers: [QuoteController, OrderController, InvoiceController],
+  providers: [QuoteService, OrderService, InvoiceService],
 })
 export class SalesModule {}
