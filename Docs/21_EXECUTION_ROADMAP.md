@@ -55,13 +55,18 @@ l'objet d'une nouvelle spécification ou d'un correctif explicitement tracé.
 ## Phase 5 — Sales
 Quotes → Sales Orders → Invoices → PaymentRecords.
 
-**État :** ouverte en exécution incrémentale. La spécification
-normative est `71_PHASE5_SALES_EXECUTION_SPEC.md`, le statut est
+**État :** terminée et clôturée techniquement à 100 % le 13/10/2026. La
+spécification normative est `71_PHASE5_SALES_EXECUTION_SPEC.md`, le statut est
 `72_PHASE_5_STATUS.md`, le plan est
-`superpowers/plans/2026-10-13-phase-5-sales-plan.md` et le suivi GitHub est
-l'issue #63. Les Quotes et Sales Orders sont livrés par les PR #67, #68 et #69,
-avec leurs migrations, contrats et preuves CI. Les Invoices, PaymentRecords et
-la clôture complète de la phase restent à réaliser.
+`superpowers/plans/2026-10-13-phase-5-sales-plan.md` et la preuve consolidée
+est `73_PHASE_5_CLOSURE_EVIDENCE.md`. Les PR #67 à #73 ont livré et validé les
+Quotes, Sales Orders, Invoices, PaymentRecords, les conversions idempotentes,
+les contrôles d'isolation et les preuves de migrations. Le commit de clôture
+de la livraison finale est
+`921d329a7c19e64b5f054a49c1d9c6fee7b8d2ba`; les CI PR #210 et post-merge
+Backend CI #211 sont vertes. Le suivi GitHub est l'issue #63, à synchroniser
+avec cette clôture. La Phase 6 pourra être ouverte séparément après cette
+synchronisation administrative.
 
 ## Phase 6 — Purchases
 Supplier RFQ → Purchase Order → Goods Receipt.
