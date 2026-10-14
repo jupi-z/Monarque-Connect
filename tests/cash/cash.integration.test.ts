@@ -43,13 +43,13 @@ describe('Phase 7 Cash ledger', () => {
     await seedReferenceData(prisma);
 
     const businessType = await prisma.businessType.findFirstOrThrow({ select: { code: true } });
-    const operations = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } }, include: { modules: true } });
+    const business = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, include: { modules: true } });
     organizationId = randomUUID();
     establishmentId = randomUUID();
     secondEstablishmentId = randomUUID();
     await prisma.organization.create({ data: { id: organizationId, businessTypeCode: businessType.code, name: 'Cash tenant', handle: `cash-${Date.now()}`, defaultCurrency: 'EUR' } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: operations.id, status: 'ACTIVE', startsAt: new Date() } });
-    await prisma.organizationModuleActivation.createMany({ data: operations.modules.map((module) => ({ id: randomUUID(), organizationId, moduleCode: module.moduleCode, enabled: true })) });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.organizationModuleActivation.createMany({ data: business.modules.map((module) => ({ id: randomUUID(), organizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.createMany({ data: [
       { id: establishmentId, organizationId, code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' },
       { id: secondEstablishmentId, organizationId, code: 'SECOND', name: 'Second', type: 'OFFICE' },
@@ -65,8 +65,8 @@ describe('Phase 7 Cash ledger', () => {
 
     otherOrganizationId = randomUUID();
     await prisma.organization.create({ data: { id: otherOrganizationId, businessTypeCode: businessType.code, name: 'Other cash tenant', handle: `cash-other-${Date.now()}`, defaultCurrency: 'EUR' } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, planVersionId: operations.id, status: 'ACTIVE', startsAt: new Date() } });
-    await prisma.organizationModuleActivation.createMany({ data: operations.modules.map((module) => ({ id: randomUUID(), organizationId: otherOrganizationId, moduleCode: module.moduleCode, enabled: true })) });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.organizationModuleActivation.createMany({ data: business.modules.map((module) => ({ id: randomUUID(), organizationId: otherOrganizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, code: 'OTHER', name: 'Other', type: 'HEAD_OFFICE' } });
 
     const account = await accounts.create(actor, organizationId, { establishmentId, code: 'MAIN-CASH', name: 'Main cash', currency: 'EUR' }, 'cash-account-main');
