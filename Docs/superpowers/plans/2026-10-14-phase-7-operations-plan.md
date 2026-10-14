@@ -48,12 +48,12 @@
 
 **Interfaces:** Consumes Task 1 contracts, `Prisma.TransactionClient`, existing Outbox, audit and idempotency primitives. Produces `InventoryMovementService.create`, `InventoryBalanceService.list`, `InventoryTransferService.create` and a reconstructible balance query.
 
-- [ ] Write failing PostgreSQL tests for tenant-qualified rows, append-only constraints, positive/negative movements and balance reconstruction.
-- [ ] Add the ledger, balance projection and indexes with additive tenant-qualified foreign keys and source uniqueness.
-- [ ] Implement the transactional command that locks `(organization, warehouse, item)`, checks availability and writes movement + projection + audit + Outbox.
-- [ ] Add transfer as two linked movements with deterministic warehouse lock ordering.
-- [ ] Run focused integration tests, Prisma validate, migration proof and typecheck.
-- [ ] Commit `feat(inventory): add authoritative stock ledger`.
+- [x] Write failing PostgreSQL tests for tenant-qualified rows, append-only constraints, positive/negative movements and balance reconstruction.
+- [x] Add the ledger, balance projection and indexes with additive tenant-qualified foreign keys and source uniqueness.
+- [x] Implement the transactional command that locks `(organization, warehouse, item)`, checks availability and writes movement + projection + audit + Outbox.
+- [x] Add transfer as two linked movements with deterministic warehouse lock ordering.
+- [x] Run focused integration tests, Prisma validate, migration proof and typecheck.
+- [x] Commit `feat(inventory): add authoritative stock ledger`.
 
 ### Task 3: GoodsReceipt integration and historical import
 
