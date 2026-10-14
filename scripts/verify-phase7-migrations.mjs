@@ -70,7 +70,7 @@ async function structuralProof(databaseUrl) {
       JOIN pg_namespace AS namespace ON namespace.oid = table_class.relnamespace
       CROSS JOIN LATERAL unnest(index_meta.indkey) WITH ORDINALITY AS index_column(attnum, ordinality)
       JOIN pg_attribute AS attribute ON attribute.attrelid = table_class.oid AND attribute.attnum = index_column.attnum
-      WHERE namespace.nspname = 'public' AND table_class.relname IN ('cash_accounts', 'cash_movements', 'cash_movement_idempotency_keys')
+      WHERE namespace.nspname = 'public' AND table_class.relname IN ('cash_accounts', 'cash_movements', 'cash_movement_idempotency_keys', 'expense_idempotency_keys')
       GROUP BY table_class.relname, index_class.relname, index_meta.indisunique`);
     const indexDefinitions = cashIndexes.rows.map((row) => ({
       tableName: row.table_name,
@@ -83,7 +83,7 @@ async function structuralProof(databaseUrl) {
       ['cash movement idempotency uniqueness', 'cash_movement_idempotency_keys', ['organization_id', 'actor_user_id', 'operation', 'key']],
       ['expense idempotency uniqueness', 'expense_idempotency_keys', ['organization_id', 'actor_user_id', 'operation', 'key']],
     ];
-    for (const [label, tableName, columns] of requiredIndexes) if (!indexDefinitions.some((definition) => definition.tableName === tableName && definition.isUnique && definition.columns.join(',') === columns.join(','))) throw new Error(`Phase 7 structural proof missing Cash index: ${label}`);
+    for (const [label, tableName, columns] of requiredIndexes) if (!indexDefinitions.some((definition) => definition.tableName === tableName && definition.isUnique && definition.columns.join(',') === columns.join(','))) throw new Error(`Phase 7 structural proof missing index: ${label}`);
     const forbidden = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'stock_balances')`);
     if (forbidden.rowCount) throw new Error(`Phase 7 created forbidden legacy stock tables: ${forbidden.rows.map((row) => row.table_name).join(', ')}`);
   } finally { await pool.end(); }
