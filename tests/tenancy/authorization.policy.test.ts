@@ -19,7 +19,7 @@ describe('tenant authorization policy', () => {
   });
 
   it('applies the Phase 3 role matrix to parties, catalog and inventory', () => {
-    for (const role of ['OWNER', 'ADMIN', 'SALES', 'FINANCE', 'OPERATIONS', 'VIEWER'] as const) {
+    for (const role of ['OWNER', 'ADMIN', 'FINANCE', 'OPERATIONS', 'VIEWER'] as const) {
       expect(rolePermissions[role]).toEqual(expect.arrayContaining(['parties:read', 'catalog:read', 'inventory:read']));
     }
 
@@ -89,5 +89,28 @@ describe('tenant authorization policy', () => {
     ] as const) {
       expect(rolePermissions.FINANCE).not.toContain(permission);
     }
+  });
+
+  it('applies the Phase 7 Operations role matrix to Inventory, Expenses and Cash', () => {
+    for (const role of ['OWNER', 'ADMIN', 'FINANCE', 'OPERATIONS', 'VIEWER'] as const) {
+      expect(rolePermissions[role]).toContain('inventory:read');
+      expect(rolePermissions[role]).toContain('expenses:read');
+      expect(rolePermissions[role]).toContain('cash:read');
+    }
+
+    for (const role of ['OWNER', 'ADMIN', 'OPERATIONS'] as const) {
+      expect(rolePermissions[role]).toContain('inventory:write');
+    }
+    for (const role of ['OWNER', 'ADMIN', 'FINANCE', 'OPERATIONS'] as const) {
+      expect(rolePermissions[role]).toContain('expenses:write');
+    }
+    for (const role of ['OWNER', 'ADMIN', 'FINANCE'] as const) {
+      expect(rolePermissions[role]).toContain('cash:write');
+    }
+
+    expect(rolePermissions.SALES).not.toEqual(expect.arrayContaining(['inventory:read', 'expenses:read', 'cash:read']));
+    expect(rolePermissions.FINANCE).not.toContain('inventory:write');
+    expect(rolePermissions.OPERATIONS).not.toContain('cash:write');
+    expect(rolePermissions.VIEWER).not.toEqual(expect.arrayContaining(['inventory:write', 'expenses:write', 'cash:write']));
   });
 });

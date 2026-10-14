@@ -43,9 +43,12 @@ Les rôles plateforme sont séparés des memberships tenant.
 | Invoices | ✓ | ✓ | read | ✓ | read | read |
 | Payments | ✓ | ✓ | read | ✓ | – | read |
 | Purchases/RFQ | ✓ | ✓ | read | read | ✓ | read |
-| Expenses | ✓ | ✓ | – | ✓ | ✓ | read |
-| Cash movements | ✓ | ✓ | – | ✓ | scoped | read |
-| Inventory write | ✓ | ✓ | – | read | ✓ | read |
+| Inventory read (`inventory:read`) | ✓ | ✓ | – | ✓ | ✓ | ✓ |
+| Inventory write (`inventory:write`) | ✓ | ✓ | – | – | ✓ | – |
+| Expenses read (`expenses:read`) | ✓ | ✓ | – | ✓ | ✓ | ✓ |
+| Expenses write (`expenses:write`) | ✓ | ✓ | – | ✓ | ✓ | – |
+| Cash read (`cash:read`) | ✓ | ✓ | – | ✓ | ✓ | ✓ |
+| Cash write (`cash:write`) | ✓ | ✓ | – | ✓ | – | – |
 | Projects write | ✓ | ✓ | ✓ | read | ✓ | read |
 | Network connection/inquiry | ✓ | ✓ | ✓ | – | ✓ | read |
 | Network discovery read (`network:discovery:read`) | ✓ | ✓ | ✓ | – | ✓ | ✓ |
