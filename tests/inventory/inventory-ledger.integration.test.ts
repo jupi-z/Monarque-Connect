@@ -10,6 +10,7 @@ import { PrismaService } from '../../src/database/prisma.service.js';
 import { InventoryMovementService } from '../../src/inventory/inventory-movement.service.js';
 import { InventoryTransferService } from '../../src/inventory/inventory-transfer.service.js';
 import { InventoryBalanceService } from '../../src/inventory/inventory-balance.service.js';
+import { InventoryReconciliationService } from '../../src/inventory/inventory-reconciliation.service.js';
 import { seedReferenceData } from '../../prisma/seed.js';
 
 describe('Phase 7 authoritative Inventory ledger', () => {
@@ -22,7 +23,9 @@ describe('Phase 7 authoritative Inventory ledger', () => {
   let itemId: string;
   let transfers: InventoryTransferService;
   let balances: InventoryBalanceService;
+  let reconciliations: InventoryReconciliationService;
   const actor = { userId: randomUUID(), sessionId: randomUUID() };
+  const restrictedActor = { userId: randomUUID(), sessionId: randomUUID() };
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await promisify(generateKeyPair)('rsa', { modulusLength: 2048 });
@@ -38,6 +41,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     movements = moduleRef.get(InventoryMovementService);
     transfers = moduleRef.get(InventoryTransferService);
     balances = moduleRef.get(InventoryBalanceService);
+    reconciliations = moduleRef.get(InventoryReconciliationService);
 
     await seedReferenceData(prisma);
 
@@ -64,6 +68,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     if (!prisma) return;
     await prisma.organization.deleteMany({ where: { id: organizationId } });
     await prisma.user.deleteMany({ where: { id: actor.userId } });
+    await prisma.user.deleteMany({ where: { id: restrictedActor.userId } });
     await prisma.$disconnect();
   });
 
@@ -96,6 +101,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
       reason: 'Opening balance',
     }, 'inventory-opening-1');
     expect(replay).toMatchObject({ quantityDelta: '5.000000' });
+    await expect(movements.create(actor, organizationId, { establishmentId, warehouseId, itemId, movementType: 'RECEIPT_IN', sourceType: 'MANUAL', quantity: '6', reason: 'Opening balance' }, 'inventory-opening-1')).rejects.toThrow(/different inventory movement payload/i);
     await expect(movements.create(actor, organizationId, { establishmentId, warehouseId, itemId, movementType: 'SALE_OUT', sourceType: 'SALE', quantity: '6' }, 'inventory-sale-too-large')).rejects.toThrow('Insufficient inventory');
     await expect(prisma.inventoryMovement.count({ where: { organizationId, warehouseId, itemId } })).resolves.toBe(1);
   });
@@ -127,6 +133,11 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     await expect(movements.create(actor, organizationId, input, 'inventory-source-2')).rejects.toThrow();
   });
 
+  it('rejects unilateral transfer movements from the generic movement command', async () => {
+    await expect(movements.create(actor, organizationId, { establishmentId, warehouseId, itemId, movementType: 'TRANSFER_OUT', sourceType: 'TRANSFER', quantity: '1' }, 'inventory-unilateral-transfer')).rejects.toThrow(/atomically through the transfer endpoint/i);
+    await expect(prisma.inventoryMovement.count({ where: { organizationId, idempotencyKey: 'inventory-unilateral-transfer' } })).resolves.toBe(0);
+  });
+
   it('moves stock atomically with two linked append-only movements and idempotent replay', async () => {
     const result = await transfers.create(actor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1');
     expect(result).toMatchObject({ outgoing: { warehouseId, quantityDelta: '-1.000000' }, incoming: { warehouseId: destinationWarehouseId, quantityDelta: '1.000000' } });
@@ -138,6 +149,20 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     await expect(balances.reconstruct(actor, organizationId, establishmentId, warehouseId, itemId)).resolves.toMatchObject({ items: [{ warehouseId, itemId, quantity: '3.000000' }] });
     await expect(balances.reconstruct(actor, organizationId, establishmentId, destinationWarehouseId, itemId)).resolves.toMatchObject({ items: [{ warehouseId: destinationWarehouseId, itemId, quantity: '1.000000' }] });
     await expect(transfers.create(actor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1')).resolves.toEqual(result);
+    await expect(transfers.create(actor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '2', reason: 'Rebalancing' }, 'inventory-transfer-1')).rejects.toThrow(/different inventory transfer payload/i);
+    await expect(transfers.create(actor, organizationId, { fromWarehouseId: destinationWarehouseId, toWarehouseId: warehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1')).rejects.toThrow(/different inventory transfer payload/i);
+    const reconciliation = await reconciliations.reconcile(actor, organizationId, { establishmentId, warehouseId, itemId, observedQuantity: '3' }, 'inventory-reconciliation-1');
+    expect(reconciliation).toMatchObject({ organizationId, establishmentId, warehouseId, itemId, ledgerQuantity: '3.000000', observedQuantity: '3.000000', delta: '0.000000', matched: true });
+    await expect(reconciliations.reconcile(actor, organizationId, { establishmentId, warehouseId, itemId, observedQuantity: '3' }, 'inventory-reconciliation-1')).resolves.toEqual(reconciliation);
+    await expect(reconciliations.reconcile(actor, organizationId, { establishmentId, warehouseId, itemId, observedQuantity: '4' }, 'inventory-reconciliation-1')).rejects.toThrow(/different inventory reconciliation payload/i);
+
+    const restrictedEstablishmentId = randomUUID();
+    const restrictedMembershipId = randomUUID();
+    const restrictedEmail = `inventory-replay-${restrictedActor.userId}@example.com`;
+    await prisma.establishment.create({ data: { id: restrictedEstablishmentId, organizationId, code: 'REPLAY-SCOPE', name: 'Replay scope', type: 'BRANCH' } });
+    await prisma.user.create({ data: { id: restrictedActor.userId, email: restrictedEmail, normalizedEmail: restrictedEmail, passwordHash: 'not-used', firstName: 'Restricted', lastName: 'Replay' } });
+    await prisma.membership.create({ data: { id: restrictedMembershipId, organizationId, userId: restrictedActor.userId, role: 'OPERATIONS', scopeMode: 'SELECTED_ESTABLISHMENTS', scopeLinks: { create: [{ establishmentId: restrictedEstablishmentId }] } } });
+    await expect(transfers.create(restrictedActor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1')).rejects.toThrow(/establishment|access/i);
   });
 
   it('does not allow application updates or deletes on the append-only movement ledger', async () => {

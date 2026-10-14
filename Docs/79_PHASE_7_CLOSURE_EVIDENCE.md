@@ -1,5 +1,12 @@
 # 79 — Phase 7 Operations — Preuve de clôture
 
+> **Addendum d'audit — 14 octobre 2026.** La décision historique ci-dessous
+> est conservée comme preuve de la livraison initiale, mais la clôture
+> fonctionnelle n'est plus considérée valide tant que la stabilisation
+> Inventory HTTP n'est pas fusionnée et prouvée. Le suivi courant est décrit
+> dans `Docs/81_PHASE_7_INVENTORY_HTTP_HARDENING.md` et l'issue #84 a été
+> rouverte.
+
 ## Décision
 
 La Phase 7 — Operations est clôturée à 100 % sur la base technique

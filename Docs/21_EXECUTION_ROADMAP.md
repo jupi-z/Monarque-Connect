@@ -71,7 +71,8 @@ avec la CI post-merge Backend #213 verte.
 ## Phase 6 — Purchases
 Supplier RFQ → Purchase Order → Goods Receipt.
 
-**État :** terminée et clôturée à 100 %. La baseline d'ouverture était
+**État :** livraison fonctionnelle réalisée, mais clôture suspendue le 14 octobre
+2026 par l'audit correctif Inventory HTTP. La baseline d'ouverture était
 `main@623fa9e79947e4608f7d2c66d841d053b22684e2`. La livraison et les preuves
 techniques sont intégrées sur
 `main@8902b56ac8ffc265a1bab085bb6c5d1ffd86e860`.
@@ -100,7 +101,8 @@ sont définis dans `77_PHASE7_OPERATIONS_EXECUTION_SPEC.md`,
 `superpowers/plans/2026-10-14-phase-7-operations-plan.md`.
 Le suivi est l'[issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 La PR #101, la CI PR #272 et la CI post-merge #273 sont vertes.
-La Phase 8 reste fermée.
+La Phase 8 reste fermée jusqu'à la fusion et la preuve post-fusion de la PR
+corrective dédiée.
 
 ## Phase 8 — Projects & documents
 Projects, tasks, document linking, media.

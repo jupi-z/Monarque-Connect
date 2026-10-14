@@ -1,4 +1,5 @@
-import { IsDateString, IsEnum, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import type { InventoryMovementSourceType, InventoryMovementType } from '@prisma/client';
 
 export class CreateInventoryMovementDto {
@@ -11,48 +12,70 @@ export class CreateInventoryMovementDto {
   @IsUUID()
   itemId!: string;
 
-  @IsEnum(['RECEIPT_IN', 'SALE_OUT', 'ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER_IN', 'TRANSFER_OUT'])
-  movementType!: InventoryMovementType;
-
-  @IsEnum(['MANUAL', 'GOODS_RECEIPT', 'SALE', 'TRANSFER', 'HISTORICAL_IMPORT', 'RECONCILIATION'])
-  sourceType!: InventoryMovementSourceType;
+  @IsEnum(['ADJUSTMENT_IN', 'ADJUSTMENT_OUT'])
+  movementType!: 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT';
 
   @Matches(/^\d+(?:\.\d{1,6})?$/)
-  quantity!: string;
+  quantityDelta!: string;
 
-  @IsOptional()
-  @IsUUID()
-  sourceId?: string;
-
-  @IsOptional()
-  @IsUUID()
-  sourceLineId?: string;
-
-  @IsOptional()
   @IsString()
-  @MaxLength(80)
-  sourceRevision?: string;
+  @MinLength(1)
+  @MaxLength(2000)
+  reason!: string;
 
-  @IsOptional()
-  @IsUUID()
-  transferId?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  reason?: string;
-
-  @IsOptional()
   @IsDateString()
-  occurredAt?: string;
+  occurredAt!: string;
 }
 
-export class CreateInventoryTransferDto {
+export type InventoryMovementCommand = {
+  establishmentId: string;
+  warehouseId: string;
+  itemId: string;
+  movementType: InventoryMovementType;
+  sourceType: InventoryMovementSourceType;
+  quantity: string;
+  sourceId?: string;
+  sourceLineId?: string;
+  sourceRevision?: string;
+  transferId?: string;
+  reason?: string;
+  occurredAt?: string;
+};
+
+export class InventoryListQuery {
+  @IsOptional()
   @IsUUID()
-  fromWarehouseId!: string;
+  establishmentId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  warehouseId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  itemId?: string;
+
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => value === undefined ? value : Number(value))
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit = 20;
+}
+
+export class CreateInventoryTransferHttpDto {
+  @IsUUID()
+  establishmentId!: string;
 
   @IsUUID()
-  toWarehouseId!: string;
+  sourceWarehouseId!: string;
+
+  @IsUUID()
+  destinationWarehouseId!: string;
 
   @IsUUID()
   itemId!: string;
@@ -60,12 +83,34 @@ export class CreateInventoryTransferDto {
   @Matches(/^\d+(?:\.\d{1,6})?$/)
   quantity!: string;
 
-  @IsOptional()
   @IsString()
-  @MaxLength(500)
-  reason?: string;
+  @MinLength(1)
+  @MaxLength(2000)
+  reason!: string;
 
-  @IsOptional()
   @IsDateString()
+  occurredAt!: string;
+}
+
+export type InventoryTransferCommand = {
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  itemId: string;
+  quantity: string;
+  reason?: string;
   occurredAt?: string;
+};
+
+export class ReconcileInventoryDto {
+  @IsUUID()
+  establishmentId!: string;
+
+  @IsUUID()
+  warehouseId!: string;
+
+  @IsUUID()
+  itemId!: string;
+
+  @Matches(/^\d+(?:\.\d{1,6})?$/)
+  observedQuantity!: string;
 }

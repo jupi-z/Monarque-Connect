@@ -4052,7 +4052,7 @@ components:
     ReconcileInventoryRequest:
       type: object
       additionalProperties: false
-      required: [establishmentId, warehouseId, itemId]
+      required: [establishmentId, warehouseId, itemId, observedQuantity]
       properties:
         establishmentId: { type: string, format: uuid }
         warehouseId: { type: string, format: uuid }
