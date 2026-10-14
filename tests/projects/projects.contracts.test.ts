@@ -23,7 +23,7 @@ const expectedOperations: Record<string, string> = {
   'PATCH /organizations/{organizationId}/tasks/{taskId}': 'updateProjectTask',
   'POST /organizations/{organizationId}/tasks/{taskId}/transition': 'transitionProjectTask',
   'GET /organizations/{organizationId}/documents': 'listDocuments',
-  'POST /organizations/{organizationId}/documents': 'startDocumentUpload',
+  'POST /organizations/{organizationId}/documents/uploads': 'startDocumentUpload',
   'GET /organizations/{organizationId}/documents/{documentId}': 'getDocument',
   'POST /organizations/{organizationId}/documents/{documentId}/complete': 'completeDocumentUpload',
   'GET /organizations/{organizationId}/documents/{documentId}/content': 'readDocumentContent',

@@ -74,7 +74,7 @@
 - Create: `src/projects/tasks.controller.ts`
 - Create: `src/projects/projects.module.ts`
 - Test: `tests/projects/projects.integration.test.ts`
-- Test: `tests/e2e/phase8-projects.e2e.test.ts`
+- Test: `tests/e2e/phase8-projects-documents.e2e.test.ts`
 
 **Interfaces:**
 - `ProjectService.create(principal, organizationId, input, idempotencyKey): Promise<ProjectView>`
@@ -94,7 +94,6 @@
 - Create: `src/documents/storage-adapter.ts`
 - Create: `src/documents/memory-storage.adapter.ts`
 - Create: `src/documents/document.service.ts`
-- Create: `src/documents/document-link.service.ts`
 - Create: `src/documents/documents.controller.ts`
 - Create: `src/documents/documents.module.ts`
 - Test: `tests/documents/documents.integration.test.ts`
@@ -135,10 +134,25 @@
 - Create: `scripts/verify-phase8-migrations.mjs`
 - Modify: `.github/workflows/backend-ci.yml` si nécessaire
 - Create: `Docs/84_PHASE_8_CLOSURE_EVIDENCE.md` à la clôture uniquement
-- Test: `tests/e2e/phase8-projects.e2e.test.ts`
+- Test: `tests/e2e/phase8-projects-documents.e2e.test.ts`
 
 - [ ] Step 1: Ajouter la preuve base vide et upgrade Phase 7, seed idempotent et absence de fixtures opérationnelles.
 - [ ] Step 2: Ajouter les tests d'isolation tenant/establishment, concurrence, sécurité binaire et audit/Outbox.
 - [ ] Step 3: Exécuter lint, typecheck, Prisma validate, migrations, OpenAPI, contrats, suite PostgreSQL, E2E, build et smoke.
 - [ ] Step 4: Ouvrir une PR dédiée, attendre la CI verte, puis fusionner par squash avec SHA attendu.
 - [ ] Step 5: Vérifier la CI post-fusion, synchroniser statut/roadmap/tracker/issue et supprimer la branche.
+
+## Notes d'exécution
+
+- Les opérations DocumentLink sont volontairement conservées dans
+  `DocumentService` afin que création/retrait du lien, audit et Outbox restent
+  dans la même transaction ; aucun service séparé ne doit dupliquer cette
+  frontière.
+- Le contrôleur expose la route normative
+  `POST /organizations/{organizationId}/documents/uploads`, alignée avec la
+  spécification plutôt qu'avec le chemin initialement gelé par erreur.
+- `scripts/verify-phase8-migrations.mjs` prouve la base vide, l'upgrade depuis
+  la dernière migration Phase 7, le seed idempotent et les contraintes Phase 8.
+- La migration et les tests PostgreSQL ont été ajoutés, mais leur succès
+  effectif reste à prouver par la CI tant que PostgreSQL n'est pas disponible
+  dans l'environnement local.
