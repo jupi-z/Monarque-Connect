@@ -9,6 +9,7 @@ import { AppModule } from '../../src/app.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
 import { InventoryMovementService } from '../../src/inventory/inventory-movement.service.js';
 import { InventoryTransferService } from '../../src/inventory/inventory-transfer.service.js';
+import { InventoryBalanceService } from '../../src/inventory/inventory-balance.service.js';
 import { seedReferenceData } from '../../prisma/seed.js';
 
 describe('Phase 7 authoritative Inventory ledger', () => {
@@ -20,6 +21,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
   let destinationWarehouseId: string;
   let itemId: string;
   let transfers: InventoryTransferService;
+  let balances: InventoryBalanceService;
   const actor = { userId: randomUUID(), sessionId: randomUUID() };
 
   beforeAll(async () => {
@@ -35,6 +37,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     prisma = moduleRef.get(PrismaService);
     movements = moduleRef.get(InventoryMovementService);
     transfers = moduleRef.get(InventoryTransferService);
+    balances = moduleRef.get(InventoryBalanceService);
 
     await seedReferenceData(prisma);
 
@@ -132,6 +135,8 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     const destinationBalance = await prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId: destinationWarehouseId, itemId } } });
     expect(sourceBalance.quantity.toFixed(6)).toBe('3.000000');
     expect(destinationBalance.quantity.toFixed(6)).toBe('1.000000');
+    await expect(balances.reconstruct(actor, organizationId, establishmentId, warehouseId, itemId)).resolves.toMatchObject({ items: [{ warehouseId, itemId, quantity: '3.000000' }] });
+    await expect(balances.reconstruct(actor, organizationId, establishmentId, destinationWarehouseId, itemId)).resolves.toMatchObject({ items: [{ warehouseId: destinationWarehouseId, itemId, quantity: '1.000000' }] });
     await expect(transfers.create(actor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1')).resolves.toEqual(result);
   });
 

@@ -2,18 +2,21 @@
 
 ## Statut et autorité
 
-Cette spécification ouvre officiellement la Phase 7 — Operations sur la
+Cette spécification a ouvert officiellement la Phase 7 — Operations sur la
 baseline `main@3b7245469a2b9ee2a2ccb19c04f621d1d75497ec`, après la clôture
-vérifiée de la Phase 6 — Purchases.
+vérifiée de la Phase 6 — Purchases. La baseline courante après le Task 2 est
+`main@9364379d868c536f9d4c7fe9da37934e4f5581e7`.
 
 Le suivi GitHub est assuré par l'[issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 Le présent document fige le périmètre et les invariants de conception. Il ne
 constitue pas une validation fiscale, comptable, réglementaire ou contractuelle
 propre à une juridiction.
 
-La phase est ouverte en cadrage. Aucune migration Prisma, aucun modèle Phase 7
-et aucun endpoint métier Phase 7 ne doit être implémenté avant validation du
-contrat et du plan issus de ce cadrage.
+À l'ouverture, aucune migration Prisma, aucun modèle Phase 7 et aucun endpoint
+métier Phase 7 n'était autorisé avant validation du contrat et du plan issus de
+ce cadrage. Le contrat a été gelé par la PR #86 ; le Task 2 a ensuite introduit
+le ledger Inventory et sa projection par la PR #87. Les règles de cette
+spécification restent normatives pour les tranches suivantes.
 
 ## Objectif
 
