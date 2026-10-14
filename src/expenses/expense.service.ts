@@ -79,7 +79,7 @@ export class ExpenseService {
       return await this.prisma.$transaction(async (tx) => {
         const replay = await this.findCommand(tx, organizationId, principal.userId, 'EXPENSE_UPDATE', idempotencyKey, payloadHash);
         if (replay) return this.getCommandExpense(replay.expenseId, organizationId, tx);
-        if (current.status !== 'DRAFT') throw new ConflictException('Only draft expenses can be updated');
+        if (current.status !== 'DRAFT') throw new ConflictException('Only draft expenses can be updated; recorded expenses are immutable');
         await this.assertParty(tx, organizationId, input.partyId);
         const changed = await tx.expense.updateMany({ where: { id: expenseId, organizationId, status: 'DRAFT' }, data: { ...(input.description !== undefined ? { description: input.description.trim() } : {}), ...(input.category !== undefined ? { category: input.category.trim() } : {}), ...(input.expenseDate !== undefined ? { expenseDate: this.dateOnly(input.expenseDate) } : {}), ...(input.partyId !== undefined ? { partyId: input.partyId } : {}) } });
         if (changed.count === 0) throw new ConflictException('Expense was changed concurrently');
