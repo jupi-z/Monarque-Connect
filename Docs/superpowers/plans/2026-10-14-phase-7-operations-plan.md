@@ -72,14 +72,14 @@
 
 **Files:** `prisma/schema.prisma`, `prisma/migrations/<timestamp>_add_expenses/migration.sql`, `src/expenses/*`, `tests/expenses/*.integration.test.ts`
 
-**Interfaces:** Consumes Task 1 permissions, Money primitives and optional Party/Project/Document references. Produces `ExpenseService` with `DRAFT → RECORDED → VOID` and an explicit idempotent link target for Cash.
+**Interfaces:** Consumes Task 1 permissions, Money primitives and an optional tenant-qualified `BusinessParty` reference. Project, Document and Cash references remain out of scope until their owning domains are delivered. Produces `ExpenseService` with `DRAFT → RECORDED → VOID` and explicit Cash integration reserved for Task 5.
 
-- [ ] Write failing tests for lifecycle, immutable recorded fields, void reason, tenant/scope isolation and idempotent retries.
-- [ ] Add the tenant-qualified Expense model and constraints.
-- [ ] Implement create/record/void with audit + Outbox in one transaction.
-- [ ] Add optional source references without creating accounting behavior.
-- [ ] Run focused tests and full regression.
-- [ ] Commit `feat(expenses): add operational expense lifecycle`.
+- [x] Write failing tests for lifecycle, immutable recorded fields, void reason, tenant/scope isolation and idempotent retries.
+- [x] Add the tenant-qualified Expense model and constraints.
+- [x] Implement create/update/record/void with audit + Outbox in one transaction.
+- [x] Add the optional tenant-qualified Party reference without creating accounting or Cash behavior.
+- [x] Run focused tests and full regression through CI, including PostgreSQL migration proofs, E2E, OpenAPI and contracts.
+- [x] Commit and merge `feat(expenses): add operational expense lifecycle` via PR #93.
 
 ### Task 5: CashAccounts and CashMovements
 
