@@ -53,6 +53,16 @@ d'intégration. Les étapes terminées avec succès incluent explicitement les
 migrations des Phases 1, 2, 4, 5, 6, 7 et 8, `npm test`, `test:e2e`, build,
 contrats OpenAPI et smoke HTTP.
 
+### CI finale après clôture documentaire
+
+[Backend CI #294](https://github.com/jupi-z/Monarque-Connect/actions/runs/38633825488)
+sur `main@b348c6026b489bc29f0e3e2295160eb5140c7355` : `success`.
+
+Cette exécution valide le dépôt tel qu'il est réellement conservé après la
+fusion de la PR documentaire #109. Elle répète les migrations, la suite
+PostgreSQL, les E2E, OpenAPI, les contrats, le build et le smoke HTTP sans
+régression.
+
 ## Couverture fonctionnelle et invariants
 
 - Project et Task sont establishment-scoped, avec transitions explicites,
@@ -82,7 +92,7 @@ contrats OpenAPI et smoke HTTP.
 
 ## Conclusion
 
-Les gates de sortie de la Phase 8 sont prouvées par le dépôt, la PR #108 et les
-deux exécutions GitHub Actions référencées ci-dessus. La Phase 8 peut rester
+Les gates de sortie de la Phase 8 sont prouvées par le dépôt, les PR #108/#109
+et les exécutions GitHub Actions #291/#292/#293/#294 référencées ci-dessus. La Phase 8 peut rester
 fermée ; toute évolution ultérieure doit être traitée comme un changement
 post-clôture avec sa propre spécification, branche et PR.

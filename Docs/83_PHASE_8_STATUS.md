@@ -35,6 +35,7 @@ par la PR #108 :
 - [x] PR d'implémentation #108 fusionnée par squash dans
   `main@6105806790994f98f8fa33ace520a412bebbd05b` ;
 - [x] CI PR #291 et CI post-fusion #292 : `success` ;
+- [x] CI PR documentaire #293 et CI finale de `main` #294 : `success` ;
 - [x] clôture stricte Phase 8, documentée dans
   `Docs/84_PHASE_8_CLOSURE_EVIDENCE.md`.
 
