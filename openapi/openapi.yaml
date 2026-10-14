@@ -1309,23 +1309,305 @@ paths:
     get:
       tags: [Expenses]
       operationId: listExpenses
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentFilterId"
+        - $ref: "#/components/parameters/ExpenseStatusFilter"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Expenses }
+        "200":
+          description: Expense page
+          content: { application/json: { schema: { $ref: "#/components/schemas/ExpensePage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
     post:
       tags: [Expenses]
       operationId: createExpense
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateExpenseRequest" } } }
       responses:
-        "201": { description: Expense created }
+        "201":
+          description: Expense created
+          content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
-  /organizations/{organizationId}/stock-movements:
+  /organizations/{organizationId}/expenses/{expenseId}:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
-      - $ref: "#/components/parameters/IdempotencyKey"
+      - { name: expenseId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Expenses]
+      operationId: getExpense
+      responses:
+        "200":
+          description: Expense
+          content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    patch:
+      tags: [Expenses]
+      operationId: updateExpense
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UpdateExpenseRequest" } } }
+      responses:
+        "200":
+          description: Draft expense updated
+          content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/expenses/{expenseId}/record:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: expenseId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Expenses]
+      operationId: recordExpense
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecordExpenseRequest" } } }
+      responses:
+        "200":
+          description: Expense recorded
+          content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/expenses/{expenseId}/void:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: expenseId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Expenses]
+      operationId: voidExpense
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/VoidExpenseRequest" } } }
+      responses:
+        "200":
+          description: Expense voided
+          content: { application/json: { schema: { $ref: "#/components/schemas/Expense" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/inventory/balances:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Inventory]
+      operationId: listInventoryBalances
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentFilterId"
+        - $ref: "#/components/parameters/WarehouseFilterId"
+        - $ref: "#/components/parameters/ItemFilterId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Reconstructible inventory balance page
+          content: { application/json: { schema: { $ref: "#/components/schemas/InventoryBalancePage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/inventory/movements:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Inventory]
+      operationId: listInventoryMovements
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentFilterId"
+        - $ref: "#/components/parameters/WarehouseFilterId"
+        - $ref: "#/components/parameters/ItemFilterId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Append-only inventory movement page
+          content: { application/json: { schema: { $ref: "#/components/schemas/InventoryMovementPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
     post:
       tags: [Inventory]
-      operationId: createStockMovement
+      operationId: createInventoryMovement
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateInventoryMovementRequest" } } }
       responses:
-        "201": { description: Stock movement created }
+        "201":
+          description: Inventory movement created
+          content: { application/json: { schema: { $ref: "#/components/schemas/InventoryMovement" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/inventory/transfers:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Inventory]
+      operationId: createInventoryTransfer
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateInventoryTransferRequest" } } }
+      responses:
+        "201":
+          description: Linked transfer movements created
+          content: { application/json: { schema: { $ref: "#/components/schemas/InventoryTransfer" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/inventory/goods-receipts/pending:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Inventory]
+      operationId: listPendingGoodsReceiptInventory
+      parameters:
+        - $ref: "#/components/parameters/EstablishmentFilterId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Goods receipts pending explicit warehouse assignment
+          content: { application/json: { schema: { $ref: "#/components/schemas/PendingGoodsReceiptInventoryPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/inventory/goods-receipts/{receiptId}/assignment:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: receiptId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Inventory]
+      operationId: assignGoodsReceiptInventory
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AssignGoodsReceiptInventoryRequest" } } }
+      responses:
+        "200":
+          description: Goods receipt assignment
+          content: { application/json: { schema: { $ref: "#/components/schemas/GoodsReceiptInventoryLink" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/inventory/goods-receipts/{receiptId}/import:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: receiptId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Inventory]
+      operationId: importGoodsReceiptInventory
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ImportGoodsReceiptRequest" } } }
+      responses:
+        "200":
+          description: Historical goods receipt import
+          content: { application/json: { schema: { $ref: "#/components/schemas/GoodsReceiptInventoryLink" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/inventory/reconciliation:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Inventory]
+      operationId: reconcileInventory
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ReconcileInventoryRequest" } } }
+      responses:
+        "200":
+          description: Inventory reconciliation result
+          content: { application/json: { schema: { $ref: "#/components/schemas/InventoryReconciliation" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/stock-movements:
+    description: Deprecated compatibility alias for the canonical Inventory movement endpoint.
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      deprecated: true
+      tags: [Inventory]
+      operationId: createStockMovement
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateInventoryMovementRequest" } } }
+      responses:
+        "201":
+          description: Inventory movement created through the deprecated compatibility alias
+          content: { application/json: { schema: { $ref: "#/components/schemas/InventoryMovement" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
 
   /organizations/{organizationId}/supplier-rfqs:
@@ -1708,13 +1990,113 @@ paths:
     get:
       tags: [Cash]
       operationId: listCashAccounts
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Cash accounts }
+        "200":
+          description: Cash account page
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashAccountPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
     post:
       tags: [Cash]
       operationId: createCashAccount
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateCashAccountRequest" } } }
       responses:
-        "201": { description: Cash account created }
+        "201":
+          description: Cash account created
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/cash-accounts/{cashAccountId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: cashAccountId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Cash]
+      operationId: getCashAccount
+      responses:
+        "200":
+          description: Cash account
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    patch:
+      tags: [Cash]
+      operationId: updateCashAccount
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UpdateCashAccountRequest" } } }
+      responses:
+        "200":
+          description: Cash account updated
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/cash-accounts/{cashAccountId}/deactivate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: cashAccountId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Cash]
+      operationId: deactivateCashAccount
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ChangeCashAccountStatusRequest" } } }
+      responses:
+        "200":
+          description: Cash account deactivated
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/cash-accounts/{cashAccountId}/reactivate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: cashAccountId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Cash]
+      operationId: reactivateCashAccount
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ChangeCashAccountStatusRequest" } } }
+      responses:
+        "200":
+          description: Cash account reactivated
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashAccount" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/cash-movements:
     parameters:
@@ -1722,15 +2104,79 @@ paths:
     get:
       tags: [Cash]
       operationId: listCashMovements
+      parameters:
+        - $ref: "#/components/parameters/CashAccountFilterId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Cash movements }
+        "200":
+          description: Append-only cash movement page
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashMovementPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
     post:
       tags: [Cash]
       operationId: createCashMovement
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateCashMovementRequest" } } }
       responses:
-        "201": { description: Append-only cash movement recorded }
+        "201":
+          description: Append-only cash movement recorded
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashMovement" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/cash-movements/{movementId}/correct:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: movementId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Cash]
+      operationId: correctCashMovement
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CorrectCashMovementRequest" } } }
+      responses:
+        "200":
+          description: Compensating cash movement recorded
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashMovement" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/cash-transfers:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Cash]
+      operationId: createCashTransfer
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateCashTransferRequest" } } }
+      responses:
+        "201":
+          description: Linked same-currency cash transfer movements
+          content: { application/json: { schema: { $ref: "#/components/schemas/CashTransfer" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/projects:
     parameters:
@@ -2185,6 +2631,31 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    EstablishmentFilterId:
+      name: establishmentId
+      in: query
+      required: false
+      schema: { type: string, format: uuid }
+    WarehouseFilterId:
+      name: warehouseId
+      in: query
+      required: false
+      schema: { type: string, format: uuid }
+    ItemFilterId:
+      name: itemId
+      in: query
+      required: false
+      schema: { type: string, format: uuid }
+    CashAccountFilterId:
+      name: cashAccountId
+      in: query
+      required: false
+      schema: { type: string, format: uuid }
+    ExpenseStatusFilter:
+      name: status
+      in: query
+      required: false
+      schema: { $ref: "#/components/schemas/ExpenseStatus" }
     ModuleCode:
       name: moduleCode
       in: path
@@ -3435,3 +3906,357 @@ components:
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/GoodsReceipt" } }
         nextCursor: { type: [string, 'null'] }
+    OperationsDecimal:
+      type: string
+      description: Server-calculated decimal amount with numeric(19,4) precision.
+      pattern: "^-?(?:0|[1-9][0-9]{0,14})(?:\\.[0-9]{1,4})?$"
+    OperationsPositiveDecimal:
+      type: string
+      description: Strictly positive server-calculated amount with numeric(19,4) precision.
+      pattern: "^(?:[1-9][0-9]{0,14}(?:\\.[0-9]{1,4})?|0\\.(?=[0-9]*[1-9])[0-9]{1,4})$"
+    OperationsQuantity:
+      type: string
+      description: Server-calculated decimal quantity with numeric(19,6) precision.
+      pattern: "^-?(?:0|[1-9][0-9]{0,12})(?:\\.[0-9]{1,6})?$"
+    InventoryMovementType:
+      type: string
+      enum: [RECEIPT_IN, SALE_OUT, ADJUSTMENT_IN, ADJUSTMENT_OUT, TRANSFER_IN, TRANSFER_OUT]
+    InventorySourceType:
+      type: string
+      enum: [MANUAL, GOODS_RECEIPT, SALE, TRANSFER, HISTORICAL_IMPORT, RECONCILIATION]
+    InventoryMovement:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, warehouseId, itemId, movementType, sourceType, quantityDelta, occurredAt, createdBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        movementType: { $ref: "#/components/schemas/InventoryMovementType" }
+        sourceType: { $ref: "#/components/schemas/InventorySourceType" }
+        quantityDelta: { $ref: "#/components/schemas/OperationsQuantity" }
+        occurredAt: { type: string, format: date-time }
+        referenceType: { type: [string, 'null'], maxLength: 80 }
+        referenceId: { type: [string, 'null'], format: uuid }
+        referenceLineId: { type: [string, 'null'], format: uuid }
+        sourceEventId: { type: [string, 'null'], format: uuid }
+        sourceRevision: { type: [string, 'null'], maxLength: 80 }
+        reason: { type: [string, 'null'], maxLength: 2000 }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    CreateInventoryMovementRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, warehouseId, itemId, movementType, quantityDelta, occurredAt, reason]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        movementType: { type: string, enum: [ADJUSTMENT_IN, ADJUSTMENT_OUT] }
+        quantityDelta: { $ref: "#/components/schemas/OperationsQuantity" }
+        occurredAt: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    InventoryBalance:
+      type: object
+      additionalProperties: false
+      required: [organizationId, establishmentId, warehouseId, itemId, quantity, asOf]
+      properties:
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        quantity: { $ref: "#/components/schemas/OperationsQuantity" }
+        asOf: { type: string, format: date-time }
+    InventoryBalancePage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/InventoryBalance" } }
+        nextCursor: { type: [string, 'null'] }
+    InventoryMovementPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/InventoryMovement" } }
+        nextCursor: { type: [string, 'null'] }
+    CreateInventoryTransferRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, sourceWarehouseId, destinationWarehouseId, itemId, quantity, occurredAt, reason]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        sourceWarehouseId: { type: string, format: uuid }
+        destinationWarehouseId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        quantity: { $ref: "#/components/schemas/OperationsQuantity" }
+        occurredAt: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    InventoryTransfer:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, itemId, quantity, sourceWarehouseId, destinationWarehouseId, movements, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        quantity: { $ref: "#/components/schemas/OperationsQuantity" }
+        sourceWarehouseId: { type: string, format: uuid }
+        destinationWarehouseId: { type: string, format: uuid }
+        movements: { type: array, minItems: 2, maxItems: 2, items: { $ref: "#/components/schemas/InventoryMovement" } }
+        createdAt: { type: string, format: date-time }
+    GoodsReceiptInventoryLinkStatus:
+      type: string
+      enum: [PENDING_ASSIGNMENT, ASSIGNED, IMPORTED]
+    GoodsReceiptInventoryLink:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, goodsReceiptId, warehouseId, status, sourceRevision, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        goodsReceiptId: { type: string, format: uuid }
+        warehouseId: { type: [string, 'null'], format: uuid }
+        status: { $ref: "#/components/schemas/GoodsReceiptInventoryLinkStatus" }
+        sourceRevision: { type: string, maxLength: 80 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PendingGoodsReceiptInventoryPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/GoodsReceiptInventoryLink" } }
+        nextCursor: { type: [string, 'null'] }
+    AssignGoodsReceiptInventoryRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, warehouseId, reason]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    ImportGoodsReceiptRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, warehouseId, reason]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    ReconcileInventoryRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, warehouseId, itemId]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        observedQuantity: { $ref: "#/components/schemas/OperationsQuantity" }
+    InventoryReconciliation:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, warehouseId, itemId, ledgerQuantity, observedQuantity, delta, matched, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        ledgerQuantity: { $ref: "#/components/schemas/OperationsQuantity" }
+        observedQuantity: { $ref: "#/components/schemas/OperationsQuantity" }
+        delta: { $ref: "#/components/schemas/OperationsQuantity" }
+        matched: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ExpenseStatus:
+      type: string
+      enum: [DRAFT, RECORDED, VOID]
+    Expense:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, status, description, category, amount, currency, expenseDate, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/ExpenseStatus" }
+        description: { type: string, minLength: 1, maxLength: 500 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        amount: { $ref: "#/components/schemas/OperationsDecimal" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        expenseDate: { type: string, format: date }
+        partyId: { type: [string, 'null'], format: uuid }
+        projectId: { type: [string, 'null'], format: uuid }
+        documentId: { type: [string, 'null'], format: uuid }
+        cashMovementId: { type: [string, 'null'], format: uuid }
+        voidReason: { type: [string, 'null'], maxLength: 2000 }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateExpenseRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, description, category, amount, currency, expenseDate]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        description: { type: string, minLength: 1, maxLength: 500 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        amount: { $ref: "#/components/schemas/OperationsDecimal" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        expenseDate: { type: string, format: date }
+        partyId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        documentId: { type: string, format: uuid }
+    UpdateExpenseRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        description: { type: string, minLength: 1, maxLength: 500 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        expenseDate: { type: string, format: date }
+        partyId: { type: [string, 'null'], format: uuid }
+        projectId: { type: [string, 'null'], format: uuid }
+        documentId: { type: [string, 'null'], format: uuid }
+    RecordExpenseRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        cashAccountId: { type: string, format: uuid }
+    VoidExpenseRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    ExpensePage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Expense" } }
+        nextCursor: { type: [string, 'null'] }
+    CashAccountStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    CashMovementDirection:
+      type: string
+      enum: [IN, OUT]
+    CashAccount:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, code, name, currency, status, balance, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        code: { type: string, pattern: "^[A-Z0-9][A-Z0-9_-]{1,31}$" }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        status: { $ref: "#/components/schemas/CashAccountStatus" }
+        balance: { $ref: "#/components/schemas/OperationsDecimal" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateCashAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, code, name, currency]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        code: { type: string, pattern: "^[A-Z0-9][A-Z0-9_-]{1,31}$" }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+    UpdateCashAccountRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+    ChangeCashAccountStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    CashAccountPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/CashAccount" } }
+        nextCursor: { type: [string, 'null'] }
+    CashMovement:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, cashAccountId, direction, amount, currency, occurredAt, reason, createdBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        cashAccountId: { type: string, format: uuid }
+        direction: { $ref: "#/components/schemas/CashMovementDirection" }
+        amount: { $ref: "#/components/schemas/OperationsPositiveDecimal" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        occurredAt: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        sourceType: { type: [string, 'null'], enum: [PAYMENT_RECORD, EXPENSE, TRANSFER, CORRECTION, null] }
+        sourceId: { type: [string, 'null'], format: uuid }
+        correctedMovementId: { type: [string, 'null'], format: uuid }
+        createdBy: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    CreateCashMovementRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, cashAccountId, direction, amount, occurredAt, reason]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        cashAccountId: { type: string, format: uuid }
+        direction: { $ref: "#/components/schemas/CashMovementDirection" }
+        amount: { $ref: "#/components/schemas/OperationsPositiveDecimal" }
+        occurredAt: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        sourceType: { type: string, enum: [PAYMENT_RECORD, EXPENSE] }
+        sourceId: { type: string, format: uuid }
+    CorrectCashMovementRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    CashMovementPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/CashMovement" } }
+        nextCursor: { type: [string, 'null'] }
+    CreateCashTransferRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, sourceCashAccountId, destinationCashAccountId, amount, occurredAt, reason]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        sourceCashAccountId: { type: string, format: uuid }
+        destinationCashAccountId: { type: string, format: uuid }
+        amount: { $ref: "#/components/schemas/OperationsPositiveDecimal" }
+        occurredAt: { type: string, format: date-time }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    CashTransfer:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, amount, currency, sourceCashAccountId, destinationCashAccountId, movements, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        amount: { $ref: "#/components/schemas/OperationsPositiveDecimal" }
+        currency: { type: string, pattern: "^[A-Z]{3}$" }
+        sourceCashAccountId: { type: string, format: uuid }
+        destinationCashAccountId: { type: string, format: uuid }
+        movements: { type: array, minItems: 2, maxItems: 2, items: { $ref: "#/components/schemas/CashMovement" } }
+        createdAt: { type: string, format: date-time }

@@ -62,6 +62,10 @@ export type Permission =
   | 'catalog:write'
   | 'inventory:read'
   | 'inventory:write'
+  | 'expenses:read'
+  | 'expenses:write'
+  | 'cash:read'
+  | 'cash:write'
   | 'crm:read'
   | 'crm:write'
   | 'network:discovery:read'
@@ -91,6 +95,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
   OWNER: [
     'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
     'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write',
@@ -100,6 +105,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
   ADMIN: [
     'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
     'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write',
@@ -107,24 +113,26 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'purchases:rfqs:read', 'purchases:rfqs:write', 'purchases:orders:read', 'purchases:orders:write', 'purchases:receipts:read', 'purchases:receipts:write',
   ],
   SALES: [
-    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read',
+    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write',
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:trust:read',
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write', 'sales:invoices:read', 'sales:payments:read',
   ],
   FINANCE: [
     'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read', 'crm:read',
+    'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'sales:quotes:read', 'sales:orders:read', 'sales:invoices:read', 'sales:invoices:write', 'sales:payments:read', 'sales:payments:write',
     'purchases:rfqs:read', 'purchases:orders:read', 'purchases:receipts:read',
   ],
   OPERATIONS: [
     'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'expenses:read', 'expenses:write', 'cash:read',
     'crm:read', 'network:discovery:read', 'network:connections:read', 'network:connections:write', 'network:inquiries:read', 'network:inquiries:write',
     'sales:quotes:read', 'sales:orders:read', 'sales:orders:write', 'sales:invoices:read', 'sales:payments:read',
     'purchases:rfqs:read', 'purchases:rfqs:write', 'purchases:orders:read', 'purchases:orders:write', 'purchases:receipts:read', 'purchases:receipts:write',
   ],
   VIEWER: [
-    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read', 'crm:read',
+    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read', 'expenses:read', 'cash:read', 'crm:read',
     'network:discovery:read', 'network:connections:read', 'network:inquiries:read',
     'sales:quotes:read', 'sales:orders:read', 'sales:invoices:read', 'sales:payments:read',
     'purchases:rfqs:read', 'purchases:orders:read', 'purchases:receipts:read',
