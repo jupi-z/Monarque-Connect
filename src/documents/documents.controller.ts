@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
-import type { Response } from 'express';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Put, Query, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
@@ -23,6 +23,9 @@ export class DocumentsController {
   @Post(':documentId/complete')
   @HttpCode(200)
   complete(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: DocumentParams, @Headers('idempotency-key') key: string | undefined, @Body() input: CompleteDocumentUploadDto): Promise<unknown> { return this.documents.complete(principal, params.organizationId, params.documentId, input, key); }
+
+  @Put(':documentId/upload')
+  upload(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: DocumentParams, @Headers('x-upload-token') uploadToken: string | undefined, @Req() request: Request): Promise<unknown> { return this.documents.upload(principal, params.organizationId, params.documentId, uploadToken, request); }
 
   @Get(':documentId/content')
   async content(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: DocumentParams, @Res() response: Response): Promise<void> { const stream = await this.documents.content(principal, params.organizationId, params.documentId); response.type('application/octet-stream'); stream.pipe(response); }

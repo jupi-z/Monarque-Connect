@@ -92,7 +92,24 @@ régression.
 
 ## Conclusion
 
-Les gates de sortie de la Phase 8 sont prouvées par le dépôt, les PR #108/#109
-et les exécutions GitHub Actions #291/#292/#293/#294 référencées ci-dessus. La Phase 8 peut rester
-fermée ; toute évolution ultérieure doit être traitée comme un changement
-post-clôture avec sa propre spécification, branche et PR.
+Les gates de sortie de la livraison initiale de la Phase 8 sont prouvées par le
+dépôt, les PR #108/#109 et les exécutions GitHub Actions #291/#292/#293/#294
+référencées ci-dessus. La stabilisation corrective post-clôture est suivie
+séparément par l'issue #111 et ses propres preuves ; elle ne réécrit pas les
+preuves historiques et ne rouvre pas les modèles des phases précédentes.
+
+## Addendum post-clôture — 2026-10-14
+
+L'audit indépendant a identifié trois écarts qui empêchent de considérer la
+Phase 8 comme strictement sans dette : l'adaptateur mémoire pouvait finaliser
+un upload sans octets vérifiés, les lectures de documents ne validaient pas les
+permissions de leurs cibles métier, et `complete`/`revoke` pouvaient muter le
+stockage avant la validation transactionnelle. La PR corrective dédiée est
+suivie par l'[issue #111](https://github.com/jupi-z/Monarque-Connect/issues/111)
+et documentera ses propres SHA, exécutions CI et preuve post-fusion dans
+`Docs/85_PHASE_8_DOCUMENTS_HARDENING_EVIDENCE.md`.
+
+La migration additive `20261014230000_harden_document_upload_sessions` conserve
+le token opaque et l'expiration d'une session pour que les retries idempotents
+ne dépendent pas d'une reconstruction artificielle du token. Aucun historique
+de migration n'est modifié.

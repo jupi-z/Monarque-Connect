@@ -26,6 +26,7 @@ const expectedOperations: Record<string, string> = {
   'POST /organizations/{organizationId}/documents/uploads': 'startDocumentUpload',
   'GET /organizations/{organizationId}/documents/{documentId}': 'getDocument',
   'POST /organizations/{organizationId}/documents/{documentId}/complete': 'completeDocumentUpload',
+  'PUT /organizations/{organizationId}/documents/{documentId}/upload': 'uploadDocumentContent',
   'GET /organizations/{organizationId}/documents/{documentId}/content': 'readDocumentContent',
   'POST /organizations/{organizationId}/documents/{documentId}/links': 'linkDocument',
   'DELETE /organizations/{organizationId}/documents/{documentId}/links/{linkId}': 'unlinkDocument',
@@ -33,7 +34,7 @@ const expectedOperations: Record<string, string> = {
 };
 
 function operations(contract: Contract): Map<string, { operationId?: string; parameters?: Array<{ $ref?: string }>; requestBody?: unknown; responses?: Record<string, unknown> }> {
-  return new Map(Object.entries(contract.paths).flatMap(([path, item]) => Object.entries(item).filter(([method]) => ['get', 'post', 'patch', 'delete'].includes(method)).map(([method, operation]) => [`${method.toUpperCase()} ${path}`, operation])));
+  return new Map(Object.entries(contract.paths).flatMap(([path, item]) => Object.entries(item).filter(([method]) => ['get', 'post', 'patch', 'delete', 'put'].includes(method)).map(([method, operation]) => [`${method.toUpperCase()} ${path}`, operation])));
 }
 
 function requiredSchema(contract: Contract, name: string): { enum?: string[]; required?: string[]; properties?: Record<string, unknown> } {
@@ -56,6 +57,7 @@ describe('Phase 8 Projects & Documents OpenAPI contract', () => {
       const operation = actual.get(key);
       expect(operation?.responses, `${operationId} must define responses`).toBeDefined();
       if (key.startsWith('GET ')) continue;
+      if (key.includes('/upload')) continue;
       expect(operation?.parameters?.some((parameter) => parameter.$ref === '#/components/parameters/IdempotencyKey'), `${operationId} must require Idempotency-Key`).toBe(true);
       if (!key.startsWith('DELETE ')) expect(operation?.requestBody, `${operationId} must define a request body`).toBeDefined();
     }

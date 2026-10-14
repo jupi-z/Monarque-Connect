@@ -1964,6 +1964,8 @@ model Document {
   byteSize         BigInt                 @map("byte_size")
   checksumSha256   String?                @map("checksum_sha256") @db.Char(64)
   storageKey       String?                @unique @map("storage_key") @db.VarChar(512)
+  uploadToken      String?                @map("upload_token") @db.VarChar(2048)
+  uploadExpiresAt  DateTime?              @map("upload_expires_at") @db.Timestamptz(6)
   status           DocumentStatus         @default(PENDING_UPLOAD)
   classification   DocumentClassification @default(INTERNAL)
   uploadedByUserId String                 @map("uploaded_by_user_id") @db.Uuid

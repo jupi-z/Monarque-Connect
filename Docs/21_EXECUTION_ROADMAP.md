@@ -108,8 +108,9 @@ aucune partie de la Phase 7.
 ## Phase 8 — Projects & documents
 Projects, tasks, document linking, media.
 
-**État :** terminée et clôturée à 100 % sur
-`main@6105806790994f98f8fa33ace520a412bebbd05b`.
+  **État :** livraison initiale terminée sur
+  `main@6105806790994f98f8fa33ace520a412bebbd05b` ; stabilisation corrective
+  post-clôture en cours via l'issue #111, sans réouverture des modèles livrés.
 La spécification normative est `82_PHASE8_PROJECTS_DOCUMENTS_EXECUTION_SPEC.md`,
 le statut est `83_PHASE_8_STATUS.md`, le plan est
 `superpowers/plans/2026-10-14-phase-8-projects-documents-plan.md` et le suivi
@@ -117,7 +118,8 @@ GitHub est l'[issue #105](https://github.com/jupi-z/Monarque-Connect/issues/105)
 La PR de cadrage #106, la PR d'implémentation #108, la CI PR #291, la CI
 post-fusion #292, la PR documentaire #109, sa CI #293 et la CI finale de
 `main` #294 sont vertes. La preuve finale est
-`84_PHASE_8_CLOSURE_EVIDENCE.md`. Les contrats OpenAPI ont été gelés avant
+  `84_PHASE_8_CLOSURE_EVIDENCE.md`. La stabilisation corrective est suivie dans
+  `85_PHASE_8_DOCUMENTS_HARDENING_EVIDENCE.md`. Les contrats OpenAPI ont été gelés avant
 migrations et implémentation. La Phase 8 n'a pas modifié les invariants des
 Phases 0 à 7.
 
