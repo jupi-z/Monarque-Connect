@@ -201,6 +201,8 @@ enum AuditAction {
   GOODS_RECEIPT_CREATED
   GOODS_RECEIPT_STATUS_CHANGED
   GOODS_RECEIPT_CORRECTED
+  INVENTORY_MOVEMENT_CREATED
+  INVENTORY_TRANSFER_CREATED
 }
 
 enum ConnectionRequestStatus {
@@ -326,6 +328,24 @@ enum GoodsReceiptStatus {
   DRAFT
   CONFIRMED
   CANCELLED
+}
+
+enum InventoryMovementType {
+  RECEIPT_IN
+  SALE_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+enum InventoryMovementSourceType {
+  MANUAL
+  GOODS_RECEIPT
+  SALE
+  TRANSFER
+  HISTORICAL_IMPORT
+  RECONCILIATION
 }
 
 model OutboxEvent {
@@ -566,6 +586,8 @@ model Organization {
   supplierRfqs               SupplierRFQ[]
   purchaseOrders             PurchaseOrder[]
   goodsReceipts              GoodsReceipt[]
+  inventoryMovements         InventoryMovement[]
+  inventoryBalances          InventoryBalance[]
   purchaseIdempotencyKeys    PurchaseIdempotencyKey[]
   networkSupplierRfqRecipients SupplierRFQRecipient[] @relation("NetworkSupplierRFQRecipients")
   purchaseOrdersAsNetworkSupplier PurchaseOrder[] @relation("PurchaseOrderSupplierOrganization")
@@ -768,6 +790,7 @@ model Establishment {
   supplierRfqs         SupplierRFQ[]
   purchaseOrders       PurchaseOrder[]
   goodsReceipts        GoodsReceipt[]
+  inventoryMovements   InventoryMovement[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -890,6 +913,8 @@ model Item {
   supplierRfqLines SupplierRFQLine[]
   purchaseOrderLines PurchaseOrderLine[]
   goodsReceiptLines GoodsReceiptLine[]
+  inventoryMovements InventoryMovement[]
+  inventoryBalances InventoryBalance[]
 
   @@unique([id, organizationId])
   @@index([organizationId, active, name])
@@ -908,11 +933,58 @@ model Warehouse {
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   establishment   Establishment @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  inventoryMovements InventoryMovement[]
+  inventoryBalances  InventoryBalance[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
   @@index([organizationId, establishmentId, active])
   @@map("warehouses")
+}
+
+model InventoryMovement {
+  id                String                       @id @db.Uuid
+  organizationId    String                       @map("organization_id") @db.Uuid
+  establishmentId   String                       @map("establishment_id") @db.Uuid
+  warehouseId       String                       @map("warehouse_id") @db.Uuid
+  itemId            String                       @map("item_id") @db.Uuid
+  movementType      InventoryMovementType       @map("movement_type")
+  sourceType        InventoryMovementSourceType @map("source_type")
+  quantityDelta     Decimal                      @map("quantity_delta") @db.Decimal(19, 6)
+  sourceId          String?                      @map("source_id") @db.Uuid
+  sourceLineId      String?                      @map("source_line_id") @db.Uuid
+  transferId        String?                      @map("transfer_id") @db.Uuid
+  idempotencyKey    String?                      @map("idempotency_key") @db.VarChar(200)
+  reason            String?                      @db.VarChar(500)
+  occurredAt        DateTime                     @map("occurred_at") @db.Timestamptz(6)
+  createdByUserId   String                       @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment     Establishment                @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  warehouse         Warehouse                    @relation(fields: [warehouseId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  item              Item                         @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, establishmentId, occurredAt, id])
+  @@index([organizationId, warehouseId, itemId, occurredAt, id])
+  @@index([organizationId, sourceType, sourceId, sourceLineId])
+  @@index([transferId])
+  @@map("inventory_movements")
+}
+
+model InventoryBalance {
+  organizationId  String      @map("organization_id") @db.Uuid
+  warehouseId     String      @map("warehouse_id") @db.Uuid
+  itemId          String      @map("item_id") @db.Uuid
+  quantity        Decimal     @db.Decimal(19, 6)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouse       Warehouse    @relation(fields: [warehouseId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  item            Item         @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@id([organizationId, warehouseId, itemId])
+  @@index([organizationId, itemId])
+  @@map("inventory_balances")
 }
 
 model Membership {

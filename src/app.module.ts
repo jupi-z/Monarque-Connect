@@ -14,6 +14,7 @@ import { CrmModule } from './crm/crm.module.js';
 import { NetworkModule } from './network/network.module.js';
 import { SalesModule } from './sales/sales.module.js';
 import { PurchasesModule } from './purchases/purchases.module.js';
+import { InventoryModule } from './inventory/inventory.module.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PurchasesModule } from './purchases/purchases.module.js';
     NetworkModule,
     SalesModule,
     PurchasesModule,
+    InventoryModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,

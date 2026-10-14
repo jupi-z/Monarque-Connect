@@ -86,8 +86,11 @@ async function structuralProof(databaseUrl) {
     const missingColumns = requiredColumns.filter((column) => !foundColumns.has(column));
     if (missingColumns.length) throw new Error(`Phase 6 structural proof missing columns: ${missingColumns.join(', ')}`);
 
-    const stockResult = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'inventory_balances', 'stock_balances')`);
-    if (stockResult.rowCount) throw new Error(`Phase 6 introduced forbidden Inventory tables: ${stockResult.rows.map((row) => row.table_name).join(', ')}`);
+    const applied = await appliedNames(databaseUrl);
+    if (!applied.some((name) => name.startsWith('20261014080000_add_inventory_ledger'))) {
+      const stockResult = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'inventory_balances', 'stock_balances')`);
+      if (stockResult.rowCount) throw new Error(`Phase 6 introduced forbidden Inventory tables: ${stockResult.rows.map((row) => row.table_name).join(', ')}`);
+    }
   } finally {
     await pool.end();
   }
