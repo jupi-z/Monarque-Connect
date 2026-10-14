@@ -29,7 +29,9 @@ async function load(): Promise<Document> {
 
 function operation(spec: Document, key: string): Operation {
   const [method, ...pathParts] = key.split(' ');
-  const result = spec.paths[pathParts.join(' ')]?.[method.toLowerCase()];
+  if (!method || pathParts.length === 0) throw new Error(`Invalid operation key ${key}`);
+  const path = pathParts.join(' ');
+  const result = spec.paths[path]?.[method.toLowerCase()];
   if (!result) throw new Error(`Missing operation ${key}`);
   return result;
 }

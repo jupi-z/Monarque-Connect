@@ -1,7 +1,7 @@
 # Phase 9 — Messaging B2B : statut
 
 **Baseline de cadrage :** `main@1c15d2c014d1e9eb19ecb7e71ee1c375f943c38f`  
-**État :** cadrage normatif corrigé après audit ; plan et contrats à préparer.
+**État :** cadrage normatif et contrats corrigés ; PR #115 en validation CI avant exécution.
 **Référence normative :** [86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md](86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md)
 
 ## Périmètre approuvé
@@ -37,5 +37,5 @@
 
 ## Garde-fous
 
-Il n'y a actuellement aucun changement de code métier ni migration dans cette branche. La spécification, le plan et le contrat OpenAPI de cadrage sont versionnés ; l'OpenAPI a été validée localement à 175 opérations. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
+Il n'y a actuellement aucun changement de code métier ni migration dans cette branche. La spécification, le plan et le contrat OpenAPI de cadrage sont versionnés ; l'OpenAPI a été validée localement à 177 opérations. La commande plateforme d'attribution de `VERIFIED` reste à livrer dans l'exécution avant le premier envoi. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
 
