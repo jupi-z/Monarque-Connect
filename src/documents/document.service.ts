@@ -206,7 +206,7 @@ export class DocumentService {
   private serializeLink(link: DocumentLinkRow): unknown { return { ...link, createdAt: link.createdAt.toISOString() }; }
   private eventContext(): Context { const context = currentEventContext(); return context?.requestId ? { requestId: context.requestId, correlationId: context.correlationId } : createRequestContext(); }
   private requireKey(value?: string): string { if (!value?.trim() || value.length > 200 || /[\r\n]/.test(value)) throw new BadRequestException('Idempotency-Key is required and invalid'); return value.trim(); }
-  private hash(value: unknown): string { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
+  private hash(value: unknown): string { return createHash('sha256').update(JSON.stringify(value, (_key, child) => typeof child === 'bigint' ? child.toString() : child)).digest('hex'); }
   private isUnique(error: unknown): boolean { return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'; }
   private encodeCursor(cursor: Cursor): string { return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url'); }
   private decodeCursor(value: string): Cursor { try { const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Partial<Cursor>; if (typeof parsed.createdAt !== 'string' || typeof parsed.id !== 'string') throw new Error(); return { createdAt: parsed.createdAt, id: parsed.id }; } catch { throw new BadRequestException('Cursor is invalid'); } }
