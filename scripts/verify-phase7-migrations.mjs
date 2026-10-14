@@ -27,12 +27,21 @@ async function writeMigrationSet(names) {
   await cp(sourceMigrationsPath, migrationsPath, { recursive: true, filter: (source) => { const relative = source.slice(sourceMigrationsPath.length + 1); return relative === '' || names.some((name) => relative === name || relative.startsWith(`${name}${sep}`)); } });
 }
 
-async function runMigrateDeploy(databaseUrl) {
+async function runPrismaCommand(databaseUrl, args) {
   const configPath = join(tempRoot, 'prisma.config.ts');
   await writeFile(configPath, `import { defineConfig } from 'prisma/config';\n\nexport default defineConfig({ schema: 'prisma/schema.prisma', migrations: { path: 'prisma/migrations' }, datasource: { url: process.env.DATABASE_URL } });\n`, 'utf8');
   await new Promise((resolve, reject) => {
     const executable = join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
-    execFile(executable, ['migrate', 'deploy', '--config', configPath], { cwd: tempRoot, env: { ...process.env, DATABASE_URL: databaseUrl }, maxBuffer: 10 * 1024 * 1024, shell: process.platform === 'win32' }, (error, stdout, stderr) => { if (stdout) process.stdout.write(stdout); if (stderr) process.stderr.write(stderr); if (error) reject(new Error(`prisma migrate deploy failed: ${error.message}`)); else resolve(); });
+    execFile(executable, args(configPath), { cwd: tempRoot, env: { ...process.env, DATABASE_URL: databaseUrl }, maxBuffer: 10 * 1024 * 1024, shell: process.platform === 'win32' }, (error, stdout, stderr) => { if (stdout) process.stdout.write(stdout); if (stderr) process.stderr.write(stderr); if (error) reject(new Error(`Prisma command failed: ${error.message}`)); else resolve(); });
+  });
+}
+
+async function runMigrateDeploy(databaseUrl) { await runPrismaCommand(databaseUrl, (configPath) => ['migrate', 'deploy', '--config', configPath]); }
+
+async function runSeed(databaseUrl) {
+  await new Promise((resolve, reject) => {
+    const executable = join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'tsx.cmd' : 'tsx');
+    execFile(executable, [join(process.cwd(), 'prisma', 'seed.ts')], { cwd: process.cwd(), env: { ...process.env, DATABASE_URL: databaseUrl }, maxBuffer: 10 * 1024 * 1024, shell: process.platform === 'win32' }, (error, stdout, stderr) => { if (stdout) process.stdout.write(stdout); if (stderr) process.stderr.write(stderr); if (error) reject(new Error(`Reference seed failed: ${error.message}`)); else resolve(); });
   });
 }
 
@@ -44,9 +53,10 @@ async function appliedNames(databaseUrl) { const pool = new Pool({ connectionStr
 async function structuralProof(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   try {
-    const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1::text[])`, [['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries', 'cash_accounts', 'cash_account_idempotency_keys', 'cash_movements', 'cash_movement_idempotency_keys']]);
+    const requiredTables = ['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries', 'expenses', 'expense_idempotency_keys', 'cash_accounts', 'cash_account_idempotency_keys', 'cash_movements', 'cash_movement_idempotency_keys'];
+    const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1::text[])`, [requiredTables]);
     const found = new Set(tables.rows.map((row) => row.table_name));
-    for (const required of ['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries', 'cash_accounts', 'cash_account_idempotency_keys', 'cash_movements', 'cash_movement_idempotency_keys']) if (!found.has(required)) throw new Error(`Phase 7 structural proof missing table: ${required}`);
+    for (const required of requiredTables) if (!found.has(required)) throw new Error(`Phase 7 structural proof missing table: ${required}`);
     const trigger = await pool.query(`SELECT tgname FROM pg_trigger WHERE tgname IN ('inventory_movements_append_only_update', 'cash_movements_append_only_update')`);
     const triggers = new Set(trigger.rows.map((row) => row.tgname));
     for (const required of ['inventory_movements_append_only_update', 'cash_movements_append_only_update']) if (!triggers.has(required)) throw new Error(`Phase 7 append-only trigger is missing: ${required}`);
@@ -60,7 +70,7 @@ async function structuralProof(databaseUrl) {
       JOIN pg_namespace AS namespace ON namespace.oid = table_class.relnamespace
       CROSS JOIN LATERAL unnest(index_meta.indkey) WITH ORDINALITY AS index_column(attnum, ordinality)
       JOIN pg_attribute AS attribute ON attribute.attrelid = table_class.oid AND attribute.attnum = index_column.attnum
-      WHERE namespace.nspname = 'public' AND table_class.relname IN ('cash_accounts', 'cash_movements', 'cash_movement_idempotency_keys')
+      WHERE namespace.nspname = 'public' AND table_class.relname IN ('cash_accounts', 'cash_movements', 'cash_movement_idempotency_keys', 'expense_idempotency_keys')
       GROUP BY table_class.relname, index_class.relname, index_meta.indisunique`);
     const indexDefinitions = cashIndexes.rows.map((row) => ({
       tableName: row.table_name,
@@ -71,8 +81,9 @@ async function structuralProof(databaseUrl) {
       ['cash_accounts organization/code uniqueness', 'cash_accounts', ['organization_id', 'code']],
       ['cash movements correction uniqueness', 'cash_movements', ['corrected_movement_id', 'organization_id']],
       ['cash movement idempotency uniqueness', 'cash_movement_idempotency_keys', ['organization_id', 'actor_user_id', 'operation', 'key']],
+      ['expense idempotency uniqueness', 'expense_idempotency_keys', ['organization_id', 'actor_user_id', 'operation', 'key']],
     ];
-    for (const [label, tableName, columns] of requiredIndexes) if (!indexDefinitions.some((definition) => definition.tableName === tableName && definition.isUnique && definition.columns.join(',') === columns.join(','))) throw new Error(`Phase 7 structural proof missing Cash index: ${label}`);
+    for (const [label, tableName, columns] of requiredIndexes) if (!indexDefinitions.some((definition) => definition.tableName === tableName && definition.isUnique && definition.columns.join(',') === columns.join(','))) throw new Error(`Phase 7 structural proof missing index: ${label}`);
     const forbidden = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'stock_balances')`);
     if (forbidden.rowCount) throw new Error(`Phase 7 created forbidden legacy stock tables: ${forbidden.rows.map((row) => row.table_name).join(', ')}`);
   } finally { await pool.end(); }
@@ -85,6 +96,14 @@ try {
   const emptyNames = await appliedNames(databaseUrls.empty);
   if (emptyNames.length !== migrationDirectories.length || emptyNames.at(-1) !== migrationDirectories.at(-1)) throw new Error(`Phase 7 empty baseline mismatch: expected ${migrationDirectories.length} migrations ending at ${migrationDirectories.at(-1)}, got ${emptyNames.length} ending at ${emptyNames.at(-1)}`);
   await structuralProof(databaseUrls.empty);
+  await runSeed(databaseUrls.empty); await runSeed(databaseUrls.empty);
+  const emptyPool = new Pool({ connectionString: databaseUrls.empty });
+  try {
+    for (const table of ['inventory_movements', 'expenses', 'cash_movements']) {
+      const result = await emptyPool.query(`SELECT COUNT(*)::int AS count FROM "${table}"`);
+      if (result.rows[0]?.count !== 0) throw new Error(`Phase 7 seed inserted operational data into ${table}`);
+    }
+  } finally { await emptyPool.end(); }
   await writeMigrationSet(phase6MigrationDirectories); await runMigrateDeploy(databaseUrls.upgrade);
   const phase6Names = await appliedNames(databaseUrls.upgrade);
   if (phase6Names.length !== phase6MigrationDirectories.length || phase6Names.at(-1) !== phase6MigrationDirectories.at(-1)) throw new Error(`Phase 6 upgrade baseline mismatch: expected ${phase6MigrationDirectories.length} migrations ending at ${phase6MigrationDirectories.at(-1)}, got ${phase6Names.length} ending at ${phase6Names.at(-1)}`);
@@ -92,7 +111,8 @@ try {
   const finalNames = await appliedNames(databaseUrls.upgrade);
   if (finalNames.length !== migrationDirectories.length || finalNames.at(-1) !== migrationDirectories.at(-1)) throw new Error(`Phase 7 upgrade mismatch: expected ${migrationDirectories.length} migrations ending at ${migrationDirectories.at(-1)}, got ${finalNames.length} ending at ${finalNames.at(-1)}`);
   await structuralProof(databaseUrls.upgrade);
-  console.log(`Phase 7 migration proof passed: empty database (${migrationDirectories.length} migrations) and Phase 6 upgrade (${phase6MigrationDirectories.length} + ${phase7MigrationDirectories.length} migrations).`);
+  await runSeed(databaseUrls.upgrade); await runSeed(databaseUrls.upgrade);
+  console.log(`Phase 7 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 6 upgrade (${phase6MigrationDirectories.length} + ${phase7MigrationDirectories.length} migrations), idempotent reference seed, and no operational fixtures.`);
 } finally {
   await dropDatabase(adminPool, databaseNames.empty); await dropDatabase(adminPool, databaseNames.upgrade); await adminPool.end();
   await new Promise((resolve) => setTimeout(resolve, 250)); await rm(tempRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
