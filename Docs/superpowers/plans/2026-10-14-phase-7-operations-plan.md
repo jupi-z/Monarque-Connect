@@ -85,7 +85,7 @@
 
 **Files:** `prisma/schema.prisma`, `prisma/migrations/<timestamp>_add_cash_ledger/migration.sql`, `src/cash/*`, `tests/cash/*.integration.test.ts`
 
-**Interfaces:** Consumes Task 1 permissions, Money primitives, Expense/PaymentRecord source identifiers. Produces append-only cash ledger, derived balances, compensating corrections and same-currency transfers.
+**Interfaces:** Consumes Task 1 permissions, Money primitives, and validated Expense/PaymentRecord source identifiers. Produces append-only cash ledger, derived balances, compensating corrections and same-currency transfers. Normative freeze: `Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`; execution plan: `Docs/superpowers/plans/2026-10-14-phase-7-cash-plan.md`; issue #95.
 
 - [ ] Write failing tests for account lifecycle, signed balance, insufficient funds, correction, transfer and concurrent writes.
 - [ ] Add account, movement and source-link constraints with tenant-qualified relations.

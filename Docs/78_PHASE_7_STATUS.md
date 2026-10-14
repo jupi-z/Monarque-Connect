@@ -3,14 +3,17 @@
 ## État actuel
 
 La Phase 7 — Operations est ouverte et en cours d'exécution. L'état ci-dessous
-est vérifié sur `main@94f0e7066b4bb4c34d87e28e665b4686c07ce6c8` le 14 octobre
+est vérifié sur `main@51878617729d938ec036b25334d119f0c4e68a5a` le 14 octobre
 2026.
 
 Le cadrage et le contrat Operations sont intégrés. Les Tasks 2 et 3 — Inventory
 ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La Task
 4 — Expenses est livrée par la PR #93 et vérifiée par les CI PR #250 et
-post-merge #251. La phase reste volontairement ouverte tant que Cash et les
-preuves finales ne sont pas toutes démontrées.
+post-merge #251. La Task 5 — Cash est maintenant cadrée par
+`Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`, son plan dédié et l'issue #95 ; aucun
+code métier n'est considéré livré avant sa PR et ses CI. La phase reste
+volontairement ouverte tant que Cash et les preuves finales ne sont pas toutes
+démontrées.
 
 Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 
@@ -23,7 +26,7 @@ Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 - [x] modèle Inventory, migration et services ledger — PR #87 ;
 - [x] intégration GoodsReceipt → Inventory ;
 - [x] Expenses — spécification dédiée : `Docs/79_PHASE_7_EXPENSES_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-expenses-plan.md`, issue #92, PR #93 ;
-- [ ] CashAccounts/CashMovements ;
+- [ ] CashAccounts/CashMovements — spécification dédiée : `Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-cash-plan.md`, issue #95 ;
 - [ ] preuves finales cross-phase et clôture stricte.
 
 ## Task 2 — Inventory livré
