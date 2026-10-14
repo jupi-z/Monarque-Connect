@@ -40,11 +40,11 @@
 - Produces `Project`, `Task`, `Document`, `DocumentLink`, idempotency records and tenant-qualified relations.
 - Consumes existing Organization, Establishment, Membership, Party, Opportunity and audit/outbox relations.
 
-- [ ] Step 1: Écrire les tests PostgreSQL des tables, enums, FK tenant/establishment, unicités et états terminaux.
-- [ ] Step 2: Exécuter le test contre la baseline Phase 7 pour vérifier l'échec attendu avant migration.
-- [ ] Step 3: Implémenter les modèles Prisma et migration additive sans modifier les migrations historiques.
-- [ ] Step 4: Exécuter `npm run prisma:validate` et les tests de schéma sur base vide et upgrade Phase 7.
-- [ ] Step 5: Committer `feat(projects): add phase 8 persistence model`.
+- [x] Step 1: Écrire les tests PostgreSQL des tables, enums, FK tenant/establishment, unicités et états terminaux.
+- [x] Step 2: Exécuter le test contre la baseline Phase 7 pour vérifier l'échec attendu avant migration.
+- [x] Step 3: Implémenter les modèles Prisma et migration additive sans modifier les migrations historiques.
+- [x] Step 4: Exécuter `npm run prisma:validate` et les tests de schéma sur base vide et upgrade Phase 7.
+- [x] Step 5: Committer `feat(projects): add phase 8 persistence model`.
 
 ### Task 2: Autorisations, types métier et transitions
 
@@ -59,11 +59,11 @@
 - `AuthorizationService.requireModule(principal, organizationId, moduleCode, permission)` remains the single gate.
 - `assertProjectTransition(current, target): void` and `assertTaskTransition(current, target): void` reject invalid transitions with `ConflictException`.
 
-- [ ] Step 1: Écrire les tests de matrice rôle/entitlement/scope et de chaque transition autorisée/interdite.
-- [ ] Step 2: Implémenter les permissions centrales `projects:*` et `documents:*` dans la matrice existante.
-- [ ] Step 3: Implémenter les guards de transition et les validations de membership/establishment.
-- [ ] Step 4: Exécuter les tests unitaires ciblés et les tests d'isolation.
-- [ ] Step 5: Committer `feat(projects): centralize phase 8 authorization and transitions`.
+- [x] Step 1: Écrire les tests de matrice rôle/entitlement/scope et de chaque transition autorisée/interdite.
+- [x] Step 2: Implémenter les permissions centrales `projects:*` et `documents:*` dans la matrice existante.
+- [x] Step 3: Implémenter les guards de transition et les validations de membership/establishment.
+- [x] Step 4: Exécuter les tests unitaires ciblés et les tests d'isolation.
+- [x] Step 5: Committer `feat(projects): centralize phase 8 authorization and transitions`.
 
 ### Task 3: Projects et Tasks transactionnels
 
@@ -82,11 +82,11 @@
 - `ProjectService.transition(principal, organizationId, projectId, input, idempotencyKey): Promise<ProjectView>`
 - `TaskService.create/list/update/transition` use the same principal, tenant and idempotency conventions.
 
-- [ ] Step 1: Écrire les tests rouges de création, scope, références Party/Opportunity, transition et rejeu divergent.
-- [ ] Step 2: Implémenter les services avec verrouillage d'agrégat et état + audit + Outbox atomiques.
-- [ ] Step 3: Ajouter les contrôleurs `AuthGuard` et DTO validés derrière les endpoints contractuels.
-- [ ] Step 4: Exécuter les tests PostgreSQL et E2E ciblés ; vérifier `401/403/404/409`.
-- [ ] Step 5: Committer `feat(projects): add transactional projects and tasks`.
+- [x] Step 1: Écrire les tests rouges de création, scope, références Party/Opportunity, transition et rejeu divergent.
+- [x] Step 2: Implémenter les services avec verrouillage d'agrégat et état + audit + Outbox atomiques.
+- [x] Step 3: Ajouter les contrôleurs `AuthGuard` et DTO validés derrière les endpoints contractuels.
+- [x] Step 4: Exécuter les tests PostgreSQL et E2E ciblés ; vérifier `401/403/404/409`.
+- [x] Step 5: Committer `feat(projects): add transactional projects and tasks`.
 
 ### Task 4: Adaptateur binaire, Documents et DocumentLinks
 
@@ -105,11 +105,11 @@
 - `StorageAdapter.readStream(storageKey): Promise<NodeJS.ReadableStream>`
 - `DocumentService.startUpload/complete/revoke/link/unlink` preserve canonical idempotence.
 
-- [ ] Step 1: Écrire les tests rouges de métadonnées sans octets, allowlist de cibles, expiry, completion et révocation.
-- [ ] Step 2: Implémenter l'interface et l'adaptateur de test sans choisir de fournisseur.
-- [ ] Step 3: Implémenter Documents/Links avec vérification tenant/establishment et événements versionnés.
-- [ ] Step 4: Vérifier les rejeux du consumer et l'absence de doublons de liens.
-- [ ] Step 5: Committer `feat(documents): add provider-neutral document metadata and links`.
+- [x] Step 1: Écrire les tests rouges de métadonnées sans octets, allowlist de cibles, expiry, completion et révocation.
+- [x] Step 2: Implémenter l'interface et l'adaptateur de test sans choisir de fournisseur.
+- [x] Step 3: Implémenter Documents/Links avec vérification tenant/establishment et événements versionnés.
+- [x] Step 4: Vérifier les rejeux du consumer et l'absence de doublons de liens.
+- [x] Step 5: Committer `feat(documents): add provider-neutral document metadata and links`.
 
 ### Task 5: Contrats HTTP et compatibilité cross-phase
 
@@ -122,11 +122,11 @@
 **Interfaces:**
 - Les `operationId` et schémas OpenAPI deviennent les interfaces publiques immuables de la Phase 8.
 
-- [ ] Step 1: Écrire les tests de présence des routes, schémas, erreurs, auth, idempotence et allowlist de liens.
-- [ ] Step 2: Implémenter le contrat OpenAPI détaillé avant toute modification de contrôleur.
-- [ ] Step 3: Valider `npm run openapi:validate` et `npm run contracts:validate`.
-- [ ] Step 4: Vérifier que les opérations Phases 0 à 7 restent inchangées et documentées.
-- [ ] Step 5: Committer `docs(api): freeze phase 8 projects and documents contract`.
+- [x] Step 1: Écrire les tests de présence des routes, schémas, erreurs, auth, idempotence et allowlist de liens.
+- [x] Step 2: Implémenter le contrat OpenAPI détaillé avant toute modification de contrôleur.
+- [x] Step 3: Valider `npm run openapi:validate` et `npm run contracts:validate`.
+- [x] Step 4: Vérifier que les opérations Phases 0 à 7 restent inchangées et documentées.
+- [x] Step 5: Committer `docs(api): freeze phase 8 projects and documents contract`.
 
 ### Task 6: Preuves de migrations, sécurité et non-régression
 
@@ -136,11 +136,11 @@
 - Create: `Docs/84_PHASE_8_CLOSURE_EVIDENCE.md` à la clôture uniquement
 - Test: `tests/e2e/phase8-projects-documents.e2e.test.ts`
 
-- [ ] Step 1: Ajouter la preuve base vide et upgrade Phase 7, seed idempotent et absence de fixtures opérationnelles.
-- [ ] Step 2: Ajouter les tests d'isolation tenant/establishment, concurrence, sécurité binaire et audit/Outbox.
-- [ ] Step 3: Exécuter lint, typecheck, Prisma validate, migrations, OpenAPI, contrats, suite PostgreSQL, E2E, build et smoke.
-- [ ] Step 4: Ouvrir une PR dédiée, attendre la CI verte, puis fusionner par squash avec SHA attendu.
-- [ ] Step 5: Vérifier la CI post-fusion, synchroniser statut/roadmap/tracker/issue et supprimer la branche.
+- [x] Step 1: Ajouter la preuve base vide et upgrade Phase 7, seed idempotent et absence de fixtures opérationnelles.
+- [x] Step 2: Ajouter les tests d'isolation tenant/establishment, concurrence, sécurité binaire et audit/Outbox.
+- [x] Step 3: Exécuter lint, typecheck, Prisma validate, migrations, OpenAPI, contrats, suite PostgreSQL, E2E, build et smoke.
+- [x] Step 4: Ouvrir la PR #108, attendre la CI verte, puis fusionner par squash avec SHA attendu.
+- [x] Step 5: Vérifier la CI post-fusion, synchroniser statut/roadmap/tracker/issue et supprimer la branche.
 
 ## Notes d'exécution
 
@@ -153,6 +153,6 @@
   spécification plutôt qu'avec le chemin initialement gelé par erreur.
 - `scripts/verify-phase8-migrations.mjs` prouve la base vide, l'upgrade depuis
   la dernière migration Phase 7, le seed idempotent et les contraintes Phase 8.
-- La migration et les tests PostgreSQL ont été ajoutés, mais leur succès
-  effectif reste à prouver par la CI tant que PostgreSQL n'est pas disponible
-  dans l'environnement local.
+- La migration et les tests PostgreSQL ont été validés par la CI GitHub avec
+  PostgreSQL 17 ; l'environnement local Windows ne disposait pas du daemon
+  Docker au moment des premières vérifications.

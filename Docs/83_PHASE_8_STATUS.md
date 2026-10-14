@@ -1,20 +1,23 @@
-# 83 — Phase 8 Projects & Documents — Statut de cadrage
+# 83 — Phase 8 Projects & Documents — Statut et clôture
 
 ## État actuel
 
-La Phase 8 est officiellement ouverte sur la baseline
+La Phase 8 a été officiellement ouverte sur la baseline
 `main@318b3e5da5ddf257355b2d87d40cdcc5af8f571b`. La PR de cadrage #106, sa
-CI PR #282 et sa CI post-fusion #283 sont vertes. L'issue de suivi est
+CI PR #282 et sa CI post-fusion #283 étaient vertes. L'issue de suivi est
 [#105](https://github.com/jupi-z/Monarque-Connect/issues/105).
 
-La Phase 7 est clôturée et n'est pas rouverte. L'implémentation Phase 8 est en
-cours sur la branche dédiée `monarque/phase8-implementation`, sans modification
-directe de `main`. Les commits d'implémentation déjà réalisés sont :
+La Phase 7 est clôturée et n'est pas rouverte. L'implémentation Phase 8 a été
+réalisée sur la branche dédiée `monarque/phase8-implementation`, sans
+modification directe de `main`. Les commits d'implémentation ont été fusionnés
+par la PR #108 :
 
 - `8966f42` — modèles Prisma et migration additive Projects/Documents ;
 - `4da65aa` — autorisations et transitions centralisées ;
 - `7e6f4b8` — services et contrôleurs Projects/Tasks transactionnels ;
 - `b02d8b4` — documents, liens, adaptateur binaire, événements, preuves et E2E.
+- `19a4328` — correctifs finaux de rejeu BigInt, liens persistés et preuves de
+  migration compatibles PostgreSQL.
 
 ## Artefacts de cadrage
 
@@ -29,34 +32,37 @@ directe de `main`. Les commits d'implémentation déjà réalisés sont :
 - [x] migrations et modèles Prisma ;
 - [x] services, contrôleurs et adaptateur binaire ;
 - [x] tests PostgreSQL/E2E et preuves cross-phase ajoutés au dépôt ;
-- [ ] PR d'implémentation et CI post-fusion ;
-- [ ] clôture stricte Phase 8.
+- [x] PR d'implémentation #108 fusionnée par squash dans
+  `main@6105806790994f98f8fa33ace520a412bebbd05b` ;
+- [x] CI PR #291 et CI post-fusion #292 : `success` ;
+- [x] clôture stricte Phase 8, documentée dans
+  `Docs/84_PHASE_8_CLOSURE_EVIDENCE.md`.
 
 ## Gates de sortie
 
-- [ ] Projects/Tasks établissement-scopés, transitions atomiques et auditables ;
-- [ ] Documents/links tenant-scoped, cibles allowlistées et sans fuite ;
-- [ ] entitlement, permissions et scopes centralisés ;
-- [ ] idempotence canonique, concurrence et refus `409` démontrés ;
-- [ ] stockage binaire derrière un adaptateur, sans accès client direct ;
-- [ ] événements et Outbox atomiques, consumers rejouables ;
-- [ ] migrations base vide et upgrade depuis Phase 7 ;
-- [ ] tests PostgreSQL, E2E, OpenAPI, contrats, build et non-régression ;
-- [ ] CI PR et post-merge vertes ;
-- [ ] preuve, roadmap, tracker et issue synchronisés.
+- [x] Projects/Tasks établissement-scopés, transitions atomiques et auditables ;
+- [x] Documents/links tenant-scoped, cibles allowlistées et sans fuite ;
+- [x] entitlement, permissions et scopes centralisés ;
+- [x] idempotence canonique, concurrence et refus `409` démontrés ;
+- [x] stockage binaire derrière un adaptateur, sans accès client direct ;
+- [x] événements et Outbox atomiques, consumers rejouables ;
+- [x] migrations base vide et upgrade depuis Phase 7 ;
+- [x] tests PostgreSQL, E2E, OpenAPI, contrats, build et non-régression ;
+- [x] CI PR et post-merge vertes ;
+- [x] preuve, roadmap, tracker et issue synchronisés.
 
 ## Vérifications locales de la tranche
 
-Les contrôles suivants passent localement sur la branche : `typecheck`, `lint`,
-`build`, `prisma:validate`, `openapi:validate`, `contracts:validate` et les
-tests unitaires/contrats/adaptateur ciblés. Les tests PostgreSQL et E2E n'ont
-pas pu être exécutés dans cet environnement le 14 octobre 2026 : Docker
-Desktop n'est pas démarré et PostgreSQL refuse les connexions sur
-`127.0.0.1:5432` et `::1:5432`. Ils restent obligatoires et seront attestés
-par la CI de la PR avant toute fusion.
+Les contrôles statiques ciblés (`typecheck`, `lint`, `build`,
+`prisma:validate`, `openapi:validate`, `contracts:validate`) et les tests
+unitaires ciblés ont été exécutés sur la branche d'implémentation. Les tests
+PostgreSQL et E2E ont été exécutés avec succès par la CI GitHub, qui fournit
+la preuve reproductible avec PostgreSQL 17. Le détail des résultats et leurs
+URLs est conservé dans `Docs/84_PHASE_8_CLOSURE_EVIDENCE.md`.
 
 ## Gouvernance
 
-Chaque tranche suivra : branche dédiée → PR → CI verte → fusion contrôlée →
-suppression de branche. Aucun push direct sur `main`. La Phase 8 ne sera pas
-déclarée terminée sur la seule base du cadrage ou d'une CI de compilation.
+La tranche a suivi : branche dédiée → PR #108 → CI verte → fusion contrôlée par
+squash → suppression de branche. Aucun push direct sur `main`. Toute évolution
+ultérieure de la Phase 8 devra préserver cette gouvernance et ne constitue pas
+une réouverture de la phase clôturée.
