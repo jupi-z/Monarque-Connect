@@ -42,6 +42,7 @@ export class GoodsReceiptInventoryService {
     const key = this.requireKey(idempotencyKey);
     const event = this.eventContext();
     return this.prisma.$transaction(async (tx) => {
+      await this.lockReceipt(tx, organizationId, goodsReceiptId);
       const receipt = await this.receipt(tx, organizationId, goodsReceiptId);
       if (receipt.establishmentId !== input.establishmentId) throw new ConflictException('Receipt establishment does not match assignment');
       if (receipt.status !== 'CONFIRMED') throw new ConflictException('Only a confirmed receipt can be assigned to Inventory');
@@ -66,6 +67,7 @@ export class GoodsReceiptInventoryService {
     const key = this.requireKey(idempotencyKey);
     const event = this.eventContext();
     return this.prisma.$transaction(async (tx) => {
+      await this.lockReceipt(tx, organizationId, goodsReceiptId);
       const receipt = await this.receipt(tx, organizationId, goodsReceiptId);
       if (receipt.establishmentId !== input.establishmentId) throw new ConflictException('Receipt establishment does not match import');
       if (receipt.status !== 'CONFIRMED') throw new ConflictException('Only a confirmed receipt can be imported into Inventory');
@@ -75,6 +77,17 @@ export class GoodsReceiptInventoryService {
         if (existing.warehouseId !== input.warehouseId) throw new ConflictException('Goods receipt is already assigned to another warehouse');
         return this.serialize(existing);
       }
+      const pendingEvent = await tx.outboxEvent.findFirst({
+        where: {
+          organizationId,
+          aggregateType: 'GoodsReceipt',
+          aggregateId: goodsReceiptId,
+          eventType: { in: ['purchases.goods_receipt.confirmed.v1', 'purchases.goods_receipt.corrected.v1'] },
+          status: { in: ['PENDING', 'PROCESSING'] },
+        },
+        select: { id: true },
+      });
+      if (pendingEvent) throw new ConflictException('An event-backed receipt must be replayed before historical import');
       if (existing && (await tx.goodsReceiptInventoryEntry.count({ where: { organizationId, goodsReceiptId, sourceEventId: { not: null } } })) > 0) throw new ConflictException('An event-backed receipt cannot be imported historically');
       const warehouse = await tx.warehouse.findFirst({ where: { id: input.warehouseId, organizationId, establishmentId: input.establishmentId, active: true }, select: { id: true } });
       if (!warehouse) throw new NotFoundException('Active warehouse not found');
@@ -122,6 +135,10 @@ export class GoodsReceiptInventoryService {
     const receipt = await tx.goodsReceipt.findFirst({ where: { id: goodsReceiptId, organizationId }, select: { id: true, establishmentId: true, status: true, receivedAt: true, lines: { orderBy: { lineIndex: 'asc' }, select: { id: true, itemId: true, quantity: true } } } });
     if (!receipt) throw new NotFoundException('Goods receipt not found');
     return receipt;
+  }
+
+  private async lockReceipt(tx: Prisma.TransactionClient, organizationId: string, goodsReceiptId: string): Promise<void> {
+    await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`goods-receipt-inventory:${organizationId}:${goodsReceiptId}`}, 0))`);
   }
 
   private readonly select = { id: true, organizationId: true, establishmentId: true, goodsReceiptId: true, warehouseId: true, status: true, sourceRevision: true, createdAt: true, updatedAt: true } as const;

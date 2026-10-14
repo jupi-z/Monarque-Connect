@@ -985,6 +985,7 @@ model InventoryMovement {
   goodsReceiptInventoryEntry GoodsReceiptInventoryEntry?
 
   @@unique([organizationId, idempotencyKey])
+  @@unique([id, organizationId])
   @@index([organizationId, establishmentId, occurredAt, id])
   @@index([organizationId, warehouseId, itemId, occurredAt, id])
   @@index([organizationId, sourceType, sourceId, sourceLineId])
@@ -1613,9 +1614,10 @@ model GoodsReceiptInventoryEntry {
   goodsReceipt          GoodsReceipt             @relation(fields: [goodsReceiptId, organizationId], references: [id, organizationId], onDelete: Restrict)
   goodsReceiptLine      GoodsReceiptLine         @relation(fields: [goodsReceiptLineId, goodsReceiptId, organizationId], references: [id, goodsReceiptId, organizationId], onDelete: Restrict)
   item                  Item?                    @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  inventoryMovement     InventoryMovement?      @relation(fields: [inventoryMovementId], references: [id], onDelete: SetNull)
+  inventoryMovement     InventoryMovement?      @relation(fields: [inventoryMovementId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@unique([organizationId, goodsReceiptLineId, sourceRevision])
+  @@unique([inventoryMovementId, organizationId])
   @@index([organizationId, goodsReceiptId, createdAt, id])
   @@index([organizationId, sourceEventId])
   @@map("goods_receipt_inventory_entries")

@@ -43,13 +43,16 @@ CREATE TABLE "goods_receipt_inventory_entries" (
 );
 
 DROP INDEX "inventory_movements_source_identity_key";
-CREATE UNIQUE INDEX "inventory_movements_source_identity_key" ON "inventory_movements"("organization_id", "source_type", "source_id", "source_line_id", "source_revision", "movement_type") WHERE "source_id" IS NOT NULL AND "source_line_id" IS NOT NULL;
+CREATE UNIQUE INDEX "inventory_movements_source_identity_legacy_key" ON "inventory_movements"("organization_id", "source_type", "source_id", "source_line_id", "movement_type") WHERE "source_id" IS NOT NULL AND "source_line_id" IS NOT NULL AND "source_revision" IS NULL;
+CREATE UNIQUE INDEX "inventory_movements_source_identity_revision_key" ON "inventory_movements"("organization_id", "source_type", "source_id", "source_line_id", "source_revision", "movement_type") WHERE "source_id" IS NOT NULL AND "source_line_id" IS NOT NULL AND "source_revision" IS NOT NULL;
 CREATE INDEX "inventory_movements_source_revision_idx" ON "inventory_movements"("organization_id", "source_type", "source_id", "source_line_id", "source_revision");
+CREATE UNIQUE INDEX "inventory_movements_id_organization_id_key" ON "inventory_movements"("id", "organization_id");
 CREATE UNIQUE INDEX "goods_receipt_inventory_links_goods_receipt_id_organization_id_key" ON "goods_receipt_inventory_links"("goods_receipt_id", "organization_id");
 CREATE UNIQUE INDEX "goods_receipt_inventory_links_organization_id_idempotency_key_key" ON "goods_receipt_inventory_links"("organization_id", "idempotency_key");
 CREATE UNIQUE INDEX "goods_receipt_inventory_links_id_organization_id_key" ON "goods_receipt_inventory_links"("id", "organization_id");
 CREATE INDEX "goods_receipt_inventory_links_organization_id_establishment_id_status_created_at_id_idx" ON "goods_receipt_inventory_links"("organization_id", "establishment_id", "status", "created_at", "id");
 CREATE UNIQUE INDEX "goods_receipt_inventory_entries_inventory_movement_id_key" ON "goods_receipt_inventory_entries"("inventory_movement_id");
+CREATE UNIQUE INDEX "goods_receipt_inventory_entries_inventory_movement_id_organization_id_key" ON "goods_receipt_inventory_entries"("inventory_movement_id", "organization_id");
 CREATE UNIQUE INDEX "goods_receipt_inventory_entries_organization_id_goods_receipt_line_id_source_revision_key" ON "goods_receipt_inventory_entries"("organization_id", "goods_receipt_line_id", "source_revision");
 CREATE INDEX "goods_receipt_inventory_entries_organization_id_goods_receipt_id_created_at_id_idx" ON "goods_receipt_inventory_entries"("organization_id", "goods_receipt_id", "created_at", "id");
 CREATE INDEX "goods_receipt_inventory_entries_organization_id_source_event_id_idx" ON "goods_receipt_inventory_entries"("organization_id", "source_event_id");
@@ -63,4 +66,4 @@ ALTER TABLE "goods_receipt_inventory_entries" ADD CONSTRAINT "goods_receipt_inve
 ALTER TABLE "goods_receipt_inventory_entries" ADD CONSTRAINT "goods_receipt_inventory_entries_goods_receipt_id_organization_id_fkey" FOREIGN KEY ("goods_receipt_id", "organization_id") REFERENCES "goods_receipts"("id", "organization_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "goods_receipt_inventory_entries" ADD CONSTRAINT "goods_receipt_inventory_entries_goods_receipt_line_id_goods_receipt_id_organization_id_fkey" FOREIGN KEY ("goods_receipt_line_id", "goods_receipt_id", "organization_id") REFERENCES "goods_receipt_lines"("id", "goods_receipt_id", "organization_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "goods_receipt_inventory_entries" ADD CONSTRAINT "goods_receipt_inventory_entries_item_id_organization_id_fkey" FOREIGN KEY ("item_id", "organization_id") REFERENCES "items"("id", "organization_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "goods_receipt_inventory_entries" ADD CONSTRAINT "goods_receipt_inventory_entries_inventory_movement_id_fkey" FOREIGN KEY ("inventory_movement_id") REFERENCES "inventory_movements"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "goods_receipt_inventory_entries" ADD CONSTRAINT "goods_receipt_inventory_entries_inventory_movement_id_organization_id_fkey" FOREIGN KEY ("inventory_movement_id", "organization_id") REFERENCES "inventory_movements"("id", "organization_id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -59,6 +59,8 @@ describe('GoodsReceipt to Inventory integration', () => {
     if (!prisma) return;
     await prisma.goodsReceiptInventoryEntry.deleteMany({ where: { organizationId } });
     await prisma.goodsReceiptInventoryLink.deleteMany({ where: { organizationId } });
+    await prisma.goodsReceiptCorrectionLine.deleteMany({ where: { organizationId } });
+    await prisma.goodsReceiptCorrection.deleteMany({ where: { organizationId } });
     await prisma.goodsReceipt.deleteMany({ where: { organizationId } });
     await prisma.purchaseOrder.deleteMany({ where: { organizationId } });
     await prisma.businessParty.deleteMany({ where: { organizationId } });
@@ -90,7 +92,10 @@ describe('GoodsReceipt to Inventory integration', () => {
     await expect(inventory.assign(actor, organizationId, receiptId, { establishmentId, warehouseId, reason: 'Replay' }, 'goods-receipt-assignment-2')).resolves.toEqual(assigned);
     await expect(prisma.inventoryMovement.count({ where: { organizationId, sourceId: receiptId } })).resolves.toBe(1);
 
-    await insertEvent('purchases.goods_receipt.corrected.v1', 'correction-1', [{ goodsReceiptLineId: receiptLineId, itemId, deltaQuantity: '-0.500000' }]);
+    const correctionId = randomUUID();
+    await prisma.goodsReceiptCorrection.create({ data: { id: correctionId, organizationId, goodsReceiptId: receiptId, reason: 'Inventory correction', createdByUserId: actor.userId } });
+    await prisma.goodsReceiptCorrectionLine.create({ data: { id: randomUUID(), organizationId, correctionId, goodsReceiptId: receiptId, goodsReceiptLineId: receiptLineId, deltaQuantity: '-0.500000' } });
+    await insertEvent('purchases.goods_receipt.corrected.v1', correctionId, [{ goodsReceiptLineId: receiptLineId, itemId, deltaQuantity: '-0.500000' }]);
     await expect(worker.processBatch({ workerId: 'goods-receipt-test-correction' })).resolves.toBe(3);
     await expect(prisma.inventoryMovement.count({ where: { organizationId, sourceId: receiptId } })).resolves.toBe(2);
     await expect(prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId, itemId } } })).resolves.toMatchObject({ quantity: new Prisma.Decimal('1.500000') });
@@ -106,6 +111,20 @@ describe('GoodsReceipt to Inventory integration', () => {
     expect(imported).toMatchObject({ status: 'IMPORTED', warehouseId });
     await expect(inventory.importHistorical(actor, organizationId, importReceiptId, { establishmentId, warehouseId, reason: 'Replay' }, 'goods-receipt-import-2')).resolves.toEqual(imported);
     await expect(prisma.inventoryMovement.count({ where: { organizationId, sourceId: importReceiptId } })).resolves.toBe(1);
+  });
+
+  it('rejects historical import while a receipt event is pending', async () => {
+    const pendingReceiptId = randomUUID(); const pendingLineId = randomUUID(); const orderId = randomUUID(); const orderLineId = randomUUID();
+    const supplierPartyId = await prisma.businessParty.findFirstOrThrow({ where: { organizationId, type: 'SUPPLIER' }, select: { id: true } });
+    await prisma.purchaseOrder.create({ data: { id: orderId, organizationId, establishmentId, number: 'PO-TEST-3', status: 'CONFIRMED', supplierPartyId: supplierPartyId.id, supplierKind: 'LOCAL_PARTY', supplierDisplayNameSnapshot: 'Supplier', currency: 'EUR', totalNet: '10', totalTax: '0', totalGross: '10', lines: { create: { id: orderLineId, lineIndex: 1, itemId, itemNameSnapshot: 'Tracked item', unitSnapshot: 'piece', quantityOrdered: '1', unitPrice: '10', discountAmount: '0', taxMode: 'EXCLUSIVE', taxRate: '0', netAmount: '10', taxAmount: '0', grossAmount: '10' } } } });
+    await prisma.goodsReceipt.create({ data: { id: pendingReceiptId, organizationId, establishmentId, purchaseOrderId: orderId, number: 'GR-TEST-3', status: 'CONFIRMED', receivedAt: new Date(), lines: { create: { id: pendingLineId, purchaseOrderLineId: orderLineId, lineIndex: 1, itemId, itemNameSnapshot: 'Tracked item', unitSnapshot: 'piece', quantity: '1' } } } });
+    const eventId = randomUUID();
+    await prisma.outboxEvent.create({ data: { id: eventId, eventType: 'purchases.goods_receipt.confirmed.v1', eventVersion: 1, occurredAt: new Date(), organizationId, establishmentId, actorType: 'USER', actorId: actor.userId, aggregateType: 'GoodsReceipt', aggregateId: pendingReceiptId, correlationId: randomUUID(), dataClassification: 'CONFIDENTIAL', purpose: 'purchases-goods-receipt', payloadJson: { goodsReceiptId: pendingReceiptId, purchaseOrderId: orderId, establishmentId, sourceRevision: 'CONFIRMED', lines: [{ goodsReceiptLineId: pendingLineId, itemId, deltaQuantity: '1.000000' }] } } });
+    await expect(inventory.importHistorical(actor, organizationId, pendingReceiptId, { establishmentId, warehouseId, reason: 'Must wait for event projection' }, 'goods-receipt-import-pending')).rejects.toThrow('event-backed receipt must be replayed');
+    await expect(prisma.goodsReceiptInventoryLink.findUnique({ where: { goodsReceiptId_organizationId: { goodsReceiptId: pendingReceiptId, organizationId } } })).resolves.toBeNull();
+    await prisma.outboxEvent.delete({ where: { id: eventId } });
+    await prisma.goodsReceipt.delete({ where: { id: pendingReceiptId } });
+    await prisma.purchaseOrder.delete({ where: { id: orderId } });
   });
 
   async function insertEvent(eventType: string, sourceRevision: string, lines: Array<{ goodsReceiptLineId: string; itemId: string | null; deltaQuantity: string }>): Promise<string> {
