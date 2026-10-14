@@ -25,7 +25,7 @@ describe('GoodsReceipt to Inventory integration', () => {
   beforeAll(async () => {
     const { privateKey, publicKey } = await promisify(generateKeyPair)('rsa', { modulusLength: 2048 });
     process.env.NODE_ENV = 'test';
-    process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/monarque_connect_phase6_task3_test';
+    process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/monarque_connect_phase7_task3_test';
     process.env.JWT_ISSUER = 'phase7-goods-receipt-test'; process.env.JWT_AUDIENCE = 'phase7-goods-receipt-api'; process.env.JWT_KEY_ID = 'phase7-goods-receipt';
     process.env.JWT_PRIVATE_KEY_PEM = await exportPKCS8(privateKey); process.env.JWT_PUBLIC_KEY_PEM = await exportSPKI(publicKey);
     const { AppModule } = await import('../../src/app.module.js');
