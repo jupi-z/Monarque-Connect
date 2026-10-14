@@ -51,7 +51,7 @@ export class TaskService {
         const id = randomUUID();
         const task = await tx.task.create({ data: { id, organizationId, projectId, title: input.title.trim(), description: input.description?.trim() ?? null, assigneeUserId: input.assigneeUserId ?? null, dueOn, position: input.position ?? 0, createdByUserId: principal.userId }, select: taskSelect });
         await this.createCommand(tx, { organizationId, actorUserId: principal.userId, operation: 'TASK_CREATE', key, payloadHash, resourceType: 'Task', resourceId: id, establishmentId: project.establishmentId });
-        await this.recordMutation(tx, 'TASK_CREATED', 'task.created', principal, organizationId, project.establishmentId, id, event, { projectId, title: task.title, status: task.status });
+        await this.recordMutation(tx, 'TASK_CREATED', 'task.created.v1', principal, organizationId, project.establishmentId, id, event, { projectId, title: task.title, status: task.status });
         return this.serialize(task);
       });
     } catch (error) {
@@ -78,7 +78,7 @@ export class TaskService {
         if (changed.count === 0) throw new ConflictException('Task was changed concurrently');
         const task = await tx.task.findFirstOrThrow({ where: { id: taskId, organizationId }, select: taskSelect });
         await this.createCommand(tx, { organizationId, actorUserId: principal.userId, operation: 'TASK_UPDATE', key, payloadHash, resourceType: 'Task', resourceId: taskId, establishmentId: current.establishmentId });
-        await this.recordMutation(tx, 'TASK_UPDATED', 'task.updated', principal, organizationId, current.establishmentId, taskId, event, { fields: Object.keys(input), projectId: task.projectId });
+        await this.recordMutation(tx, 'TASK_UPDATED', 'task.updated.v1', principal, organizationId, current.establishmentId, taskId, event, { fields: Object.keys(input), projectId: task.projectId });
         return this.serialize(task);
       });
     } catch (error) {
@@ -102,7 +102,7 @@ export class TaskService {
         if (changed.count === 0) throw new ConflictException('Task was changed concurrently');
         const task = await tx.task.findFirstOrThrow({ where: { id: taskId, organizationId }, select: taskSelect });
         await this.createCommand(tx, { organizationId, actorUserId: principal.userId, operation: 'TASK_TRANSITION', key, payloadHash, resourceType: 'Task', resourceId: taskId, establishmentId: current.establishmentId });
-        await this.recordMutation(tx, 'TASK_STATUS_CHANGED', 'task.status_changed', principal, organizationId, current.establishmentId, taskId, event, { previousStatus: current.status, status: task.status, reason: input.reason ?? null, projectId: task.projectId });
+        await this.recordMutation(tx, 'TASK_STATUS_CHANGED', 'task.status_changed.v1', principal, organizationId, current.establishmentId, taskId, event, { previousStatus: current.status, status: task.status, reason: input.reason ?? null, projectId: task.projectId });
         return this.serialize(task);
       });
     } catch (error) {

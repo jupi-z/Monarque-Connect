@@ -56,7 +56,7 @@ export class ProjectService {
         const id = randomUUID();
         const project = await tx.project.create({ data: { id, organizationId, establishmentId: input.establishmentId, partyId: input.partyId ?? null, opportunityId: input.opportunityId ?? null, name: input.name.trim(), description: input.description?.trim() ?? null, startsOn: dates.startsOn, dueOn: dates.dueOn, createdByUserId: principal.userId }, select: projectSelect });
         await this.createCommand(tx, { organizationId, actorUserId: principal.userId, operation: 'PROJECT_CREATE', key, payloadHash, resourceType: 'Project', resourceId: id, establishmentId: input.establishmentId });
-        await this.recordMutation(tx, 'PROJECT_CREATED', 'project.created', principal, organizationId, input.establishmentId, id, event, { name: project.name, status: project.status });
+        await this.recordMutation(tx, 'PROJECT_CREATED', 'project.created.v1', principal, organizationId, input.establishmentId, id, event, { name: project.name, status: project.status });
         return this.serialize(project);
       });
     } catch (error) {
@@ -84,7 +84,7 @@ export class ProjectService {
         if (changed.count === 0) throw new ConflictException('Project was changed concurrently');
         const project = await tx.project.findFirstOrThrow({ where: { id: projectId, organizationId }, select: projectSelect });
         await this.createCommand(tx, { organizationId, actorUserId: principal.userId, operation: 'PROJECT_UPDATE', key, payloadHash, resourceType: 'Project', resourceId: projectId, establishmentId: project.establishmentId });
-        await this.recordMutation(tx, 'PROJECT_UPDATED', 'project.updated', principal, organizationId, project.establishmentId, projectId, event, { fields: Object.keys(input) });
+        await this.recordMutation(tx, 'PROJECT_UPDATED', 'project.updated.v1', principal, organizationId, project.establishmentId, projectId, event, { fields: Object.keys(input) });
         return this.serialize(project);
       });
     } catch (error) {
@@ -109,7 +109,7 @@ export class ProjectService {
         if (changed.count === 0) throw new ConflictException('Project was changed concurrently');
         const project = await tx.project.findFirstOrThrow({ where: { id: projectId, organizationId }, select: projectSelect });
         await this.createCommand(tx, { organizationId, actorUserId: principal.userId, operation: 'PROJECT_TRANSITION', key, payloadHash, resourceType: 'Project', resourceId: projectId, establishmentId: project.establishmentId });
-        await this.recordMutation(tx, 'PROJECT_STATUS_CHANGED', 'project.status_changed', principal, organizationId, project.establishmentId, projectId, event, { previousStatus: current.status, status: project.status, reason: input.reason ?? null });
+        await this.recordMutation(tx, 'PROJECT_STATUS_CHANGED', 'project.status_changed.v1', principal, organizationId, project.establishmentId, projectId, event, { previousStatus: current.status, status: project.status, reason: input.reason ?? null });
         return this.serialize(project);
       });
     } catch (error) {
