@@ -60,9 +60,13 @@ async function structuralProof(databaseUrl) {
     const constraints = await pool.query(`SELECT conname FROM pg_constraint WHERE conname IN ('projects_dates_check', 'tasks_position_check', 'documents_byte_size_check', 'documents_checksum_sha256_check', 'document_links_organization_id_document_id_target_type_target_id_key', 'phase8_idempotency_keys_organization_id_actor_user_id_operation_key_key')`);
     const names = new Set(constraints.rows.map((row) => row.conname));
     for (const required of ['projects_dates_check', 'tasks_position_check', 'documents_byte_size_check', 'documents_checksum_sha256_check']) if (!names.has(required)) throw new Error(`Phase 8 structural proof missing constraint: ${required}`);
-    const indexes = await pool.query(`SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname IN ('document_links_organization_id_document_id_target_type_target_id_key', 'phase8_idempotency_keys_organization_id_actor_user_id_operation_key_key')`);
-    const indexNames = new Set(indexes.rows.map((row) => row.indexname));
-    for (const required of ['document_links_organization_id_document_id_target_type_target_id_key', 'phase8_idempotency_keys_organization_id_actor_user_id_operation_key_key']) if (!indexNames.has(required)) throw new Error(`Phase 8 structural proof missing unique index: ${required}`);
+    const indexes = await pool.query(`SELECT tablename, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename IN ('document_links', 'phase8_idempotency_keys') AND indexdef LIKE 'CREATE UNIQUE INDEX%'`);
+    const definitions = indexes.rows.map((row) => ({ table: row.tablename, definition: row.indexdef.replaceAll('"', '').replace(/\s+/g, ' ') }));
+    const requiredIndexes = [
+      ['document_links', '(organization_id, document_id, target_type, target_id)'],
+      ['phase8_idempotency_keys', '(organization_id, actor_user_id, operation, key)'],
+    ];
+    for (const [table, columns] of requiredIndexes) if (!definitions.some((definition) => definition.table === table && definition.definition.includes(columns))) throw new Error(`Phase 8 structural proof missing unique index columns: ${table} ${columns}`);
   } finally { await pool.end(); }
 }
 
