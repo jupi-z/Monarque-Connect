@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import { ExpenseService } from './expense.service.js';
 import { CreateExpenseDto, ExpenseListQuery, RecordExpenseDto, UpdateExpenseDto, VoidExpenseDto } from './expense.dto.js';
 
 @Controller('organizations/:organizationId/expenses')
+@UseGuards(AuthGuard)
 export class ExpenseController {
   constructor(private readonly expenses: ExpenseService) {}
 
