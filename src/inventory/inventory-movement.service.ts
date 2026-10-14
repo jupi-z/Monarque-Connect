@@ -52,6 +52,7 @@ export class InventoryMovementService {
             quantityDelta: delta.toFixed(6),
             sourceId: input.sourceId ?? null,
             sourceLineId: input.sourceLineId ?? null,
+            sourceRevision: input.sourceRevision ?? (input.sourceId && input.sourceLineId ? 'LEGACY' : null),
             transferId: input.transferId ?? null,
             idempotencyKey,
             reason: input.reason?.trim() || null,
@@ -97,9 +98,9 @@ export class InventoryMovementService {
 
   private requireIdempotencyKey(value: string): string { if (!value?.trim() || value.length > 200) throw new BadRequestException('Idempotency-Key is required'); return value.trim(); }
 
-  private readonly select = { id: true, organizationId: true, establishmentId: true, warehouseId: true, itemId: true, movementType: true, sourceType: true, quantityDelta: true, sourceId: true, sourceLineId: true, transferId: true, idempotencyKey: true, reason: true, occurredAt: true, createdByUserId: true, createdAt: true } as const;
+  private readonly select = { id: true, organizationId: true, establishmentId: true, warehouseId: true, itemId: true, movementType: true, sourceType: true, quantityDelta: true, sourceId: true, sourceLineId: true, sourceRevision: true, transferId: true, idempotencyKey: true, reason: true, occurredAt: true, createdByUserId: true, createdAt: true } as const;
 
-  private serialize(row: { id: string; organizationId: string; establishmentId: string; warehouseId: string; itemId: string; movementType: InventoryMovementType; sourceType: string; quantityDelta: Prisma.Decimal; sourceId: string | null; sourceLineId: string | null; transferId: string | null; idempotencyKey: string | null; reason: string | null; occurredAt: Date; createdByUserId: string; createdAt: Date }): unknown {
+  private serialize(row: { id: string; organizationId: string; establishmentId: string; warehouseId: string; itemId: string; movementType: InventoryMovementType; sourceType: string; quantityDelta: Prisma.Decimal; sourceId: string | null; sourceLineId: string | null; sourceRevision: string | null; transferId: string | null; idempotencyKey: string | null; reason: string | null; occurredAt: Date; createdByUserId: string; createdAt: Date }): unknown {
     return { ...row, quantityDelta: row.quantityDelta.toFixed(6), occurredAt: row.occurredAt.toISOString(), createdAt: row.createdAt.toISOString() };
   }
 }

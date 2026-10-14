@@ -203,6 +203,8 @@ enum AuditAction {
   GOODS_RECEIPT_CORRECTED
   INVENTORY_MOVEMENT_CREATED
   INVENTORY_TRANSFER_CREATED
+  GOODS_RECEIPT_INVENTORY_ASSIGNED
+  GOODS_RECEIPT_INVENTORY_IMPORTED
 }
 
 enum ConnectionRequestStatus {
@@ -346,6 +348,17 @@ enum InventoryMovementSourceType {
   TRANSFER
   HISTORICAL_IMPORT
   RECONCILIATION
+}
+
+enum GoodsReceiptInventoryLinkStatus {
+  PENDING_ASSIGNMENT
+  ASSIGNED
+  IMPORTED
+}
+
+enum GoodsReceiptInventoryDecisionSource {
+  EVENT_ASSIGNMENT
+  HISTORICAL_IMPORT
 }
 
 model OutboxEvent {
@@ -586,6 +599,8 @@ model Organization {
   supplierRfqs               SupplierRFQ[]
   purchaseOrders             PurchaseOrder[]
   goodsReceipts              GoodsReceipt[]
+  goodsReceiptInventoryLinks GoodsReceiptInventoryLink[]
+  goodsReceiptInventoryEntries GoodsReceiptInventoryEntry[]
   inventoryMovements         InventoryMovement[]
   inventoryBalances          InventoryBalance[]
   purchaseIdempotencyKeys    PurchaseIdempotencyKey[]
@@ -790,6 +805,7 @@ model Establishment {
   supplierRfqs         SupplierRFQ[]
   purchaseOrders       PurchaseOrder[]
   goodsReceipts        GoodsReceipt[]
+  goodsReceiptInventoryLinks GoodsReceiptInventoryLink[]
   inventoryMovements   InventoryMovement[]
 
   @@unique([organizationId, code])
@@ -913,6 +929,7 @@ model Item {
   supplierRfqLines SupplierRFQLine[]
   purchaseOrderLines PurchaseOrderLine[]
   goodsReceiptLines GoodsReceiptLine[]
+  goodsReceiptInventoryEntries GoodsReceiptInventoryEntry[]
   inventoryMovements InventoryMovement[]
   inventoryBalances InventoryBalance[]
 
@@ -935,6 +952,7 @@ model Warehouse {
   establishment   Establishment @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
   inventoryMovements InventoryMovement[]
   inventoryBalances  InventoryBalance[]
+  goodsReceiptInventoryLinks GoodsReceiptInventoryLink[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -953,6 +971,7 @@ model InventoryMovement {
   quantityDelta     Decimal                      @map("quantity_delta") @db.Decimal(19, 6)
   sourceId          String?                      @map("source_id") @db.Uuid
   sourceLineId      String?                      @map("source_line_id") @db.Uuid
+  sourceRevision    String?                      @map("source_revision") @db.VarChar(80)
   transferId        String?                      @map("transfer_id") @db.Uuid
   idempotencyKey    String?                      @map("idempotency_key") @db.VarChar(200)
   reason            String?                      @db.VarChar(500)
@@ -963,11 +982,14 @@ model InventoryMovement {
   establishment     Establishment                @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
   warehouse         Warehouse                    @relation(fields: [warehouseId, organizationId], references: [id, organizationId], onDelete: Restrict)
   item              Item                         @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  goodsReceiptInventoryEntry GoodsReceiptInventoryEntry?
 
   @@unique([organizationId, idempotencyKey])
+  @@unique([id, organizationId])
   @@index([organizationId, establishmentId, occurredAt, id])
   @@index([organizationId, warehouseId, itemId, occurredAt, id])
   @@index([organizationId, sourceType, sourceId, sourceLineId])
+  @@index([organizationId, sourceType, sourceId, sourceLineId, sourceRevision], map: "inventory_movements_source_revision_idx")
   @@index([transferId])
   @@map("inventory_movements")
 }
@@ -1478,6 +1500,8 @@ model GoodsReceipt {
   lines           GoodsReceiptLine[]
   corrections     GoodsReceiptCorrection[]
   correctionLines GoodsReceiptCorrectionLine[]
+  inventoryLink   GoodsReceiptInventoryLink?
+  inventoryEntries GoodsReceiptInventoryEntry[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, number])
@@ -1501,6 +1525,7 @@ model GoodsReceiptLine {
   purchaseOrderLine   PurchaseOrderLine @relation(fields: [purchaseOrderLineId, organizationId], references: [id, organizationId], onDelete: Restrict)
   item                Item?            @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
   correctionLines     GoodsReceiptCorrectionLine[]
+  inventoryEntries    GoodsReceiptInventoryEntry[]
 
   @@unique([goodsReceiptId, lineIndex])
   @@unique([goodsReceiptId, purchaseOrderLineId])
@@ -1542,4 +1567,58 @@ model GoodsReceiptCorrectionLine {
   @@unique([id, organizationId])
   @@index([organizationId, goodsReceiptLineId])
   @@map("goods_receipt_correction_lines")
+}
+
+model GoodsReceiptInventoryLink {
+  id                 String                             @id @db.Uuid
+  organizationId     String                             @map("organization_id") @db.Uuid
+  establishmentId    String                             @map("establishment_id") @db.Uuid
+  goodsReceiptId     String                             @map("goods_receipt_id") @db.Uuid
+  warehouseId        String?                            @map("warehouse_id") @db.Uuid
+  status             GoodsReceiptInventoryLinkStatus   @default(PENDING_ASSIGNMENT)
+  sourceRevision     String                             @map("source_revision") @db.VarChar(80)
+  decisionSource     GoodsReceiptInventoryDecisionSource @map("decision_source")
+  reason             String                             @db.VarChar(2000)
+  idempotencyKey     String?                            @map("idempotency_key") @db.VarChar(200)
+  assignedByUserId   String?                            @map("assigned_by_user_id") @db.Uuid
+  assignedAt         DateTime?                          @map("assigned_at") @db.Timestamptz(6)
+  createdAt          DateTime                           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization       Organization                       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment      Establishment                      @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  goodsReceipt       GoodsReceipt                       @relation(fields: [goodsReceiptId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  warehouse          Warehouse?                         @relation(fields: [warehouseId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  entries            GoodsReceiptInventoryEntry[]
+
+  @@unique([goodsReceiptId, organizationId])
+  @@unique([organizationId, idempotencyKey])
+  @@unique([id, organizationId])
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@map("goods_receipt_inventory_links")
+}
+
+model GoodsReceiptInventoryEntry {
+  id                    String                   @id @db.Uuid
+  organizationId        String                   @map("organization_id") @db.Uuid
+  linkId                String                   @map("link_id") @db.Uuid
+  goodsReceiptId        String                   @map("goods_receipt_id") @db.Uuid
+  goodsReceiptLineId    String                   @map("goods_receipt_line_id") @db.Uuid
+  itemId                String?                  @map("item_id") @db.Uuid
+  sourceEventId         String?                  @map("source_event_id") @db.Uuid
+  sourceRevision        String                   @map("source_revision") @db.VarChar(80)
+  deltaQuantity         Decimal                  @map("delta_quantity") @db.Decimal(19, 6)
+  inventoryMovementId   String?                  @unique @map("inventory_movement_id") @db.Uuid
+  createdAt             DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  link                  GoodsReceiptInventoryLink @relation(fields: [linkId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  goodsReceipt          GoodsReceipt             @relation(fields: [goodsReceiptId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  goodsReceiptLine      GoodsReceiptLine         @relation(fields: [goodsReceiptLineId, goodsReceiptId, organizationId], references: [id, goodsReceiptId, organizationId], onDelete: Restrict)
+  item                  Item?                    @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  inventoryMovement     InventoryMovement?      @relation(fields: [inventoryMovementId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([organizationId, goodsReceiptLineId, sourceRevision])
+  @@unique([inventoryMovementId, organizationId])
+  @@index([organizationId, goodsReceiptId, createdAt, id])
+  @@index([organizationId, sourceEventId])
+  @@map("goods_receipt_inventory_entries")
 }

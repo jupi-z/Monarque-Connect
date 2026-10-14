@@ -44,14 +44,14 @@ async function appliedNames(databaseUrl) { const pool = new Pool({ connectionStr
 async function structuralProof(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   try {
-    const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1::text[])`, [['inventory_movements', 'inventory_balances']]);
+    const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1::text[])`, [['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries']]);
     const found = new Set(tables.rows.map((row) => row.table_name));
-    for (const required of ['inventory_movements', 'inventory_balances']) if (!found.has(required)) throw new Error(`Phase 7 structural proof missing table: ${required}`);
+    for (const required of ['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries']) if (!found.has(required)) throw new Error(`Phase 7 structural proof missing table: ${required}`);
     const trigger = await pool.query(`SELECT 1 FROM pg_trigger WHERE tgname = 'inventory_movements_append_only_update'`);
     if (!trigger.rowCount) throw new Error('Phase 7 append-only trigger is missing');
-    const checks = await pool.query(`SELECT conname FROM pg_constraint WHERE conname IN ('inventory_movements_direction_check', 'inventory_balances_quantity_nonnegative_check')`);
+    const checks = await pool.query(`SELECT conname FROM pg_constraint WHERE conname IN ('inventory_movements_direction_check', 'inventory_balances_quantity_nonnegative_check', 'goods_receipt_inventory_entries_delta_nonzero_check')`);
     const names = new Set(checks.rows.map((row) => row.conname));
-    for (const required of ['inventory_movements_direction_check', 'inventory_balances_quantity_nonnegative_check']) if (!names.has(required)) throw new Error(`Phase 7 structural proof missing constraint: ${required}`);
+    for (const required of ['inventory_movements_direction_check', 'inventory_balances_quantity_nonnegative_check', 'goods_receipt_inventory_entries_delta_nonzero_check']) if (!names.has(required)) throw new Error(`Phase 7 structural proof missing constraint: ${required}`);
     const forbidden = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'stock_balances')`);
     if (forbidden.rowCount) throw new Error(`Phase 7 created forbidden legacy stock tables: ${forbidden.rows.map((row) => row.table_name).join(', ')}`);
   } finally { await pool.end(); }

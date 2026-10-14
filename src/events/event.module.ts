@@ -8,10 +8,17 @@ import { FoundationProbeService } from './foundation-probe.service.js';
 import { OutboxRepository } from './outbox.repository.js';
 import { PrismaOutboxWriter } from './prisma-outbox.writer.js';
 import { PrismaFoundationProbeService } from './prisma-foundation-probe.service.js';
+import { GoodsReceiptInventoryConsumer } from '../inventory/goods-receipt-inventory.consumer.js';
+import { EventReceiptConsumer } from './event-receipt.consumer.js';
 
-function createDispatcher(consumer: FoundationProbeConsumer): EventDispatcher {
+function createDispatcher(consumer: FoundationProbeConsumer, goodsReceiptInventory: GoodsReceiptInventoryConsumer, eventReceipt: EventReceiptConsumer): EventDispatcher {
   const dispatcher = new EventDispatcher();
   dispatcher.register(consumer.consumerName, 'foundation.probe.recorded', 1, consumer.handle.bind(consumer));
+  dispatcher.register(goodsReceiptInventory.consumerName, 'purchases.goods_receipt.confirmed.v1', 1, goodsReceiptInventory.handle.bind(goodsReceiptInventory));
+  dispatcher.register(goodsReceiptInventory.consumerName, 'purchases.goods_receipt.corrected.v1', 1, goodsReceiptInventory.handle.bind(goodsReceiptInventory));
+  dispatcher.register(eventReceipt.consumerName, 'inventory.movement.created', 1, eventReceipt.handle.bind(eventReceipt));
+  dispatcher.register(eventReceipt.consumerName, 'inventory.goods_receipt.assigned', 1, eventReceipt.handle.bind(eventReceipt));
+  dispatcher.register(eventReceipt.consumerName, 'inventory.goods_receipt.imported', 1, eventReceipt.handle.bind(eventReceipt));
   return dispatcher;
 }
 
@@ -23,10 +30,12 @@ function createDispatcher(consumer: FoundationProbeConsumer): EventDispatcher {
     PrismaOutboxWriter,
     PrismaFoundationProbeService,
     FoundationProbeConsumer,
+    GoodsReceiptInventoryConsumer,
+    { provide: EventReceiptConsumer, useValue: new EventReceiptConsumer('inventory-event-sink') },
     FoundationProbeService,
     {
       provide: EventDispatcher,
-      inject: [FoundationProbeConsumer],
+      inject: [FoundationProbeConsumer, GoodsReceiptInventoryConsumer, EventReceiptConsumer],
       useFactory: createDispatcher,
     },
     {
