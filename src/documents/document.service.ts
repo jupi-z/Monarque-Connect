@@ -64,7 +64,8 @@ export class DocumentService {
         await this.createCommand(tx, { organizationId, actorUserId: principal.userId, operation: 'DOCUMENT_UPLOAD_START', key, payloadHash, resourceType: 'Document', resourceId: id, establishmentId: input.establishmentId });
         for (const link of input.links ?? []) await this.createLink(tx, principal, organizationId, document, link, event);
         await this.recordMutation(tx, 'DOCUMENT_UPLOAD_STARTED', 'document.upload_started.v1', principal, organizationId, input.establishmentId, id, event, { originalFilename: document.originalFilename, mediaType: document.mediaType, byteSize: document.byteSize.toString(), classification: document.classification });
-        return { document: this.serialize(document), uploadToken: session.uploadToken, expiresAt: session.expiresAt.toISOString() };
+        const persisted = await tx.document.findFirstOrThrow({ where: { id, organizationId }, select: documentSelect });
+        return { document: this.serialize(persisted), uploadToken: session.uploadToken, expiresAt: session.expiresAt.toISOString() };
       });
     } catch (error) {
       if (this.isUnique(error)) return this.replayUpload(principal, organizationId, key, payloadHash);
