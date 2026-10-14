@@ -2,12 +2,10 @@
 
 ## État actuel
 
-La livraison initiale de la Phase 7 — Operations est réalisée, mais sa clôture
-fonctionnelle est suspendue depuis le 14 octobre 2026 après audit correctif
-des endpoints Inventory. L'état technique
-ci-dessous est vérifié sur `main@c248f0170a23a1b55b2e0386a5e865d5cc9e96aa`
-le 14 octobre 2026, avec la preuve consolidée dans
-`Docs/79_PHASE_7_CLOSURE_EVIDENCE.md`.
+La Phase 7 — Operations est clôturée à 100 % après la stabilisation corrective
+des endpoints Inventory. L'état technique ci-dessous est vérifié sur
+`main@c26f39ce8b57f3213f315ea843688db229acd09e` le 14 octobre 2026, avec la
+preuve consolidée dans `Docs/79_PHASE_7_CLOSURE_EVIDENCE.md`.
 
 Le cadrage et le contrat Operations sont intégrés. Les Tasks 2 et 3 — Inventory
 ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La Task
@@ -17,7 +15,7 @@ structurelles et HTTP ont été durcies par la PR #99 et vérifiées par les CI 
 #266 et post-merge #267. La PR #101 a ajouté les preuves cross-phase, le
 harnais de migration Phase 7, le seed de référence idempotent et la régression
 d'autorisation Expenses. La CI PR #272 et la CI post-merge #273 sont vertes.
-La phase reste ouverte jusqu'à la validation de la correction dédiée ; la gouvernance de `main` reste soumise à la
+La phase est maintenant fermée ; la gouvernance de `main` reste soumise à la
 politique compensatoire branche dédiée → PR → CI → fusion contrôlée, la
 protection native restant indisponible sur le plan GitHub actuel.
 
@@ -35,9 +33,10 @@ Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 - [x] CashAccounts/CashMovements — spécification dédiée : `Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-cash-plan.md`, issue #95, PR #97, preuves finales PR #99 ;
 - [x] preuves finales cross-phase et clôture stricte — PR #101 et
   `Docs/79_PHASE_7_CLOSURE_EVIDENCE.md`.
-- [ ] stabilisation corrective Inventory HTTP — contrôleurs, idempotence
+- [x] stabilisation corrective Inventory HTTP — contrôleurs, idempotence
   canonique, réconciliation persistante et transferts réservés ; voir
-  `Docs/81_PHASE_7_INVENTORY_HTTP_HARDENING.md`.
+  `Docs/81_PHASE_7_INVENTORY_HTTP_HARDENING.md`, PR #103, CI PR #278 et
+  CI post-merge #279.
 
 ## Task 2 — Inventory livré
 

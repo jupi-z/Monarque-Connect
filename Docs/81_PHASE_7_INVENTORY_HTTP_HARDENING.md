@@ -30,21 +30,38 @@ auditable sans modifier le ledger.
   calcule le ledger, signale l'écart et écrit audit + Outbox dans une transaction
   sans corriger silencieusement le stock.
 
-## Preuves attendues avant clôture
+## Preuves finales de clôture
 
 - [x] tests unitaires de canonisation et frontière DTO ;
 - [x] tests de métadonnées d'enregistrement et `AuthGuard` ;
-- [ ] tests PostgreSQL de rejeu divergent, transfert unilatéral et
+- [x] tests PostgreSQL de rejeu divergent, transfert unilatéral et
   réconciliation idempotente ;
-- [ ] E2E HTTP des balances, mouvements, alias, transferts et réconciliation,
+- [x] E2E HTTP des balances, mouvements, alias, transferts et réconciliation,
   avec cas `401/403/404/409` ;
 - [x] validation OpenAPI, contrats, Prisma, typecheck, lint et build ;
-- [ ] CI GitHub de la PR corrective verte ;
-- [ ] CI GitHub post-fusion verte avec migrations base vide et upgrade Phase 6 ;
-- [ ] issue #84 refermée et tracker #11 resynchronisé après preuves post-fusion.
+- [x] CI GitHub de la PR corrective verte : [PR #103](https://github.com/jupi-z/Monarque-Connect/pull/103),
+  [Backend CI #278](https://github.com/jupi-z/Monarque-Connect/actions/runs/38589247495),
+  job `validate` : `success` ;
+- [x] CI GitHub post-fusion verte avec migrations base vide et upgrade Phase 6 :
+  [Backend CI #279](https://github.com/jupi-z/Monarque-Connect/actions/runs/38608905102),
+  job `validate` : `success` ;
+- [x] issue #84 refermée et tracker #11 resynchronisé après les preuves
+  post-fusion.
+
+## Résultats reproductibles observés
+
+- `main` post-fusion : [`c26f39c`](https://github.com/jupi-z/Monarque-Connect/commit/c26f39ce8b57f3213f315ea843688db229acd09e) ;
+- 32 migrations appliquées depuis une base vide ; upgrade Phase 6 : 27 + 5
+  migrations ; seed de référence idempotent sans fixtures opérationnelles ;
+- OpenAPI : 152 opérations valides ;
+- suite complète : 60 fichiers et 222 tests réussis ;
+- E2E dédié : 5 fichiers et 10 tests réussis ;
+- build, smoke HTTP, lint, typecheck, Prisma validate/deploy et contrats
+  réussis.
 
 ## Gouvernance
 
 La correction ne modifie aucun ledger existant ni aucune migration historique.
 Elle suit branche dédiée → PR → CI → fusion contrôlée → suppression de branche.
-La Phase 8 reste fermée jusqu'à la clôture prouvée de cette tranche.
+La Phase 8 reste fermée pendant cette tranche corrective ; son ouverture fera
+l'objet d'une décision distincte après cette clôture.
