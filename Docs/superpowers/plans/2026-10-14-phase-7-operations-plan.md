@@ -94,10 +94,11 @@
 - [x] Run focused tests and E2E/regression suite through CI.
 - [x] Commit and merge `feat(operations): implement CashAccounts and CashMovements` via PR #97.
 
-Evidence: `main@f0f97ccdebee20635c2e8117f85386b922aef039`,
+Evidence: `main@58b4193b35f648234122bc277ed0ecae9701e468`,
 [PR #97](https://github.com/jupi-z/Monarque-Connect/pull/97),
-[CI PR #257](https://github.com/jupi-z/Monarque-Connect/actions/runs/38555739231),
-[CI post-merge #258](https://github.com/jupi-z/Monarque-Connect/actions/runs/38556223448).
+[PR corrective #99](https://github.com/jupi-z/Monarque-Connect/pull/99),
+[CI PR #266](https://github.com/jupi-z/Monarque-Connect/actions/runs/38565073106),
+[CI post-merge #267](https://github.com/jupi-z/Monarque-Connect/actions/runs/38565603162).
 
 ### Task 6: Cross-phase migration and proof harness
 
