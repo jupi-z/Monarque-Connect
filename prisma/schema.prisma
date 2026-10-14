@@ -205,6 +205,10 @@ enum AuditAction {
   INVENTORY_TRANSFER_CREATED
   GOODS_RECEIPT_INVENTORY_ASSIGNED
   GOODS_RECEIPT_INVENTORY_IMPORTED
+  EXPENSE_CREATED
+  EXPENSE_UPDATED
+  EXPENSE_RECORDED
+  EXPENSE_VOIDED
 }
 
 enum ConnectionRequestStatus {
@@ -361,6 +365,12 @@ enum GoodsReceiptInventoryDecisionSource {
   HISTORICAL_IMPORT
 }
 
+enum ExpenseStatus {
+  DRAFT
+  RECORDED
+  VOID
+}
+
 model OutboxEvent {
   id                 String                  @id @db.Uuid
   eventType          String                  @map("event_type") @db.VarChar(160)
@@ -439,6 +449,7 @@ model User {
   updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships     Membership[]
   refreshSessions RefreshSession[]
+  createdExpenses Expense[]
 
   @@index([status])
   @@map("users")
@@ -603,6 +614,8 @@ model Organization {
   goodsReceiptInventoryEntries GoodsReceiptInventoryEntry[]
   inventoryMovements         InventoryMovement[]
   inventoryBalances          InventoryBalance[]
+  expenses                   Expense[]
+  expenseIdempotencyKeys     ExpenseIdempotencyKey[]
   purchaseIdempotencyKeys    PurchaseIdempotencyKey[]
   networkSupplierRfqRecipients SupplierRFQRecipient[] @relation("NetworkSupplierRFQRecipients")
   purchaseOrdersAsNetworkSupplier PurchaseOrder[] @relation("PurchaseOrderSupplierOrganization")
@@ -807,6 +820,7 @@ model Establishment {
   goodsReceipts        GoodsReceipt[]
   goodsReceiptInventoryLinks GoodsReceiptInventoryLink[]
   inventoryMovements   InventoryMovement[]
+  expenses             Expense[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -833,11 +847,57 @@ model BusinessParty {
   invoices             Invoice[]
   supplierRfqRecipients SupplierRFQRecipient[]
   purchaseOrdersAsSupplier PurchaseOrder[] @relation("PurchaseOrderSupplierParty")
+  expenses               Expense[]
 
   @@unique([id, organizationId])
   @@index([organizationId, active, displayName])
   @@index([organizationId, type, active])
   @@map("business_parties")
+}
+
+model Expense {
+  id              String          @id @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  establishmentId String          @map("establishment_id") @db.Uuid
+  status          ExpenseStatus   @default(DRAFT)
+  description     String          @db.VarChar(500)
+  category        String          @db.VarChar(80)
+  amount          Decimal         @db.Decimal(19, 4)
+  currency        String          @db.Char(3)
+  expenseDate     DateTime        @map("expense_date") @db.Date
+  partyId         String?         @map("party_id") @db.Uuid
+  voidReason      String?         @map("void_reason") @db.VarChar(2000)
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment   Establishment   @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  party           BusinessParty?  @relation(fields: [partyId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdByUser   User            @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  idempotencyKeys ExpenseIdempotencyKey[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@index([organizationId, partyId, createdAt])
+  @@map("expenses")
+}
+
+model ExpenseIdempotencyKey {
+  id              String        @id @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  actorUserId     String        @map("actor_user_id") @db.Uuid
+  operation       String        @db.VarChar(64)
+  key             String        @db.VarChar(200)
+  payloadHash     String        @map("payload_hash") @db.VarChar(128)
+  establishmentId String        @map("establishment_id") @db.Uuid
+  expenseId       String        @map("expense_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  expense         Expense       @relation(fields: [expenseId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([organizationId, actorUserId, operation, key])
+  @@index([organizationId, expenseId, createdAt])
+  @@map("expense_idempotency_keys")
 }
 
 model Lead {
