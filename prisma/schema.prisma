@@ -449,6 +449,30 @@ enum DocumentLinkTargetType {
   EXPENSE
 }
 
+enum MessagingConversationStatus {
+  OPEN
+  SUSPENDED
+}
+
+enum MessagingInvitationType {
+  ORGANIZATION
+  USER
+}
+
+enum MessagingInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+enum MessagingParticipantStatus {
+  ACTIVE
+  LEFT
+  REVOKED
+}
+
 model OutboxEvent {
   id                 String                  @id @db.Uuid
   eventType          String                  @map("event_type") @db.VarChar(160)
@@ -530,6 +554,13 @@ model User {
   createdExpenses      Expense[]
   createdCashAccounts  CashAccount[]
   createdCashMovements CashMovement[]
+  createdMessagingConversations Conversation[] @relation("MessagingConversationCreatedBy")
+  messagingOrganizationParticipants ConversationOrganizationParticipant[] @relation("MessagingOrganizationParticipantCreatedBy")
+  messagingUserParticipants         ConversationUserParticipant[] @relation("MessagingUserParticipantUser")
+  authoredMessages                   Message[] @relation("MessageAuthor")
+  createdMessagingInvitations        MessagingInvitation[] @relation("MessagingInvitationCreatedBy")
+  targetedMessagingInvitations       MessagingInvitation[] @relation("MessagingInvitationTargetUser")
+  createdMessagingBlocks             MessagingOrganizationBlock[] @relation("MessagingBlockCreatedBy")
 
   @@index([status])
   @@map("users")
@@ -707,6 +738,16 @@ model Organization {
   documents                       Document[]
   documentLinks                   DocumentLink[]
   phase8IdempotencyKeys           Phase8IdempotencyKey[]
+  messagingConversationsLow       Conversation[]                  @relation("MessagingConversationLow")
+  messagingConversationsHigh      Conversation[]                  @relation("MessagingConversationHigh")
+  messagingOrganizationParticipants ConversationOrganizationParticipant[]
+  messagingUserParticipants        ConversationUserParticipant[]
+  messagingInvitationsSent         MessagingInvitation[]            @relation("MessagingInvitationOrganization")
+  messagingInvitationsTargeted     MessagingInvitation[]            @relation("MessagingInvitationTargetOrganization")
+  messagingMessages                Message[]                        @relation("MessageSourceOrganization")
+  messagingBlocksCreated           MessagingOrganizationBlock[]     @relation("MessagingBlockSourceOrganization")
+  messagingBlocksTargeted          MessagingOrganizationBlock[]     @relation("MessagingBlockTargetOrganization")
+  messagingRateBuckets             MessagingRateBucket[]
   networkSupplierRfqRecipients    SupplierRFQRecipient[]         @relation("NetworkSupplierRFQRecipients")
   purchaseOrdersAsNetworkSupplier PurchaseOrder[]                @relation("PurchaseOrderSupplierOrganization")
 
@@ -916,6 +957,7 @@ model Establishment {
   cashMovements              CashMovement[]
   projects                   Project[]
   documents                  Document[]
+  messagingOrganizationParticipants ConversationOrganizationParticipant[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -2017,4 +2059,167 @@ model Phase8IdempotencyKey {
   @@unique([organizationId, actorUserId, operation, key])
   @@index([organizationId, resourceType, resourceId, createdAt])
   @@map("phase8_idempotency_keys")
+}
+
+model Conversation {
+  id                    String                    @id @db.Uuid
+  organizationLowId     String                    @map("organization_low_id") @db.Uuid
+  organizationHighId    String                    @map("organization_high_id") @db.Uuid
+  status                MessagingConversationStatus @default(OPEN)
+  lastMessageSequence   BigInt                    @default(0) @map("last_message_sequence")
+  createdByUserId       String                    @map("created_by_user_id") @db.Uuid
+  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organizationLow       Organization              @relation("MessagingConversationLow", fields: [organizationLowId], references: [id], onDelete: Cascade)
+  organizationHigh      Organization              @relation("MessagingConversationHigh", fields: [organizationHighId], references: [id], onDelete: Cascade)
+  createdByUser          User                      @relation("MessagingConversationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  organizationParticipants ConversationOrganizationParticipant[]
+  userParticipants       ConversationUserParticipant[]
+  invitations             MessagingInvitation[]
+  messages                Message[]
+  rateBuckets             MessagingRateBucket[]
+
+  @@unique([organizationLowId, organizationHighId])
+  @@index([organizationLowId, status, updatedAt])
+  @@index([organizationHighId, status, updatedAt])
+  @@map("conversations")
+}
+
+model ConversationOrganizationParticipant {
+  id                       String                    @id @db.Uuid
+  conversationId           String                    @map("conversation_id") @db.Uuid
+  organizationId           String                    @map("organization_id") @db.Uuid
+  establishmentId          String?                   @map("establishment_id") @db.Uuid
+  status                   MessagingParticipantStatus @default(ACTIVE)
+  joinedAt                 DateTime?                 @map("joined_at") @db.Timestamptz(6)
+  leftAt                   DateTime?                 @map("left_at") @db.Timestamptz(6)
+  revokedAt                DateTime?                 @map("revoked_at") @db.Timestamptz(6)
+  historyVisibleFromSequence BigInt                  @default(0) @map("history_visible_from_sequence")
+  createdByUserId          String                    @map("created_by_user_id") @db.Uuid
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  conversation             Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment            Establishment?           @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdByUser            User                      @relation("MessagingOrganizationParticipantCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([conversationId, organizationId])
+  @@unique([id, organizationId])
+  @@index([organizationId, status, updatedAt])
+  @@map("conversation_organization_participants")
+}
+
+model ConversationUserParticipant {
+  id                       String                    @id @db.Uuid
+  conversationId           String                    @map("conversation_id") @db.Uuid
+  organizationId           String                    @map("organization_id") @db.Uuid
+  userId                   String                    @map("user_id") @db.Uuid
+  status                   MessagingParticipantStatus @default(ACTIVE)
+  joinedAt                 DateTime?                 @map("joined_at") @db.Timestamptz(6)
+  leftAt                   DateTime?                 @map("left_at") @db.Timestamptz(6)
+  revokedAt                DateTime?                 @map("revoked_at") @db.Timestamptz(6)
+  historyVisibleFromSequence BigInt                  @default(0) @map("history_visible_from_sequence")
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  conversation             Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                     User                      @relation("MessagingUserParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, organizationId, userId])
+  @@unique([id, organizationId])
+  @@index([organizationId, userId, status])
+  @@index([conversationId, status, joinedAt])
+  @@map("conversation_user_participants")
+}
+
+model MessagingInvitation {
+  id                       String                    @id @db.Uuid
+  type                     MessagingInvitationType
+  status                   MessagingInvitationStatus @default(PENDING)
+  conversationId           String                    @map("conversation_id") @db.Uuid
+  organizationId           String                    @map("organization_id") @db.Uuid
+  targetOrganizationId     String                    @map("target_organization_id") @db.Uuid
+  targetUserId             String?                   @map("target_user_id") @db.Uuid
+  tokenDigest              String                    @unique @map("token_digest") @db.VarChar(128)
+  tokenCiphertext          String                    @map("token_ciphertext") @db.VarChar(4096)
+  tokenIssuedAt            DateTime                  @map("token_issued_at") @db.Timestamptz(6)
+  tokenDeliveredAt         DateTime?                 @map("token_delivered_at") @db.Timestamptz(6)
+  tokenExpiresAt           DateTime                  @map("token_expires_at") @db.Timestamptz(6)
+  expiresAt                DateTime                  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt               DateTime?                 @map("accepted_at") @db.Timestamptz(6)
+  createdByUserId          String                    @map("created_by_user_id") @db.Uuid
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  conversation             Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization             Organization              @relation("MessagingInvitationOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
+  targetOrganization       Organization              @relation("MessagingInvitationTargetOrganization", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+  targetUser               User?                     @relation("MessagingInvitationTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  createdByUser            User                      @relation("MessagingInvitationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([targetOrganizationId, type, status, expiresAt])
+  @@index([targetUserId, type, status, expiresAt])
+  @@index([conversationId, type, status])
+  @@map("messaging_invitations")
+}
+
+model Message {
+  id                   String       @id @db.Uuid
+  conversationId       String       @map("conversation_id") @db.Uuid
+  sequence             BigInt
+  authorUserId         String       @map("author_user_id") @db.Uuid
+  sourceOrganizationId String       @map("source_organization_id") @db.Uuid
+  clientMessageId      String       @map("client_message_id") @db.VarChar(128)
+  body                 String       @db.VarChar(10000)
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  conversation         Conversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  authorUser           User         @relation("MessageAuthor", fields: [authorUserId], references: [id], onDelete: Restrict)
+  sourceOrganization   Organization @relation("MessageSourceOrganization", fields: [sourceOrganizationId], references: [id], onDelete: Restrict)
+
+  @@unique([conversationId, sequence])
+  @@unique([conversationId, authorUserId, clientMessageId])
+  @@index([conversationId, sequence])
+  @@index([sourceOrganizationId, createdAt])
+  @@map("messages")
+}
+
+model MessagingOrganizationBlock {
+  id                     String       @id @db.Uuid
+  sourceOrganizationId   String       @map("source_organization_id") @db.Uuid
+  targetOrganizationId   String       @map("target_organization_id") @db.Uuid
+  createdByUserId        String       @map("created_by_user_id") @db.Uuid
+  reason                 String?      @db.VarChar(500)
+  active                 Boolean      @default(true)
+  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt              DateTime?    @map("revoked_at") @db.Timestamptz(6)
+  sourceOrganization     Organization @relation("MessagingBlockSourceOrganization", fields: [sourceOrganizationId], references: [id], onDelete: Cascade)
+  targetOrganization     Organization @relation("MessagingBlockTargetOrganization", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+  createdByUser          User         @relation("MessagingBlockCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceOrganizationId, targetOrganizationId])
+  @@index([targetOrganizationId, active])
+  @@map("messaging_organization_blocks")
+}
+
+model MessagingRateBucket {
+  id                     String       @id @db.Uuid
+  organizationId         String?      @map("organization_id") @db.Uuid
+  conversationId         String?      @map("conversation_id") @db.Uuid
+  dimension              String       @db.VarChar(32)
+  dimensionKeyHash       String       @map("dimension_key_hash") @db.VarChar(128)
+  windowStarted          DateTime     @map("window_started") @db.Timestamptz(6)
+  windowEnds             DateTime     @map("window_ends") @db.Timestamptz(6)
+  attemptCount           Int          @default(0) @map("attempt_count")
+  acceptedCount          Int          @default(0) @map("accepted_count")
+  rejectedCount          Int          @default(0) @map("rejected_count")
+  blockedUntil           DateTime?    @map("blocked_until") @db.Timestamptz(6)
+  contentFingerprintHmac String?      @map("content_fingerprint_hmac") @db.VarChar(128)
+  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization           Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation           Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([dimension, dimensionKeyHash, windowStarted])
+  @@index([organizationId, windowEnds])
+  @@index([conversationId, windowEnds])
+  @@map("messaging_rate_buckets")
 }
