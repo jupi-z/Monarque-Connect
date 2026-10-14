@@ -15,13 +15,13 @@ const taskTransitions: Record<TaskStatus, readonly TaskStatus[]> = {
   CANCELLED: [],
 };
 
-export function assertProjectTransition(current: ProjectStatus | string, target: ProjectStatus | string): void {
+export function assertProjectTransition(current: string, target: string): void {
   if (!projectTransitions[current as ProjectStatus]?.includes(target as ProjectStatus)) {
     throw new ConflictException(`Project cannot transition from ${current} to ${target}`);
   }
 }
 
-export function assertTaskTransition(current: TaskStatus | string, target: TaskStatus | string): void {
+export function assertTaskTransition(current: string, target: string): void {
   if (!taskTransitions[current as TaskStatus]?.includes(target as TaskStatus)) {
     throw new ConflictException(`Task cannot transition from ${current} to ${target}`);
   }

@@ -17,6 +17,7 @@ import { PurchasesModule } from './purchases/purchases.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
 import { ExpensesModule } from './expenses/expenses.module.js';
 import { CashModule } from './cash/cash.module.js';
+import { ProjectsModule } from './projects/projects.module.js';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CashModule } from './cash/cash.module.js';
     InventoryModule,
     ExpensesModule,
     CashModule,
+    ProjectsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnvironment,
