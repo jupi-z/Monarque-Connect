@@ -101,20 +101,24 @@ sont définis dans `77_PHASE7_OPERATIONS_EXECUTION_SPEC.md`,
 Le suivi est l'[issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 La PR #101, la CI PR #272 et la CI post-merge #273 sont vertes. La
 stabilisation Inventory HTTP est prouvée par la PR #103, la CI PR #278 et la
-CI post-merge #279, toutes vertes. La Phase 8 reste fermée jusqu'à une
-ouverture formelle distincte.
+CI post-merge #279, toutes vertes. La Phase 8 a ensuite été ouverte
+formellement et clôturée dans ses propres preuves ; cette clôture ne rouvre
+aucune partie de la Phase 7.
 
 ## Phase 8 — Projects & documents
 Projects, tasks, document linking, media.
 
-**État :** ouverte en cadrage sur `main@fee4f659bfaf8d2371d9b108b011a7285b75539d`.
+**État :** terminée et clôturée à 100 % sur
+`main@6105806790994f98f8fa33ace520a412bebbd05b`.
 La spécification normative est `82_PHASE8_PROJECTS_DOCUMENTS_EXECUTION_SPEC.md`,
 le statut est `83_PHASE_8_STATUS.md`, le plan est
 `superpowers/plans/2026-10-14-phase-8-projects-documents-plan.md` et le suivi
 GitHub est l'[issue #105](https://github.com/jupi-z/Monarque-Connect/issues/105).
-La PR de cadrage #106, la CI PR #282 et la CI post-fusion #283 sont vertes.
-Les contrats OpenAPI sont gelés avant migrations et implémentation. La Phase 8
-ne doit pas modifier les invariants des Phases 0 à 7.
+La PR de cadrage #106, la PR d'implémentation #108, la CI PR #291 et la CI
+post-fusion #292 sont vertes. La preuve finale est
+`84_PHASE_8_CLOSURE_EVIDENCE.md`. Les contrats OpenAPI ont été gelés avant
+migrations et implémentation. La Phase 8 n'a pas modifié les invariants des
+Phases 0 à 7.
 
 ## Phase 9 — Messaging B2B
 Conversations, messages, network policies, anti-abuse baseline.
