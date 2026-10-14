@@ -3,14 +3,15 @@
 ## État actuel
 
 La Phase 7 — Operations est ouverte et en cours d'exécution. L'état ci-dessous
-est vérifié sur `main@f0f97ccdebee20635c2e8117f85386b922aef039` le 14 octobre
+est vérifié sur `main@58b4193b35f648234122bc277ed0ecae9701e468` le 14 octobre
 2026.
 
 Le cadrage et le contrat Operations sont intégrés. Les Tasks 2 et 3 — Inventory
 ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La Task
 4 — Expenses est livrée par la PR #93 et vérifiée par les CI PR #250 et
-post-merge #251. La Task 5 — Cash est livrée par la PR #97 et vérifiée par les
-CI PR #257 et post-merge #258. La phase reste ouverte pour ses preuves finales
+post-merge #251. La Task 5 — Cash est livrée par la PR #97 ; ses preuves
+structurelles et HTTP ont été durcies par la PR #99 et vérifiées par les CI PR
+#266 et post-merge #267. La phase reste ouverte pour ses preuves finales
 cross-phase et sa clôture stricte ; cette mise à jour ne clôt pas la Phase 7.
 
 Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
@@ -24,7 +25,7 @@ Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 - [x] modèle Inventory, migration et services ledger — PR #87 ;
 - [x] intégration GoodsReceipt → Inventory ;
 - [x] Expenses — spécification dédiée : `Docs/79_PHASE_7_EXPENSES_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-expenses-plan.md`, issue #92, PR #93 ;
-- [x] CashAccounts/CashMovements — spécification dédiée : `Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-cash-plan.md`, issue #95, PR #97 ;
+- [x] CashAccounts/CashMovements — spécification dédiée : `Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-cash-plan.md`, issue #95, PR #97, preuves finales PR #99 ;
 - [ ] preuves finales cross-phase et clôture stricte.
 
 ## Task 2 — Inventory livré
@@ -121,9 +122,14 @@ La Phase 7 ne sera déclarée clôturée qu'après preuve de chaque gate restant
 - [x] idempotence, verrouillage de compte, refus des sorties insuffisantes et rollback Outbox ;
 - [x] isolation tenant/établissement, entitlement `CASH`, permissions et audit atomiques ;
 - [x] migration additive et preuves base vide/upgrade exécutées par la CI ;
-- [x] tests PostgreSQL, 7 tests Cash, 212 tests de régression, 6 E2E HTTP, build et smoke health.
+- [x] tests PostgreSQL, 7 tests Cash, 212 tests de régression, 2 tests E2E HTTP Cash, build et smoke health.
 
 Preuves Task 5 : [PR #97](https://github.com/jupi-z/Monarque-Connect/pull/97),
-[CI PR #257](https://github.com/jupi-z/Monarque-Connect/actions/runs/38555739231),
-[CI post-merge #258](https://github.com/jupi-z/Monarque-Connect/actions/runs/38556223448),
-[commit `f0f97cc`](https://github.com/jupi-z/Monarque-Connect/commit/f0f97ccdebee20635c2e8117f85386b922aef039).
+[PR corrective #99](https://github.com/jupi-z/Monarque-Connect/pull/99),
+[CI PR #266](https://github.com/jupi-z/Monarque-Connect/actions/runs/38565073106),
+[CI post-merge #267](https://github.com/jupi-z/Monarque-Connect/actions/runs/38565603162),
+[commit `58b4193`](https://github.com/jupi-z/Monarque-Connect/commit/58b4193b35f648234122bc277ed0ecae9701e468).
+La preuve de migration vérifie les tables, le trigger append-only, les
+contraintes et les index Cash depuis une base vide et lors de l'upgrade. La
+preuve HTTP couvre l'idempotence, le solde dérivé, le transfert lié et
+l'isolation inter-tenant. Les contrôleurs Cash sont protégés par `AuthGuard`.
