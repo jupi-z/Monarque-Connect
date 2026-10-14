@@ -2930,6 +2930,26 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /organizations/{organizationId}/conversation-invitations/{invitationId}/token:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Messaging]
+      operationId: issueConversationInvitationToken
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: One-time invitation token returned only to the authorized recipient
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConversationInvitationToken" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/conversation-invitations/{invitationId}/decline:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -3015,6 +3035,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
     delete:
       tags: [Messaging]
       operationId: unblockConversationRelation
@@ -3027,8 +3048,30 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
-
-
+  /platform/organizations/{organizationId}/network-trust:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    put:
+      tags: [Platform]
+      operationId: setOrganizationNetworkTrust
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetNetworkTrustRequest" }
+      responses:
+        "200":
+          description: Platform trust updated and audited
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NetworkTrust" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
   /organizations/{organizationId}/exports:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -3275,6 +3318,27 @@ components:
     ConnectionRequestStatus:
       type: string
       enum: [PENDING, ACCEPTED, DECLINED, CANCELLED]
+    NetworkVerificationStatus:
+      type: string
+      enum: [UNVERIFIED, VERIFIED, EXPIRED]
+    NetworkTrust:
+      type: object
+      additionalProperties: false
+      required: [organizationId, verificationStatus, verifiedAt, verificationExpiresAt]
+      properties:
+        organizationId: { type: string, format: uuid }
+        verificationStatus: { $ref: "#/components/schemas/NetworkVerificationStatus" }
+        verifiedAt: { type: [string, 'null'], format: date-time }
+        verificationExpiresAt: { type: [string, 'null'], format: date-time }
+    SetNetworkTrustRequest:
+      type: object
+      additionalProperties: false
+      required: [status, reason]
+      properties:
+        status: { $ref: "#/components/schemas/NetworkVerificationStatus" }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        method: { type: [string, 'null'], maxLength: 80 }
+        verificationExpiresAt: { type: [string, 'null'], format: date-time }
     ConversationStatus:
       type: string
       enum: [OPEN, SUSPENDED]
@@ -3362,6 +3426,14 @@ components:
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/ConversationInvitation" } }
         nextCursor: { type: [string, 'null'] }
+    ConversationInvitationToken:
+      type: object
+      additionalProperties: false
+      required: [invitationId, token, expiresAt]
+      properties:
+        invitationId: { type: string, format: uuid }
+        token: { type: string, minLength: 32, maxLength: 256 }
+        expiresAt: { type: string, format: date-time }
     AcceptConversationInvitationRequest:
       type: object
       additionalProperties: false

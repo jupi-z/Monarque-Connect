@@ -45,6 +45,21 @@ Phase 9 doit donc centraliser une policy de vérification réutilisable dans le 
 
 La rupture post-acceptation n'est pas représentée par un statut existant : `ConnectionRequestStatus` ne contient que `PENDING`, `ACCEPTED`, `DECLINED` et `CANCELLED`, et l'API actuelle ne propose pas de révocation d'une connexion acceptée. Phase 9 utilise donc une policy Messaging de blocage/révocation comme surcouche explicite. Elle ne détourne pas `ConnectionRequest` et ne prétend pas implémenter une nouvelle transition Network.
 
+### 2.3 Commande opérationnelle de vérification
+
+L'inspection du dépôt confirme qu'il n'existe actuellement aucune commande HTTP permettant à la plateforme d'attribuer `VERIFIED` : `NetworkTrustService` est en lecture publique et le Control Plane documente la capacité sans encore l'exposer. Phase 9 ne peut donc pas dépendre implicitement d'une fonction future.
+
+Avant le premier envoi réel, une tranche Control Plane minimale doit être livrée avec les primitives déjà présentes, sans nouvelle relation ni migration :
+
+- `PUT /platform/organizations/{organizationId}/network-trust` ;
+- accès réservé à `PlatformAuthorizationService.assertPlatformAdmin` ;
+- corps avec `status`, `reason` obligatoire, méthode interne optionnelle et expiration optionnelle ;
+- `VERIFIED` exige une date d'attribution et une expiration cohérente si elle est utilisée ;
+- l'opération verrouille la ligne `organization_network_trust`, est idempotente, auditée et publie `organization.verification_changed` avec before/after minimisés ;
+- les valeurs internes de preuve ne sont jamais publiées au tenant ni dans un message/événement Messaging.
+
+Le système échoue fermé si ce contrôle n'est pas disponible ou si la clé de chiffrement des tokens d'invitation n'est pas configurée. Un statut `UNVERIFIED` ou `EXPIRED` bloque l'émission, mais pas la réception explicitement autorisée.
+
 ## 3. Modèle métier normatif
 
 ### 3.1 Conversation
@@ -71,7 +86,17 @@ Les utilisateurs sont représentés par `ConversationUserParticipant` :
 
 Le créateur est ajouté automatiquement pour son organisation. La création produit une invitation organisationnelle `PENDING` pour l'autre organisation, sans contenu de message. Seul un `OWNER` ou `ADMIN` actif du destinataire peut la consulter dans sa boîte d'invitations, l'accepter ou la refuser. Après acceptation organisationnelle, un `OWNER` ou `ADMIN` invite un ou plusieurs utilisateurs déterminés de sa propre organisation ; chaque utilisateur accepte explicitement sa propre invitation avant de devenir participant. L'appartenance à une organisation, la connaissance d'un UUID ou l'accès à une boîte d'invitations ne suffit donc jamais à rejoindre ni à lire une conversation.
 
+#### Remise des tokens d'invitation
+
+La création génère un token aléatoire à usage contrôlé. Le serveur ne conserve jamais le token en clair : il conserve un digest HMAC pour la comparaison et un ciphertext chiffré par une clé de configuration serveur dédiée (`MESSAGING_INVITATION_TOKEN_KEY`) afin de pouvoir le remettre par REST. Le token n'est jamais écrit dans l'audit, l'Outbox, les logs ou les réponses destinées à l'organisation source.
+
+La boîte `GET .../conversation-invitations` retourne uniquement les métadonnées. Le destinataire autorisé appelle `POST .../conversation-invitations/{invitationId}/token` sur une session authentifiée : OWNER/ADMIN pour une invitation organisationnelle, utilisateur ciblé pour une invitation utilisateur. La réponse contient le token uniquement à cet acteur, via le canal HTTPS API existant, et le serveur marque la remise. Le token est à durée courte, à usage unique pour l'acceptation ; une nouvelle demande autorisée après expiration invalide l'ancien token et en émet un nouveau. Un UUID seul, un membre non ciblé ou l'organisation source ne peuvent pas obtenir le token.
+
+La commande d'acceptation est idempotente par `Idempotency-Key` : une répétition identique retourne le résultat déjà engagé sans réutiliser ni revalider le token ; une nouvelle commande après acceptation ou avec un payload divergent est un conflit contrôlé. Le token n'est donc pas rendu réutilisable par un retry réseau.
+
 Un départ volontaire (`LEFT`) est réversible par une nouvelle invitation et acceptation explicites si la policy le permet. Une révocation administrative (`REVOKED`) interdit la réadhésion tant qu'un administrateur de la même organisation ne l'a pas réautorisée. Toute nouvelle adhésion fixe `historyVisibleFromSequence` à la séquence suivante : aucune lecture rétroactive n'est accordée par une réadhésion. Les messages déjà écrits ne changent jamais d'auteur ni d'organisation source.
+
+La persistance Phase 9 comprend explicitement `Conversation`, `ConversationOrganizationParticipant`, `ConversationUserParticipant`, `MessagingInvitation`, `Message`, `MessagingOrganizationBlock` et `MessagingRateBucket`. `Message` possède les contraintes d'unicité de séquence et d'idempotence, et un trigger PostgreSQL `BEFORE UPDATE OR DELETE` qui interdit toute mutation ou suppression après création.
 
 ### 3.3 Messages
 
@@ -85,11 +110,15 @@ Un `Message` contient :
 
 Il n'existe aucune mutation d'édition ou de suppression en MVP. Une correction métier est un nouveau message explicatif, jamais une réécriture.
 
+La base PostgreSQL protège cette immutabilité par un trigger `BEFORE UPDATE OR DELETE` sur la table `messages`, qui lève une erreur dédiée. Le service et les tests directs SQL doivent tous deux démontrer qu'un message accepté ne peut être modifié ou supprimé.
+
 L'idempotence est garantie par `(conversationId, authorUserId, clientMessageId)` :
 
 - même clé et même commande canonique : retourner le message existant ;
 - même clé et commande différente : `409 Conflict`, sans mutation ;
 - acteur différent ou conversation différente : aucune réutilisation ni divulgation.
+
+La recherche de cette clé et la comparaison canonique ont lieu avant toute réservation anti-abus. Un rejeu identique d'un message déjà accepté retourne donc le message existant sans incrémenter de compteur, sans consommer de quota et sans nouvel événement. Une commande divergente échoue sans modifier les compteurs. Pour une nouvelle commande, la transaction persiste d'abord la décision anti-abus et son audit ; si elle est refusée, elle est commitée puis l'API retourne `429`, sans `Message` ni `messaging.message.sent.v1`.
 
 L'envoi verrouille la conversation, revalide l'autorisation et attribue la prochaine séquence dans la même transaction. La contrainte unique `(conversationId, sequence)` protège contre les courses concurrentes.
 
@@ -163,12 +192,15 @@ Routes normatives :
 | `GET` | `/.../{conversationId}/messages` | pagination stable des messages |
 | `POST` | `/.../{conversationId}/messages` | envoi idempotent avec `clientMessageId` |
 | `GET` | `/organizations/{organizationId}/conversation-invitations` | boîte de métadonnées : invitations d'organisation pour OWNER/ADMIN et invitations utilisateur adressées à l'acteur |
+| `POST` | `/organizations/{organizationId}/conversation-invitations/{invitationId}/token` | remet le token court uniquement au destinataire autorisé, via la session REST authentifiée |
 | `POST` | `/organizations/{organizationId}/conversation-invitations/{invitationId}/accept` | accepte avec le token d'invitation ; active l'organisation ou l'utilisateur selon le type |
 | `POST` | `/organizations/{organizationId}/conversation-invitations/{invitationId}/decline` | refuse l'invitation sans exposer de message |
 | `POST` | `/.../{conversationId}/participant-invitations` | invite un utilisateur déterminé de sa propre organisation, par OWNER/ADMIN, après acceptation organisationnelle |
 | `DELETE` | `/.../{conversationId}/participants/{userId}` | départ de soi ou révocation d'un utilisateur de sa propre organisation |
 | `POST` | `/.../{conversationId}/block` | blocage relationnel par OWNER/ADMIN |
 | `DELETE` | `/.../{conversationId}/block` | déblocage autorisé |
+
+La commande Control Plane préalable aux premiers envois est `PUT /platform/organizations/{organizationId}/network-trust`. Elle est réservée à `PlatformAuthorizationService`, exige une raison, est idempotente, verrouille la ligne de trust et publie l'audit/événement `organization.verification_changed`. Le contrat ne renvoie jamais la preuve interne.
 
 Les schémas OpenAPI doivent définir les corps, réponses `200/201/204`, erreurs `400/401/403/404/409/410/429`, curseurs, limites, `clientMessageId`, `sequence`, statuts et exemples non sensibles. Le contrat doit aussi documenter la sémantique d'idempotence, le token d'invitation à usage contrôlé et le fait qu'un `404` peut masquer une ressource existante non accessible.
 

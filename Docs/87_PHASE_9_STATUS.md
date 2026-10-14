@@ -20,10 +20,13 @@
 |---|---|
 | Spécification normative | [x] corrigée selon l'audit : invitations, historique, transitions, vérification et anti-abus |
 | Écart vérification Network documenté | [x] émetteur vérifié ; destinataire recevable mais non émetteur sans vérification |
+| Commande plateforme `VERIFIED` | [ ] absente du code actuel ; tranche Control Plane minimale requise avant le premier envoi |
 | Confidentialité de l'historique | [x] borne `historyVisibleFromSequence` figée |
 | Autorité des transitions | [x] suspension/reprise Control Plane uniquement ; pas de fermeture MVP |
-| Anti-abus sur refus `429` | [x] compteurs et audit persistants sans message/événement d'envoi |
-| Contrats OpenAPI détaillés | [x] draft contract added and validated: 175 operations |
+| Anti-abus sur refus `429` | [x] preuve commitée avant erreur HTTP, sans message/événement d'envoi |
+| Remise des tokens | [x] endpoint REST authentifié, token chiffré au repos et absent des logs/événements |
+| Immutabilité Message | [x] trigger PostgreSQL prévu et test direct SQL ajouté au plan |
+| Contrats OpenAPI détaillés | [x] draft contract added and validated: 177 operations |
 | Plan d'exécution | [x] `Docs/superpowers/plans/2026-10-15-phase-9-messaging-b2b-plan.md` |
 | Modèles et migration Prisma | [ ] |
 | Services/controllers métier | [ ] |

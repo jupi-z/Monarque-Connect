@@ -40,13 +40,14 @@
 - Test: `tests/phase9-messaging.persistence.test.ts`
 
 **Interfaces:**
-- Produces `Conversation`, `ConversationOrganizationParticipant`, `ConversationUserParticipant`, `MessagingInvitation`, `MessagingOrganizationBlock` et `MessagingRateBucket`.
+- Produces `Conversation`, `ConversationOrganizationParticipant`, `ConversationUserParticipant`, `MessagingInvitation`, `Message`, `MessagingOrganizationBlock` et `MessagingRateBucket`.
 - Expose les enums `MessagingConversationStatus` (`OPEN`, `SUSPENDED`), `MessagingInvitationType`, `MessagingInvitationStatus` et `MessagingParticipantStatus`.
 
 - [ ] Ajouter les modèles avec FKs tenant-cohérentes, timestamps, acteurs d'audit et index de lecture.
 - [ ] Ajouter `lastMessageSequence` et `historyVisibleFromSequence` en `BIGINT`/`BigInt` selon les conventions Prisma du dépôt.
 - [ ] Ajouter les contraintes SQL non exprimables par Prisma : paire d'organisations distinctes et canonique, exactement deux organisations par conversation, types d'invitation avec cible valide, bornes de compteurs et unicités d'invitations actives.
-- [ ] Ajouter les unicités `(conversationId, sequence)`, `(conversationId, authorUserId, clientMessageId)` et `(conversationId, organizationId, userId)`.
+- [ ] Ajouter `Message` avec les unicités `(conversationId, sequence)`, `(conversationId, authorUserId, clientMessageId)` et `(conversationId, organizationId, userId)` pour les participants.
+- [ ] Ajouter au SQL un trigger `BEFORE UPDATE OR DELETE` sur `messages` qui lève `message_immutable`, et tester directement update/delete dans PostgreSQL.
 - [ ] Écrire le test PostgreSQL qui vérifie les contraintes depuis une base réelle et refuse les doublons/cross-tenant incohérents.
 - [ ] Exécuter `npm run prisma:validate` puis `npx prisma migrate deploy` sur la base de test et vérifier que la migration est seule à ajouter les objets Phase 9.
 - [ ] Committer `feat(phase9): add messaging persistence model`.
@@ -64,8 +65,10 @@
 - `MessagingPolicy.assertCanInitiate(tx, actor, sourceOrganizationId, targetOrganizationId)` vérifie organisation active, relation `ACCEPTED`, source `VERIFIED` non expirée, cible active/profil/entitlement et absence de blocage.
 - `MessagingPolicy.assertCanSend(tx, actor, conversationId)` revalide la même policy, la conversation `OPEN`, les deux organisations participantes et les deux côtés avec participant utilisateur actif.
 - `MessagingAuthorization.requireParticipantAccess(...)` applique membership, entitlement `MESSAGING`, permission et `historyVisibleFromSequence`.
+- `NetworkTrustCommandService.set(actor, organizationId, input, idempotencyKey)` est la commande Control Plane minimale d'attribution/révocation de `VERIFIED`.
 
 - [ ] Ajouter les permissions `messaging:read`, `messaging:write`, `messaging:participants:write` et `messaging:block:write` à la matrice centralisée, sans autoriser `VIEWER` à écrire.
+- [ ] Implémenter `PUT /platform/organizations/:organizationId/network-trust` avec `PlatformAuthorizationService`, raison obligatoire, verrouillage de la ligne trust, idempotence, audit et `organization.verification_changed`; échouer fermé si la commande ou sa configuration de clé n'est pas disponible.
 - [ ] Implémenter la vérification asymétrique : l'émetteur doit être `VERIFIED`/non expiré ; le destinataire peut accepter et lire sans vérification mais ne peut pas envoyer.
 - [ ] Filtrer les participations et organisations dans chaque query d'autorisation avant d'appeler les services métier.
 - [ ] Retourner `404` pour un acteur non participant afin de réduire l'oracle de ressource ; conserver les `403` normalisés pour une ressource connue mais interdite.
@@ -90,11 +93,15 @@
 - `ConversationService.create(actor, organizationId, input, idempotencyKey): Promise<ConversationDto>` crée la paire canonique et une invitation organisationnelle, sans message initial.
 - `InvitationService.accept(actor, organizationId, invitationId, token, idempotencyKey): Promise<InvitationDto>` active l'organisation ou l'utilisateur ciblé selon le type.
 - `InvitationService.createUserInvitation(actor, conversationId, userId, idempotencyKey): Promise<InvitationDto>` crée une invitation adressée à un membre actif de sa propre organisation.
+- `InvitationService.issueToken(actor, organizationId, invitationId, idempotencyKey): Promise<{ invitationId: string; token: string; expiresAt: Date }>` remet le token uniquement à l'administrateur destinataire ou à l'utilisateur ciblé.
 
 - [ ] Créer une conversation uniquement si la paire n'existe pas et que la policy Network est satisfaite ; une course concurrente devient `409` sans seconde conversation.
 - [ ] Générer un token aléatoire, ne conserver que son hash, borner son expiration et ne jamais inclure de contenu privé dans la boîte d'invitations.
+- [ ] Conserver le token uniquement sous forme chiffrée avec `MESSAGING_INVITATION_TOKEN_KEY` pour sa remise REST ; ne jamais le journaliser, auditer, publier dans l'Outbox ou retourner à l'organisation source.
+- [ ] Ajouter l'endpoint de remise token à usage court et unique ; une nouvelle demande autorisée après expiration invalide l'ancien token et en émet un nouveau.
 - [ ] Réserver la consultation des invitations organisationnelles à `OWNER`/`ADMIN` du destinataire et des invitations utilisateur à l'utilisateur ciblé.
 - [ ] Exiger token, membership, cible, expiration et policy au moment de l'acceptation ; rendre acceptation/refus idempotents et divergents `409`.
+- [ ] Persister le résultat d'acceptation par `Idempotency-Key` afin qu'un retry réseau retourne le résultat sans réutiliser ni revalider le token.
 - [ ] Interdire tout `participants/me` et toute adhésion directe par UUID.
 - [ ] Implémenter départ volontaire et révocation par l'autorité de l'organisation, avec suppression immédiate de l'accès et borne de réadhésion future.
 - [ ] Couvrir en HTTP les réponses `401/403/404/409` et l'absence totale de messages avant adhésion.
@@ -116,6 +123,7 @@
 - [ ] Valider le texte borné et canonicaliser uniquement pour l'anti-abus ; persister le corps original comme contenu immuable.
 - [ ] Verrouiller la conversation en PostgreSQL, revalider l'autorisation et incrémenter `lastMessageSequence` dans la même transaction.
 - [ ] Retourner la ligne existante pour une commande canonique rejouée et `409` pour une même clé divergente, sans fuite cross-actor.
+- [ ] Rechercher la clé idempotente et comparer la commande avant toute réservation anti-abus ; un rejeu accepté ne touche ni buckets, ni audit anti-abus, ni Outbox.
 - [ ] Filtrer les lectures sur `historyVisibleFromSequence`, participant actif, scope et policy ; ne jamais exposer l'historique antérieur à une réadhésion.
 - [ ] Implémenter un curseur opaque lié à la conversation, direction et limite ; refuser un curseur d'une autre requête.
 - [ ] Ajouter les tests de deux messages concurrents, double création, auteur/source dérivés de la session et immutabilité.
@@ -135,7 +143,7 @@
 - `BlockService.block(actor, conversationId, reason, idempotencyKey)` et `unblock(...)` pour OWNER/ADMIN.
 
 - [ ] Implémenter fenêtre de 60 secondes, limites 20/200/100, intervalle d'une seconde et répétition maximale de 3 empreintes/60 secondes.
-- [ ] Verrouiller les buckets avant décision et incrémenter `attemptCount`/`rejectedCount` pour un `429` ; ne produire ni `Message` ni `message.sent` en cas de refus.
+- [ ] Verrouiller les buckets avant décision et incrémenter `attemptCount`/`rejectedCount` pour un `429` ; committer cette preuve et l'audit avant de lancer `TooManyRequestsException`, sans produire ni `Message` ni `message.sent`.
 - [ ] Persister l'audit et `messaging.abuse.threshold_exceeded.v1` dans la transaction de refus, avec `Retry-After` calculé et contenu absent.
 - [ ] Implémenter blocage unilatéral effectif dans les deux directions pour invitations et envois, sans supprimer l'historique déjà autorisé.
 - [ ] Ne publier aucune route tenant pour suspendre/réactiver/fermer ; prévoir seulement la commande interne de modération avec audit et événements `suspended/resumed`.
@@ -166,7 +174,9 @@
 
 - [ ] Conserver les 175 opérations actuellement valides et vérifier que chaque operationId correspond à un controller runtime.
 - [ ] Ajouter les schémas détaillés `Conversation`, `Message`, `ConversationInvitation`, pages, commandes, statuts et `TooManyRequests` déjà figés dans le contrat.
+- [ ] Décrire `POST .../conversation-invitations/{id}/token` sans exposer le token dans les schémas de liste, ainsi que `PUT /platform/organizations/{id}/network-trust` et ses erreurs.
 - [ ] Vérifier que les headers `Idempotency-Key`, `Retry-After`, les curseurs et les erreurs sont cohérents avec les services.
+- [ ] Ajouter les tests contractuels du trigger d'immutabilité `Message` et du rejeu idempotent sans nouvelle consommation de quota.
 - [ ] Vérifier l'absence d'ORM brut dans les réponses et l'absence de champs auteur/source fournis par le client.
 - [ ] Exécuter `npm run openapi:validate` et `npm run contracts:validate`.
 - [ ] Committer `test(phase9): validate messaging api contracts`.
