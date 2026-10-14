@@ -34,7 +34,7 @@ describe('Phase 6 Goods Receipts', () => {
     const order = await confirmedOrder('gr-partial', '5');
     const receipt = await createReceipt(order.id, '2', 'gr-partial-create');
     const draft = body<{ id: string; status: string }>(receipt); expect(draft.status).toBe('DRAFT');
-    const confirmed = await confirmReceipt(order.id, draft.id, 'gr-partial-confirm'); const result = body<{ status: string; lines: Array<{ quantity: string; cumulativeQuantity: string }> }>(confirmed); expect(result.status).toBe('CONFIRMED'); expect(result.lines[0]).toMatchObject({ quantity: '2.000000', cumulativeQuantity: '2.000000' });
+    const confirmed = await confirmReceipt(order.id, draft.id, 'gr-partial-confirm'); const result = body<{ status: string; lines: Array<{ quantity: string; cumulativeQuantity: string }> }>(confirmed); expect(result.status).toBe('CONFIRMED'); expect(result.lines[0]).toMatchObject({ quantity: '2.000000', cumulativeQuantity: '2.000000' }); const confirmedEvent = await prisma.outboxEvent.findFirstOrThrow({ where: { organizationId, aggregateId: draft.id, eventType: 'purchases.goods_receipt.confirmed.v1' }, orderBy: { recordedAt: 'desc' } }); expect(confirmedEvent.payloadJson).toMatchObject({ goodsReceiptId: draft.id, lines: [{ deltaQuantity: '2.000000' }] });
     const orderAfter = body<{ status: string }>(await request(server()).get(`/api/v1/organizations/${organizationId}/purchase-orders/${order.id}`).set('Authorization', `Bearer ${token}`)); expect(orderAfter.status).toBe('PARTIALLY_RECEIVED');
   });
 

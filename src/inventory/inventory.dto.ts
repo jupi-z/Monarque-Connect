@@ -29,6 +29,11 @@ export class CreateInventoryMovementDto {
   sourceLineId?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  sourceRevision?: string;
+
+  @IsOptional()
   @IsUUID()
   transferId?: string;
 

@@ -57,16 +57,16 @@
 
 ### Task 3: GoodsReceipt integration and historical import
 
-**Files:** `prisma/schema.prisma`, `prisma/migrations/<timestamp>_add_goods_receipt_inventory_links/migration.sql`, `src/inventory/goods-receipt-consumer.*`, `tests/inventory/goods-receipt-consumer.integration.test.ts`, `tests/e2e/phase7-operations.e2e.test.ts`
+**Files:** `prisma/schema.prisma`, `prisma/migrations/20261014093000_link_goods_receipts_inventory/migration.sql`, `src/inventory/goods-receipt-inventory.*`, `src/purchases/goods-receipt.events.ts`, `tests/inventory/goods-receipt-inventory.integration.test.ts`, `tests/purchases/goods-receipt-events.test.ts`
 
 **Interfaces:** Consumes `purchases.goods_receipt.confirmed.v1`, `purchases.goods_receipt.corrected.v1`, Task 2 ledger commands and event receipts. Produces explicit assignment/import commands and source revision deduplication.
 
-- [ ] Write failing tests for assignment, missing warehouse, duplicate event, replay, correction delta and historical import.
-- [ ] Add the qualified GoodsReceipt integration link and unique source/revision constraints.
-- [ ] Implement the consumer so receipt recording and stock posting commit atomically, or neither commits.
-- [ ] Implement explicit historical import with `HISTORICAL_IMPORT` revision and audit.
-- [ ] Run E2E GoodsReceipt → Inventory and all Phase 0–6 regression suites.
-- [ ] Commit `feat(inventory): consume goods receipt events idempotently`.
+- [x] Write failing tests for assignment, missing warehouse, duplicate event, replay, correction delta and historical import.
+- [x] Add the qualified GoodsReceipt integration link and unique source/revision constraints.
+- [x] Implement the consumer so receipt recording and stock posting commit atomically, or neither commits.
+- [x] Implement explicit historical import with `HISTORICAL_IMPORT` revision and audit.
+- [x] Run PostgreSQL GoodsReceipt → Inventory integration, migration proof and focused Phase 0–6 regression suites.
+- [x] Commit `feat(inventory): consume goods receipt events idempotently`.
 
 ### Task 4: Expenses
 

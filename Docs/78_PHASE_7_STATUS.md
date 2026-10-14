@@ -5,10 +5,10 @@
 La Phase 7 — Operations est ouverte et en cours d'exécution sur
 `main@9364379d868c536f9d4c7fe9da37934e4f5581e7`.
 
-Le cadrage et le contrat Operations sont intégrés. Le Task 2 — Inventory ledger
-et balances — est livré et vérifié. La phase reste volontairement ouverte tant
-que l'intégration GoodsReceipt, Expenses, Cash et les preuves finales ne sont
-pas toutes démontrées.
+Le cadrage et le contrat Operations sont intégrés. Les Tasks 2 et 3 — Inventory
+ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La phase
+reste volontairement ouverte tant que Expenses, Cash et les preuves finales ne
+sont pas toutes démontrées.
 
 Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 
@@ -19,7 +19,7 @@ Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 - [x] `Docs/superpowers/plans/2026-10-14-phase-7-operations-plan.md` — plan séquencé ;
 - [x] contrat OpenAPI et autorisations centrales — PR #86 ;
 - [x] modèle Inventory, migration et services ledger — PR #87 ;
-- [ ] intégration GoodsReceipt → Inventory ;
+- [x] intégration GoodsReceipt → Inventory ;
 - [ ] Expenses ;
 - [ ] CashAccounts/CashMovements ;
 - [ ] preuves finales cross-phase et clôture stricte.
@@ -40,6 +40,18 @@ Preuves : [PR #87](https://github.com/jupi-z/Monarque-Connect/pull/87),
 [CI PR #237](https://github.com/jupi-z/Monarque-Connect/actions/runs/38518975389),
 [CI post-merge #238](https://github.com/jupi-z/Monarque-Connect/actions/runs/38519336517).
 
+## Task 3 — GoodsReceipt → Inventory livré
+
+- [x] événements confirmés/corrigés enrichis avec des faits par ligne immuables ;
+- [x] lien tenant/établissement/réception/entrepôt et entrées source versionnées ;
+- [x] consumer Outbox idempotent avec receipt et mouvements dans la même transaction PostgreSQL ;
+- [x] affectation explicite d'un entrepôt actif, sans déduction implicite ;
+- [x] corrections signées append-only et import historique `HISTORICAL_IMPORT` ;
+- [x] audit, Outbox, rollback, rejeu et source/révision unique couverts ;
+- [x] tests PostgreSQL du flux pending → assignment → correction et import historique ;
+- [x] migration base vide et upgrade Phase 6 vérifiés par `prisma:phase7:migration-proof` ;
+- [ ] preuves CI de la PR et du post-merge à compléter après fusion.
+
 ## Décisions toujours verrouillées
 
 - [x] un seul ledger Inventory autoritaire, append-only et tenant-scoped ;
@@ -57,7 +69,7 @@ Preuves : [PR #87](https://github.com/jupi-z/Monarque-Connect/pull/87),
 - [x] modèles et contraintes tenant/établissement PostgreSQL pour Inventory ;
 - [x] moteur Inventory unique sans second ledger ;
 - [x] balances Inventory reconstructibles et testées ;
-- [ ] GoodsReceipt idempotente, historique et corrections prouvés côté Inventory ;
+- [x] GoodsReceipt idempotente, historique et corrections prouvés côté Inventory ;
 - [ ] Expenses avec transitions et audit ;
 - [ ] CashAccounts/CashMovements append-only et solde dérivé ;
 - [x] autorisation, entitlements, activation, rôles et scopes pour les contrats Operations ;
