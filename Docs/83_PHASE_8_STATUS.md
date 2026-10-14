@@ -3,10 +3,11 @@
 ## État actuel
 
 La livraison fonctionnelle initiale reste historique et n'est pas réouverte.
-L'audit post-clôture a toutefois identifié des écarts de durcissement sur le
-transport binaire, l'autorisation des cibles liées et l'ordre des mutations de
-stockage. La clôture stricte de la Phase 8 reste suspendue jusqu'à la validation
-de la PR corrective suivie par [#111](https://github.com/jupi-z/Monarque-Connect/issues/111).
+La stabilisation corrective demandée par l'audit est maintenant fusionnée par la
+PR [#112](https://github.com/jupi-z/Monarque-Connect/pull/112). La clôture
+stricte de la Phase 8 est donc confirmée sur
+`main@8182fee066b4be516170d6356a71e472729cb1fd`, avec CI PR #301 et CI
+post-fusion #302 vertes.
 
 La Phase 8 a été officiellement ouverte sur la baseline
 `main@318b3e5da5ddf257355b2d87d40cdcc5af8f571b`. La PR de cadrage #106, sa
@@ -60,15 +61,15 @@ par la PR #108 :
 
 ## Gates de stabilisation corrective — issue #111
 
-- [ ] transfert binaire réel via `StorageAdapter`, taille et SHA-256 vérifiés ;
-- [ ] restitution exacte et rejeu divergent refusé ;
-- [ ] token de session opaque et expiration conservés pour les retries ;
-- [ ] adaptateur mémoire refusé en environnement réel ;
-- [ ] permissions, entitlements et scopes de la cible appliqués aux lectures,
+- [x] transfert binaire réel via `StorageAdapter`, taille et SHA-256 vérifiés ;
+- [x] restitution exacte et rejeu divergent refusé ;
+- [x] token de session opaque et expiration conservés pour les retries ;
+- [x] adaptateur mémoire refusé en environnement réel ;
+- [x] permissions, entitlements et scopes de la cible appliqués aux lectures,
   listes, liens et téléchargements ;
-- [ ] `complete` et `revoke` n'effectuent pas de mutation prématurée de
+- [x] `complete` et `revoke` n'effectuent pas de mutation prématurée de
   l'adaptateur ;
-- [ ] preuves PostgreSQL, HTTP E2E, sécurité, migrations et CI PR/post-merge.
+- [x] preuves PostgreSQL, HTTP E2E, sécurité, migrations et CI PR/post-merge.
 
 ## Vérifications locales de la tranche
 
@@ -77,13 +78,12 @@ Les contrôles statiques ciblés (`typecheck`, `lint`, `build`,
 unitaires ciblés ont été exécutés sur la branche corrective. Les tests
 PostgreSQL et E2E ont été exécutés avec succès par la CI GitHub, qui fournit
 la preuve reproductible avec PostgreSQL 17. Le détail des résultats et leurs
-URLs de la livraison initiale est conservé dans
-`Docs/84_PHASE_8_CLOSURE_EVIDENCE.md`; les résultats de la stabilisation seront
-ajoutés dans `Docs/85_PHASE_8_DOCUMENTS_HARDENING_EVIDENCE.md` après fusion.
+URLs est conservé dans `Docs/84_PHASE_8_CLOSURE_EVIDENCE.md` et
+`Docs/85_PHASE_8_DOCUMENTS_HARDENING_EVIDENCE.md`.
 
 ## Gouvernance
 
-La tranche a suivi : branche dédiée → PR #108 → CI verte → fusion contrôlée par
-squash → suppression de branche. Aucun push direct sur `main`. Toute évolution
-ultérieure de la Phase 8 devra préserver cette gouvernance et ne constitue pas
-une réouverture de la phase clôturée.
+La tranche initiale puis la stabilisation ont suivi : branche dédiée → PR → CI
+verte → fusion contrôlée par squash → suppression de branche. Aucun push direct
+sur `main`. Toute évolution ultérieure de la Phase 8 devra préserver cette
+gouvernance et ne constitue pas une réouverture de la phase clôturée.
