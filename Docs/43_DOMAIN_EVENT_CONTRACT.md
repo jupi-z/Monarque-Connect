@@ -93,11 +93,22 @@ Tout consommateur doit être idempotent. Aucun composant ne suppose exactly-once
 - `cash.moved`
 - `expense.recorded`
 - `project.completed`
+- `project.created`
+- `project.updated`
+- `project.status_changed`
+- `task.created`
+- `task.updated`
+- `task.status_changed`
 
 ### Network/Documents
 - `network.inquiry_received`
 - `network.connection_accepted`
 - `document.expiring`
+- `document.upload_started`
+- `document.available`
+- `document.linked`
+- `document.unlinked`
+- `document.revoked`
 - `organization.verification_changed`
 
 ## Consumption

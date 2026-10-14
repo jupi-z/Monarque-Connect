@@ -71,21 +71,20 @@ avec la CI post-merge Backend #213 verte.
 ## Phase 6 — Purchases
 Supplier RFQ → Purchase Order → Goods Receipt.
 
-**État :** livraison fonctionnelle réalisée, mais clôture suspendue le 14 octobre
-2026 par l'audit correctif Inventory HTTP. La baseline d'ouverture était
+**État :** terminée et clôturée à 100 %. La baseline d'ouverture était
 `main@623fa9e79947e4608f7d2c66d841d053b22684e2`. La livraison et les preuves
 techniques sont intégrées sur
-`main@8902b56ac8ffc265a1bab085bb6c5d1ffd86e860`.
+`main@3b7245469a2b9ee2a2ccb19c04f621d1d75497ec`.
 La spécification est `74_PHASE6_PURCHASES_EXECUTION_SPEC.md`, le statut final
 est `75_PHASE_6_STATUS.md`, la preuve consolidée est
 `76_PHASE_6_CLOSURE_EVIDENCE.md` et le plan est
 `superpowers/plans/2026-10-13-phase-6-purchases-plan.md`.
 Le suivi GitHub est l'[issue #75](https://github.com/jupi-z/Monarque-Connect/issues/75).
 Les CI PR #229 et #231 ainsi que les CI post-merge #230 et #232 sont vertes.
-La phase ne crée pas de
-moteur Inventory : les Goods Receipts constatent les réceptions et publient
+La phase ne crée pas de moteur Inventory : les Goods Receipts constatent les
+réceptions et publient
 des événements ; mouvements, réservations et valorisation de stock restent
-réservés à la Phase 7.
+réservés à la Phase 7, désormais clôturée dans ses propres preuves.
 
 ## Phase 7 — Operations
 Inventory, expenses, cash accounts/movements.
@@ -107,6 +106,14 @@ ouverture formelle distincte.
 
 ## Phase 8 — Projects & documents
 Projects, tasks, document linking, media.
+
+**État :** ouverte en cadrage sur `main@f3d550beb94e4e95eb6563eeece29c1d4249b4c8`.
+La spécification normative est `82_PHASE8_PROJECTS_DOCUMENTS_EXECUTION_SPEC.md`,
+le statut est `83_PHASE_8_STATUS.md`, le plan est
+`superpowers/plans/2026-10-14-phase-8-projects-documents-plan.md` et le suivi
+GitHub est l'[issue #105](https://github.com/jupi-z/Monarque-Connect/issues/105).
+Les contrats OpenAPI sont gelés avant migrations et implémentation. La Phase 8
+ne doit pas modifier les invariants des Phases 0 à 7.
 
 ## Phase 9 — Messaging B2B
 Conversations, messages, network policies, anti-abuse baseline.

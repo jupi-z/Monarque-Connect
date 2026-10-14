@@ -2184,13 +2184,90 @@ paths:
     get:
       tags: [Projects]
       operationId: listProjects
+      parameters:
+        - { name: establishmentId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ProjectStatus" } }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
       responses:
-        "200": { description: Projects }
+        "200":
+          description: Paginated projects
+          content: { application/json: { schema: { $ref: "#/components/schemas/ProjectPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
     post:
       tags: [Projects]
       operationId: createProject
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateProjectRequest" } } }
       responses:
-        "201": { description: Project created }
+        "201":
+          description: Project created
+          content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/projects/{projectId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Projects]
+      operationId: getProject
+      responses:
+        "200":
+          description: Project
+          content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Projects]
+      operationId: updateProject
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UpdateProjectRequest" } } }
+      responses:
+        "200":
+          description: Project updated
+          content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/projects/{projectId}/transition:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Projects]
+      operationId: transitionProject
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TransitionProjectRequest" } } }
+      responses:
+        "200":
+          description: Project transitioned
+          content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/projects/{projectId}/tasks:
     parameters:
@@ -2199,13 +2276,242 @@ paths:
     get:
       tags: [Projects]
       operationId: listProjectTasks
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/TaskStatus" } }
       responses:
-        "200": { description: Project tasks }
+        "200":
+          description: Paginated project tasks
+          content: { application/json: { schema: { $ref: "#/components/schemas/TaskPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       tags: [Projects]
       operationId: createProjectTask
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateTaskRequest" } } }
       responses:
-        "201": { description: Project task created }
+        "201":
+          description: Project task created
+          content: { application/json: { schema: { $ref: "#/components/schemas/Task" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/tasks/{taskId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: taskId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Projects]
+      operationId: getProjectTask
+      responses:
+        "200":
+          description: Project task
+          content: { application/json: { schema: { $ref: "#/components/schemas/Task" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Projects]
+      operationId: updateProjectTask
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UpdateTaskRequest" } } }
+      responses:
+        "200":
+          description: Project task updated
+          content: { application/json: { schema: { $ref: "#/components/schemas/Task" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/tasks/{taskId}/transition:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: taskId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Projects]
+      operationId: transitionProjectTask
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TransitionTaskRequest" } } }
+      responses:
+        "200":
+          description: Project task transitioned
+          content: { application/json: { schema: { $ref: "#/components/schemas/Task" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/documents:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Projects]
+      operationId: listDocuments
+      parameters:
+        - { name: establishmentId, in: query, schema: { type: string, format: uuid } }
+        - { name: targetType, in: query, schema: { $ref: "#/components/schemas/DocumentLinkTargetType" } }
+        - { name: targetId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/DocumentStatus" } }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Paginated document metadata
+          content: { application/json: { schema: { $ref: "#/components/schemas/DocumentPage" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Projects]
+      operationId: startDocumentUpload
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/StartDocumentUploadRequest" } } }
+      responses:
+        "201":
+          description: Upload session started
+          content: { application/json: { schema: { $ref: "#/components/schemas/DocumentUploadSession" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/documents/{documentId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Projects]
+      operationId: getDocument
+      responses:
+        "200":
+          description: Document metadata and links
+          content: { application/json: { schema: { $ref: "#/components/schemas/Document" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/documents/{documentId}/complete:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Projects]
+      operationId: completeDocumentUpload
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CompleteDocumentUploadRequest" } } }
+      responses:
+        "200":
+          description: Document available
+          content: { application/json: { schema: { $ref: "#/components/schemas/Document" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/documents/{documentId}/content:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Projects]
+      operationId: readDocumentContent
+      responses:
+        "200": { description: Binary content, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/documents/{documentId}/links:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Projects]
+      operationId: linkDocument
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CreateDocumentLinkRequest" } } }
+      responses:
+        "201":
+          description: Document link created
+          content: { application/json: { schema: { $ref: "#/components/schemas/DocumentLink" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/documents/{documentId}/links/{linkId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: linkId, in: path, required: true, schema: { type: string, format: uuid } }
+    delete:
+      tags: [Projects]
+      operationId: unlinkDocument
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204": { description: Document link removed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/documents/{documentId}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Projects]
+      operationId: revokeDocument
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RevokeDocumentRequest" } } }
+      responses:
+        "200":
+          description: Document revoked
+          content: { application/json: { schema: { $ref: "#/components/schemas/Document" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /network/organizations:
     get:
@@ -3423,6 +3729,209 @@ components:
     SalesTaxMode:
       type: string
       enum: [EXCLUSIVE, INCLUSIVE, EXEMPT, NOT_APPLICABLE]
+    ProjectStatus:
+      type: string
+      enum: [PLANNED, ACTIVE, COMPLETED, CANCELLED]
+    TaskStatus:
+      type: string
+      enum: [TODO, IN_PROGRESS, DONE, CANCELLED]
+    DocumentStatus:
+      type: string
+      enum: [PENDING_UPLOAD, AVAILABLE, QUARANTINED, REVOKED]
+    DocumentClassification:
+      type: string
+      enum: [INTERNAL, CONFIDENTIAL, RESTRICTED]
+    DocumentLinkTargetType:
+      type: string
+      enum: [PROJECT, TASK, OPPORTUNITY, PARTY, QUOTE, SALES_ORDER, INVOICE, PAYMENT_RECORD, SUPPLIER_RFQ, PURCHASE_ORDER, GOODS_RECEIPT, EXPENSE]
+    Project:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, establishmentId, name, status, createdByUserId, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        partyId: { type: [string, 'null'], format: uuid }
+        opportunityId: { type: [string, 'null'], format: uuid }
+        startsOn: { type: [string, 'null'], format: date }
+        dueOn: { type: [string, 'null'], format: date }
+        status: { $ref: "#/components/schemas/ProjectStatus" }
+        createdByUserId: { type: string, format: uuid }
+        completedAt: { type: [string, 'null'], format: date-time }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, name]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, maxLength: 5000 }
+        partyId: { type: string, format: uuid }
+        opportunityId: { type: string, format: uuid }
+        startsOn: { type: string, format: date }
+        dueOn: { type: string, format: date }
+    UpdateProjectRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        partyId: { type: [string, 'null'], format: uuid }
+        opportunityId: { type: [string, 'null'], format: uuid }
+        startsOn: { type: [string, 'null'], format: date }
+        dueOn: { type: [string, 'null'], format: date }
+    TransitionProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/ProjectStatus" }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    ProjectPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Project" } }
+        nextCursor: { type: [string, 'null'] }
+    Task:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, projectId, title, status, position, createdByUserId, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        assigneeUserId: { type: [string, 'null'], format: uuid }
+        dueOn: { type: [string, 'null'], format: date }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+        position: { type: integer, minimum: 0 }
+        createdByUserId: { type: string, format: uuid }
+        completedAt: { type: [string, 'null'], format: date-time }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 5000 }
+        assigneeUserId: { type: string, format: uuid }
+        dueOn: { type: string, format: date }
+        position: { type: integer, minimum: 0 }
+    UpdateTaskRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 5000 }
+        assigneeUserId: { type: [string, 'null'], format: uuid }
+        dueOn: { type: [string, 'null'], format: date }
+        position: { type: integer, minimum: 0 }
+    TransitionTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/TaskStatus" }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+    TaskPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        nextCursor: { type: [string, 'null'] }
+    DocumentLink:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, documentId, targetType, targetId, createdByUserId, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        documentId: { type: string, format: uuid }
+        targetType: { $ref: "#/components/schemas/DocumentLinkTargetType" }
+        targetId: { type: string, format: uuid }
+        createdByUserId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+    Document:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, originalFilename, mediaType, byteSize, status, classification, uploadedByUserId, links, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        originalFilename: { type: string, minLength: 1, maxLength: 255 }
+        mediaType: { type: string, minLength: 1, maxLength: 160 }
+        byteSize: { type: integer, minimum: 0, format: int64 }
+        checksumSha256: { type: [string, 'null'], pattern: "^[A-Fa-f0-9]{64}$" }
+        status: { $ref: "#/components/schemas/DocumentStatus" }
+        classification: { $ref: "#/components/schemas/DocumentClassification" }
+        uploadedByUserId: { type: string, format: uuid }
+        links: { type: array, items: { $ref: "#/components/schemas/DocumentLink" } }
+        revokedAt: { type: [string, 'null'], format: date-time }
+        revocationReason: { type: [string, 'null'], maxLength: 2000 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    DocumentPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Document" } }
+        nextCursor: { type: [string, 'null'] }
+    StartDocumentUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [establishmentId, originalFilename, mediaType, byteSize, classification]
+      properties:
+        establishmentId: { type: string, format: uuid }
+        originalFilename: { type: string, minLength: 1, maxLength: 255 }
+        mediaType: { type: string, minLength: 1, maxLength: 160 }
+        byteSize: { type: integer, minimum: 1, format: int64 }
+        classification: { $ref: "#/components/schemas/DocumentClassification" }
+        links: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/CreateDocumentLinkRequest" } }
+    DocumentUploadSession:
+      type: object
+      additionalProperties: false
+      required: [document, uploadToken, expiresAt]
+      properties:
+        document: { $ref: "#/components/schemas/Document" }
+        uploadToken: { type: string, minLength: 1 }
+        expiresAt: { type: string, format: date-time }
+    CompleteDocumentUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [checksumSha256, byteSize]
+      properties:
+        checksumSha256: { type: string, pattern: "^[A-Fa-f0-9]{64}$" }
+        byteSize: { type: integer, minimum: 1, format: int64 }
+    CreateDocumentLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [targetType, targetId]
+      properties:
+        targetType: { $ref: "#/components/schemas/DocumentLinkTargetType" }
+        targetId: { type: string, format: uuid }
+    RevokeDocumentRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
     SalesDocumentLine:
       type: object
       additionalProperties: false
