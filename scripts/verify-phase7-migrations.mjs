@@ -44,14 +44,35 @@ async function appliedNames(databaseUrl) { const pool = new Pool({ connectionStr
 async function structuralProof(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   try {
-    const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1::text[])`, [['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries']]);
+    const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1::text[])`, [['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries', 'cash_accounts', 'cash_account_idempotency_keys', 'cash_movements', 'cash_movement_idempotency_keys']]);
     const found = new Set(tables.rows.map((row) => row.table_name));
-    for (const required of ['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries']) if (!found.has(required)) throw new Error(`Phase 7 structural proof missing table: ${required}`);
-    const trigger = await pool.query(`SELECT 1 FROM pg_trigger WHERE tgname = 'inventory_movements_append_only_update'`);
-    if (!trigger.rowCount) throw new Error('Phase 7 append-only trigger is missing');
-    const checks = await pool.query(`SELECT conname FROM pg_constraint WHERE conname IN ('inventory_movements_direction_check', 'inventory_balances_quantity_nonnegative_check', 'goods_receipt_inventory_entries_delta_nonzero_check')`);
+    for (const required of ['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries', 'cash_accounts', 'cash_account_idempotency_keys', 'cash_movements', 'cash_movement_idempotency_keys']) if (!found.has(required)) throw new Error(`Phase 7 structural proof missing table: ${required}`);
+    const trigger = await pool.query(`SELECT tgname FROM pg_trigger WHERE tgname IN ('inventory_movements_append_only_update', 'cash_movements_append_only_update')`);
+    const triggers = new Set(trigger.rows.map((row) => row.tgname));
+    for (const required of ['inventory_movements_append_only_update', 'cash_movements_append_only_update']) if (!triggers.has(required)) throw new Error(`Phase 7 append-only trigger is missing: ${required}`);
+    const checks = await pool.query(`SELECT conname FROM pg_constraint WHERE conname IN ('inventory_movements_direction_check', 'inventory_balances_quantity_nonnegative_check', 'goods_receipt_inventory_entries_delta_nonzero_check', 'cash_accounts_currency_uppercase_check', 'cash_movements_amount_positive_check', 'cash_movements_source_check', 'cash_movements_correction_check')`);
     const names = new Set(checks.rows.map((row) => row.conname));
-    for (const required of ['inventory_movements_direction_check', 'inventory_balances_quantity_nonnegative_check', 'goods_receipt_inventory_entries_delta_nonzero_check']) if (!names.has(required)) throw new Error(`Phase 7 structural proof missing constraint: ${required}`);
+    for (const required of ['inventory_movements_direction_check', 'inventory_balances_quantity_nonnegative_check', 'goods_receipt_inventory_entries_delta_nonzero_check', 'cash_accounts_currency_uppercase_check', 'cash_movements_amount_positive_check', 'cash_movements_source_check', 'cash_movements_correction_check']) if (!names.has(required)) throw new Error(`Phase 7 structural proof missing constraint: ${required}`);
+    const cashIndexes = await pool.query(`SELECT table_class.relname AS table_name, index_class.relname AS index_name, index_meta.indisunique AS is_unique, array_agg(attribute.attname ORDER BY index_column.ordinality) AS columns
+      FROM pg_index AS index_meta
+      JOIN pg_class AS index_class ON index_class.oid = index_meta.indexrelid
+      JOIN pg_class AS table_class ON table_class.oid = index_meta.indrelid
+      JOIN pg_namespace AS namespace ON namespace.oid = table_class.relnamespace
+      CROSS JOIN LATERAL unnest(index_meta.indkey) WITH ORDINALITY AS index_column(attnum, ordinality)
+      JOIN pg_attribute AS attribute ON attribute.attrelid = table_class.oid AND attribute.attnum = index_column.attnum
+      WHERE namespace.nspname = 'public' AND table_class.relname IN ('cash_accounts', 'cash_movements', 'cash_movement_idempotency_keys')
+      GROUP BY table_class.relname, index_class.relname, index_meta.indisunique`);
+    const indexDefinitions = cashIndexes.rows.map((row) => ({
+      tableName: row.table_name,
+      isUnique: row.is_unique,
+      columns: Array.isArray(row.columns) ? row.columns : String(row.columns).replace(/^\{|\}$/g, '').split(','),
+    }));
+    const requiredIndexes = [
+      ['cash_accounts organization/code uniqueness', 'cash_accounts', ['organization_id', 'code']],
+      ['cash movements correction uniqueness', 'cash_movements', ['corrected_movement_id', 'organization_id']],
+      ['cash movement idempotency uniqueness', 'cash_movement_idempotency_keys', ['organization_id', 'actor_user_id', 'operation', 'key']],
+    ];
+    for (const [label, tableName, columns] of requiredIndexes) if (!indexDefinitions.some((definition) => definition.tableName === tableName && definition.isUnique && definition.columns.join(',') === columns.join(','))) throw new Error(`Phase 7 structural proof missing Cash index: ${label}`);
     const forbidden = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'stock_balances')`);
     if (forbidden.rowCount) throw new Error(`Phase 7 created forbidden legacy stock tables: ${forbidden.rows.map((row) => row.table_name).join(', ')}`);
   } finally { await pool.end(); }
