@@ -3,17 +3,15 @@
 ## État actuel
 
 La Phase 7 — Operations est ouverte et en cours d'exécution. L'état ci-dessous
-est vérifié sur `main@51878617729d938ec036b25334d119f0c4e68a5a` le 14 octobre
+est vérifié sur `main@f0f97ccdebee20635c2e8117f85386b922aef039` le 14 octobre
 2026.
 
 Le cadrage et le contrat Operations sont intégrés. Les Tasks 2 et 3 — Inventory
 ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La Task
 4 — Expenses est livrée par la PR #93 et vérifiée par les CI PR #250 et
-post-merge #251. La Task 5 — Cash est maintenant cadrée par
-`Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`, son plan dédié et l'issue #95 ; aucun
-code métier n'est considéré livré avant sa PR et ses CI. La phase reste
-volontairement ouverte tant que Cash et les preuves finales ne sont pas toutes
-démontrées.
+post-merge #251. La Task 5 — Cash est livrée par la PR #97 et vérifiée par les
+CI PR #257 et post-merge #258. La phase reste ouverte pour ses preuves finales
+cross-phase et sa clôture stricte ; cette mise à jour ne clôt pas la Phase 7.
 
 Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 
@@ -26,7 +24,7 @@ Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 - [x] modèle Inventory, migration et services ledger — PR #87 ;
 - [x] intégration GoodsReceipt → Inventory ;
 - [x] Expenses — spécification dédiée : `Docs/79_PHASE_7_EXPENSES_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-expenses-plan.md`, issue #92, PR #93 ;
-- [ ] CashAccounts/CashMovements — spécification dédiée : `Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-cash-plan.md`, issue #95 ;
+- [x] CashAccounts/CashMovements — spécification dédiée : `Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-cash-plan.md`, issue #95, PR #97 ;
 - [ ] preuves finales cross-phase et clôture stricte.
 
 ## Task 2 — Inventory livré
@@ -93,7 +91,7 @@ build et smoke HTTP.
 - [x] aucune règle fiscale, comptable ou réglementaire juridictionnelle inventée ;
 - [x] migrations additives et preuves PostgreSQL ;
 - [x] intégration événementielle GoodsReceipt, affectation entrepôt et historique ;
-- [ ] Expenses et Cash entièrement implémentés et prouvés.
+- [x] Expenses et Cash entièrement implémentés et prouvés sur leurs tranches respectives.
 
 ## Gates de clôture
 
@@ -103,13 +101,29 @@ build et smoke HTTP.
 - [x] balances Inventory reconstructibles et testées ;
 - [x] GoodsReceipt idempotente, historique et corrections prouvés côté Inventory ;
 - [x] Expenses avec transitions, isolation, idempotence, audit et Outbox ;
-- [ ] CashAccounts/CashMovements append-only et solde dérivé ;
+- [x] CashAccounts/CashMovements append-only et solde dérivé ;
 - [x] autorisation, entitlements, activation, rôles et scopes pour les contrats Operations ;
 - [x] audit + Outbox atomiques pour le ledger Inventory ;
 - [x] idempotence, concurrence et rollback pour le ledger Inventory ;
 - [x] migration base vide et upgrade Phase 6 ;
 - [x] tests PostgreSQL, E2E et non-régression Phases 0 à 6 sur la tranche livrée ;
 - [x] CI PR et post-merge `main` vertes pour les Tasks 2 et 3 ;
-- [ ] documentation, issue #84, tracker et branches synchronisés pour la clôture finale.
+- [ ] documentation finale, issue #84 et tracker synchronisés pour la clôture finale de Phase 7.
 
 La Phase 7 ne sera déclarée clôturée qu'après preuve de chaque gate restante.
+
+## Task 5 — Cash livré
+
+- [x] cycle de vie CashAccount `ACTIVE → INACTIVE → ACTIVE`, code unique et solde dérivé ;
+- [x] CashMovement append-only, montants positifs, devise du compte et corrections compensatoires ;
+- [x] transferts same-currency en deux écritures liées dans une transaction ;
+- [x] références Expense/PaymentRecord validées dans le tenant et l'établissement ;
+- [x] idempotence, verrouillage de compte, refus des sorties insuffisantes et rollback Outbox ;
+- [x] isolation tenant/établissement, entitlement `CASH`, permissions et audit atomiques ;
+- [x] migration additive et preuves base vide/upgrade exécutées par la CI ;
+- [x] tests PostgreSQL, 7 tests Cash, 212 tests de régression, 6 E2E HTTP, build et smoke health.
+
+Preuves Task 5 : [PR #97](https://github.com/jupi-z/Monarque-Connect/pull/97),
+[CI PR #257](https://github.com/jupi-z/Monarque-Connect/actions/runs/38555739231),
+[CI post-merge #258](https://github.com/jupi-z/Monarque-Connect/actions/runs/38556223448),
+[commit `f0f97cc`](https://github.com/jupi-z/Monarque-Connect/commit/f0f97ccdebee20635c2e8117f85386b922aef039).
