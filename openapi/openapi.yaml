@@ -4091,9 +4091,6 @@ components:
         currency: { type: string, pattern: "^[A-Z]{3}$" }
         expenseDate: { type: string, format: date }
         partyId: { type: [string, 'null'], format: uuid }
-        projectId: { type: [string, 'null'], format: uuid }
-        documentId: { type: [string, 'null'], format: uuid }
-        cashMovementId: { type: [string, 'null'], format: uuid }
         voidReason: { type: [string, 'null'], maxLength: 2000 }
         createdBy: { type: string, format: uuid }
         createdAt: { type: string, format: date-time }
@@ -4110,8 +4107,6 @@ components:
         currency: { type: string, pattern: "^[A-Z]{3}$" }
         expenseDate: { type: string, format: date }
         partyId: { type: string, format: uuid }
-        projectId: { type: string, format: uuid }
-        documentId: { type: string, format: uuid }
     UpdateExpenseRequest:
       type: object
       additionalProperties: false
@@ -4121,13 +4116,9 @@ components:
         category: { type: string, minLength: 1, maxLength: 80 }
         expenseDate: { type: string, format: date }
         partyId: { type: [string, 'null'], format: uuid }
-        projectId: { type: [string, 'null'], format: uuid }
-        documentId: { type: [string, 'null'], format: uuid }
     RecordExpenseRequest:
       type: object
       additionalProperties: false
-      properties:
-        cashAccountId: { type: string, format: uuid }
     VoidExpenseRequest:
       type: object
       additionalProperties: false

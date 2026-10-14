@@ -7,9 +7,11 @@ est vérifié sur `main@a09cbc2a5d75e85d67a9d2b898a0acad4c1c0930` le 14 octobre
 2026.
 
 Le cadrage et le contrat Operations sont intégrés. Les Tasks 2 et 3 — Inventory
-ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La phase
-reste volontairement ouverte tant que Expenses, Cash et les preuves finales ne
-sont pas toutes démontrées.
+ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La Task
+4 — Expenses est maintenant cadrée sur la branche dédiée
+`monarque/phase7-expenses` et suivie par l'issue #92 ; aucun code métier n'est
+considéré livré avant sa PR et sa CI. La phase reste volontairement ouverte
+tant que Expenses, Cash et les preuves finales ne sont pas toutes démontrées.
 
 Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 
@@ -21,7 +23,7 @@ Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 - [x] contrat OpenAPI et autorisations centrales — PR #86 ;
 - [x] modèle Inventory, migration et services ledger — PR #87 ;
 - [x] intégration GoodsReceipt → Inventory ;
-- [ ] Expenses ;
+- [ ] Expenses — spécification dédiée : `Docs/79_PHASE_7_EXPENSES_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-expenses-plan.md`, issue #92 ;
 - [ ] CashAccounts/CashMovements ;
 - [ ] preuves finales cross-phase et clôture stricte.
 
