@@ -57,6 +57,9 @@ async function structuralProof(databaseUrl) {
     const found = new Set(result.rows.map((row) => row.table_name));
     const missing = requiredTables.filter((table) => !found.has(table));
     if (missing.length) throw new Error(`Phase 8 structural proof missing tables: ${missing.join(', ')}`);
+    const columns = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'documents' AND column_name = ANY($1::text[])`, [['upload_token', 'upload_expires_at']]);
+    const foundColumns = new Set(columns.rows.map((row) => row.column_name));
+    for (const required of ['upload_token', 'upload_expires_at']) if (!foundColumns.has(required)) throw new Error(`Phase 8 structural proof missing document column: ${required}`);
     const constraints = await pool.query(`SELECT conname FROM pg_constraint WHERE conname IN ('projects_dates_check', 'tasks_position_check', 'documents_byte_size_check', 'documents_checksum_sha256_check', 'document_links_organization_id_document_id_target_type_target_id_key', 'phase8_idempotency_keys_organization_id_actor_user_id_operation_key_key')`);
     const names = new Set(constraints.rows.map((row) => row.conname));
     for (const required of ['projects_dates_check', 'tasks_position_check', 'documents_byte_size_check', 'documents_checksum_sha256_check']) if (!names.has(required)) throw new Error(`Phase 8 structural proof missing constraint: ${required}`);

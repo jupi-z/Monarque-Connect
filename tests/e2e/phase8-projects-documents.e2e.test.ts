@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { generateKeyPair } from 'node:crypto';
+import { createHash, generateKeyPair, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { exportPKCS8, exportSPKI } from 'jose';
 import { Test } from '@nestjs/testing';
@@ -19,6 +19,7 @@ describe('Phase 8 Projects & Documents HTTP E2E', () => {
   let prisma: PrismaService;
   let ownerToken = '';
   let otherToken = '';
+  let salesToken = '';
   let organizationId = '';
   let establishmentId = '';
 
@@ -50,6 +51,9 @@ describe('Phase 8 Projects & Documents HTTP E2E', () => {
     const plan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, select: { id: true } });
     await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: plan.id } });
     otherToken = await registerAndLogin(`phase8-other-${suffix}@example.com`, 'Phase8 Other');
+    salesToken = await registerAndLogin(`phase8-sales-${suffix}@example.com`, 'Phase8 Sales');
+    const salesUser = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: `phase8-sales-${suffix}@example.com` }, select: { id: true } });
+    await prisma.membership.create({ data: { id: randomUUID(), organizationId, userId: salesUser.id, role: 'SALES', scopeMode: 'SELECTED_ESTABLISHMENTS', scopeLinks: { create: [{ establishmentId }] } } });
   }, 60000);
 
   afterAll(async () => {
@@ -76,12 +80,31 @@ describe('Phase 8 Projects & Documents HTTP E2E', () => {
     expect(upload.document.links).toEqual(expect.arrayContaining([expect.objectContaining({ targetId: firstProject.id })]));
     expect(upload.uploadToken).toBeTruthy();
 
-    const document = bodyOf<{ id: string; status: string; checksumSha256: string }>(await request(server()).post(`/api/v1/organizations/${organizationId}/documents/${upload.document.id}/complete`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase8-document-complete').send({ checksumSha256: 'a'.repeat(64), byteSize: 5 }).expect(200));
-    expect(document).toMatchObject({ id: upload.document.id, status: 'AVAILABLE', checksumSha256: 'a'.repeat(64) });
-    await request(server()).get(`/api/v1/organizations/${organizationId}/documents/${document.id}/content`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    const content = Buffer.from('hello');
+    const checksum = createHash('sha256').update(content).digest('hex');
+    const receipt = bodyOf<{ byteSize: string; checksumSha256: string }>(await request(server()).put(`/api/v1/organizations/${organizationId}/documents/${upload.document.id}/upload`).set('Authorization', `Bearer ${ownerToken}`).set('X-Upload-Token', upload.uploadToken).set('Content-Type', 'application/octet-stream').send(content).expect(200));
+    expect(receipt).toEqual({ byteSize: '5', checksumSha256: checksum });
+    const document = bodyOf<{ id: string; status: string; checksumSha256: string }>(await request(server()).post(`/api/v1/organizations/${organizationId}/documents/${upload.document.id}/complete`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase8-document-complete').send({ checksumSha256: checksum, byteSize: 5 }).expect(200));
+    expect(document).toMatchObject({ id: upload.document.id, status: 'AVAILABLE', checksumSha256: checksum });
+    const contentResponse = await request(server()).get(`/api/v1/organizations/${organizationId}/documents/${document.id}/content`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(contentResponse.body).toEqual(content);
     const listed = bodyOf<{ items: Array<{ id: string }> }>(await request(server()).get(`/api/v1/organizations/${organizationId}/documents?targetType=PROJECT&targetId=${firstProject.id}`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
     expect(listed.items.map((item) => item.id)).toContain(document.id);
     await request(server()).post(`/api/v1/organizations/${organizationId}/documents/${document.id}/revoke`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase8-document-revoke').send({ reason: 'E2E cleanup' }).expect(200);
+  });
+
+  it('applies target read permissions to document metadata and content', async () => {
+    const expense = bodyOf<{ id: string }>(await request(server()).post(`/api/v1/organizations/${organizationId}/expenses`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase8-expense-document').send({ establishmentId, description: 'Restricted expense attachment', category: 'SUPPLIES', amount: '10.0000', currency: 'EUR', expenseDate: '2026-10-14' }).expect(201));
+    const upload = bodyOf<{ document: { id: string }; uploadToken: string }>(await request(server()).post(`/api/v1/organizations/${organizationId}/documents/uploads`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase8-expense-document-start').send({ establishmentId, originalFilename: 'expense.txt', mediaType: 'text/plain', byteSize: 3, classification: 'CONFIDENTIAL', links: [{ targetType: 'EXPENSE', targetId: expense.id }] }).expect(201));
+    const bytes = Buffer.from('exp');
+    const checksum = createHash('sha256').update(bytes).digest('hex');
+    await request(server()).put(`/api/v1/organizations/${organizationId}/documents/${upload.document.id}/upload`).set('Authorization', `Bearer ${ownerToken}`).set('X-Upload-Token', upload.uploadToken).set('Content-Type', 'application/octet-stream').send(bytes).expect(200);
+    await request(server()).post(`/api/v1/organizations/${organizationId}/documents/${upload.document.id}/complete`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase8-expense-document-complete').send({ checksumSha256: checksum, byteSize: 3 }).expect(200);
+    await request(server()).get(`/api/v1/organizations/${organizationId}/documents/${upload.document.id}`).set('Authorization', `Bearer ${salesToken}`).expect(404);
+    await request(server()).get(`/api/v1/organizations/${organizationId}/documents/${upload.document.id}/content`).set('Authorization', `Bearer ${salesToken}`).expect(404);
+    const listed = bodyOf<{ items: Array<{ id: string }> }>(await request(server()).get(`/api/v1/organizations/${organizationId}/documents`).set('Authorization', `Bearer ${salesToken}`).expect(200));
+    expect(listed.items.map((item) => item.id)).not.toContain(upload.document.id);
+    await request(server()).post(`/api/v1/organizations/${organizationId}/documents/${upload.document.id}/links`).set('Authorization', `Bearer ${salesToken}`).set('Idempotency-Key', 'phase8-expense-document-link-sales').send({ targetType: 'EXPENSE', targetId: expense.id }).expect(403);
   });
 
   it('enforces tenant isolation for projects and documents', async () => {

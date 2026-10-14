@@ -2454,6 +2454,40 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /organizations/{organizationId}/documents/{documentId}/upload:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [Projects]
+      operationId: uploadDocumentContent
+      parameters:
+        - name: X-Upload-Token
+          in: header
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        "200":
+          description: Binary upload receipt; the document remains pending until completion is verified
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [byteSize, checksumSha256]
+                properties:
+                  byteSize: { type: string, pattern: '^[1-9][0-9]*$' }
+                  checksumSha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/documents/{documentId}/links:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
