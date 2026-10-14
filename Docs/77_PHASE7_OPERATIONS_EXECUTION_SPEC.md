@@ -193,17 +193,21 @@ modifient pas les données historiques de Purchases.
 
 Une `Expense` est un fait opérationnel non comptable. Elle est rattachée à
 une organisation et un établissement, porte une description, une catégorie,
-un montant, une devise, une date de dépense et des références optionnelles
-vers une partie, un projet ou un document.
+un montant, une devise, une date de dépense et une référence optionnelle vers
+un `BusinessParty`. Les domaines `Projects` et `Documents` ne possèdent pas
+encore de modèle propriétaire livré : Expenses v1 ne stocke donc pas de
+références UUID opaques non validables ; ces liens seront ajoutés avec les
+contraintes composites de leurs domaines respectifs. De même, aucun lien vers
+Cash n'est créé avant la Task 5.
 
 Transitions v1 : `DRAFT → RECORDED → VOID`. Seul `DRAFT` est éditable. `VOID`
 est terminal et motivé. Une dépense enregistrée ne peut pas être réécrite
 pour corriger son montant ; une correction financière éventuelle est une
 opération séparée et explicitement liée.
 
-Le paiement depuis une caisse est un lien idempotent vers un
-`CashMovement OUT`. La dépense ne crée pas de mouvement automatiquement si
-aucun compte de caisse n'est choisi par l'appelant autorisé.
+La transition `RECORDED` ne crée aucun mouvement Cash dans la Task 4. La Task
+5 pourra ajouter un lien idempotent vers un `CashMovement OUT` sans réécrire
+le fait Expense ; aucun compte de caisse n'est choisi ou créé par Expenses v1.
 
 ## CashAccounts et CashMovements
 
