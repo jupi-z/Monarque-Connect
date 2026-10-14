@@ -3,15 +3,14 @@
 ## État actuel
 
 La Phase 7 — Operations est ouverte et en cours d'exécution. L'état ci-dessous
-est vérifié sur `main@a09cbc2a5d75e85d67a9d2b898a0acad4c1c0930` le 14 octobre
+est vérifié sur `main@94f0e7066b4bb4c34d87e28e665b4686c07ce6c8` le 14 octobre
 2026.
 
 Le cadrage et le contrat Operations sont intégrés. Les Tasks 2 et 3 — Inventory
 ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La Task
-4 — Expenses est maintenant cadrée sur la branche dédiée
-`monarque/phase7-expenses` et suivie par l'issue #92 ; aucun code métier n'est
-considéré livré avant sa PR et sa CI. La phase reste volontairement ouverte
-tant que Expenses, Cash et les preuves finales ne sont pas toutes démontrées.
+4 — Expenses est livrée par la PR #93 et vérifiée par les CI PR #250 et
+post-merge #251. La phase reste volontairement ouverte tant que Cash et les
+preuves finales ne sont pas toutes démontrées.
 
 Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 
@@ -23,7 +22,7 @@ Suivi : [issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
 - [x] contrat OpenAPI et autorisations centrales — PR #86 ;
 - [x] modèle Inventory, migration et services ledger — PR #87 ;
 - [x] intégration GoodsReceipt → Inventory ;
-- [ ] Expenses — spécification dédiée : `Docs/79_PHASE_7_EXPENSES_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-expenses-plan.md`, issue #92 ;
+- [x] Expenses — spécification dédiée : `Docs/79_PHASE_7_EXPENSES_EXECUTION_SPEC.md`, plan : `Docs/superpowers/plans/2026-10-14-phase-7-expenses-plan.md`, issue #92, PR #93 ;
 - [ ] CashAccounts/CashMovements ;
 - [ ] preuves finales cross-phase et clôture stricte.
 
@@ -62,6 +61,26 @@ Preuves Task 3 : [PR #90](https://github.com/jupi-z/Monarque-Connect/pull/90),
 Les deux exécutions valident lint, typecheck, migrations, OpenAPI, contrats,
 200 tests, 6 E2E, build et smoke HTTP.
 
+## Task 4 — Expenses livré
+
+- [x] cycle de vie `DRAFT → RECORDED → VOID`, avec enregistrement immuable et motif de void obligatoire ;
+- [x] isolation organization/establishment et vérification de portée ;
+- [x] rattachement optionnel à une `BusinessParty` tenant-scoped ; les références Project, Document et Cash restent explicitement hors périmètre jusqu'à la livraison de leurs domaines propriétaires ;
+- [x] idempotence des commandes create/update/record/void avec détection de payload divergent ;
+- [x] audit et événements Outbox atomiques avec la mutation métier ;
+- [x] rollback PostgreSQL prouvé si l'écriture Outbox échoue ;
+- [x] contrats OpenAPI et régressions PostgreSQL validés par la CI ;
+- [x] migration base vide et upgrade cross-phase validés par la CI ;
+- [x] CI PR #250 et CI post-merge #251 vertes.
+
+Preuves Task 4 : [PR #93](https://github.com/jupi-z/Monarque-Connect/pull/93),
+[CI PR #250](https://github.com/jupi-z/Monarque-Connect/actions/runs/38546544862),
+[CI post-merge #251](https://github.com/jupi-z/Monarque-Connect/actions/runs/38546971416),
+[commit `94f0e70`](https://github.com/jupi-z/Monarque-Connect/commit/94f0e7066b4bb4c34d87e28e665b4686c07ce6c8).
+Les jobs `validate` des deux exécutions ont terminé avec `success`, notamment
+pour lint, typecheck, migrations, OpenAPI, contrats, `npm test`, E2E HTTP,
+build et smoke HTTP.
+
 ## Décisions toujours verrouillées
 
 - [x] un seul ledger Inventory autoritaire, append-only et tenant-scoped ;
@@ -80,7 +99,7 @@ Les deux exécutions valident lint, typecheck, migrations, OpenAPI, contrats,
 - [x] moteur Inventory unique sans second ledger ;
 - [x] balances Inventory reconstructibles et testées ;
 - [x] GoodsReceipt idempotente, historique et corrections prouvés côté Inventory ;
-- [ ] Expenses avec transitions et audit ;
+- [x] Expenses avec transitions, isolation, idempotence, audit et Outbox ;
 - [ ] CashAccounts/CashMovements append-only et solde dérivé ;
 - [x] autorisation, entitlements, activation, rôles et scopes pour les contrats Operations ;
 - [x] audit + Outbox atomiques pour le ledger Inventory ;
