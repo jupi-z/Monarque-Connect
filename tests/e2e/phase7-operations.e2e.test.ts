@@ -54,7 +54,19 @@ describe('Phase 7 Operations HTTP E2E', () => {
 
   afterAll(async () => {
     if (!app) return;
-    if (organizationId) await prisma.organization.delete({ where: { id: organizationId } });
+    if (organizationId) {
+      await prisma.goodsReceiptInventoryEntry.deleteMany({ where: { organizationId } });
+      await prisma.goodsReceiptInventoryLink.deleteMany({ where: { organizationId } });
+      await prisma.goodsReceiptCorrectionLine.deleteMany({ where: { organizationId } });
+      await prisma.goodsReceiptCorrection.deleteMany({ where: { organizationId } });
+      await prisma.goodsReceipt.deleteMany({ where: { organizationId } });
+      await prisma.purchaseOrderLine.deleteMany({ where: { organizationId } });
+      await prisma.purchaseOrder.deleteMany({ where: { organizationId } });
+      await prisma.supplierRFQRecipient.deleteMany({ where: { organizationId } });
+      await prisma.supplierRFQLine.deleteMany({ where: { organizationId } });
+      await prisma.supplierRFQ.deleteMany({ where: { organizationId } });
+      await prisma.organization.delete({ where: { id: organizationId } });
+    }
     await app.close();
   });
 
@@ -64,7 +76,7 @@ describe('Phase 7 Operations HTTP E2E', () => {
 
     const expense = bodyOf<{ id: string; status: string }>(await request(server()).post(`/api/v1/organizations/${organizationId}/expenses`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'phase7-operations-expense-create').send({ establishmentId, description: 'E2E operating expense', category: 'SUPPLIES', amount: '25.0000', currency: 'EUR', expenseDate: '2026-10-14' }).expect(201));
     expect(expense.status).toBe('DRAFT');
-    await request(server()).post(`/api/v1/organizations/${organizationId}/expenses/${expense.id}/record`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'phase7-operations-expense-record').send({}).expect(200);
+    await request(server()).post(`/api/v1/organizations/${organizationId}/expenses/${expense.id}/record`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'phase7-operations-expense-record').send({}).expect(201);
     const movement = bodyOf<{ id: string; sourceType: string; sourceId: string }>(await request(server()).post(`/api/v1/organizations/${organizationId}/cash-movements`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'phase7-operations-expense-cash').send({ establishmentId, cashAccountId: account.id, direction: 'OUT', amount: '25.0000', occurredAt: '2026-10-14T12:01:00.000Z', reason: 'Pay operating expense', sourceType: 'EXPENSE', sourceId: expense.id }).expect(201));
 
     expect(movement).toMatchObject({ sourceType: 'EXPENSE', sourceId: expense.id });
