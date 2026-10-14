@@ -88,11 +88,11 @@ describe('Phase 6 Purchases persistence schema', () => {
     expect(definitions.some((definition) => definition.includes('supplier_rfq_id, network_organization_id'))).toBe(true);
   });
 
-  it('does not introduce stock state or inventory projections', async () => {
+  it('does not introduce legacy stock tables before the dedicated Inventory phase', async () => {
     const result = await pool.query<{ tableName: string }>(
       `SELECT table_name AS "tableName"
        FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'inventory_balances', 'inventory_projections')`,
+       WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'stock_balances', 'inventory_projections')`,
     );
     expect(result.rows).toEqual([]);
 
