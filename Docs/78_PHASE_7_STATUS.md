@@ -2,8 +2,9 @@
 
 ## État actuel
 
-La Phase 7 — Operations est ouverte et en cours d'exécution sur
-`main@9364379d868c536f9d4c7fe9da37934e4f5581e7`.
+La Phase 7 — Operations est ouverte et en cours d'exécution. L'état ci-dessous
+est vérifié sur `main@a09cbc2a5d75e85d67a9d2b898a0acad4c1c0930` le 14 octobre
+2026.
 
 Le cadrage et le contrat Operations sont intégrés. Les Tasks 2 et 3 — Inventory
 ledger, balances et intégration GoodsReceipt — sont livrés et vérifiés. La phase
@@ -50,7 +51,14 @@ Preuves : [PR #87](https://github.com/jupi-z/Monarque-Connect/pull/87),
 - [x] audit, Outbox, rollback, rejeu et source/révision unique couverts ;
 - [x] tests PostgreSQL du flux pending → assignment → correction et import historique ;
 - [x] migration base vide et upgrade Phase 6 vérifiés par `prisma:phase7:migration-proof` ;
-- [ ] preuves CI de la PR et du post-merge à compléter après fusion.
+- [x] CI PR #245 et CI post-merge `main` #246 vertes.
+
+Preuves Task 3 : [PR #90](https://github.com/jupi-z/Monarque-Connect/pull/90),
+[CI PR #245](https://github.com/jupi-z/Monarque-Connect/actions/runs/38530801552),
+[CI post-merge #246](https://github.com/jupi-z/Monarque-Connect/actions/runs/38531225477),
+[commit `a09cbc2`](https://github.com/jupi-z/Monarque-Connect/commit/a09cbc2a5d75e85d67a9d2b898a0acad4c1c0930).
+Les deux exécutions valident lint, typecheck, migrations, OpenAPI, contrats,
+200 tests, 6 E2E, build et smoke HTTP.
 
 ## Décisions toujours verrouillées
 
@@ -60,7 +68,7 @@ Preuves : [PR #87](https://github.com/jupi-z/Monarque-Connect/pull/87),
 - [x] modules canoniques `INVENTORY`, `EXPENSES`, `CASH` ;
 - [x] aucune règle fiscale, comptable ou réglementaire juridictionnelle inventée ;
 - [x] migrations additives et preuves PostgreSQL ;
-- [ ] intégration événementielle GoodsReceipt, affectation entrepôt et historique ;
+- [x] intégration événementielle GoodsReceipt, affectation entrepôt et historique ;
 - [ ] Expenses et Cash entièrement implémentés et prouvés.
 
 ## Gates de clôture
@@ -77,7 +85,7 @@ Preuves : [PR #87](https://github.com/jupi-z/Monarque-Connect/pull/87),
 - [x] idempotence, concurrence et rollback pour le ledger Inventory ;
 - [x] migration base vide et upgrade Phase 6 ;
 - [x] tests PostgreSQL, E2E et non-régression Phases 0 à 6 sur la tranche livrée ;
-- [x] CI PR et post-merge `main` vertes pour le Task 2 ;
+- [x] CI PR et post-merge `main` vertes pour les Tasks 2 et 3 ;
 - [ ] documentation, issue #84, tracker et branches synchronisés pour la clôture finale.
 
 La Phase 7 ne sera déclarée clôturée qu'après preuve de chaque gate restante.
