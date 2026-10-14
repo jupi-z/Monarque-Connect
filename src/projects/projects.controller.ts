@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
@@ -23,5 +23,6 @@ export class ProjectsController {
   update(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: ProjectParams, @Headers('idempotency-key') key: string | undefined, @Body() input: UpdateProjectDto): Promise<unknown> { return this.projects.update(principal, params.organizationId, params.projectId, input, key); }
 
   @Post(':projectId/transition')
+  @HttpCode(200)
   transition(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: ProjectParams, @Headers('idempotency-key') key: string | undefined, @Body() input: TransitionProjectDto): Promise<unknown> { return this.projects.transition(principal, params.organizationId, params.projectId, input, key); }
 }

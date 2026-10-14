@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Headers, Param, Post, Query, Res, UseGuards, Body } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
@@ -21,6 +21,7 @@ export class DocumentsController {
   get(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: DocumentParams): Promise<unknown> { return this.documents.get(principal, params.organizationId, params.documentId); }
 
   @Post(':documentId/complete')
+  @HttpCode(200)
   complete(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: DocumentParams, @Headers('idempotency-key') key: string | undefined, @Body() input: CompleteDocumentUploadDto): Promise<unknown> { return this.documents.complete(principal, params.organizationId, params.documentId, input, key); }
 
   @Get(':documentId/content')
@@ -30,8 +31,10 @@ export class DocumentsController {
   link(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: DocumentParams, @Headers('idempotency-key') key: string | undefined, @Body() input: CreateDocumentLinkDto): Promise<unknown> { return this.documents.link(principal, params.organizationId, params.documentId, input, key); }
 
   @Delete(':documentId/links/:linkId')
+  @HttpCode(204)
   async unlink(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: DocumentLinkParams, @Headers('idempotency-key') key: string | undefined): Promise<void> { await this.documents.unlink(principal, params.organizationId, params.documentId, params.linkId, key); }
 
   @Post(':documentId/revoke')
+  @HttpCode(200)
   revoke(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: DocumentParams, @Headers('idempotency-key') key: string | undefined, @Body() input: RevokeDocumentDto): Promise<unknown> { return this.documents.revoke(principal, params.organizationId, params.documentId, input, key); }
 }

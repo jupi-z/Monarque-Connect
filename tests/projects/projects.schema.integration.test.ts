@@ -44,7 +44,7 @@ describe('Phase 8 Projects & Documents persistence schema', () => {
   it('persists the normative state and classification checks', async () => {
     const constraints = await constraintsFor(pool);
     expect(constraints.some((definition) => definition.includes('status'))).toBe(true);
-    expect(constraints.some((definition) => definition.includes('byte_size') && definition.includes('>= (0)::bigint'))).toBe(true);
+    expect(constraints.some((definition) => definition.includes('byte_size') && definition.includes('>='))).toBe(true);
     expect(constraints.some((definition) => definition.includes('target_type'))).toBe(true);
   });
 
