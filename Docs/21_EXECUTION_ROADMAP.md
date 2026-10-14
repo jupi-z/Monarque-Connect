@@ -107,11 +107,12 @@ ouverture formelle distincte.
 ## Phase 8 — Projects & documents
 Projects, tasks, document linking, media.
 
-**État :** ouverte en cadrage sur `main@f3d550beb94e4e95eb6563eeece29c1d4249b4c8`.
+**État :** ouverte en cadrage sur `main@fee4f659bfaf8d2371d9b108b011a7285b75539d`.
 La spécification normative est `82_PHASE8_PROJECTS_DOCUMENTS_EXECUTION_SPEC.md`,
 le statut est `83_PHASE_8_STATUS.md`, le plan est
 `superpowers/plans/2026-10-14-phase-8-projects-documents-plan.md` et le suivi
 GitHub est l'[issue #105](https://github.com/jupi-z/Monarque-Connect/issues/105).
+La PR de cadrage #106, la CI PR #282 et la CI post-fusion #283 sont vertes.
 Les contrats OpenAPI sont gelés avant migrations et implémentation. La Phase 8
 ne doit pas modifier les invariants des Phases 0 à 7.
 
