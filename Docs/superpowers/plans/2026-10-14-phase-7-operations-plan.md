@@ -87,12 +87,17 @@
 
 **Interfaces:** Consumes Task 1 permissions, Money primitives, and validated Expense/PaymentRecord source identifiers. Produces append-only cash ledger, derived balances, compensating corrections and same-currency transfers. Normative freeze: `Docs/80_PHASE_7_CASH_EXECUTION_SPEC.md`; execution plan: `Docs/superpowers/plans/2026-10-14-phase-7-cash-plan.md`; issue #95.
 
-- [ ] Write failing tests for account lifecycle, signed balance, insufficient funds, correction, transfer and concurrent writes.
-- [ ] Add account, movement and source-link constraints with tenant-qualified relations.
-- [ ] Implement movement/correction commands with account locks, audit and Outbox.
-- [ ] Implement same-currency transfer as two linked movements in one transaction.
-- [ ] Run focused tests and E2E Expense → Cash.
-- [ ] Commit `feat(cash): add append-only cash ledger`.
+- [x] Write failing tests for account lifecycle, signed balance, insufficient funds, correction, transfer and concurrent writes.
+- [x] Add account, movement and source-link constraints with tenant-qualified relations.
+- [x] Implement movement/correction commands with account locks, audit and Outbox.
+- [x] Implement same-currency transfer as two linked movements in one transaction.
+- [x] Run focused tests and E2E/regression suite through CI.
+- [x] Commit and merge `feat(operations): implement CashAccounts and CashMovements` via PR #97.
+
+Evidence: `main@f0f97ccdebee20635c2e8117f85386b922aef039`,
+[PR #97](https://github.com/jupi-z/Monarque-Connect/pull/97),
+[CI PR #257](https://github.com/jupi-z/Monarque-Connect/actions/runs/38555739231),
+[CI post-merge #258](https://github.com/jupi-z/Monarque-Connect/actions/runs/38556223448).
 
 ### Task 6: Cross-phase migration and proof harness
 
