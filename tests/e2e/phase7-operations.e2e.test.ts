@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { generateKeyPair } from 'node:crypto';
+import { generateKeyPair, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { exportPKCS8, exportSPKI } from 'jose';
 import { Test } from '@nestjs/testing';
@@ -121,7 +121,7 @@ describe('Phase 7 Operations HTTP E2E', () => {
     expect(bodyOf<Record<string, unknown>>(reconciliationResponse)).toMatchObject({ matched: true, delta: '0.000000' });
     await request(server()).get(`/api/v1/organizations/${organizationId}/inventory/balances`).expect(401);
     await request(server()).get('/api/v1/organizations/00000000-0000-0000-0000-000000000001/inventory/balances').set('Authorization', `Bearer ${token}`).expect(403);
-    await request(server()).post(`/api/v1/organizations/${organizationId}/inventory/transfers`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'phase7-inventory-not-found').send({ establishmentId, sourceWarehouseId: '00000000-0000-0000-0000-000000000001', destinationWarehouseId: destination.id, itemId: item.id, quantity: '1.000000', occurredAt: '2026-10-14T12:06:00.000Z', reason: 'Not found' }).expect(404);
+    await request(server()).post(`/api/v1/organizations/${organizationId}/inventory/transfers`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'phase7-inventory-not-found').send({ establishmentId, sourceWarehouseId: randomUUID(), destinationWarehouseId: destination.id, itemId: item.id, quantity: '1.000000', occurredAt: '2026-10-14T12:06:00.000Z', reason: 'Not found' }).expect(404);
   });
 
   async function registerAndLogin(email: string, name: string): Promise<string> {
