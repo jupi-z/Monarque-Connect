@@ -36,11 +36,11 @@
 
 **Interfaces:** Consumes `AuthorizationService.requireModule` and canonical modules `INVENTORY`, `EXPENSES`, `CASH`. Produces detailed Phase 7 DTO schemas, status enums, Problem Details and permission literals.
 
-- [ ] Write failing tests for every planned route, required field, decimal-as-string field and error response.
-- [ ] Run OpenAPI and authorization tests and verify the failure identifies missing Phase 7 contracts.
-- [ ] Add the exact OpenAPI paths/schemas and central permission literals without adding controller behavior.
-- [ ] Run `npm run openapi:validate`, `npm run contracts:validate`, lint and authorization tests.
-- [ ] Commit `contract(operations): freeze Phase 7 API and permissions`.
+- [x] Write failing tests for every planned route, required field, decimal-as-string field and error response.
+- [x] Run OpenAPI and authorization tests and verify the failure identifies missing Phase 7 contracts.
+- [x] Add the exact OpenAPI paths/schemas and central permission literals without adding controller behavior.
+- [x] Run `npm run openapi:validate`, `npm run contracts:validate`, lint and authorization tests.
+- [x] Commit `contract(operations): freeze Phase 7 API and permissions` via PR #86.
 
 ### Task 2: Inventory ledger and balances
 
@@ -106,11 +106,13 @@ Evidence: `main@58b4193b35f648234122bc277ed0ecae9701e468`,
 
 **Interfaces:** Consumes all Phase 7 models and Phase 6 baseline `main@3b7245469a2b9ee2a2ccb19c04f621d1d75497ec`. Produces reproducible empty-database and Phase 6-upgrade evidence plus CI commands.
 
-- [ ] Write failing migration proof for empty database, Phase 6 upgrade and required constraints.
-- [ ] Implement the proof script with temporary PostgreSQL databases and cleanup in `finally`.
-- [ ] Add CI commands for migrations, OpenAPI, contracts, E2E and regressions.
-- [ ] Run the complete prescribed suite and record exact outputs.
-- [ ] Commit `test(operations): prove Phase 7 migrations and cross-phase behavior`.
+- [x] Write failing migration proof for empty database, Phase 6 upgrade and required constraints.
+- [x] Implement the proof script with temporary PostgreSQL databases and cleanup in `finally`.
+- [x] Add CI commands for migrations, OpenAPI, contracts, E2E and regressions.
+- [x] Run the complete prescribed suite and record exact outputs.
+- [x] Commit `test(operations): prove Phase 7 migrations and cross-phase behavior` via PR #101.
+
+Evidence: PR #101, CI PR #272, CI post-merge #273, `main@c248f0170a23a1b55b2e0386a5e865d5cc9e96aa`.
 
 ### Task 7: Closure and governance
 
@@ -118,8 +120,8 @@ Evidence: `main@58b4193b35f648234122bc277ed0ecae9701e468`,
 
 **Interfaces:** Consumes migration, test, CI and GitHub evidence from Tasks 1–6. Produces a strict gate-by-gate closure decision; the phase remains open if one proof is absent.
 
-- [ ] Re-run every gate from the status document on the final merge commit.
-- [ ] Record URLs and exact counts without inferring success from an absent check.
-- [ ] Update issue, tracker and roadmap only after CI post-merge is green.
-- [ ] Delete merged branches and verify local/remote state.
-- [ ] Commit `docs(operations): close Phase 7 with reproducible evidence` only when every gate is proven.
+- [x] Re-run every gate from the status document on the final merge commit.
+- [x] Record URLs and exact counts without inferring success from an absent check.
+- [x] Update issue, tracker and roadmap only after CI post-merge is green.
+- [x] Delete merged branches and verify local/remote state.
+- [x] Commit `docs(operations): close Phase 7 with reproducible evidence` only when every gate is proven.

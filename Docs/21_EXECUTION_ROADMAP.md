@@ -89,15 +89,18 @@ réservés à la Phase 7.
 ## Phase 7 — Operations
 Inventory, expenses, cash accounts/movements.
 
-**État :** ouverte officiellement en cadrage sur
-`main@3b7245469a2b9ee2a2ccb19c04f621d1d75497ec`. Le périmètre, les frontières
-GoodsReceipt/Inventory, les contrats conceptuels, les invariants et le plan
+**État :** terminée et clôturée à 100 %. La baseline d'ouverture était
+`main@3b7245469a2b9ee2a2ccb19c04f621d1d75497ec`. La livraison et la preuve
+finales sont intégrées sur
+`main@c248f0170a23a1b55b2e0386a5e865d5cc9e96aa`.
+Le périmètre, les frontières GoodsReceipt/Inventory, les invariants et le plan
 sont définis dans `77_PHASE7_OPERATIONS_EXECUTION_SPEC.md`,
-`78_PHASE_7_STATUS.md` et
+`78_PHASE_7_STATUS.md`,
+`79_PHASE_7_CLOSURE_EVIDENCE.md` et
 `superpowers/plans/2026-10-14-phase-7-operations-plan.md`.
 Le suivi est l'[issue #84](https://github.com/jupi-z/Monarque-Connect/issues/84).
-La phase n'est pas encore implémentée : aucune migration ni code métier Phase
-7 ne doit être produit avant validation du contrat OpenAPI détaillé.
+La PR #101, la CI PR #272 et la CI post-merge #273 sont vertes.
+La Phase 8 reste fermée.
 
 ## Phase 8 — Projects & documents
 Projects, tasks, document linking, media.
