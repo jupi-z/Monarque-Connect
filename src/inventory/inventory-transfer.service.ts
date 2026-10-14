@@ -7,13 +7,14 @@ import { createRequestContext, currentEventContext } from '../events/event-conte
 import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import { AuthorizationService } from '../tenancy/authorization.service.js';
-import type { CreateInventoryTransferDto } from './inventory.dto.js';
+import type { InventoryTransferCommand } from './inventory.dto.js';
+import { assertInventoryTransferReplayCompatible } from './inventory-idempotency.js';
 
 @Injectable()
 export class InventoryTransferService {
   constructor(private readonly prisma: PrismaService, private readonly authorization: AuthorizationService, private readonly outbox: PrismaOutboxWriter) {}
 
-  async create(principal: AuthPrincipal, organizationId: string, input: CreateInventoryTransferDto, rawIdempotencyKey: string): Promise<unknown> {
+  async create(principal: AuthPrincipal, organizationId: string, input: InventoryTransferCommand, rawIdempotencyKey: string): Promise<unknown> {
     const context = await this.authorization.requireModule(principal, organizationId, 'INVENTORY', 'inventory:write');
     const idempotencyKey = rawIdempotencyKey?.trim();
     if (!idempotencyKey || idempotencyKey.length > 200) throw new BadRequestException('Idempotency-Key is required');
@@ -31,6 +32,10 @@ export class InventoryTransferService {
         if (existingOutgoing) {
           const existingIncoming = await tx.inventoryMovement.findUnique({ where: { organizationId_idempotencyKey: { organizationId, idempotencyKey: incomingKey } }, select: this.select });
           if (!existingIncoming) throw new ConflictException('Inventory transfer is incomplete');
+          const replayWarehouses = await tx.warehouse.findMany({ where: { organizationId, id: { in: [input.fromWarehouseId, input.toWarehouseId] }, active: true }, select: { id: true, establishmentId: true } });
+          if (replayWarehouses.length !== 2) throw new NotFoundException('Inventory warehouse not found');
+          for (const warehouse of replayWarehouses) await this.authorization.assertEstablishment(context, warehouse.establishmentId);
+          assertInventoryTransferReplayCompatible(existingOutgoing, existingIncoming, input);
           return this.serializeTransfer(existingOutgoing, existingIncoming, existingOutgoing.transferId ?? '');
         }
 
@@ -63,7 +68,10 @@ export class InventoryTransferService {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const existingOutgoing = await this.prisma.inventoryMovement.findUnique({ where: { organizationId_idempotencyKey: { organizationId, idempotencyKey: `${idempotencyKey}:out` } }, select: this.select });
         const existingIncoming = await this.prisma.inventoryMovement.findUnique({ where: { organizationId_idempotencyKey: { organizationId, idempotencyKey: `${idempotencyKey}:in` } }, select: this.select });
-        if (existingOutgoing && existingIncoming) return this.serializeTransfer(existingOutgoing, existingIncoming, existingOutgoing.transferId ?? '');
+        if (existingOutgoing && existingIncoming) {
+          assertInventoryTransferReplayCompatible(existingOutgoing, existingIncoming, input);
+          return this.serializeTransfer(existingOutgoing, existingIncoming, existingOutgoing.transferId ?? '');
+        }
       }
       throw error;
     }

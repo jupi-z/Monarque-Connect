@@ -53,7 +53,7 @@ async function appliedNames(databaseUrl) { const pool = new Pool({ connectionStr
 async function structuralProof(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   try {
-    const requiredTables = ['inventory_movements', 'inventory_balances', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries', 'expenses', 'expense_idempotency_keys', 'cash_accounts', 'cash_account_idempotency_keys', 'cash_movements', 'cash_movement_idempotency_keys'];
+    const requiredTables = ['inventory_movements', 'inventory_balances', 'inventory_reconciliations', 'goods_receipt_inventory_links', 'goods_receipt_inventory_entries', 'expenses', 'expense_idempotency_keys', 'cash_accounts', 'cash_account_idempotency_keys', 'cash_movements', 'cash_movement_idempotency_keys'];
     const tables = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1::text[])`, [requiredTables]);
     const found = new Set(tables.rows.map((row) => row.table_name));
     for (const required of requiredTables) if (!found.has(required)) throw new Error(`Phase 7 structural proof missing table: ${required}`);
@@ -70,7 +70,7 @@ async function structuralProof(databaseUrl) {
       JOIN pg_namespace AS namespace ON namespace.oid = table_class.relnamespace
       CROSS JOIN LATERAL unnest(index_meta.indkey) WITH ORDINALITY AS index_column(attnum, ordinality)
       JOIN pg_attribute AS attribute ON attribute.attrelid = table_class.oid AND attribute.attnum = index_column.attnum
-      WHERE namespace.nspname = 'public' AND table_class.relname IN ('cash_accounts', 'cash_movements', 'cash_movement_idempotency_keys', 'expense_idempotency_keys')
+      WHERE namespace.nspname = 'public' AND table_class.relname IN ('cash_accounts', 'cash_movements', 'cash_movement_idempotency_keys', 'expense_idempotency_keys', 'inventory_reconciliations')
       GROUP BY table_class.relname, index_class.relname, index_meta.indisunique`);
     const indexDefinitions = cashIndexes.rows.map((row) => ({
       tableName: row.table_name,
@@ -82,6 +82,7 @@ async function structuralProof(databaseUrl) {
       ['cash movements correction uniqueness', 'cash_movements', ['corrected_movement_id', 'organization_id']],
       ['cash movement idempotency uniqueness', 'cash_movement_idempotency_keys', ['organization_id', 'actor_user_id', 'operation', 'key']],
       ['expense idempotency uniqueness', 'expense_idempotency_keys', ['organization_id', 'actor_user_id', 'operation', 'key']],
+      ['inventory reconciliation idempotency uniqueness', 'inventory_reconciliations', ['organization_id', 'idempotency_key']],
     ];
     for (const [label, tableName, columns] of requiredIndexes) if (!indexDefinitions.some((definition) => definition.tableName === tableName && definition.isUnique && definition.columns.join(',') === columns.join(','))) throw new Error(`Phase 7 structural proof missing index: ${label}`);
     const forbidden = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('stock_movements', 'stock_balances')`);

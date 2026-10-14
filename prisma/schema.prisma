@@ -205,6 +205,7 @@ enum AuditAction {
   INVENTORY_TRANSFER_CREATED
   GOODS_RECEIPT_INVENTORY_ASSIGNED
   GOODS_RECEIPT_INVENTORY_IMPORTED
+  INVENTORY_BALANCE_RECONCILED
   EXPENSE_CREATED
   EXPENSE_UPDATED
   EXPENSE_RECORDED
@@ -640,6 +641,7 @@ model Organization {
   goodsReceiptInventoryEntries GoodsReceiptInventoryEntry[]
   inventoryMovements         InventoryMovement[]
   inventoryBalances          InventoryBalance[]
+  inventoryReconciliations   InventoryReconciliation[]
   expenses                   Expense[]
   expenseIdempotencyKeys     ExpenseIdempotencyKey[]
   cashAccounts               CashAccount[]
@@ -850,6 +852,7 @@ model Establishment {
   goodsReceipts        GoodsReceipt[]
   goodsReceiptInventoryLinks GoodsReceiptInventoryLink[]
   inventoryMovements   InventoryMovement[]
+  inventoryReconciliations InventoryReconciliation[]
   expenses             Expense[]
   cashAccounts         CashAccount[]
   cashMovements        CashMovement[]
@@ -1119,6 +1122,7 @@ model Item {
   goodsReceiptInventoryEntries GoodsReceiptInventoryEntry[]
   inventoryMovements InventoryMovement[]
   inventoryBalances InventoryBalance[]
+  inventoryReconciliations InventoryReconciliation[]
 
   @@unique([id, organizationId])
   @@index([organizationId, active, name])
@@ -1139,6 +1143,7 @@ model Warehouse {
   establishment   Establishment @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
   inventoryMovements InventoryMovement[]
   inventoryBalances  InventoryBalance[]
+  inventoryReconciliations InventoryReconciliation[]
   goodsReceiptInventoryLinks GoodsReceiptInventoryLink[]
 
   @@unique([organizationId, code])
@@ -1194,6 +1199,30 @@ model InventoryBalance {
   @@id([organizationId, warehouseId, itemId])
   @@index([organizationId, itemId])
   @@map("inventory_balances")
+}
+
+model InventoryReconciliation {
+  id                String        @id @db.Uuid
+  organizationId    String        @map("organization_id") @db.Uuid
+  establishmentId   String        @map("establishment_id") @db.Uuid
+  warehouseId       String        @map("warehouse_id") @db.Uuid
+  itemId            String        @map("item_id") @db.Uuid
+  ledgerQuantity    Decimal       @map("ledger_quantity") @db.Decimal(19, 6)
+  observedQuantity  Decimal       @map("observed_quantity") @db.Decimal(19, 6)
+  delta             Decimal       @db.Decimal(19, 6)
+  matched           Boolean
+  idempotencyKey    String        @map("idempotency_key") @db.VarChar(200)
+  createdByUserId   String        @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment     Establishment @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  warehouse         Warehouse     @relation(fields: [warehouseId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  item              Item          @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@unique([id, organizationId])
+  @@index([organizationId, establishmentId, warehouseId, itemId, createdAt, id])
+  @@map("inventory_reconciliations")
 }
 
 model Membership {

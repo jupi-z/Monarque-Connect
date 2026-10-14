@@ -155,6 +155,7 @@ describe('Phase 7 Operations OpenAPI contract', () => {
     expect(requiredProperty(requiredSchema(schemas, 'Expense'), 'status').$ref).toBe('#/components/schemas/ExpenseStatus');
     expect(requiredProperty(requiredSchema(schemas, 'CashAccount'), 'status').$ref).toBe('#/components/schemas/CashAccountStatus');
     expect(requiredProperty(requiredSchema(schemas, 'GoodsReceiptInventoryLink'), 'status').$ref).toBe('#/components/schemas/GoodsReceiptInventoryLinkStatus');
+    expect(requiredSchema(schemas, 'ReconcileInventoryRequest').required).toEqual(expect.arrayContaining(['establishmentId', 'warehouseId', 'itemId', 'observedQuantity']));
   });
 
   it('keeps the old stock movement contract only as an explicit deprecated alias', async () => {
