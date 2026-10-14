@@ -209,6 +209,13 @@ enum AuditAction {
   EXPENSE_UPDATED
   EXPENSE_RECORDED
   EXPENSE_VOIDED
+  CASH_ACCOUNT_CREATED
+  CASH_ACCOUNT_UPDATED
+  CASH_ACCOUNT_DEACTIVATED
+  CASH_ACCOUNT_REACTIVATED
+  CASH_MOVEMENT_CREATED
+  CASH_MOVEMENT_CORRECTED
+  CASH_TRANSFER_CREATED
 }
 
 enum ConnectionRequestStatus {
@@ -371,6 +378,23 @@ enum ExpenseStatus {
   VOID
 }
 
+enum CashAccountStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CashMovementDirection {
+  IN
+  OUT
+}
+
+enum CashMovementSourceType {
+  PAYMENT_RECORD
+  EXPENSE
+  TRANSFER
+  CORRECTION
+}
+
 model OutboxEvent {
   id                 String                  @id @db.Uuid
   eventType          String                  @map("event_type") @db.VarChar(160)
@@ -450,6 +474,8 @@ model User {
   memberships     Membership[]
   refreshSessions RefreshSession[]
   createdExpenses Expense[]
+  createdCashAccounts CashAccount[]
+  createdCashMovements CashMovement[]
 
   @@index([status])
   @@map("users")
@@ -616,6 +642,10 @@ model Organization {
   inventoryBalances          InventoryBalance[]
   expenses                   Expense[]
   expenseIdempotencyKeys     ExpenseIdempotencyKey[]
+  cashAccounts               CashAccount[]
+  cashMovements              CashMovement[]
+  cashAccountIdempotencyKeys CashAccountIdempotencyKey[]
+  cashMovementIdempotencyKeys CashMovementIdempotencyKey[]
   purchaseIdempotencyKeys    PurchaseIdempotencyKey[]
   networkSupplierRfqRecipients SupplierRFQRecipient[] @relation("NetworkSupplierRFQRecipients")
   purchaseOrdersAsNetworkSupplier PurchaseOrder[] @relation("PurchaseOrderSupplierOrganization")
@@ -821,6 +851,8 @@ model Establishment {
   goodsReceiptInventoryLinks GoodsReceiptInventoryLink[]
   inventoryMovements   InventoryMovement[]
   expenses             Expense[]
+  cashAccounts         CashAccount[]
+  cashMovements        CashMovement[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -898,6 +930,101 @@ model ExpenseIdempotencyKey {
   @@unique([organizationId, actorUserId, operation, key])
   @@index([organizationId, expenseId, createdAt])
   @@map("expense_idempotency_keys")
+}
+
+model CashAccount {
+  id              String            @id @db.Uuid
+  organizationId  String            @map("organization_id") @db.Uuid
+  establishmentId String            @map("establishment_id") @db.Uuid
+  code            String            @db.VarChar(32)
+  name            String            @db.VarChar(160)
+  currency        String            @db.Char(3)
+  status          CashAccountStatus @default(ACTIVE)
+  createdByUserId String            @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment   Establishment     @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdByUser   User              @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  movements       CashMovement[]
+  idempotencyKeys CashAccountIdempotencyKey[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, code])
+  @@index([organizationId, establishmentId, status, createdAt, id])
+  @@map("cash_accounts")
+}
+
+model CashAccountIdempotencyKey {
+  id              String       @id @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  actorUserId     String       @map("actor_user_id") @db.Uuid
+  operation       String       @db.VarChar(64)
+  key             String       @db.VarChar(200)
+  payloadHash     String       @map("payload_hash") @db.VarChar(128)
+  establishmentId String       @map("establishment_id") @db.Uuid
+  cashAccountId   String       @map("cash_account_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cashAccount     CashAccount  @relation(fields: [cashAccountId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([organizationId, actorUserId, operation, key])
+  @@index([organizationId, cashAccountId, createdAt])
+  @@map("cash_account_idempotency_keys")
+}
+
+model CashMovement {
+  id                  String                  @id @db.Uuid
+  organizationId      String                  @map("organization_id") @db.Uuid
+  establishmentId     String                  @map("establishment_id") @db.Uuid
+  cashAccountId       String                  @map("cash_account_id") @db.Uuid
+  direction           CashMovementDirection
+  amount              Decimal                 @db.Decimal(19, 4)
+  currency            String                  @db.Char(3)
+  occurredAt          DateTime                @map("occurred_at") @db.Timestamptz(6)
+  reason              String                  @db.VarChar(2000)
+  sourceType          CashMovementSourceType? @map("source_type")
+  sourceId            String?                 @map("source_id") @db.Uuid
+  correctedMovementId String?                 @map("corrected_movement_id") @db.Uuid
+  transferId          String?                 @map("transfer_id") @db.Uuid
+  idempotencyKey      String?                 @map("idempotency_key") @db.VarChar(200)
+  createdByUserId     String                  @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment       Establishment           @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  cashAccount         CashAccount             @relation(fields: [cashAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdByUser       User                    @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  correctedMovement   CashMovement?           @relation("CashMovementCorrection", fields: [correctedMovementId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  correction          CashMovement?           @relation("CashMovementCorrection")
+  idempotencyRecords  CashMovementIdempotencyKey[]
+
+  @@unique([id, organizationId])
+  @@unique([correctedMovementId, organizationId])
+  @@index([organizationId, cashAccountId, occurredAt, id])
+  @@index([organizationId, establishmentId, occurredAt, id])
+  @@index([organizationId, sourceType, sourceId])
+  @@index([organizationId, transferId])
+  @@map("cash_movements")
+}
+
+model CashMovementIdempotencyKey {
+  id              String        @id @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  actorUserId     String        @map("actor_user_id") @db.Uuid
+  operation       String        @db.VarChar(64)
+  key             String        @db.VarChar(200)
+  payloadHash     String        @map("payload_hash") @db.VarChar(128)
+  establishmentId String        @map("establishment_id") @db.Uuid
+  movementId      String?       @map("movement_id") @db.Uuid
+  transferId      String?       @map("transfer_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  movement        CashMovement? @relation(fields: [movementId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  @@unique([organizationId, actorUserId, operation, key])
+  @@index([organizationId, movementId, createdAt])
+  @@index([organizationId, transferId, createdAt])
+  @@map("cash_movement_idempotency_keys")
 }
 
 model Lead {
