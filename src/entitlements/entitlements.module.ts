@@ -12,6 +12,6 @@ import { PlatformEntitlementController } from './platform-entitlement.controller
   imports: [EventModule, AuthModule],
   controllers: [PlatformEntitlementController],
   providers: [SubscriptionService, EffectiveEntitlementsService, QuotaService, EntitlementOverrideService, PlatformAuthorizationService],
-  exports: [SubscriptionService, EffectiveEntitlementsService, QuotaService, EntitlementOverrideService],
+  exports: [SubscriptionService, EffectiveEntitlementsService, QuotaService, EntitlementOverrideService, PlatformAuthorizationService],
 })
 export class EntitlementsModule {}
