@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { AuthPrincipal, AuthorizationContext } from '../auth/auth.types.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { AuthorizationService, type Permission } from '../tenancy/authorization.service.js';
@@ -37,10 +37,7 @@ export class MessagingAuthorization {
       select: { organizationId: true, establishmentId: true, status: true },
     });
     if (!organizationParticipant || organizationParticipant.status !== 'ACTIVE') throw new NotFoundException('Conversation not found');
-    if (context.scopeMode === 'SELECTED_ESTABLISHMENTS') {
-      if (!organizationParticipant.establishmentId) throw new ForbiddenException('Conversation establishment scope is not defined');
-      await this.authorization.assertEstablishment(context, organizationParticipant.establishmentId);
-    }
+    if (context.scopeMode === 'SELECTED_ESTABLISHMENTS' && organizationParticipant.establishmentId) await this.authorization.assertEstablishment(context, organizationParticipant.establishmentId);
     return { context, participant, organizationParticipant };
   }
 }

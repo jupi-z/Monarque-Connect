@@ -229,6 +229,12 @@ enum AuditAction {
   DOCUMENT_LINKED
   DOCUMENT_UNLINKED
   DOCUMENT_REVOKED
+  MESSAGING_CONVERSATION_CREATED
+  MESSAGING_INVITATION_CREATED
+  MESSAGING_INVITATION_TOKEN_ISSUED
+  MESSAGING_INVITATION_ACCEPTED
+  MESSAGING_INVITATION_DECLINED
+  MESSAGING_PARTICIPANT_INVITED
 }
 
 enum ConnectionRequestStatus {
@@ -563,6 +569,7 @@ model User {
   targetedMessagingInvitations       MessagingInvitation[] @relation("MessagingInvitationTargetUser")
   createdMessagingBlocks             MessagingOrganizationBlock[] @relation("MessagingBlockCreatedBy")
   networkTrustCommandReceipts        NetworkTrustCommandReceipt[]
+  messagingCommandReceipts           MessagingCommandReceipt[]
 
   @@index([status])
   @@map("users")
@@ -751,6 +758,7 @@ model Organization {
   messagingBlocksTargeted          MessagingOrganizationBlock[]     @relation("MessagingBlockTargetOrganization")
   messagingRateBuckets             MessagingRateBucket[]
   networkTrustCommandReceipts      NetworkTrustCommandReceipt[]
+  messagingCommandReceipts         MessagingCommandReceipt[]
   networkSupplierRfqRecipients    SupplierRFQRecipient[]         @relation("NetworkSupplierRFQRecipients")
   purchaseOrdersAsNetworkSupplier PurchaseOrder[]                @relation("PurchaseOrderSupplierOrganization")
 
@@ -2225,6 +2233,25 @@ model MessagingRateBucket {
   @@index([organizationId, windowEnds])
   @@index([conversationId, windowEnds])
   @@map("messaging_rate_buckets")
+}
+
+model MessagingCommandReceipt {
+  id              String       @id @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  actorUserId     String       @map("actor_user_id") @db.Uuid
+  operation       String       @db.VarChar(80)
+  idempotencyKey  String       @map("idempotency_key") @db.VarChar(200)
+  payloadHash     String       @map("payload_hash") @db.VarChar(128)
+  resourceType    String       @map("resource_type") @db.VarChar(80)
+  resourceId      String       @map("resource_id") @db.Uuid
+  responseJson    Json         @map("response_json")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser       User         @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, actorUserId, operation, idempotencyKey])
+  @@index([organizationId, createdAt])
+  @@map("messaging_command_receipts")
 }
 
 model NetworkTrustCommandReceipt {

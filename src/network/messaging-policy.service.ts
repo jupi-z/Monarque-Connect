@@ -10,6 +10,12 @@ export class MessagingPolicy {
   constructor(private readonly entitlements: EffectiveEntitlementsService) {}
 
   async assertCanInitiate(tx: MessagingTransaction, _principal: AuthPrincipal, sourceOrganizationId: string, targetOrganizationId: string): Promise<void> {
+    await this.assertCanReceive(tx, sourceOrganizationId, targetOrganizationId);
+    const trust = await tx.organizationNetworkTrust.findUnique({ where: { organizationId: sourceOrganizationId }, select: { verificationStatus: true, verificationExpiresAt: true } });
+    if (!trust || trust.verificationStatus !== 'VERIFIED' || (trust.verificationExpiresAt && trust.verificationExpiresAt <= new Date())) throw new ForbiddenException('Source organization Network verification is required');
+  }
+
+  async assertCanReceive(tx: MessagingTransaction, sourceOrganizationId: string, targetOrganizationId: string): Promise<void> {
     if (sourceOrganizationId === targetOrganizationId) throw new ConflictException('An organization cannot message itself');
 
     const organizations = await tx.organization.findMany({
@@ -21,7 +27,7 @@ export class MessagingPolicy {
     if (!source || !target || source.status !== 'ACTIVE' || target.status !== 'ACTIVE') throw new ForbiddenException('Messaging organizations are not active');
     if (!target.networkProfile?.isPublic) throw new ForbiddenException('Target organization is not available for messaging');
 
-    const [connection, trust, sourceEntitlements, targetEntitlements, block] = await Promise.all([
+    const [connection, sourceEntitlements, targetEntitlements, block] = await Promise.all([
       tx.connectionRequest.findFirst({
         where: {
           status: 'ACCEPTED',
@@ -32,7 +38,6 @@ export class MessagingPolicy {
         },
         select: { id: true },
       }),
-      tx.organizationNetworkTrust.findUnique({ where: { organizationId: sourceOrganizationId }, select: { verificationStatus: true, verificationExpiresAt: true } }),
       this.entitlements.resolve(sourceOrganizationId),
       this.entitlements.resolve(targetOrganizationId),
       tx.messagingOrganizationBlock.findFirst({
@@ -48,9 +53,6 @@ export class MessagingPolicy {
     ]);
 
     if (!connection) throw new ForbiddenException('An accepted Network connection is required');
-    if (!trust || trust.verificationStatus !== 'VERIFIED' || (trust.verificationExpiresAt && trust.verificationExpiresAt <= new Date())) {
-      throw new ForbiddenException('Source organization Network verification is required');
-    }
     if (!this.messagingAllowed(sourceEntitlements) || !this.messagingAllowed(targetEntitlements)) {
       throw new ForbiddenException('Messaging entitlement is required for both organizations');
     }

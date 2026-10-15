@@ -1,7 +1,7 @@
 # Phase 9 — Messaging B2B : statut
 
-**Baseline de cadrage :** `main@1c15d2c014d1e9eb19ecb7e71ee1c375f943c38f`  
-**État :** cadrage normatif et contrats corrigés ; PR #115 en validation CI avant exécution.
+**Baseline de cadrage :** `main@45b733363f413484f6713b1c5523e119e4def1ec`
+**État :** exécution progressive ; Tasks 1 et 2 fusionnées, Task 3 en PR dédiée. La Phase 9 n'est pas clôturée.
 **Référence normative :** [86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md](86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md)
 
 ## Périmètre approuvé
@@ -20,7 +20,7 @@
 |---|---|
 | Spécification normative | [x] corrigée selon l'audit : invitations, historique, transitions, vérification et anti-abus |
 | Écart vérification Network documenté | [x] émetteur vérifié ; destinataire recevable mais non émetteur sans vérification |
-| Commande plateforme `VERIFIED` | [ ] absente du code actuel ; tranche Control Plane minimale requise avant le premier envoi |
+| Commande plateforme `VERIFIED` | [x] livrée et fusionnée avec Task 2 : `PUT /platform/organizations/{organizationId}/network-trust`, PR #117 |
 | Confidentialité de l'historique | [x] borne `historyVisibleFromSequence` figée |
 | Autorité des transitions | [x] suspension/reprise Control Plane uniquement ; pas de fermeture MVP |
 | Anti-abus sur refus `429` | [x] preuve commitée avant erreur HTTP, sans message/événement d'envoi |
@@ -28,14 +28,21 @@
 | Immutabilité Message | [x] trigger PostgreSQL prévu et test direct SQL ajouté au plan |
 | Contrats OpenAPI détaillés | [x] draft contract added and validated: 177 operations |
 | Plan d'exécution | [x] `Docs/superpowers/plans/2026-10-15-phase-9-messaging-b2b-plan.md` |
-| Modèles et migration Prisma | [ ] |
-| Services/controllers métier | [ ] |
-| Tests PostgreSQL/E2E/sécurité | [ ] |
+| Task 1 — persistance | [x] PR #116 fusionnée sur `main@58e2d8b`; CI PR et post-fusion vertes |
+| Task 2 — autorisation et confiance Network | [x] PR #117 fusionnée sur `main@a701c68`; CI PR et post-fusion vertes |
+| Task 3 — conversations et invitations | [ ] implémentation en cours sur branche dédiée ; messages et anti-abus exclus |
+| Tests PostgreSQL/E2E/sécurité | [ ] ciblés locaux verts pour Tasks 1–3 ; preuve CI de Task 3 à venir |
 | Preuves de migration Phase 8 → Phase 9 | [ ] |
 | CI PR et post-fusion | [ ] |
 | Clôture Phase 9 | [ ] |
 
+## Preuves d'exécution déjà obtenues
+
+- Task 1 : PR #116, CI PR [`38656069662`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38656069662), CI post-fusion [`38656556180`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38656556180).
+- Task 2 : PR #117, CI PR [`38657951588`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38657951588), CI post-fusion [`38658428563`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38658428563).
+- Task 3, avant PR : 4 fichiers ciblés / 8 tests passés, puis suite complète locale de 74 fichiers / 268 tests passés ; la CI GitHub reste la preuve de référence à obtenir.
+
 ## Garde-fous
 
-Il n'y a actuellement aucun changement de code métier ni migration dans cette branche. La spécification, le plan et le contrat OpenAPI de cadrage sont versionnés ; l'OpenAPI a été validée localement à 177 opérations. La commande plateforme d'attribution de `VERIFIED` reste à livrer dans l'exécution avant le premier envoi. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
+La commande plateforme d'attribution de `VERIFIED` est désormais livrée et testée dans Task 2 ; elle reste une précondition opérationnelle aux premiers envois. Task 3 ajoute uniquement conversations, invitations et migrations de support, sans implémenter encore les messages ni l'anti-abus. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
 
