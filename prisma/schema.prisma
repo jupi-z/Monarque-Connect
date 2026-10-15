@@ -176,6 +176,7 @@ enum AuditAction {
   OPPORTUNITY_UPDATED
   OPPORTUNITY_STATUS_CHANGED
   NETWORK_PROFILE_UPDATED
+  NETWORK_TRUST_CHANGED
   CONNECTION_REQUEST_CREATED
   CONNECTION_REQUEST_STATUS_CHANGED
   NETWORK_INQUIRY_CREATED
@@ -561,6 +562,7 @@ model User {
   createdMessagingInvitations        MessagingInvitation[] @relation("MessagingInvitationCreatedBy")
   targetedMessagingInvitations       MessagingInvitation[] @relation("MessagingInvitationTargetUser")
   createdMessagingBlocks             MessagingOrganizationBlock[] @relation("MessagingBlockCreatedBy")
+  networkTrustCommandReceipts        NetworkTrustCommandReceipt[]
 
   @@index([status])
   @@map("users")
@@ -748,6 +750,7 @@ model Organization {
   messagingBlocksCreated           MessagingOrganizationBlock[]     @relation("MessagingBlockSourceOrganization")
   messagingBlocksTargeted          MessagingOrganizationBlock[]     @relation("MessagingBlockTargetOrganization")
   messagingRateBuckets             MessagingRateBucket[]
+  networkTrustCommandReceipts      NetworkTrustCommandReceipt[]
   networkSupplierRfqRecipients    SupplierRFQRecipient[]         @relation("NetworkSupplierRFQRecipients")
   purchaseOrdersAsNetworkSupplier PurchaseOrder[]                @relation("PurchaseOrderSupplierOrganization")
 
@@ -2222,4 +2225,23 @@ model MessagingRateBucket {
   @@index([organizationId, windowEnds])
   @@index([conversationId, windowEnds])
   @@map("messaging_rate_buckets")
+}
+
+model NetworkTrustCommandReceipt {
+  id                       String                    @id @db.Uuid
+  organizationId           String                    @map("organization_id") @db.Uuid
+  actorUserId              String                    @map("actor_user_id") @db.Uuid
+  idempotencyKey           String                    @map("idempotency_key") @db.VarChar(200)
+  payloadHash              String                    @map("payload_hash") @db.VarChar(128)
+  verificationStatus       NetworkVerificationStatus @map("verification_status")
+  verifiedAt               DateTime?                 @map("verified_at") @db.Timestamptz(6)
+  verificationExpiresAt    DateTime?                 @map("verification_expires_at") @db.Timestamptz(6)
+  reason                   String                    @db.VarChar(500)
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser                User                      @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, actorUserId, idempotencyKey])
+  @@index([organizationId, createdAt])
+  @@map("network_trust_command_receipts")
 }

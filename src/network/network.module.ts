@@ -11,10 +11,12 @@ import { NetworkConnectionController } from './connection.controller.js';
 import { ConnectionRequestService } from './connection.service.js';
 import { NetworkInquiryController } from './inquiry.controller.js';
 import { NetworkInquiryService } from './inquiry.service.js';
+import { NetworkTrustCommandController } from './network-trust-command.controller.js';
+import { NetworkTrustCommandService } from './network-trust-command.service.js';
 
 @Module({
   imports: [AuthModule, EventModule, TenancyModule, EntitlementsModule],
-  controllers: [NetworkProfileController, NetworkConnectionController, NetworkInquiryController],
-  providers: [NetworkProfileService, NetworkDiscoveryService, NetworkTrustService, ConnectionRequestService, NetworkInquiryService],
+  controllers: [NetworkProfileController, NetworkConnectionController, NetworkInquiryController, NetworkTrustCommandController],
+  providers: [NetworkProfileService, NetworkDiscoveryService, NetworkTrustService, NetworkTrustCommandService, ConnectionRequestService, NetworkInquiryService],
 })
 export class NetworkModule {}
