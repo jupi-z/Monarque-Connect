@@ -40,6 +40,7 @@ describe('Phase 9 conversation and invitation HTTP flow', () => {
     app.useGlobalFilters(new ProblemDetailsFilter());
     await app.init();
     prisma = app.get(PrismaService);
+<<<<<<< HEAD
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE
       outbox_events,
       event_consumer_receipts,
@@ -112,6 +113,20 @@ describe('Phase 9 conversation and invitation HTTP flow', () => {
       organizations,
       users
       RESTART IDENTITY CASCADE`);
+=======
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE messaging_command_receipts, messaging_invitations, conversation_user_participants, conversation_organization_participants, messages, messaging_organization_blocks, messaging_rate_buckets, conversations RESTART IDENTITY CASCADE');
+    await prisma.auditEvent.deleteMany();
+    await prisma.outboxEvent.deleteMany();
+    await prisma.membershipEstablishmentScope.deleteMany();
+    await prisma.invitationEstablishmentScope.deleteMany();
+    await prisma.invitation.deleteMany();
+    await prisma.membership.deleteMany();
+    await prisma.establishment.deleteMany();
+    await prisma.organization.deleteMany();
+    await prisma.refreshSession.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.loginRateLimitBucket.deleteMany();
+>>>>>>> c706c40 (feat(phase9): implement conversations and invitations)
     await seedReferenceData(prisma);
     const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
     const ownerOne = await registerAndLogin(server, 'phase9-task3-one@example.test');
