@@ -113,6 +113,11 @@ export class MessagingInvitationService {
         const nextStatus = self ? 'LEFT' : 'REVOKED';
         await tx.conversationUserParticipant.update({ where: { id: participant.id }, data: { status: nextStatus, leftAt: self ? new Date() : null, revokedAt: self ? null : new Date() } });
         await this.recordParticipantMutation(tx, action, self ? 'messaging.participant.left.v1' : 'messaging.participant.revoked.v1', principal, organizationId, participant.id, eventContext, { conversationId, userId, status: nextStatus });
+        const pendingInvitations = await tx.messagingInvitation.findMany({ where: { conversationId, type: 'USER', targetOrganizationId: organizationId, targetUserId: userId, status: 'PENDING' }, select: { id: true } });
+        for (const invitation of pendingInvitations) {
+          await tx.messagingInvitation.update({ where: { id: invitation.id }, data: { status: 'REVOKED' } });
+          await this.recordMutation(tx, 'MESSAGING_INVITATION_REVOKED', 'messaging.user_invitation.revoked.v1', principal, organizationId, invitation.id, eventContext, { conversationId, targetUserId: userId, reason: nextStatus });
+        }
       }
       await tx.messagingCommandReceipt.create({ data: { id: randomUUID(), organizationId, actorUserId: principal.userId, operation, idempotencyKey: key, payloadHash, resourceType: 'ConversationUserParticipant', resourceId: participant.id, responseJson: { status: self ? 'LEFT' : 'REVOKED' } } });
     });
@@ -142,9 +147,18 @@ export class MessagingInvitationService {
           const organizationInvitation = await tx.messagingInvitation.findFirst({ where: { conversationId: invitation.conversationId, type: 'ORGANIZATION', targetOrganizationId: organizationId, status: 'ACCEPTED' }, select: { id: true } });
           if (!organizationInvitation) throw new ForbiddenException('Organization invitation must be accepted first');
           const conversationState = await tx.conversation.findUniqueOrThrow({ where: { id: invitation.conversationId }, select: { lastMessageSequence: true } });
+          const joinedAt = new Date();
           const existing = await tx.conversationUserParticipant.findUnique({ where: { conversationId_organizationId_userId: { conversationId: invitation.conversationId, organizationId, userId: invitation.targetUserId! } }, select: { id: true, status: true } });
-          if (existing) await tx.conversationUserParticipant.update({ where: { id: existing.id }, data: { status: 'ACTIVE', joinedAt: new Date(), leftAt: null, revokedAt: null, historyVisibleFromSequence: conversationState.lastMessageSequence + 1n } });
-          else await tx.conversationUserParticipant.create({ data: { id: randomUUID(), conversationId: invitation.conversationId, organizationId, userId: invitation.targetUserId!, status: 'ACTIVE', joinedAt: new Date(), historyVisibleFromSequence: conversationState.lastMessageSequence + 1n } });
+          const participantId = existing?.id ?? randomUUID();
+          if (existing) await tx.conversationUserParticipant.update({ where: { id: existing.id }, data: { status: 'ACTIVE', joinedAt, leftAt: null, revokedAt: null, historyVisibleFromSequence: conversationState.lastMessageSequence + 1n } });
+          else await tx.conversationUserParticipant.create({ data: { id: participantId, conversationId: invitation.conversationId, organizationId, userId: invitation.targetUserId!, status: 'ACTIVE', joinedAt, historyVisibleFromSequence: conversationState.lastMessageSequence + 1n } });
+          await this.recordParticipantMutation(tx, 'MESSAGING_PARTICIPANT_JOINED', 'messaging.participant.joined.v1', principal, organizationId, participantId, eventContext, { conversationId: invitation.conversationId, userId: invitation.targetUserId });
+        } else {
+          const conversationState = await tx.conversation.findUniqueOrThrow({ where: { id: invitation.conversationId }, select: { lastMessageSequence: true } });
+          const organizationParticipant = await tx.conversationOrganizationParticipant.findUnique({ where: { conversationId_organizationId: { conversationId: invitation.conversationId, organizationId } }, select: { id: true } });
+          if (!organizationParticipant) throw new NotFoundException('Conversation organization participant not found');
+          await tx.conversationOrganizationParticipant.update({ where: { id: organizationParticipant.id }, data: { status: 'ACTIVE', joinedAt: new Date(), leftAt: null, revokedAt: null, historyVisibleFromSequence: conversationState.lastMessageSequence + 1n } });
+          await this.recordParticipantMutation(tx, 'MESSAGING_PARTICIPANT_JOINED', 'messaging.participant.joined.v1', principal, organizationId, organizationParticipant.id, eventContext, { conversationId: invitation.conversationId, organizationId });
         }
         await tx.messagingInvitation.update({ where: { id: invitation.id }, data: { status: 'ACCEPTED', acceptedAt: new Date(), tokenDeliveredAt: new Date() } });
         response = this.serialize({ ...invitation, status: 'ACCEPTED' });

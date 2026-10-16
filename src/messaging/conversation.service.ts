@@ -75,6 +75,7 @@ export class ConversationService {
         const conversationId = randomUUID();
         const now = new Date();
         const invitationId = randomUUID();
+        const sourceParticipantId = randomUUID();
         const token = randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
         const tokenExpiresAt = tokenExpiry();
         const invitationExpiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -83,9 +84,10 @@ export class ConversationService {
           { id: randomUUID(), conversationId, organizationId, establishmentId: input.sourceEstablishmentId ?? null, status: 'ACTIVE', joinedAt: now, historyVisibleFromSequence: 0n, createdByUserId: principal.userId },
           { id: randomUUID(), conversationId, organizationId: input.targetOrganizationId, establishmentId: null, status: 'ACTIVE', joinedAt: null, historyVisibleFromSequence: conversation.lastMessageSequence + 1n, createdByUserId: principal.userId },
         ] });
-        await tx.conversationUserParticipant.create({ data: { id: randomUUID(), conversationId, organizationId, userId: principal.userId, status: 'ACTIVE', joinedAt: now, historyVisibleFromSequence: 0n } });
+        await tx.conversationUserParticipant.create({ data: { id: sourceParticipantId, conversationId, organizationId, userId: principal.userId, status: 'ACTIVE', joinedAt: now, historyVisibleFromSequence: 0n } });
         await tx.messagingInvitation.create({ data: { id: invitationId, type: 'ORGANIZATION', conversationId, organizationId, targetOrganizationId: input.targetOrganizationId, tokenDigest: tokenDigest(token), tokenCiphertext: encryptInvitationToken(token), tokenIssuedAt: now, tokenExpiresAt, expiresAt: invitationExpiresAt, createdByUserId: principal.userId } });
         await this.recordMutation(tx, 'MESSAGING_CONVERSATION_CREATED', 'messaging.conversation.created.v1', principal, organizationId, conversationId, eventContext, { counterpartOrganizationId: input.targetOrganizationId });
+        await this.recordMutation(tx, 'MESSAGING_PARTICIPANT_JOINED', 'messaging.participant.joined.v1', principal, organizationId, sourceParticipantId, eventContext, { conversationId, organizationId, userId: principal.userId });
         await this.recordMutation(tx, 'MESSAGING_INVITATION_CREATED', 'messaging.organization_invitation.created.v1', principal, organizationId, invitationId, eventContext, { conversationId, targetOrganizationId: input.targetOrganizationId });
         const response = this.serialize(conversation, organizationId, 'ACTIVE');
         await tx.messagingCommandReceipt.create({ data: { id: randomUUID(), organizationId, actorUserId: principal.userId, operation: 'CONVERSATION_CREATE', idempotencyKey: key, payloadHash, resourceType: 'Conversation', resourceId: conversationId, responseJson: response as Prisma.InputJsonValue } });
