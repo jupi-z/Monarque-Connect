@@ -67,7 +67,7 @@ export class MessagingPolicy {
         status: true,
         organizationLowId: true,
         organizationHighId: true,
-        organizationParticipants: { select: { organizationId: true, status: true } },
+        organizationParticipants: { select: { organizationId: true, status: true, joinedAt: true } },
         userParticipants: { where: { userId: principal.userId, status: 'ACTIVE' }, select: { organizationId: true } },
       },
     });
@@ -76,7 +76,7 @@ export class MessagingPolicy {
     const actorParticipant = conversation.userParticipants[0];
     if (!actorParticipant) throw new NotFoundException('Conversation not found');
     const targetOrganizationId = actorParticipant.organizationId === conversation.organizationLowId ? conversation.organizationHighId : conversation.organizationLowId;
-    const organizationsAreActive = conversation.organizationParticipants.length === 2 && conversation.organizationParticipants.every((participant) => participant.status === 'ACTIVE');
+    const organizationsAreActive = conversation.organizationParticipants.length === 2 && conversation.organizationParticipants.every((participant) => participant.status === 'ACTIVE' && participant.joinedAt !== null);
     if (!organizationsAreActive) throw new ForbiddenException('Conversation organizations are not active participants');
     await this.assertCanInitiate(tx, principal, actorParticipant.organizationId, targetOrganizationId);
     const targetHasActiveUser = await tx.conversationUserParticipant.findFirst({ where: { conversationId, organizationId: targetOrganizationId, status: 'ACTIVE' }, select: { id: true } });

@@ -46,6 +46,13 @@ export class MessagingBlockService {
     if (block && (current?.active ?? false) !== activate) {
       await tx.auditEvent.create({ data: { id: randomUUID(), action: activate ? 'MESSAGING_BLOCK_CREATED' : 'MESSAGING_BLOCK_REVOKED', actorUserId: principal.userId, organizationId, targetType: 'MessagingOrganizationBlock', targetId: block.id, requestId: context.requestId ?? null, correlationId: context.correlationId, metadataJson: { conversationId, targetOrganizationId, reason } } });
       await this.outbox.enqueue(tx, createDomainEvent({ eventType: activate ? 'messaging.relation.blocked.v1' : 'messaging.relation.unblocked.v1', eventVersion: 1, occurredAt: now.toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'MessagingOrganizationBlock', id: block.id }, organizationId, correlationId: context.correlationId, requestId, dataClassification: 'RESTRICTED', purpose: 'messaging-access-control', payload: { conversationId, sourceOrganizationId: organizationId, targetOrganizationId, active: activate } }));
+      if (activate) {
+        const pendingInvitations = await tx.messagingInvitation.findMany({ where: { conversationId, status: 'PENDING' }, select: { id: true, type: true, targetOrganizationId: true, targetUserId: true } });
+        for (const invitation of pendingInvitations) {
+          await tx.messagingInvitation.update({ where: { id: invitation.id }, data: { status: 'REVOKED' } });
+          await this.recordInvitationRevocation(tx, principal, organizationId, invitation.id, context, { conversationId, invitationType: invitation.type, targetOrganizationId: invitation.targetOrganizationId, targetUserId: invitation.targetUserId });
+        }
+      }
     }
     await tx.messagingCommandReceipt.create({ data: { id: randomUUID(), organizationId, actorUserId: principal.userId, operation: `MESSAGE_${operation}`, idempotencyKey: key, payloadHash, resourceType: 'MessagingOrganizationBlock', resourceId: block?.id ?? conversationId, responseJson: { active: activate } } });
     return 'ok';
@@ -53,4 +60,9 @@ export class MessagingBlockService {
 
   private requireKey(value?: string): string { if (!value?.trim() || value.length > 200 || /[\r\n]/.test(value)) throw new ConflictException('Idempotency-Key is required and invalid'); return value.trim(); }
   private hash(value: unknown): string { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
+
+  private async recordInvitationRevocation(tx: Prisma.TransactionClient, principal: AuthPrincipal, organizationId: string, invitationId: string, context: { requestId?: string; correlationId: string }, payload: Record<string, unknown>): Promise<void> {
+    await tx.auditEvent.create({ data: { id: randomUUID(), action: 'MESSAGING_INVITATION_REVOKED', actorUserId: principal.userId, organizationId, targetType: 'MessagingInvitation', targetId: invitationId, requestId: context.requestId ?? null, correlationId: context.correlationId, metadataJson: payload as Prisma.InputJsonValue } });
+    await this.outbox.enqueue(tx, createDomainEvent({ eventType: `messaging.${payload.invitationType === 'ORGANIZATION' ? 'organization' : 'user'}_invitation.revoked.v1`, eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'MessagingInvitation', id: invitationId }, organizationId, correlationId: context.correlationId, requestId: context.requestId ?? 'unknown', dataClassification: 'RESTRICTED', purpose: 'messaging-access-control', payload }));
+  }
 }
