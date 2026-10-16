@@ -40,7 +40,7 @@ export class MessagingAbuseService {
       { dimension: 'RELATION', value: [input.organizationId, input.targetOrganizationId].sort().join(':'), organizationId: input.organizationId },
     ];
     const rows: RateBucketRow[] = [];
-    for (const key of keys) rows.push(await this.upsertAndLock(tx, key, input.conversationId, windowStarted, windowEnds, fingerprint));
+    for (const key of keys) rows.push(await this.upsertAndLock(tx, key, key.dimension === 'RELATION' ? input.conversationId : null, windowStarted, windowEnds, fingerprint));
 
     const blockedUntil = rows.reduce<Date | null>((latest, row) => row.blocked_until && (!latest || row.blocked_until > latest) ? row.blocked_until : latest, null);
     const exceeded = rows.some((row) => row.attempt_count > LIMITS[row.dimension] || row.fingerprint_count > 3);
@@ -54,7 +54,7 @@ export class MessagingAbuseService {
     return { allowed, retryAfterSeconds, dimensions: rows.map((row) => ({ dimension: row.dimension, attempts: row.attempt_count, rejected: row.rejected_count + (allowed ? 0 : 1) })) };
   }
 
-  private async upsertAndLock(tx: Prisma.TransactionClient, key: { dimension: AbuseDimension; value: string; organizationId: string }, conversationId: string, windowStarted: Date, windowEnds: Date, fingerprint: string): Promise<RateBucketRow> {
+  private async upsertAndLock(tx: Prisma.TransactionClient, key: { dimension: AbuseDimension; value: string; organizationId: string }, conversationId: string | null, windowStarted: Date, windowEnds: Date, fingerprint: string): Promise<RateBucketRow> {
     const keyHash = createHash('sha256').update(`${key.dimension}:${key.value}`).digest('hex');
     const rows = await tx.$queryRaw<RateBucketRow[]>(Prisma.sql`
       INSERT INTO "messaging_rate_buckets" ("id", "organization_id", "conversation_id", "dimension", "dimension_key_hash", "window_started", "window_ends", "attempt_count", "accepted_count", "rejected_count", "blocked_until", "content_fingerprint_hmac", "fingerprint_count", "created_at", "updated_at")

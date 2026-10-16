@@ -15,7 +15,7 @@ export class InvitationController {
 
   @Post('conversation-invitations/:invitationId/token')
   @HttpCode(200)
-  issueToken(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: InvitationParams): Promise<unknown> { return this.invitations.issueToken(principal, params.organizationId, params.invitationId); }
+  issueToken(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: InvitationParams, @Headers('idempotency-key') key: string | undefined): Promise<unknown> { return this.invitations.issueToken(principal, params.organizationId, params.invitationId, key); }
 
   @Post('conversation-invitations/:invitationId/accept')
   @HttpCode(200)

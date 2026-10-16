@@ -33,7 +33,8 @@ export class MessagingInvitationService {
     return { items: rows.slice(0, limit).map((row) => this.serialize(row)), nextCursor: next ? this.encodeCursor({ createdAt: next.createdAt.toISOString(), id: next.id }) : null };
   }
 
-  async issueToken(principal: AuthPrincipal, organizationId: string, invitationId: string): Promise<unknown> {
+  async issueToken(principal: AuthPrincipal, organizationId: string, invitationId: string, rawKey?: string): Promise<unknown> {
+    this.requireKey(rawKey);
     const context = await this.authorization.requireModule(principal, organizationId, 'MESSAGING', 'messaging:read');
     const invitation = await this.prisma.messagingInvitation.findFirst({ where: { id: invitationId, targetOrganizationId: organizationId }, select: { ...invitationSelect, tokenDigest: true, tokenCiphertext: true, tokenExpiresAt: true } });
     this.assertInvitationActor(context, invitation?.type, invitation?.targetUserId, principal.userId);
