@@ -12,10 +12,13 @@ import { MessagingAuthorization } from './messaging.authorization.js';
 import { MessagingPolicy } from '../network/messaging-policy.service.js';
 import { MessageController } from './message.controller.js';
 import { MessageService } from './message.service.js';
+import { MessagingAbuseService } from './abuse.service.js';
+import { MessagingBlockController } from './block.controller.js';
+import { MessagingBlockService } from './block.service.js';
 
 @Module({
   imports: [AuthModule, EventModule, TenancyModule, EntitlementsModule],
-  controllers: [ConversationController, ConversationDetailController, InvitationController, MessageController],
-  providers: [MessagingAuthorization, MessagingPolicy, ConversationService, MessagingInvitationService, MessageService],
+  controllers: [ConversationController, ConversationDetailController, InvitationController, MessageController, MessagingBlockController],
+  providers: [MessagingAuthorization, MessagingPolicy, ConversationService, MessagingInvitationService, MessageService, MessagingAbuseService, MessagingBlockService],
 })
 export class MessagingModule {}

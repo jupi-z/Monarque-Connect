@@ -236,6 +236,9 @@ enum AuditAction {
   MESSAGING_INVITATION_DECLINED
   MESSAGING_PARTICIPANT_INVITED
   MESSAGING_MESSAGE_SENT
+  MESSAGING_BLOCK_CREATED
+  MESSAGING_BLOCK_REVOKED
+  MESSAGING_ABUSE_THRESHOLD_EXCEEDED
 }
 
 enum ConnectionRequestStatus {
@@ -2225,6 +2228,7 @@ model MessagingRateBucket {
   rejectedCount          Int          @default(0) @map("rejected_count")
   blockedUntil           DateTime?    @map("blocked_until") @db.Timestamptz(6)
   contentFingerprintHmac String?      @map("content_fingerprint_hmac") @db.VarChar(128)
+  fingerprintCount       Int          @default(0) @map("fingerprint_count")
   createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization           Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)

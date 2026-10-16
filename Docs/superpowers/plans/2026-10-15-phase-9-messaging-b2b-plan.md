@@ -107,7 +107,7 @@
 - [ ] Couvrir en HTTP les réponses `401/403/404/409` et l'absence totale de messages avant adhésion.
 - [ ] Committer et PR dédiés après validation locale complète ; les messages et l'anti-abus restent hors périmètre de cette tâche.
 
-### Task 4: Implémenter messages immuables, idempotence et pagination
+### Task 4: Implémenter messages immuables, idempotence et pagination — EN COURS
 
 **Files:**
 - Create: `src/messaging/message.controller.ts`
@@ -127,9 +127,9 @@
 - [ ] Filtrer les lectures sur `historyVisibleFromSequence`, participant actif, scope et policy ; ne jamais exposer l'historique antérieur à une réadhésion.
 - [ ] Implémenter un curseur opaque lié à la conversation, direction et limite ; refuser un curseur d'une autre requête.
 - [ ] Ajouter les tests de deux messages concurrents, double création, auteur/source dérivés de la session et immutabilité.
-- [ ] Committer `feat(phase9): add immutable idempotent messaging`.
+- [x] Commit local `ca9a053 feat(phase9): implement immutable messaging` dans la branche empilée PR #119 ; les preuves PostgreSQL/E2E restent à rejouer.
 
-### Task 5: Ajouter blocage, suspension interne et anti-abus durable
+### Task 5: Ajouter blocage, suspension interne et anti-abus durable — EN COURS
 
 **Files:**
 - Create: `src/messaging/abuse.service.ts`
@@ -148,7 +148,7 @@
 - [ ] Implémenter blocage unilatéral effectif dans les deux directions pour invitations et envois, sans supprimer l'historique déjà autorisé.
 - [ ] Ne publier aucune route tenant pour suspendre/réactiver/fermer ; prévoir seulement la commande interne de modération avec audit et événements `suspended/resumed`.
 - [ ] Tester les compteurs après rollback, les rafales concurrentes, les blocs, déblocages et l'absence d'événement fantôme.
-- [ ] Committer `feat(phase9): enforce messaging abuse policies`.
+- [~] Implémentation locale du blocage, des buckets persistants et de la preuve `429` ajoutée ; tests DB/E2E et revue de concurrence restant à exécuter.
 
 ### Task 6: Brancher audit, Outbox et consumers idempotents
 

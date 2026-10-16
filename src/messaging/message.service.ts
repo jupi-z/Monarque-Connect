@@ -9,6 +9,8 @@ import type { AuthPrincipal } from '../auth/auth.types.js';
 import { MessagingAuthorization } from './messaging.authorization.js';
 import { MessagingPolicy } from '../network/messaging-policy.service.js';
 import type { MessageListQuery, SendMessageDto } from './message.dto.js';
+import { MessagingAbuseService } from './abuse.service.js';
+import { MessagingRateLimitException } from './messaging-rate-limit.exception.js';
 
 type Cursor = { sequence: string; id: string; conversationId: string };
 type Context = { requestId: string; correlationId: string };
@@ -31,6 +33,7 @@ export class MessageService {
     private readonly messagingAuthorization: MessagingAuthorization,
     private readonly policy: MessagingPolicy,
     private readonly outbox: PrismaOutboxWriter,
+    private readonly abuse: MessagingAbuseService,
   ) {}
 
   async send(principal: AuthPrincipal, organizationId: string, conversationId: string, input: SendMessageDto, rawKey?: string): Promise<unknown> {
@@ -40,13 +43,21 @@ export class MessageService {
     const payloadHash = this.hash({ operation: 'MESSAGE_SEND', organizationId, conversationId, input });
     const context = this.eventContext();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const replay = await this.findReceipt(tx, organizationId, principal.userId, 'MESSAGE_SEND', key, payloadHash);
       if (replay) return replay.response;
 
       await tx.$executeRaw(Prisma.sql`SELECT id FROM "conversations" WHERE id = ${conversationId}::uuid FOR UPDATE`);
       const sendPolicy = await this.policy.assertCanSend(tx, principal, conversationId);
       if (sendPolicy.sourceOrganizationId !== organizationId) throw new NotFoundException('Conversation not found');
+      const reservation = await this.abuse.reserve(tx, { actorUserId: principal.userId, organizationId, targetOrganizationId: sendPolicy.targetOrganizationId, conversationId, body: input.body });
+      if (!reservation.allowed) {
+        const response = { rateLimited: true, retryAfterSeconds: reservation.retryAfterSeconds };
+        await tx.auditEvent.create({ data: { id: randomUUID(), action: 'MESSAGING_ABUSE_THRESHOLD_EXCEEDED', actorUserId: principal.userId, organizationId, targetType: 'Conversation', targetId: conversationId, requestId: context.requestId, correlationId: context.correlationId, metadataJson: { conversationId, dimensions: reservation.dimensions, retryAfterSeconds: reservation.retryAfterSeconds } } });
+        await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'messaging.abuse.threshold_exceeded.v1', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'Conversation', id: conversationId }, organizationId, correlationId: context.correlationId, requestId: context.requestId, dataClassification: 'RESTRICTED', purpose: 'messaging-anti-abuse', payload: { conversationId, dimensions: reservation.dimensions, retryAfterSeconds: reservation.retryAfterSeconds } }));
+        await tx.messagingCommandReceipt.create({ data: { id: randomUUID(), organizationId, actorUserId: principal.userId, operation: 'MESSAGE_SEND', idempotencyKey: key, payloadHash, resourceType: 'MessagingRateLimit', resourceId: conversationId, responseJson: response } });
+        return response;
+      }
       const sequenceRow = await tx.conversation.update({
         where: { id: conversationId },
         data: { lastMessageSequence: { increment: 1n } },
@@ -109,6 +120,8 @@ export class MessageService {
       if (this.isUnique(error)) throw new ConflictException('Message or idempotency key already exists');
       throw error;
     });
+    if (this.isRateLimited(result)) throw new MessagingRateLimitException(result.retryAfterSeconds);
+    return result;
   }
 
   async list(principal: AuthPrincipal, organizationId: string, conversationId: string, query: MessageListQuery): Promise<unknown> {
@@ -146,4 +159,5 @@ export class MessageService {
   private encodeCursor(cursor: Cursor): string { return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url'); }
   private decodeCursor(value: string, conversationId: string): Cursor { try { const cursor = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Partial<Cursor>; if (cursor.conversationId !== conversationId || typeof cursor.id !== 'string' || typeof cursor.sequence !== 'string' || !/^\d+$/.test(cursor.sequence)) throw new Error(); return { conversationId, id: cursor.id, sequence: cursor.sequence }; } catch { throw new BadRequestException('Cursor is invalid'); } }
   private isUnique(error: unknown): boolean { return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'; }
+  private isRateLimited(value: unknown): value is { rateLimited: true; retryAfterSeconds: number } { return typeof value === 'object' && value !== null && 'rateLimited' in value && (value as { rateLimited?: unknown }).rateLimited === true && typeof (value as { retryAfterSeconds?: unknown }).retryAfterSeconds === 'number'; }
 }
