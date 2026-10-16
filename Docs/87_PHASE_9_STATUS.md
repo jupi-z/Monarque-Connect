@@ -34,8 +34,9 @@
 | Task 4 — messages immuables | [~] implémentation locale dans PR #119 ; tests DB/E2E à rejouer |
 | Task 5 — blocage et anti-abus | [~] implémentation locale dans PR #119 ; preuves PostgreSQL/E2E à ajouter |
 | Tests PostgreSQL/E2E/sécurité | [ ] tests ciblés statiques/contractuels verts ; PostgreSQL indisponible localement (Docker daemon arrêté) |
-| Preuves de migration Phase 8 → Phase 9 | [ ] |
-| CI PR et post-fusion | [ ] |
+| Preuves de migration Phase 8 → Phase 9 | [~] script `npm run prisma:phase9:migration-proof` versionné ; exécution bloquée par PostgreSQL indisponible |
+| Runner local équivalent CI | [~] `npm run ci:local` versionné ; arrêt contrôlé au contrôle Docker tant que le daemon n'est pas disponible |
+| CI PR et post-fusion | [ ] PR #119 ouverte ; checks GitHub non démarrés pour cause de facturation du compte |
 | Clôture Phase 9 | [ ] |
 
 ## Preuves d'exécution déjà obtenues
@@ -43,7 +44,7 @@
 - Task 1 : PR #116, CI PR [`38656069662`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38656069662), CI post-fusion [`38656556180`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38656556180).
 - Task 2 : PR #117, CI PR [`38657951588`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38657951588), CI post-fusion [`38658428563`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38658428563).
 - Task 3, avant PR : 4 fichiers ciblés / 8 tests passés, puis suite complète locale de 74 fichiers / 268 tests passés ; la CI GitHub reste la preuve de référence à obtenir.
-- Snapshot local du 16 octobre 2026 : Prisma, typecheck, lint, build, OpenAPI (177 opérations), contrats et 7 tests ciblés verts sur `monarque/phase9-messages`. `npm run ci:local` s'arrête sans falsifier le résultat lorsque Docker/PostgreSQL n'est pas disponible ; la suite complète avait alors 44 fichiers en échec pour `ECONNREFUSED 127.0.0.1:5432`.
+- Snapshot local du 16 octobre 2026 : Prisma, typecheck, lint, build, OpenAPI (177 opérations), contrats et 10 tests ciblés verts sur `monarque/phase9-messages` à `e041bf5`. `npm run ci:local` s'arrête sans falsifier le résultat lorsque Docker/PostgreSQL n'est pas disponible ; la suite complète avait alors 44 fichiers en échec pour `ECONNREFUSED 127.0.0.1:5432`. GitHub Actions a refusé de démarrer la vérification de PR #119 avec le message de facturation/spend limit du compte.
 
 ## Garde-fous
 
