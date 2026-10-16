@@ -88,6 +88,35 @@ export class MessagingInvitationService {
     });
   }
 
+  async leaveOrRevokeParticipant(principal: AuthPrincipal, organizationId: string, conversationId: string, userId: string, rawKey?: string): Promise<void> {
+    const self = userId === principal.userId;
+    if (self) await this.messagingAuthorization.requireParticipantAccess(principal, organizationId, conversationId, 'messaging:read');
+    else {
+      await this.authorization.requireModule(principal, organizationId, 'MESSAGING', 'messaging:participants:write');
+      await this.messagingAuthorization.requireParticipantAccess(principal, organizationId, conversationId, 'messaging:participants:write');
+    }
+    const key = this.requireKey(rawKey);
+    const operation = self ? 'PARTICIPANT_LEAVE' : 'PARTICIPANT_REVOKE';
+    const payloadHash = this.hash({ operation, organizationId, conversationId, userId });
+    const eventContext = this.eventContext();
+    await this.prisma.$transaction(async (tx) => {
+      const replay = await this.findReceipt(tx, organizationId, principal.userId, operation, key, payloadHash);
+      if (replay) return;
+      await tx.$executeRaw(Prisma.sql`SELECT id FROM "conversations" WHERE id = ${conversationId}::uuid FOR UPDATE`);
+      const conversation = await tx.conversation.findFirst({ where: { id: conversationId, OR: [{ organizationLowId: organizationId }, { organizationHighId: organizationId }] }, select: { id: true } });
+      if (!conversation) throw new NotFoundException('Conversation not found');
+      const participant = await tx.conversationUserParticipant.findUnique({ where: { conversationId_organizationId_userId: { conversationId, organizationId, userId } }, select: { id: true, status: true } });
+      if (!participant) throw new NotFoundException('Participant not found');
+      if (participant.status === 'ACTIVE') {
+        const action = self ? 'MESSAGING_PARTICIPANT_LEFT' : 'MESSAGING_PARTICIPANT_REVOKED';
+        const nextStatus = self ? 'LEFT' : 'REVOKED';
+        await tx.conversationUserParticipant.update({ where: { id: participant.id }, data: { status: nextStatus, leftAt: self ? new Date() : null, revokedAt: self ? null : new Date() } });
+        await this.recordParticipantMutation(tx, action, self ? 'messaging.participant.left.v1' : 'messaging.participant.revoked.v1', principal, organizationId, participant.id, eventContext, { conversationId, userId, status: nextStatus });
+      }
+      await tx.messagingCommandReceipt.create({ data: { id: randomUUID(), organizationId, actorUserId: principal.userId, operation, idempotencyKey: key, payloadHash, resourceType: 'ConversationUserParticipant', resourceId: participant.id, responseJson: { status: self ? 'LEFT' : 'REVOKED' } } });
+    });
+  }
+
   private async decide(principal: AuthPrincipal, organizationId: string, invitationId: string, token: string, decision: 'ACCEPT' | 'DECLINE', rawKey?: string): Promise<unknown> {
     const context = await this.authorization.requireModule(principal, organizationId, 'MESSAGING', 'messaging:read');
     const key = this.requireKey(rawKey);
@@ -145,6 +174,11 @@ export class MessagingInvitationService {
   private async recordMutation(tx: Prisma.TransactionClient, action: AuditAction, eventType: string, principal: AuthPrincipal, organizationId: string, targetId: string, context: Context, payload: Record<string, unknown>): Promise<void> {
     await tx.auditEvent.create({ data: { id: randomUUID(), action, actorUserId: principal.userId, organizationId, targetType: 'MessagingInvitation', targetId, requestId: context.requestId, correlationId: context.correlationId, metadataJson: payload as Prisma.InputJsonValue } });
     await this.outbox.enqueue(tx, createDomainEvent({ eventType, eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'MessagingInvitation', id: targetId }, organizationId, correlationId: context.correlationId, requestId: context.requestId, dataClassification: 'CONFIDENTIAL', purpose: 'messaging-audit', payload }));
+  }
+
+  private async recordParticipantMutation(tx: Prisma.TransactionClient, action: AuditAction, eventType: string, principal: AuthPrincipal, organizationId: string, targetId: string, context: Context, payload: Record<string, unknown>): Promise<void> {
+    await tx.auditEvent.create({ data: { id: randomUUID(), action, actorUserId: principal.userId, organizationId, targetType: 'ConversationUserParticipant', targetId, requestId: context.requestId, correlationId: context.correlationId, metadataJson: payload as Prisma.InputJsonValue } });
+    await this.outbox.enqueue(tx, createDomainEvent({ eventType, eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'ConversationUserParticipant', id: targetId }, organizationId, correlationId: context.correlationId, requestId: context.requestId, dataClassification: 'RESTRICTED', purpose: 'messaging-access-control', payload }));
   }
 
   private serialize(row: { id: string; type: string; conversationId: string; organizationId: string; targetOrganizationId: string; targetUserId: string | null; status: string; expiresAt: Date; createdAt: Date }): unknown { return { id: row.id, type: row.type, conversationId: row.conversationId, organizationId: row.targetOrganizationId, targetUserId: row.targetUserId, counterpartOrganizationId: row.organizationId, status: row.status, expiresAt: row.expiresAt.toISOString(), createdAt: row.createdAt.toISOString() }; }
