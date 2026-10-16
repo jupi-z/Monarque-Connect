@@ -56,6 +56,8 @@ jobs:
         run: npm run prisma:phase7:migration-proof
       - name: Verify empty-database and Phase 7 upgrade migrations
         run: npm run prisma:phase8:migration-proof
+      - name: Verify empty-database and Phase 8 upgrade migrations
+        run: npm run prisma:phase9:migration-proof
       - run: npm run prisma:deploy
       - run: npm run openapi:validate
       - run: npm run contracts:validate
