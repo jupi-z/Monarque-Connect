@@ -1,7 +1,7 @@
 # Phase 9 — Messaging B2B : statut
 
 **Baseline de cadrage :** `main@45b733363f413484f6713b1c5523e119e4def1ec`
-**État :** exécution progressive ; Tasks 1 et 2 fusionnées, Task 3 en PR dédiée. La Phase 9 n'est pas clôturée.
+**État :** exécution progressive ; Tasks 1 et 2 fusionnées, Task 3 en PR #118 et Tasks 4–5 en implémentation locale empilée dans la PR #119. La Phase 9 n'est pas clôturée.
 **Référence normative :** [86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md](86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md)
 
 ## Périmètre approuvé
@@ -30,8 +30,10 @@
 | Plan d'exécution | [x] `Docs/superpowers/plans/2026-10-15-phase-9-messaging-b2b-plan.md` |
 | Task 1 — persistance | [x] PR #116 fusionnée sur `main@58e2d8b`; CI PR et post-fusion vertes |
 | Task 2 — autorisation et confiance Network | [x] PR #117 fusionnée sur `main@a701c68`; CI PR et post-fusion vertes |
-| Task 3 — conversations et invitations | [ ] implémentation en cours sur branche dédiée ; messages et anti-abus exclus |
-| Tests PostgreSQL/E2E/sécurité | [ ] ciblés locaux verts pour Tasks 1–3 ; preuve CI de Task 3 à venir |
+| Task 3 — conversations et invitations | [~] PR #118 ouverte ; CI GitHub non exécutée à cause de la limite de facturation du compte |
+| Task 4 — messages immuables | [~] implémentation locale dans PR #119 ; tests DB/E2E à rejouer |
+| Task 5 — blocage et anti-abus | [~] implémentation locale dans PR #119 ; preuves PostgreSQL/E2E à ajouter |
+| Tests PostgreSQL/E2E/sécurité | [ ] tests ciblés statiques/contractuels verts ; PostgreSQL indisponible localement (Docker daemon arrêté) |
 | Preuves de migration Phase 8 → Phase 9 | [ ] |
 | CI PR et post-fusion | [ ] |
 | Clôture Phase 9 | [ ] |
@@ -41,8 +43,9 @@
 - Task 1 : PR #116, CI PR [`38656069662`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38656069662), CI post-fusion [`38656556180`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38656556180).
 - Task 2 : PR #117, CI PR [`38657951588`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38657951588), CI post-fusion [`38658428563`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38658428563).
 - Task 3, avant PR : 4 fichiers ciblés / 8 tests passés, puis suite complète locale de 74 fichiers / 268 tests passés ; la CI GitHub reste la preuve de référence à obtenir.
+- Snapshot local du 16 octobre 2026 : Prisma, typecheck, lint, build, OpenAPI (177 opérations), contrats et 7 tests ciblés verts sur `monarque/phase9-messages`. `npm run ci:local` s'arrête sans falsifier le résultat lorsque Docker/PostgreSQL n'est pas disponible ; la suite complète avait alors 44 fichiers en échec pour `ECONNREFUSED 127.0.0.1:5432`.
 
 ## Garde-fous
 
-La commande plateforme d'attribution de `VERIFIED` est désormais livrée et testée dans Task 2 ; elle reste une précondition opérationnelle aux premiers envois. Task 3 ajoute uniquement conversations, invitations et migrations de support, sans implémenter encore les messages ni l'anti-abus. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
+La commande plateforme d'attribution de `VERIFIED` est désormais livrée et testée dans Task 2 ; elle reste une précondition opérationnelle aux premiers envois. Les messages et l'anti-abus sont maintenant implémentés localement dans la branche empilée, mais aucune clôture ne sera déclarée avant les tests PostgreSQL/E2E, les preuves de migrations et les CI PR/post-fusion. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
 

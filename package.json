@@ -27,7 +27,8 @@
     "db:seed": "prisma generate && tsx prisma/seed.ts",
     "openapi:validate": "node scripts/validate-openapi.mjs",
     "contracts:validate": "node scripts/validate-contracts.mjs",
-    "prisma:validate": "prisma validate"
+    "prisma:validate": "prisma validate",
+    "ci:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-local.ps1"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.0",
