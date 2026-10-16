@@ -93,6 +93,10 @@ describe('Phase 9 conversation and invitation HTTP flow', () => {
     const messages = bodyOf<{ items: Array<{ id: string; sequence: number; authorUserId: string; sourceOrganizationId: string }> }>(await request(server).get(`/api/v1/organizations/${ownerTwoOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerTwoToken}`).expect(200));
     expect(messages.items).toHaveLength(1);
     expect(messages.items[0]).toMatchObject({ id: message.id, sequence: 1, sourceOrganizationId: ownerOneOrganizationId });
+    await request(server).post(`/api/v1/organizations/${ownerTwoOrganizationId}/conversations/${first.id}/block`).set('Authorization', `Bearer ${ownerTwoToken}`).set('Idempotency-Key', 'phase9-task4-block').send({ reason: 'Temporary moderation test' }).expect(204);
+    await request(server).post(`/api/v1/organizations/${ownerOneOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerOneToken}`).set('Idempotency-Key', 'phase9-task5-blocked-send').send({ clientMessageId: 'client-message-blocked', body: 'This must be refused' }).expect(403);
+    await request(server).get(`/api/v1/organizations/${ownerTwoOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerTwoToken}`).expect(200);
+    await request(server).delete(`/api/v1/organizations/${ownerTwoOrganizationId}/conversations/${first.id}/block`).set('Authorization', `Bearer ${ownerTwoToken}`).set('Idempotency-Key', 'phase9-task5-unblock').expect(204);
     await expect(prisma.$executeRawUnsafe('UPDATE messages SET body = $1 WHERE id = $2', 'tampered', message.id)).rejects.toThrow('message_immutable');
     await expect(prisma.$executeRawUnsafe('DELETE FROM messages WHERE id = $1', message.id)).rejects.toThrow('message_immutable');
     await expect(prisma.outboxEvent.count({ where: { eventType: 'messaging.message.sent.v1' } })).resolves.toBe(1);
