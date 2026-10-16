@@ -18,7 +18,7 @@ Les groupes, WebSocket, pièces jointes, recherche plein texte, édition/suppres
 
 ## Contrôles locaux réussis — 16 octobre 2026
 
-Depuis la branche `monarque/phase9-messages` :
+Depuis la branche `monarque/phase9-messages`, commit de code contrôlé `2e2fdc2ef3724d34ee17e728de8e647b41fb0829`, PR [#119](https://github.com/jupi-z/Monarque-Connect/pull/119) :
 
 | Contrôle | Résultat |
 |---|---|
@@ -45,7 +45,7 @@ Par conséquent, les contrôles suivants restent à exécuter sur GitHub Actions
 - tests de concurrence, d'isolation tenant, de rollback, d'immutabilité SQL et de rejeu Outbox ;
 - non-régression complète des Phases 0 à 8.
 
-La dernière exécution GitHub Actions de la PR #119 n'a pas démarré pour cause de limite de facturation/spend limit du compte. Cette absence n'est pas comptée comme une réussite.
+L'exécution GitHub Actions [#324 / run 38912178681](https://github.com/jupi-z/Monarque-Connect/actions/runs/38912178681) associée à ce commit est `failure` avant exécution utile pour cause de limite de facturation/spend limit du compte. Cette absence n'est pas comptée comme une réussite.
 
 ## Gate restante
 
