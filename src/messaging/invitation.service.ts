@@ -63,7 +63,7 @@ export class MessagingInvitationService {
     await this.authorization.requireModule(principal, organizationId, 'MESSAGING', 'messaging:participants:write');
     const key = this.requireKey(rawKey);
     const payloadHash = this.hash({ operation: 'PARTICIPANT_INVITE', organizationId, conversationId, input });
-    await this.messagingAuthorization.requireParticipantAccess(principal, organizationId, conversationId, 'messaging:participants:write');
+    await this.messagingAuthorization.requireOrganizationParticipantManagement(principal, organizationId, conversationId);
     const eventContext = this.eventContext();
     return this.prisma.$transaction(async (tx) => {
       const replay = await this.findReceipt(tx, organizationId, principal.userId, 'PARTICIPANT_INVITE', key, payloadHash);
@@ -93,8 +93,7 @@ export class MessagingInvitationService {
     const self = userId === principal.userId;
     if (self) await this.messagingAuthorization.requireParticipantAccess(principal, organizationId, conversationId, 'messaging:read');
     else {
-      await this.authorization.requireModule(principal, organizationId, 'MESSAGING', 'messaging:participants:write');
-      await this.messagingAuthorization.requireParticipantAccess(principal, organizationId, conversationId, 'messaging:participants:write');
+      await this.messagingAuthorization.requireOrganizationParticipantManagement(principal, organizationId, conversationId);
     }
     const key = this.requireKey(rawKey);
     const operation = self ? 'PARTICIPANT_LEAVE' : 'PARTICIPANT_REVOKE';

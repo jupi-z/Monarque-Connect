@@ -40,18 +40,6 @@ describe('Phase 9 conversation and invitation HTTP flow', () => {
     app.useGlobalFilters(new ProblemDetailsFilter());
     await app.init();
     prisma = app.get(PrismaService);
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE messaging_command_receipts, messaging_invitations, conversation_user_participants, conversation_organization_participants, messages, messaging_organization_blocks, messaging_rate_buckets, conversations RESTART IDENTITY CASCADE');
-    await prisma.auditEvent.deleteMany();
-    await prisma.outboxEvent.deleteMany();
-    await prisma.membershipEstablishmentScope.deleteMany();
-    await prisma.invitationEstablishmentScope.deleteMany();
-    await prisma.invitation.deleteMany();
-    await prisma.membership.deleteMany();
-    await prisma.establishment.deleteMany();
-    await prisma.organization.deleteMany();
-    await prisma.refreshSession.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.loginRateLimitBucket.deleteMany();
     await seedReferenceData(prisma);
     const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
     const ownerOne = await registerAndLogin(server, 'phase9-task3-one@example.test');
@@ -99,9 +87,10 @@ describe('Phase 9 conversation and invitation HTTP flow', () => {
     await request(server).delete(`/api/v1/organizations/${ownerTwoOrganizationId}/conversations/${first.id}/block`).set('Authorization', `Bearer ${ownerTwoToken}`).set('Idempotency-Key', 'phase9-task5-unblock').expect(204);
     await expect(prisma.$executeRawUnsafe('UPDATE messages SET body = $1 WHERE id = $2', 'tampered', message.id)).rejects.toThrow('message_immutable');
     await expect(prisma.$executeRawUnsafe('DELETE FROM messages WHERE id = $1', message.id)).rejects.toThrow('message_immutable');
-    await expect(prisma.outboxEvent.count({ where: { eventType: 'messaging.message.sent.v1' } })).resolves.toBe(1);
-    await expect(prisma.messagingInvitation.count({ where: { conversationId: first.id, status: 'ACCEPTED' } })).resolves.toBe(1);
-    await expect(prisma.outboxEvent.count({ where: { eventType: 'messaging.organization_invitation.accepted.v1' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: ownerOneOrganizationId, eventType: 'messaging.message.sent.v1', aggregateId: message.id } })).resolves.toBe(1);
+    await expect(prisma.messagingInvitation.count({ where: { conversationId: first.id, type: 'ORGANIZATION', status: 'ACCEPTED' } })).resolves.toBe(1);
+    await expect(prisma.messagingInvitation.count({ where: { conversationId: first.id, type: 'USER', status: 'ACCEPTED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: ownerTwoOrganizationId, eventType: 'messaging.organization_invitation.accepted.v1', aggregateId: token.invitationId } })).resolves.toBe(1);
   });
 });
 

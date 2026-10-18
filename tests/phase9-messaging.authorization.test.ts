@@ -71,7 +71,25 @@ describe('Phase 9 Messaging authorization policy', () => {
       organizationId: 'org-a',
       establishmentId: 'est-b',
       status: 'ACTIVE',
+      joinedAt: new Date(),
     });
     await expect(authorization.requireParticipantAccess(principal, 'org-a', 'conversation-a', 'messaging:read')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows an active organization owner to manage invitations without granting message access', async () => {
+    const authorizationService = {
+      requireModule: vi.fn().mockResolvedValue({ organizationId: 'org-a', role: 'OWNER', scopeMode: 'ALL_ESTABLISHMENTS', establishmentIds: [] }),
+      assertEstablishment: vi.fn(),
+    };
+    const organizationParticipant = { organizationId: 'org-a', establishmentId: null, status: 'ACTIVE', joinedAt: new Date() };
+    const prisma = {
+      conversationOrganizationParticipant: { findUnique: vi.fn().mockResolvedValue(organizationParticipant) },
+    };
+    const authorization = new MessagingAuthorization(prisma as never, authorizationService as never);
+
+    await expect(authorization.requireOrganizationParticipantManagement(principal, 'org-a', 'conversation-a')).resolves.toMatchObject({
+      context: { organizationId: 'org-a', role: 'OWNER' },
+      organizationParticipant,
+    });
   });
 });
