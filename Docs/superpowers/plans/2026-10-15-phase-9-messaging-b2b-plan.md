@@ -47,9 +47,9 @@
 - [x] Ajouter `lastMessageSequence` et `historyVisibleFromSequence` en `BIGINT`/`BigInt` selon les conventions Prisma du dépôt.
 - [x] Ajouter les contraintes SQL non exprimables par Prisma : paire d'organisations distinctes et canonique, exactement deux organisations par conversation, types d'invitation avec cible valide, bornes de compteurs et unicités d'invitations actives.
 - [x] Ajouter `Message` avec les unicités `(conversationId, sequence)`, `(conversationId, authorUserId, clientMessageId)` et `(conversationId, organizationId, userId)` pour les participants.
-- [~] Ajouter au SQL un trigger `BEFORE UPDATE OR DELETE` sur `messages` qui lève `message_immutable`, et tester directement update/delete dans PostgreSQL : migration versionnée, test d'exécution à obtenir par CI.
-- [~] Écrire le test PostgreSQL qui vérifie les contraintes depuis une base réelle et refuse les doublons/cross-tenant incohérents : à exécuter par CI.
-- [~] Exécuter `npm run prisma:validate` puis `npx prisma migrate deploy` sur la base de test et vérifier que la migration est seule à ajouter les objets Phase 9 : à exécuter par CI.
+- [x] Ajouter au SQL un trigger `BEFORE UPDATE OR DELETE` sur `messages` qui lève `message_immutable`, tester directement update/delete dans PostgreSQL et valider la migration par la CI cumulative #327.
+- [x] Écrire le test PostgreSQL qui vérifie les contraintes depuis une base réelle et refuse les doublons/cross-tenant incohérents ; validation observée dans la CI cumulative #327.
+- [x] Exécuter `npm run prisma:validate` puis `npx prisma migrate deploy` sur la base de test et vérifier les objets Phase 9 ; validation observée dans la CI cumulative #327.
 - [x] PR #116 fusionnée sur `main@58e2d8b6490d97a22cec5863fcded859ea8a76b1`; CI PR et post-fusion vertes.
 
 ### Task 2: Centraliser la policy Network, vérification et autorisation Messaging — TERMINÉE
@@ -105,7 +105,7 @@
 - [x] Interdire tout `participants/me` et toute adhésion directe par UUID.
 - [x] Implémenter départ volontaire et révocation par l'autorité de l'organisation, avec suppression immédiate de l'accès et borne de réadhésion future.
 - [x] Couvrir en HTTP les réponses `401/403/404/409` et l'absence totale de messages avant adhésion dans le scénario E2E versionné.
-- [~] PR #118 et sa validation PostgreSQL/E2E restent soumises à la gate GitHub Actions.
+- [~] PR #118 reste ouverte ; sa validation cumulative PostgreSQL/E2E est couverte par la CI verte de PR #119, mais l'intégration ordonnée reste à effectuer.
 
 ### Task 4: Implémenter messages immuables, idempotence et pagination — IMPLÉMENTÉE, CI EN ATTENTE
 
@@ -126,7 +126,7 @@
 - [x] Rechercher la clé idempotente et comparer la commande avant toute réservation anti-abus ; un rejeu accepté ne touche ni buckets, ni audit anti-abus, ni Outbox.
 - [x] Filtrer les lectures sur `historyVisibleFromSequence`, participant actif, scope et policy ; ne jamais exposer l'historique antérieur à une réadhésion.
 - [x] Implémenter un curseur opaque lié à la conversation et refuser un curseur d'une autre conversation.
-- [~] Les tests PostgreSQL de concurrence et d'immutabilité restent à exécuter par CI.
+- [x] Les tests PostgreSQL de concurrence et d'immutabilité sont validés par la CI cumulative #327.
 - [x] Commit local `ca9a053 feat(phase9): implement immutable messaging` dans la branche empilée PR #119 ; les preuves PostgreSQL/E2E restent à rejouer.
 
 ### Task 5: Ajouter blocage, suspension interne et anti-abus durable — IMPLÉMENTÉE, CI EN ATTENTE
@@ -147,7 +147,7 @@
 - [x] Persister l'audit et `messaging.abuse.threshold_exceeded.v1` dans la transaction de refus, avec `Retry-After` calculé et contenu absent.
 - [x] Implémenter blocage unilatéral effectif dans les deux directions pour invitations et envois, sans supprimer l'historique déjà autorisé.
 - [x] Ne publier aucune route tenant pour suspendre/réactiver/fermer ; prévoir seulement la commande interne de modération avec audit et événements `suspended/resumed`.
-- [~] Les tests DB/E2E de rafales, rollback et absence d'événement fantôme restent à exécuter par CI.
+- [x] Les tests DB/E2E de rafales, rollback et absence d'événement fantôme sont validés par la CI cumulative #327.
 
 ### Task 6: Brancher audit, Outbox et consumers idempotents — IMPLÉMENTÉE, CI EN ATTENTE
 
@@ -161,7 +161,7 @@
 - [x] Exclure le corps des messages, curseurs, tokens et secrets de chaque payload et audit.
 - [x] Insérer état, audit et Outbox dans la même transaction pour chaque mutation acceptée ou refusée nécessitant une preuve.
 - [x] Rendre les consumers idempotents par `eventId` ; la preuve de rejeu reste une gate PostgreSQL CI.
-- [~] Tester rollback métier ⇒ aucune ligne d'audit/Outbox, et refus `429` ⇒ uniquement preuve anti-abus, par CI.
+- [x] Tester rollback métier ⇒ aucune ligne d'audit/Outbox, et refus `429` ⇒ uniquement preuve anti-abus ; validation observée dans la CI cumulative #327.
 - [x] Versionner l'implémentation dans la branche empilée PR #119.
 
 ### Task 7: Aligner runtime et contrat OpenAPI — IMPLÉMENTÉE, CI EN ATTENTE
@@ -175,7 +175,7 @@
 - [x] Ajouter les schémas détaillés `Conversation`, `Message`, `ConversationInvitation`, pages, commandes, statuts et `TooManyRequests`.
 - [x] Décrire `POST .../conversation-invitations/{id}/token` sans exposer le token dans les schémas de liste, ainsi que `PUT /platform/organizations/{id}/network-trust` et ses erreurs.
 - [x] Vérifier que les headers `Idempotency-Key`, `Retry-After`, les curseurs et les erreurs sont cohérents avec les services.
-- [~] Les assertions PostgreSQL sur le trigger et le rejeu sans quota restent à exécuter par CI.
+- [x] Les assertions PostgreSQL sur le trigger et le rejeu sans quota sont validées par la CI cumulative #327.
 - [x] Vérifier l'absence d'ORM brut dans les réponses et l'absence de champs auteur/source fournis par le client.
 - [x] Exécuter `npm run openapi:validate` et `npm run contracts:validate`.
 - [x] Versionner les validations dans la branche empilée PR #119.
@@ -189,9 +189,9 @@
 - Modify: `.github/workflows/backend-ci.yml`
 - Test: `tests/e2e/phase9-messaging.e2e.test.ts`
 
-- [~] Prouver les migrations depuis une base vide et depuis la baseline Phase 8, avec contraintes SQL présentes : script et étape CI versionnés, exécution GitHub encore bloquée par la facturation.
+- [x] Prouver les migrations depuis une base vide et depuis la baseline Phase 8, avec contraintes SQL présentes : script et étape CI versionnés, validation observée dans la CI cumulative #327.
 - [x] Ajouter les tests PostgreSQL, E2E, sécurité, isolation et non-régression des Phases 0 à 8 dans les commandes CI existantes.
-- [~] Exécuter lint, typecheck, build, `npm test`, `npm run test:e2e`, OpenAPI, contrats, Prisma et toutes les preuves de migration : contrôles sans DB verts localement, suite DB/E2E à exécuter par GitHub Actions.
+- [x] Exécuter lint, typecheck, build, `npm test`, `npm run test:e2e`, OpenAPI, contrats, Prisma et toutes les preuves de migration : validation complète observée dans la CI cumulative #327.
 - [x] Documenter l'état testé, les commandes, les résultats, les limites et l'absence de fonctionnalités hors MVP dans `Docs/88_PHASE_9_EXECUTION_EVIDENCE.md`.
 - [ ] Marquer les gates du statut uniquement après preuves CI PR et post-fusion.
 - [ ] Committer `docs(phase9): record messaging evidence` puis fusionner par PR squash et supprimer la branche.
