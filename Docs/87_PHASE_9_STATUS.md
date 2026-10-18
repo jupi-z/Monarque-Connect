@@ -34,10 +34,11 @@
 | Task 4 — messages immuables | [x] implémentée localement : idempotence, séquence PostgreSQL, pagination, attribution serveur et trigger d'immutabilité |
 | Task 5 — blocage, suspension interne et anti-abus | [x] implémentée localement : blocage bidirectionnel, révocation des invitations en attente, commande de modération interne, compteurs et preuve `429` |
 | Task 6 — audit, Outbox et consumers | [x] événements versionnés, payloads minimisés et consumer idempotent `eventId` branchés pour les événements Messaging |
-| Tests PostgreSQL/E2E/sécurité | [x] suite complète locale : 75 fichiers / 272 tests ; E2E : 7 fichiers / 14 tests ; contrôles d'isolation et de rejeu inclus |
+| Stabilisation corrective de revue | [~] idempotence fonctionnelle `clientMessageId`, verrouillage des décisions d'invitation, compteurs anti-abus par empreinte, revalidation transactionnelle des accès, invariants PostgreSQL et secrets fail-closed implémentés sur la branche ; CI complète à rejouer |
+| Tests PostgreSQL/E2E/sécurité | [~] suite historique validée ; tests ciblés de stabilisation verts, suite complète et preuves de migration à rejouer après durcissement |
 | Preuves de migration Phase 2 → Phase 9 | [x] preuves Phase 2, 3, 5, 6, 7, 8 et 9 exécutées sur bases neuves et upgrades PostgreSQL dédiés |
 | Runner local équivalent CI | [x] `npm run ci:local` versionné ; suite locale rendue déterministe par base de test fraîche et exécution séquentielle |
-| CI PR et post-fusion | [~] PR #119 / run #327 verte sur le runner auto-hébergé ; CI post-fusion `main` encore à obtenir |
+| CI PR et post-fusion | [~] PR sur runner GitHub isolé ; push `main` sur runner auto-hébergé de confiance ; CI post-fusion `main` encore à obtenir |
 | Clôture Phase 9 | [ ] |
 
 ## Preuves d'exécution déjà obtenues
@@ -48,10 +49,10 @@
 - Runner : `monarque-connect-ci`, labels `self-hosted`, `linux`, `x64`, `monarque-ci`, service systemd actif et connecté à GitHub.
 - Task 3, validation locale du 18 octobre 2026 : suite complète PostgreSQL de 75 fichiers / 272 tests passés ; suite E2E de 7 fichiers / 14 tests passés.
 - Contrôles statiques locaux : `prisma validate`, typecheck, lint, build, OpenAPI (177 opérations), contrats et `git diff --check` réussis. Les preuves de migrations Phase 2, 3, 5, 6, 7, 8 et 9 ont appliqué toutes les migrations attendues sur bases fraîches et upgrades dédiés.
-- Le harness Vitest utilise une base locale explicitement nommée `_test`, la réinitialise hors `_prisma_migrations`, et exécute les fichiers séquentiellement afin d'empêcher les collisions entre suites historiques partageant des identifiants métier. Aucun code métier ni migration n'a été modifié pour ce durcissement.
-- La workflow CI cible le runner Linux auto-hébergé `monarque-ci` et réserve le port hôte PostgreSQL `55432` pour éviter le conflit avec le PostgreSQL de développement. L'enregistrement et la disponibilité GitHub du runner restent à vérifier avant de compter une CI GitHub comme réussie.
+- Le harness Vitest utilise une base locale explicitement nommée `_test`, la réinitialise hors `_prisma_migrations`, et exécute les fichiers séquentiellement afin d'empêcher les collisions entre suites historiques partageant des identifiants métier.
+- La workflow CI exécute les PR sur `ubuntu-latest` via l'événement standard `pull_request`, afin que le code contrôlé par une PR ne puisse pas exécuter de code arbitraire sur l'hôte persistant. Le push de `main` reste validé sur le runner Linux auto-hébergé `monarque-ci`, avec le port PostgreSQL `55432` distinct du développement. `pull_request_target` est volontairement exclu.
 
 ## Garde-fous
 
-La commande plateforme d'attribution de `VERIFIED` est désormais livrée et testée dans Task 2 ; elle reste une précondition opérationnelle aux premiers envois. Le code Phase 9 est prêt pour l'intégration contrôlée. Aucune clôture ne sera déclarée avant la fusion ordonnée des PR #118 puis #119, la CI post-fusion sur `main` et la vérification finale des branches. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
+La commande plateforme d'attribution de `VERIFIED` est désormais livrée et testée dans Task 2 ; elle reste une précondition opérationnelle aux premiers envois. La branche contient en plus une stabilisation corrective de revue qui doit passer sa CI complète avant intégration. Aucune clôture ne sera déclarée avant la fusion ordonnée des PR #118 puis #119, la CI post-fusion sur `main` et la vérification finale des branches. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
 

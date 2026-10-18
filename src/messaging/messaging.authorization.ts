@@ -64,6 +64,24 @@ export class MessagingAuthorization {
     return { context, organizationParticipant };
   }
 
+  async revalidateParticipantAccess(tx: Prisma.TransactionClient, principal: AuthPrincipal, organizationId: string, conversationId: string, permission: MessagingPermission): Promise<void> {
+    const context = await this.authorization.requireModuleInTransaction(tx, principal, organizationId, 'MESSAGING', permission);
+    const lockedUserParticipant = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT id FROM "conversation_user_participants" WHERE conversation_id = ${conversationId}::uuid AND organization_id = ${organizationId}::uuid AND user_id = ${principal.userId}::uuid FOR UPDATE`);
+    const userParticipantId = lockedUserParticipant[0]?.id;
+    if (!userParticipantId) throw new NotFoundException('Conversation not found');
+    const participant = await tx.conversationUserParticipant.findUnique({ where: { id: userParticipantId }, select: { status: true } });
+    if (!participant || participant.status !== 'ACTIVE') throw new NotFoundException('Conversation not found');
+    const lockedOrganizationParticipant = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT id FROM "conversation_organization_participants" WHERE conversation_id = ${conversationId}::uuid AND organization_id = ${organizationId}::uuid FOR UPDATE`);
+    const organizationParticipantId = lockedOrganizationParticipant[0]?.id;
+    if (!organizationParticipantId) throw new NotFoundException('Conversation not found');
+    const organizationParticipant = await tx.conversationOrganizationParticipant.findUnique({ where: { id: organizationParticipantId }, select: { establishmentId: true, status: true } });
+    if (!organizationParticipant || organizationParticipant.status !== 'ACTIVE') throw new NotFoundException('Conversation not found');
+    if (context.scopeMode === 'SELECTED_ESTABLISHMENTS' && organizationParticipant.establishmentId) {
+      const establishment = await tx.establishment.findFirst({ where: { id: organizationParticipant.establishmentId, organizationId, status: 'ACTIVE' }, select: { id: true } });
+      if (!establishment || !context.establishmentIds.includes(organizationParticipant.establishmentId)) throw new ForbiddenException('Establishment access denied');
+    }
+  }
+
   async revalidateOrganizationParticipantManagement(tx: Prisma.TransactionClient, principal: AuthPrincipal, organizationId: string, conversationId: string): Promise<MessagingOrganizationParticipantManagement> {
     const membershipCandidate = await tx.membership.findUnique({ where: { organizationId_userId: { organizationId, userId: principal.userId } }, select: { id: true } });
     if (!membershipCandidate) throw new ForbiddenException('Organization access denied');

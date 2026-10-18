@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, GoneException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type AuditAction } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
 import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
@@ -34,21 +34,40 @@ export class MessagingInvitationService {
   }
 
   async issueToken(principal: AuthPrincipal, organizationId: string, invitationId: string, rawKey?: string): Promise<unknown> {
-    this.requireKey(rawKey);
+    const key = this.requireKey(rawKey);
     const context = await this.authorization.requireModule(principal, organizationId, 'MESSAGING', 'messaging:read');
-    const invitation = await this.prisma.messagingInvitation.findFirst({ where: { id: invitationId, targetOrganizationId: organizationId }, select: { ...invitationSelect, tokenDigest: true, tokenCiphertext: true, tokenExpiresAt: true } });
-    this.assertInvitationActor(context, invitation?.type, invitation?.targetUserId, principal.userId);
-    if (!invitation) throw new NotFoundException('Invitation not found');
-    if (invitation.status !== 'PENDING' || invitation.expiresAt <= new Date()) throw new ConflictException('Invitation is no longer valid');
-    const now = new Date();
-    const token = invitation.tokenExpiresAt > now ? decryptInvitationToken(invitation.tokenCiphertext) : randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
-    const expiresAt = invitation.tokenExpiresAt > now ? invitation.tokenExpiresAt : tokenExpiry(now);
-    await this.prisma.$transaction(async (tx) => {
-      if (invitation.tokenExpiresAt <= now) await tx.messagingInvitation.update({ where: { id: invitation.id }, data: { tokenDigest: tokenDigest(token), tokenCiphertext: encryptInvitationToken(token), tokenIssuedAt: now, tokenExpiresAt: expiresAt } });
-      await this.recordMutation(tx, 'MESSAGING_INVITATION_TOKEN_ISSUED', 'messaging.invitation.token_issued.v1', principal, organizationId, invitation.id, this.eventContext(), { invitationType: invitation.type });
+    const payloadHash = this.hash({ operation: 'INVITATION_TOKEN_ISSUE', organizationId, invitationId });
+    const eventContext = this.eventContext();
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(Prisma.sql`SELECT id FROM "messaging_invitations" WHERE id = ${invitationId}::uuid AND target_organization_id = ${organizationId}::uuid FOR UPDATE`);
+      const invitation = await tx.messagingInvitation.findFirst({ where: { id: invitationId, targetOrganizationId: organizationId }, select: { ...invitationSelect, tokenDigest: true, tokenCiphertext: true, tokenExpiresAt: true } });
+      this.assertInvitationActor(context, invitation?.type, invitation?.targetUserId, principal.userId);
+      if (!invitation) throw new NotFoundException('Invitation not found');
+
+      const receipt = await tx.messagingCommandReceipt.findUnique({ where: { organizationId_actorUserId_operation_idempotencyKey: { organizationId, actorUserId: principal.userId, operation: 'INVITATION_TOKEN_ISSUE', idempotencyKey: key } }, select: { payloadHash: true, responseJson: true } });
+      if (receipt) {
+        if (receipt.payloadHash !== payloadHash) throw new ConflictException('Idempotency-Key was already used with a different command');
+        const stored = receipt.responseJson as { invitationId?: unknown; tokenCiphertext?: unknown; token?: unknown; expiresAt?: unknown };
+        const ciphertext = typeof stored.tokenCiphertext === 'string' ? stored.tokenCiphertext : undefined;
+        const token = ciphertext ? decryptInvitationToken(ciphertext) : typeof stored.token === 'string' ? stored.token : undefined;
+        if (!token || typeof stored.expiresAt !== 'string') throw new ConflictException('Invitation token receipt is invalid');
+        return { invitationId: invitation.id, token, expiresAt: stored.expiresAt };
+      }
+
+      if (invitation.status !== 'PENDING') throw new ConflictException('Invitation is no longer valid');
+      if (invitation.expiresAt <= new Date()) throw new GoneException('Invitation has expired');
+      const now = new Date();
+      const renew = invitation.tokenExpiresAt <= now;
+      const token = renew ? randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '') : decryptInvitationToken(invitation.tokenCiphertext);
+      const expiresAt = renew ? tokenExpiry(now) : invitation.tokenExpiresAt;
+      const tokenCiphertext = renew ? encryptInvitationToken(token) : invitation.tokenCiphertext;
+      if (renew) await tx.messagingInvitation.update({ where: { id: invitation.id }, data: { tokenDigest: tokenDigest(token), tokenCiphertext, tokenIssuedAt: now, tokenExpiresAt: expiresAt } });
+      await this.recordMutation(tx, 'MESSAGING_INVITATION_TOKEN_ISSUED', 'messaging.invitation.token_issued.v1', principal, organizationId, invitation.id, eventContext, { invitationType: invitation.type });
       await tx.messagingInvitation.update({ where: { id: invitation.id }, data: { tokenDeliveredAt: now } });
+      const response = { invitationId: invitation.id, token, expiresAt: expiresAt.toISOString() };
+      await tx.messagingCommandReceipt.create({ data: { id: randomUUID(), organizationId, actorUserId: principal.userId, operation: 'INVITATION_TOKEN_ISSUE', idempotencyKey: key, payloadHash, resourceType: 'MessagingInvitation', resourceId: invitation.id, responseJson: { invitationId: invitation.id, tokenCiphertext, expiresAt: response.expiresAt } } });
+      return response;
     });
-    return { invitationId: invitation.id, token, expiresAt: expiresAt.toISOString() };
   }
 
   async accept(principal: AuthPrincipal, organizationId: string, invitationId: string, input: AcceptConversationInvitationDto, rawKey?: string): Promise<unknown> {
@@ -132,10 +151,12 @@ export class MessagingInvitationService {
     return this.prisma.$transaction(async (tx) => {
       const replay = await this.findReceipt(tx, organizationId, principal.userId, `INVITATION_${decision}`, key, payloadHash);
       if (replay) return decision === 'DECLINE' ? undefined : replay.response;
+      await tx.$executeRaw(Prisma.sql`SELECT id FROM "messaging_invitations" WHERE id = ${invitationId}::uuid AND target_organization_id = ${organizationId}::uuid FOR UPDATE`);
       const invitation = await tx.messagingInvitation.findFirst({ where: { id: invitationId, targetOrganizationId: organizationId }, select: { ...invitationSelect, tokenDigest: true, tokenExpiresAt: true, conversationId: true } });
       this.assertInvitationActor(context, invitation?.type, invitation?.targetUserId, principal.userId);
       if (!invitation) throw new NotFoundException('Invitation not found');
-      if (invitation.status !== 'PENDING' || invitation.expiresAt <= new Date()) throw new ConflictException('Invitation is no longer valid');
+      if (invitation.status !== 'PENDING') throw new ConflictException('Invitation is no longer valid');
+      if (invitation.expiresAt <= new Date()) throw new GoneException('Invitation has expired');
       if (invitation.tokenDigest !== tokenDigest(token) || invitation.tokenExpiresAt <= new Date()) throw new ForbiddenException('Invitation token is invalid or expired');
       const conversation = await tx.conversation.findUniqueOrThrow({ where: { id: invitation.conversationId }, select: { organizationLowId: true, organizationHighId: true } });
       const sourceOrganizationId = invitation.type === 'ORGANIZATION'
@@ -161,11 +182,13 @@ export class MessagingInvitationService {
           await tx.conversationOrganizationParticipant.update({ where: { id: organizationParticipant.id }, data: { status: 'ACTIVE', joinedAt: new Date(), leftAt: null, revokedAt: null, historyVisibleFromSequence: conversationState.lastMessageSequence + 1n } });
           await this.recordParticipantMutation(tx, 'MESSAGING_PARTICIPANT_JOINED', 'messaging.participant.joined.v1', principal, organizationId, organizationParticipant.id, eventContext, { conversationId: invitation.conversationId, organizationId });
         }
-        await tx.messagingInvitation.update({ where: { id: invitation.id }, data: { status: 'ACCEPTED', acceptedAt: new Date(), tokenDeliveredAt: new Date() } });
+        const updated = await tx.messagingInvitation.updateMany({ where: { id: invitation.id, status: 'PENDING' }, data: { status: 'ACCEPTED', acceptedAt: new Date(), tokenDeliveredAt: new Date() } });
+        if (updated.count !== 1) throw new ConflictException('Invitation is no longer valid');
         response = this.serialize({ ...invitation, status: 'ACCEPTED' });
         await this.recordMutation(tx, 'MESSAGING_INVITATION_ACCEPTED', `messaging.${invitation.type === 'USER' ? 'user' : 'organization'}_invitation.accepted.v1`, principal, organizationId, invitation.id, eventContext, { conversationId: invitation.conversationId, invitationType: invitation.type });
       } else {
-        await tx.messagingInvitation.update({ where: { id: invitation.id }, data: { status: 'DECLINED' } });
+        const updated = await tx.messagingInvitation.updateMany({ where: { id: invitation.id, status: 'PENDING' }, data: { status: 'DECLINED' } });
+        if (updated.count !== 1) throw new ConflictException('Invitation is no longer valid');
         response = this.serialize({ ...invitation, status: 'DECLINED' });
         await this.recordMutation(tx, 'MESSAGING_INVITATION_DECLINED', `messaging.${invitation.type === 'USER' ? 'user' : 'organization'}_invitation.declined.v1`, principal, organizationId, invitation.id, eventContext, { conversationId: invitation.conversationId, invitationType: invitation.type });
       }

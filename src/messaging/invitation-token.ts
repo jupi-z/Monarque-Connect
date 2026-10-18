@@ -4,8 +4,12 @@ const TOKEN_TTL_MS = 15 * 60 * 1000;
 
 function encryptionKey(): Buffer {
   const configured = process.env.MESSAGING_INVITATION_TOKEN_KEY;
-  if (process.env.NODE_ENV === 'production' && !configured) throw new Error('MESSAGING_INVITATION_TOKEN_KEY is required in production');
-  return createHash('sha256').update(configured ?? process.env.JWT_PRIVATE_KEY_PEM ?? 'monarque-connect-development-messaging-key').digest();
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  if (!configured && nodeEnv !== 'development' && nodeEnv !== 'test') {
+    throw new Error('MESSAGING_INVITATION_TOKEN_KEY is required outside local development and tests');
+  }
+  const key = configured ?? 'monarque-connect-test-only-messaging-key';
+  return createHash('sha256').update(key).digest();
 }
 
 export function tokenDigest(token: string): string { return createHash('sha256').update(token).digest('hex'); }

@@ -58,21 +58,32 @@ export class MessagingAbuseService {
     const keyHash = createHash('sha256').update(`${key.dimension}:${key.value}`).digest('hex');
     const rows = await tx.$queryRaw<RateBucketRow[]>(Prisma.sql`
       INSERT INTO "messaging_rate_buckets" ("id", "organization_id", "conversation_id", "dimension", "dimension_key_hash", "window_started", "window_ends", "attempt_count", "accepted_count", "rejected_count", "blocked_until", "content_fingerprint_hmac", "fingerprint_count", "created_at", "updated_at")
-      VALUES (${randomUUID()}::uuid, ${key.organizationId}::uuid, ${conversationId}::uuid, ${key.dimension}, ${keyHash}, ${windowStarted}, ${windowEnds}, 1, 0, 0, NULL, ${fingerprint}, 1, NOW(), NOW())
+      VALUES (${randomUUID()}::uuid, ${key.organizationId}::uuid, ${conversationId}::uuid, ${key.dimension}, ${keyHash}, ${windowStarted}, ${windowEnds}, 1, 0, 0, NULL, NULL, 0, NOW(), NOW())
       ON CONFLICT ("dimension", "dimension_key_hash", "window_started") DO UPDATE SET
         "attempt_count" = "messaging_rate_buckets"."attempt_count" + 1,
-        "content_fingerprint_hmac" = EXCLUDED."content_fingerprint_hmac",
-        "fingerprint_count" = CASE WHEN "messaging_rate_buckets"."content_fingerprint_hmac" = EXCLUDED."content_fingerprint_hmac" THEN "messaging_rate_buckets"."fingerprint_count" + 1 ELSE 1 END,
         "updated_at" = NOW()
       RETURNING "id", "dimension", "attempt_count", "accepted_count", "rejected_count", "blocked_until", "window_ends", "fingerprint_count"
     `);
     if (rows.length !== 1) throw new Error('Messaging rate bucket upsert did not return one row');
-    return rows[0]!;
+    const fingerprints = await tx.$queryRaw<Array<{ fingerprint_count: number }>>(Prisma.sql`
+      INSERT INTO "messaging_rate_bucket_fingerprints" ("id", "rate_bucket_id", "fingerprint_hmac", "attempt_count", "created_at", "updated_at")
+      VALUES (${randomUUID()}::uuid, ${rows[0]!.id}::uuid, ${fingerprint}, 1, NOW(), NOW())
+      ON CONFLICT ("rate_bucket_id", "fingerprint_hmac") DO UPDATE SET
+        "attempt_count" = "messaging_rate_bucket_fingerprints"."attempt_count" + 1,
+        "updated_at" = NOW()
+      RETURNING "attempt_count" AS "fingerprint_count"
+    `);
+    if (fingerprints.length !== 1) throw new Error('Messaging rate bucket fingerprint upsert did not return one row');
+    return { ...rows[0]!, fingerprint_count: fingerprints[0]!.fingerprint_count };
   }
 
   private fingerprint(body: string): string {
-    const key = process.env.MESSAGING_ABUSE_HMAC_KEY ?? process.env.MESSAGING_INVITATION_TOKEN_KEY ?? process.env.JWT_PRIVATE_KEY_PEM ?? 'monarque-connect-development-messaging-abuse-key';
-    if (process.env.NODE_ENV === 'production' && !process.env.MESSAGING_ABUSE_HMAC_KEY) throw new Error('MESSAGING_ABUSE_HMAC_KEY is required in production');
+    const configured = process.env.MESSAGING_ABUSE_HMAC_KEY;
+    const nodeEnv = process.env.NODE_ENV ?? 'development';
+    if (!configured && nodeEnv !== 'development' && nodeEnv !== 'test') {
+      throw new Error('MESSAGING_ABUSE_HMAC_KEY is required outside local development and tests');
+    }
+    const key = configured ?? 'monarque-connect-test-only-messaging-abuse-key';
     return createHmac('sha256', key).update(body).digest('hex');
   }
 }
