@@ -149,9 +149,10 @@ export class MessagingInvitationService {
     const payloadHash = this.hash({ operation: `INVITATION_${decision}`, organizationId, invitationId, tokenDigest: tokenDigest(token) });
     const eventContext = this.eventContext();
     return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(Prisma.sql`SELECT id FROM "messaging_invitations" WHERE id = ${invitationId}::uuid AND target_organization_id = ${organizationId}::uuid FOR UPDATE`);
       const replay = await this.findReceipt(tx, organizationId, principal.userId, `INVITATION_${decision}`, key, payloadHash);
       if (replay) return decision === 'DECLINE' ? undefined : replay.response;
-      await tx.$executeRaw(Prisma.sql`SELECT id FROM "messaging_invitations" WHERE id = ${invitationId}::uuid AND target_organization_id = ${organizationId}::uuid FOR UPDATE`);
+
       const invitation = await tx.messagingInvitation.findFirst({ where: { id: invitationId, targetOrganizationId: organizationId }, select: { ...invitationSelect, tokenDigest: true, tokenExpiresAt: true, conversationId: true } });
       this.assertInvitationActor(context, invitation?.type, invitation?.targetUserId, principal.userId);
       if (!invitation) throw new NotFoundException('Invitation not found');

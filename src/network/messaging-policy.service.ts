@@ -38,8 +38,8 @@ export class MessagingPolicy {
         },
         select: { id: true },
       }),
-      this.entitlements.resolve(sourceOrganizationId),
-      this.entitlements.resolve(targetOrganizationId),
+      this.entitlements.resolve(sourceOrganizationId, new Date(), tx),
+      this.entitlements.resolve(targetOrganizationId, new Date(), tx),
       tx.messagingOrganizationBlock.findFirst({
         where: {
           active: true,

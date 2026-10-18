@@ -75,8 +75,8 @@ export class SubscriptionService {
     return subscription;
   }
 
-  async resolveEffective(organizationId: string, at: Date): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null; planVersionId: string } | null> {
-    return this.prisma.subscription.findFirst({
+  async resolveEffective(organizationId: string, at: Date, db: PrismaService | Prisma.TransactionClient = this.prisma): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null; planVersionId: string } | null> {
+    return db.subscription.findFirst({
       where: { organizationId, organization: { status: 'ACTIVE' }, status: { in: effectiveStatuses }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] },
       orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
       select: { id: true, status: true, startsAt: true, endsAt: true, planVersionId: true },

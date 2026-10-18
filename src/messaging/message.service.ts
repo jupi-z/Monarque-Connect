@@ -44,10 +44,10 @@ export class MessageService {
     const context = this.eventContext();
 
     const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(Prisma.sql`SELECT id FROM "conversations" WHERE id = ${conversationId}::uuid FOR UPDATE`);
       const replay = await this.findReceipt(tx, organizationId, principal.userId, 'MESSAGE_SEND', key, payloadHash);
       if (replay) return replay.response;
 
-      await tx.$executeRaw(Prisma.sql`SELECT id FROM "conversations" WHERE id = ${conversationId}::uuid FOR UPDATE`);
       const sendPolicy = await this.policy.assertCanSend(tx, principal, conversationId);
       if (sendPolicy.sourceOrganizationId !== organizationId) throw new NotFoundException('Conversation not found');
       await this.messagingAuthorization.revalidateParticipantAccess(tx, principal, organizationId, conversationId, 'messaging:write');
