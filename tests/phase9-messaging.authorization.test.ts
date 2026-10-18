@@ -92,4 +92,34 @@ describe('Phase 9 Messaging authorization policy', () => {
       organizationParticipant,
     });
   });
+
+  it('rejects participant management for non-admin tenant roles', async () => {
+    const authorizationService = {
+      requireModule: vi.fn().mockResolvedValue({ organizationId: 'org-a', role: 'SALES', scopeMode: 'ALL_ESTABLISHMENTS', establishmentIds: [] }),
+      assertEstablishment: vi.fn(),
+    };
+    const authorization = new MessagingAuthorization({ conversationOrganizationParticipant: { findUnique: vi.fn() } } as never, authorizationService as never);
+
+    await expect(authorization.requireOrganizationParticipantManagement(principal, 'org-a', 'conversation-a')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('hides an inactive or not-yet-joined organization participant', async () => {
+    const authorizationService = {
+      requireModule: vi.fn().mockResolvedValue({ organizationId: 'org-a', role: 'ADMIN', scopeMode: 'ALL_ESTABLISHMENTS', establishmentIds: [] }),
+      assertEstablishment: vi.fn(),
+    };
+    const authorization = new MessagingAuthorization({ conversationOrganizationParticipant: { findUnique: vi.fn().mockResolvedValue({ organizationId: 'org-a', establishmentId: null, status: 'PENDING', joinedAt: null }) } } as never, authorizationService as never);
+
+    await expect(authorization.requireOrganizationParticipantManagement(principal, 'org-a', 'conversation-a')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('enforces the selected-establishment scope for participant management', async () => {
+    const authorizationService = {
+      requireModule: vi.fn().mockResolvedValue({ organizationId: 'org-a', role: 'ADMIN', scopeMode: 'SELECTED_ESTABLISHMENTS', establishmentIds: ['est-a'] }),
+      assertEstablishment: vi.fn().mockRejectedValue(new ForbiddenException('Establishment access denied')),
+    };
+    const authorization = new MessagingAuthorization({ conversationOrganizationParticipant: { findUnique: vi.fn().mockResolvedValue({ organizationId: 'org-a', establishmentId: 'est-b', status: 'ACTIVE', joinedAt: new Date() }) } } as never, authorizationService as never);
+
+    await expect(authorization.requireOrganizationParticipantManagement(principal, 'org-a', 'conversation-a')).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });

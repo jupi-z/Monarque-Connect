@@ -66,6 +66,7 @@ export class MessagingInvitationService {
     await this.messagingAuthorization.requireOrganizationParticipantManagement(principal, organizationId, conversationId);
     const eventContext = this.eventContext();
     return this.prisma.$transaction(async (tx) => {
+      await this.messagingAuthorization.revalidateOrganizationParticipantManagement(tx, principal, organizationId, conversationId);
       const replay = await this.findReceipt(tx, organizationId, principal.userId, 'PARTICIPANT_INVITE', key, payloadHash);
       if (replay) return replay.response;
       const conversation = await tx.conversation.findFirst({ where: { id: conversationId, status: 'OPEN', OR: [{ organizationLowId: organizationId }, { organizationHighId: organizationId }] }, select: { id: true, lastMessageSequence: true } });
@@ -100,6 +101,7 @@ export class MessagingInvitationService {
     const payloadHash = this.hash({ operation, organizationId, conversationId, userId });
     const eventContext = this.eventContext();
     await this.prisma.$transaction(async (tx) => {
+      if (!self) await this.messagingAuthorization.revalidateOrganizationParticipantManagement(tx, principal, organizationId, conversationId);
       const replay = await this.findReceipt(tx, organizationId, principal.userId, operation, key, payloadHash);
       if (replay) return;
       await tx.$executeRaw(Prisma.sql`SELECT id FROM "conversations" WHERE id = ${conversationId}::uuid FOR UPDATE`);
