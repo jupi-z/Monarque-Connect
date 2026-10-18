@@ -16,6 +16,21 @@ La branche `monarque/phase9-messages` contient l'implémentation des tâches Mes
 
 Les groupes, WebSocket, pièces jointes, recherche plein texte, édition/suppression de messages et IA restent explicitement hors MVP.
 
+## Stabilisation corrective de revue — branche en cours
+
+Les écarts identifiés par la revue indépendante sont traités sans refonte :
+
+- un rejeu `clientMessageId` exact retourne le message existant, même avec une nouvelle clé HTTP, tandis qu'un payload divergent est refusé sans quota ni séquence supplémentaire ;
+- les décisions d'invitation et la remise idempotente des tokens sont sérialisées par verrou PostgreSQL, et les receipts de token ne stockent jamais le token en clair ;
+- les compteurs anti-abus conservent une ligne par empreinte et par fenêtre, y compris lorsqu'une autre empreinte est intercalée ;
+- les secrets d'invitation et d'anti-abus échouent fermement en `staging`/`production` sans clé dédiée et n'utilisent plus la clé JWT ;
+- l'autorisation d'envoi est revalidée dans la transaction avec verrouillage du membership et des participants ;
+- un trigger PostgreSQL empêche l'insertion d'un message dont l'organisation source ou l'auteur ne respecte pas les participants actifs ;
+- les erreurs d'invitation expirée sont contractuellement exposées en `410 Gone` ;
+- les PR sont exécutées sur un runner GitHub isolé via l'événement standard `pull_request`, tandis que le runner auto-hébergé persistant est réservé aux pushes de `main` ; `pull_request_target` n'est pas utilisé pour exécuter le code de la PR.
+
+Les migrations ajoutées sont `20261018010000_persist_messaging_abuse_fingerprints` et `20261018011000_enforce_messaging_message_invariants`. Elles doivent encore être prouvées dans la CI complète avant de faire évoluer les cases de clôture.
+
 ## Contrôles locaux réussis — 18 octobre 2026
 
 Depuis la branche `monarque/phase9-messages`, commit contrôlé `5f2cbb9f5b4cd9774c55bdeae7f5d09768075eca` (PR [#119](https://github.com/jupi-z/Monarque-Connect/pull/119)), sur une base PostgreSQL de test fraîche :

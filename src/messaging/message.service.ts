@@ -50,6 +50,31 @@ export class MessageService {
       await tx.$executeRaw(Prisma.sql`SELECT id FROM "conversations" WHERE id = ${conversationId}::uuid FOR UPDATE`);
       const sendPolicy = await this.policy.assertCanSend(tx, principal, conversationId);
       if (sendPolicy.sourceOrganizationId !== organizationId) throw new NotFoundException('Conversation not found');
+      await this.messagingAuthorization.revalidateParticipantAccess(tx, principal, organizationId, conversationId, 'messaging:write');
+      const existingMessage = await tx.message.findUnique({
+        where: { conversationId_authorUserId_clientMessageId: { conversationId, authorUserId: principal.userId, clientMessageId: input.clientMessageId } },
+        select: messageSelect,
+      });
+      if (existingMessage) {
+        if (existingMessage.sourceOrganizationId !== organizationId || existingMessage.body !== input.body) {
+          throw new ConflictException('clientMessageId was already used with a different command');
+        }
+        const response = this.serialize(existingMessage);
+        await tx.messagingCommandReceipt.create({
+          data: {
+            id: randomUUID(),
+            organizationId,
+            actorUserId: principal.userId,
+            operation: 'MESSAGE_SEND',
+            idempotencyKey: key,
+            payloadHash,
+            resourceType: 'Message',
+            resourceId: existingMessage.id,
+            responseJson: response as Prisma.InputJsonValue,
+          },
+        });
+        return response;
+      }
       const reservation = await this.abuse.reserve(tx, { actorUserId: principal.userId, organizationId, targetOrganizationId: sendPolicy.targetOrganizationId, conversationId, body: input.body });
       if (!reservation.allowed) {
         const response = { rateLimited: true, retryAfterSeconds: reservation.retryAfterSeconds };

@@ -2239,11 +2239,26 @@ model MessagingRateBucket {
   updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization           Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   conversation           Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  fingerprints           MessagingRateBucketFingerprint[]
 
   @@unique([dimension, dimensionKeyHash, windowStarted])
   @@index([organizationId, windowEnds])
   @@index([conversationId, windowEnds])
   @@map("messaging_rate_buckets")
+}
+
+model MessagingRateBucketFingerprint {
+  id             String             @id @db.Uuid
+  rateBucketId   String             @map("rate_bucket_id") @db.Uuid
+  fingerprintHmac String            @map("fingerprint_hmac") @db.VarChar(128)
+  attemptCount   Int                @default(0) @map("attempt_count")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rateBucket     MessagingRateBucket @relation(fields: [rateBucketId], references: [id], onDelete: Cascade)
+
+  @@unique([rateBucketId, fingerprintHmac])
+  @@index([fingerprintHmac, updatedAt])
+  @@map("messaging_rate_bucket_fingerprints")
 }
 
 model MessagingCommandReceipt {
