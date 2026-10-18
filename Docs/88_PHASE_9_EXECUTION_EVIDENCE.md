@@ -18,7 +18,7 @@ Les groupes, WebSocket, pièces jointes, recherche plein texte, édition/suppres
 
 ## Contrôles locaux réussis — 18 octobre 2026
 
-Depuis la branche `monarque/phase9-messages`, commit contrôlé `9af5619` (PR [#119](https://github.com/jupi-z/Monarque-Connect/pull/119)), sur une base PostgreSQL de test fraîche :
+Depuis la branche `monarque/phase9-messages`, commit contrôlé `5f2cbb9f5b4cd9774c55bdeae7f5d09768075eca` (PR [#119](https://github.com/jupi-z/Monarque-Connect/pull/119)), sur une base PostgreSQL de test fraîche :
 
 | Contrôle | Résultat |
 |---|---|
