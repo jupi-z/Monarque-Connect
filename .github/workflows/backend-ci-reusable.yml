@@ -90,9 +90,9 @@ jobs:
       - run: npm run prisma:deploy
       - run: npm run openapi:validate
       - run: npm run contracts:validate
-      - run: npm test
+      - run: npm test -- --pool=forks --maxWorkers=1 --no-file-parallelism
       - name: Run HTTP E2E suite
-        run: npm run test:e2e
+        run: npm run test:e2e -- --pool=forks --maxWorkers=1 --no-file-parallelism
       - run: npm run build
       - name: Smoke HTTP health endpoints
         run: |
