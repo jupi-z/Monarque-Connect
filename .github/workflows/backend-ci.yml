@@ -5,8 +5,13 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   validate:
+    # The runner is persistent and trusted. Never execute fork-controlled code on it.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, linux, x64, monarque-ci]
     env:
       NODE_ENV: test
