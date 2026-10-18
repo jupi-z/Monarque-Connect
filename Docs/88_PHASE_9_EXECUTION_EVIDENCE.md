@@ -39,7 +39,9 @@ Les tests couvrent la matrice de permissions, la policy Network, les décisions 
 
 `npm run ci:local` reste le runner local équivalent à la CI. La configuration GitHub cible désormais un runner Linux auto-hébergé portant les labels `self-hosted`, `linux`, `x64`, `monarque-ci`. Son service PostgreSQL utilise le port hôte `55432`, distinct du PostgreSQL de développement sur `5432`.
 
-L'enregistrement du runner ne stocke aucun jeton dans le dépôt et doit être vérifié directement dans les paramètres GitHub du dépôt. Tant que ce runner n'est pas confirmé `online`, les contrôles suivants ne sont pas comptés comme preuves GitHub :
+Le runner `monarque-connect-ci` a été enregistré sur GitHub le 18 octobre 2026. Le service systemd est activé et actif dans WSL Ubuntu 22.04 ; son journal confirme `Connected to GitHub`, `Listening for Jobs` et l'exécution du job `validate`. La CI cumulative de la branche d'implémentation est vérifiable dans le run [`39148395178`](https://github.com/jupi-z/Monarque-Connect/actions/runs/39148395178), conclu `success`.
+
+L'enregistrement du runner ne stocke aucun jeton dans le dépôt. Les contrôles suivants sont maintenant couverts par le run GitHub #327 :
 
 - `prisma migrate deploy` depuis une base vide ;
 - upgrade depuis la baseline Phase 8 et `npm run prisma:phase9:migration-proof` ;
@@ -49,6 +51,6 @@ L'enregistrement du runner ne stocke aucun jeton dans le dépôt et doit être v
 
 L'exécution GitHub Actions [#324 / run 38912178681](https://github.com/jupi-z/Monarque-Connect/actions/runs/38912178681) associée au précédent commit est `failure` avant exécution utile pour cause de limite de facturation/spend limit du compte. Cette absence n'est pas comptée comme une réussite. Une nouvelle exécution devra être observée après mise en ligne du runner.
 
-## Gate restante
+## Gates restantes
 
-Il ne reste pas de correction métier révélée par les contrôles locaux. La gate restante est GitHub : enregistrer et mettre en ligne le runner, exécuter la CI de la PR, corriger toute anomalie révélée, fusionner selon la gouvernance, puis vérifier la CI post-fusion sur `main`. La Phase 9 ne sera déclarée clôturée qu'après ces preuves effectives.
+Il ne reste pas de correction métier révélée par les contrôles locaux ou la CI cumulative #327. Les gates restantes sont l'intégration ordonnée des PR #118 puis #119 (la seconde est actuellement empilée sur la première), la CI post-fusion sur `main`, puis la vérification finale de l'état des branches et de la documentation. La Phase 9 ne sera déclarée clôturée qu'après ces preuves effectives.
