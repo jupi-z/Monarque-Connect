@@ -168,6 +168,17 @@ describe('Phase 9 conversation and invitation HTTP flow', () => {
     expect(messageReplay.id).toBe(message.id);
     const messageReplayWithNewHttpKey = bodyOf<{ id: string; sequence: number }>(await request(server).post(`/api/v1/organizations/${ownerOneOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerOneToken}`).set('Idempotency-Key', 'phase9-task4-message-retry-with-new-http-key').send({ clientMessageId: 'client-message-1', body: 'Bonjour depuis la vente' }).expect(201));
     expect(messageReplayWithNewHttpKey).toMatchObject({ id: message.id, sequence: 1 });
+    const concurrentReplays = await Promise.all([
+      request(server).post(`/api/v1/organizations/${ownerOneOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerOneToken}`).set('Idempotency-Key', 'phase9-task4-message-concurrent-a').send({ clientMessageId: 'client-message-1', body: 'Bonjour depuis la vente' }).expect(201),
+      request(server).post(`/api/v1/organizations/${ownerOneOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerOneToken}`).set('Idempotency-Key', 'phase9-task4-message-concurrent-b').send({ clientMessageId: 'client-message-1', body: 'Bonjour depuis la vente' }).expect(201),
+    ]);
+    expect(concurrentReplays.map((response) => {
+      const replay = bodyOf<{ id: string; sequence: number }>(response);
+      return { id: replay.id, sequence: replay.sequence };
+    })).toEqual([
+      { id: message.id, sequence: 1 },
+      { id: message.id, sequence: 1 },
+    ]);
     await request(server).post(`/api/v1/organizations/${ownerOneOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerOneToken}`).set('Idempotency-Key', 'phase9-task4-message').send({ clientMessageId: 'client-message-1', body: 'Commande divergente' }).expect(409);
     await request(server).post(`/api/v1/organizations/${ownerOneOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerOneToken}`).set('Idempotency-Key', 'phase9-task4-message-divergent-http-key').send({ clientMessageId: 'client-message-1', body: 'Commande divergente' }).expect(409);
     const messages = bodyOf<{ items: Array<{ id: string; sequence: number; authorUserId: string; sourceOrganizationId: string }> }>(await request(server).get(`/api/v1/organizations/${ownerTwoOrganizationId}/conversations/${first.id}/messages`).set('Authorization', `Bearer ${ownerTwoToken}`).expect(200));

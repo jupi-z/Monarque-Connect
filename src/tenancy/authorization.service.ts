@@ -62,7 +62,7 @@ export class AuthorizationService {
       establishmentIds: membership.scopeLinks.map((scope) => scope.establishmentId),
     };
     this.assertPermission(context, permission);
-    const module = (await this.entitlements.resolve(organizationId)).modules.find((candidateModule) => candidateModule.code === moduleCode);
+    const module = (await this.entitlements.resolve(organizationId, new Date(), tx)).modules.find((candidateModule) => candidateModule.code === moduleCode);
     if (!module?.allowed) throw new ForbiddenException('Module access denied');
     return context;
   }

@@ -33,7 +33,7 @@ Les migrations ajoutées sont `20261018010000_persist_messaging_abuse_fingerprin
 
 ## Contrôles locaux réussis — 18 octobre 2026
 
-Depuis la branche `monarque/phase9-messages`, commit contrôlé `5f2cbb9f5b4cd9774c55bdeae7f5d09768075eca` (PR [#119](https://github.com/jupi-z/Monarque-Connect/pull/119)), sur une base PostgreSQL de test fraîche :
+Preuve historique avant la dernière stabilisation : branche `monarque/phase9-messages`, commit `5f2cbb9f5b4cd9774c55bdeae7f5d09768075eca` (PR [#119](https://github.com/jupi-z/Monarque-Connect/pull/119)), sur une base PostgreSQL de test fraîche :
 
 | Contrôle | Résultat |
 |---|---|
@@ -50,6 +50,21 @@ Depuis la branche `monarque/phase9-messages`, commit contrôlé `5f2cbb9f5b4cd97
 
 Les tests couvrent la matrice de permissions, la policy Network, les décisions de réservation anti-abus, les parcours HTTP, l'isolation tenant, l'idempotence, les rejeux, la concurrence et l'immutabilité SQL.
 
+## Contrôles locaux de stabilisation — commit `53471103f1d95e138122defb6e3e256567949612`
+
+La stabilisation a été rejouée localement après application de 45 migrations sur une base PostgreSQL de test dédiée :
+
+| Contrôle | Résultat |
+|---|---|
+| `npm run typecheck` | réussi |
+| `npm run lint` | réussi |
+| `npm run prisma:validate` | réussi |
+| E2E Messaging avec rejeux concurrents | réussi — 1 fichier, 1 test |
+| suite PostgreSQL complète | réussie — 76 fichiers, 281 tests |
+| suite E2E complète | réussie — 7 fichiers, 14 tests |
+
+Le rejeu concurrent d'un même `clientMessageId` retourne désormais une seule ressource et une seule séquence. Les contrôles d'entitlement utilisés par l'autorisation Messaging lisent également via la transaction métier.
+
 ## Préparation de l'exécution GitHub
 
 `npm run ci:local` reste le runner local équivalent à la CI. La configuration GitHub cible désormais un runner Linux auto-hébergé portant les labels `self-hosted`, `linux`, `x64`, `monarque-ci`. Son service PostgreSQL utilise le port hôte `55432`, distinct du PostgreSQL de développement sur `5432`.
@@ -64,7 +79,7 @@ L'enregistrement du runner ne stocke aucun jeton dans le dépôt. Les contrôles
 - tests de concurrence, d'isolation tenant, de rollback, d'immutabilité SQL et de rejeu Outbox ;
 - non-régression complète des Phases 0 à 8.
 
-L'exécution GitHub Actions [#324 / run 38912178681](https://github.com/jupi-z/Monarque-Connect/actions/runs/38912178681) associée au précédent commit est `failure` avant exécution utile pour cause de limite de facturation/spend limit du compte. Cette absence n'est pas comptée comme une réussite. Une nouvelle exécution devra être observée après mise en ligne du runner.
+L'exécution GitHub Actions [#329 / run 39159693453](https://github.com/jupi-z/Monarque-Connect/actions/runs/39159693453) associée au commit de stabilisation est `failure` avant exécution utile : le job `validate-pr` n'a reçu aucun runner `ubuntu-latest` (`runner_id=0`, aucune étape exécutée). Cette absence n'est pas comptée comme une réussite. Le run historique [#324 / run 38912178681](https://github.com/jupi-z/Monarque-Connect/actions/runs/38912178681) est également conservé comme preuve de l'indisponibilité antérieure liée au quota hébergé.
 
 ## Gates restantes
 
