@@ -16,9 +16,9 @@ La branche `monarque/phase9-messages` contient l'implémentation des tâches Mes
 
 Les groupes, WebSocket, pièces jointes, recherche plein texte, édition/suppression de messages et IA restent explicitement hors MVP.
 
-## Contrôles locaux réussis — 16 octobre 2026
+## Contrôles locaux réussis — 18 octobre 2026
 
-Depuis la branche `monarque/phase9-messages`, commit de code contrôlé `2e2fdc2ef3724d34ee17e728de8e647b41fb0829`, PR [#119](https://github.com/jupi-z/Monarque-Connect/pull/119) :
+Depuis la branche `monarque/phase9-messages`, PR [#119](https://github.com/jupi-z/Monarque-Connect/pull/119), sur une base PostgreSQL de test fraîche :
 
 | Contrôle | Résultat |
 |---|---|
@@ -28,16 +28,18 @@ Depuis la branche `monarque/phase9-messages`, commit de code contrôlé `2e2fdc2
 | `npm run build` | réussi |
 | `npm run openapi:validate` | réussi — 177 opérations |
 | `npm run contracts:validate` | réussi |
-| tests ciblés Messaging/contrats | réussi — 3 fichiers, 10 tests |
+| `npm test` | réussi — 75 fichiers, 272 tests |
+| `npm run test:e2e` | réussi — 7 fichiers, 14 tests |
+| preuves migration Phase 2, 3, 5, 6, 7, 8 et 9 | réussies — bases neuves et upgrades PostgreSQL dédiés |
 | `git diff --check` | réussi |
 
-Les tests ciblés couvrent la matrice de permissions, la policy Network et les décisions de réservation anti-abus.
+Les tests couvrent la matrice de permissions, la policy Network, les décisions de réservation anti-abus, les parcours HTTP, l'isolation tenant, l'idempotence, les rejeux, la concurrence et l'immutabilité SQL.
 
-## Contrôles non exécutables dans l'environnement courant
+## Préparation de l'exécution GitHub
 
-`npm run ci:local` est le runner local équivalent à la CI. Il vérifie d'abord Docker et s'arrête avec un résultat non ambigu lorsque le daemon PostgreSQL n'est pas disponible. Le daemon Docker Desktop était indisponible sur le poste et PostgreSQL ne répondait pas sur `127.0.0.1:5432`.
+`npm run ci:local` reste le runner local équivalent à la CI. La configuration GitHub cible désormais un runner Linux auto-hébergé portant les labels `self-hosted`, `linux`, `x64`, `monarque-ci`. Son service PostgreSQL utilise le port hôte `55432`, distinct du PostgreSQL de développement sur `5432`.
 
-Par conséquent, les contrôles suivants restent à exécuter sur GitHub Actions :
+L'enregistrement du runner ne stocke aucun jeton dans le dépôt et doit être vérifié directement dans les paramètres GitHub du dépôt. Tant que ce runner n'est pas confirmé `online`, les contrôles suivants ne sont pas comptés comme preuves GitHub :
 
 - `prisma migrate deploy` depuis une base vide ;
 - upgrade depuis la baseline Phase 8 et `npm run prisma:phase9:migration-proof` ;
@@ -45,8 +47,8 @@ Par conséquent, les contrôles suivants restent à exécuter sur GitHub Actions
 - tests de concurrence, d'isolation tenant, de rollback, d'immutabilité SQL et de rejeu Outbox ;
 - non-régression complète des Phases 0 à 8.
 
-L'exécution GitHub Actions [#324 / run 38912178681](https://github.com/jupi-z/Monarque-Connect/actions/runs/38912178681) associée à ce commit est `failure` avant exécution utile pour cause de limite de facturation/spend limit du compte. Cette absence n'est pas comptée comme une réussite.
+L'exécution GitHub Actions [#324 / run 38912178681](https://github.com/jupi-z/Monarque-Connect/actions/runs/38912178681) associée au précédent commit est `failure` avant exécution utile pour cause de limite de facturation/spend limit du compte. Cette absence n'est pas comptée comme une réussite. Une nouvelle exécution devra être observée après mise en ligne du runner.
 
 ## Gate restante
 
-Il ne reste pas de changement métier ou documentaire local identifié dans cette tranche. La gate restante est GitHub : exécuter la CI de la PR, corriger toute anomalie révélée par PostgreSQL/E2E, fusionner selon la gouvernance, puis vérifier la CI post-fusion sur `main`. La Phase 9 ne sera déclarée clôturée qu'après ces preuves effectives.
+Il ne reste pas de correction métier révélée par les contrôles locaux. La gate restante est GitHub : enregistrer et mettre en ligne le runner, exécuter la CI de la PR, corriger toute anomalie révélée, fusionner selon la gouvernance, puis vérifier la CI post-fusion sur `main`. La Phase 9 ne sera déclarée clôturée qu'après ces preuves effectives.
