@@ -127,6 +127,22 @@ Les contrats OpenAPI ont été gelés avant migrations et implémentation. La Ph
 ## Phase 9 — Messaging B2B
 Phase clôturée sur `main@6941f9108ce9ff3182201c03f8f0bb8df8342459`. Le périmètre couvre les conversations bilatérales REST, les invitations et participants explicites, les messages immuables et idempotents, le blocage relationnel, l'anti-abus persistant, l'audit et l'Outbox. Les preuves sont regroupées dans `Docs/88_PHASE_9_EXECUTION_EVIDENCE.md`; la CI PR #120 et la CI post-fusion Backend #39224474237 sont vertes. Le suivi GitHub est l'issue #114.
 
+## Phase 9.5 — FairScale V1 : Commercial Core, Pricing et Capacity
+
+**État : spécifiée, NON implémentée.** Phase intermédiaire obligatoire après Phase 9, avant Phase 10.
+
+Implémenter le modèle monétaire USD versionné, le catalogue tarifaire, les calculs déterministes, l'identité commerciale et l'unicité des promotions, les capacités d'établissements/enseignes et leurs extensions, ainsi que l'absence de plafond commercial d'utilisateurs dans les forfaits payants. Exiger migrations additives, contrats OpenAPI, tests PostgreSQL/E2E, CI et aucune régression des Phases 0–9.
+
+**Gates :** Docs/89, Docs/90, Docs/92 ; clôture documentée dans Docs/93 après CI PR et CI post-fusion.
+
+## Phase 9.6 — FairScale V1 : Billing, Paiements et Control Plane commercial
+
+**État : spécifiée, NON implémentée.** Dépend strictement de la clôture Phase 9.5.
+
+Implémenter cycle souscription payante, échéances, promotion welcome à usage unique, avantage annuel renouvelable, factures SaaS **distinctes de SALES tenant**, encaissements réellement vérifiés et adaptateur de paiement neutre, anti-rejeu, prorata, changements de plan, grâce/relance/annulation, commandes administrateur Billing minimales et scénario E2E complet. Ne pas prétendre livrer tout le Control Plane Phase 11.
+
+**Gates :** Docs/89, Docs/91, Docs/92 ; clôture documentée dans Docs/93 après CI PR et post-fusion. La Phase 10 ne débute qu'après l'intégration vérifiée des changements FairScale.
+
 ## Phase 10 — Intelligence
 
 ### 10A — déterministe
