@@ -21,6 +21,11 @@ on:
         required: false
         default: '127.0.0.1'
         type: string
+      database-port:
+        description: Port used to reach the isolated PostgreSQL container from the runner
+        required: false
+        default: '55432'
+        type: string
 
 permissions:
   contents: read
@@ -31,7 +36,7 @@ jobs:
     env:
       NODE_ENV: test
       PORT: 3000
-      DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || format('postgresql://postgres:postgres@{0}:55432/monarque_connect_test', inputs.database-host) }}
+      DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || format('postgresql://postgres:postgres@{0}:{1}/monarque_connect_test', inputs.database-host, inputs.database-port) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +50,9 @@ jobs:
         if: ${{ inputs.database-url == '' }}
         run: |
           docker rm -f monarque-ci-postgres >/dev/null 2>&1 || true
+          docker network create monarque-ci-net >/dev/null 2>&1 || true
           docker run -d --name monarque-ci-postgres \
+            --network monarque-ci-net \
             -e POSTGRES_USER=postgres \
             -e POSTGRES_PASSWORD=postgres \
             -e POSTGRES_DB=monarque_connect_test \
