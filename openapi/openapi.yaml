@@ -3203,6 +3203,99 @@ paths:
       responses:
         "200": { description: Tenant status updated }
 
+  /billing/catalog:
+    get:
+      security: []
+      tags: [Platform]
+      operationId: getBillingCatalog
+      responses:
+        "200":
+          description: Published FairScale USD price catalog
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FairScaleCatalog" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/billing/quotes:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Platform]
+      operationId: createBillingQuote
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBillingQuoteRequest" }
+      responses:
+        "201":
+          description: Deterministic server-priced quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingQuote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/billing/quotes/{quoteId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: quoteId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Platform]
+      operationId: getBillingQuote
+      responses:
+        "200":
+          description: Tenant-scoped quote snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingQuote" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/billing/capacity:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Platform]
+      operationId: getBillingCapacity
+      responses:
+        "200":
+          description: Effective tenant establishment capacity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingCapacity" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/billing/capacity/estimate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Platform]
+      operationId: estimateBillingCapacity
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EstimateBillingCapacityRequest" }
+      responses:
+        "200":
+          description: Capacity estimate without activation or payment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingCapacity" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
 components:
   securitySchemes:
@@ -5201,3 +5294,111 @@ components:
         destinationCashAccountId: { type: string, format: uuid }
         movements: { type: array, minItems: 2, maxItems: 2, items: { $ref: "#/components/schemas/CashMovement" } }
         createdAt: { type: string, format: date-time }
+    FairScalePlanCode:
+      type: string
+      enum: [CONNECT, OPERATIONS, BUSINESS, ENTERPRISE]
+    BillingPeriod:
+      type: string
+      enum: [MONTHLY, YEARLY]
+    BillingMoney:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Non-negative amount in USD minor units (cents); never a floating-point value.
+    BillingPrice:
+      type: object
+      additionalProperties: false
+      required: [planCode, catalogVersion, billingPeriod, currency, baseAmountMinor, welcomeAmountMinor, annualDiscountAmountMinor, includedEstablishments]
+      properties:
+        planCode: { $ref: "#/components/schemas/FairScalePlanCode" }
+        catalogVersion: { type: integer, minimum: 1 }
+        billingPeriod: { $ref: "#/components/schemas/BillingPeriod" }
+        currency: { type: string, const: USD }
+        baseAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        welcomeAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        annualDiscountAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        includedEstablishments: { type: integer, minimum: 1 }
+    BillingAddonPrice:
+      type: object
+      additionalProperties: false
+      required: [code, catalogVersion, billingPeriod, currency, amountMinor, capacityUnits]
+      properties:
+        code: { type: string, const: ESTABLISHMENT }
+        catalogVersion: { type: integer, minimum: 1 }
+        billingPeriod: { $ref: "#/components/schemas/BillingPeriod" }
+        currency: { type: string, const: USD }
+        amountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        capacityUnits: { type: integer, minimum: 1 }
+    FairScaleCatalog:
+      type: object
+      additionalProperties: false
+      required: [catalogVersion, currency, plans, addons, publishedAt]
+      properties:
+        catalogVersion: { type: integer, minimum: 1 }
+        currency: { type: string, const: USD }
+        plans: { type: array, minItems: 4, items: { $ref: "#/components/schemas/BillingPrice" } }
+        addons: { type: array, minItems: 2, items: { $ref: "#/components/schemas/BillingAddonPrice" } }
+        publishedAt: { type: string, format: date-time }
+    CreateBillingQuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [planCode, billingPeriod, activeEstablishmentCount]
+      properties:
+        planCode: { $ref: "#/components/schemas/FairScalePlanCode" }
+        billingPeriod: { $ref: "#/components/schemas/BillingPeriod" }
+        activeEstablishmentCount: { type: integer, minimum: 1, maximum: 10000 }
+        asOf: { type: string, format: date-time }
+    BillingQuoteLine:
+      type: object
+      additionalProperties: false
+      required: [code, description, quantity, unitAmountMinor, discountAmountMinor, totalAmountMinor]
+      properties:
+        code: { type: string }
+        description: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        unitAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        discountAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        totalAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+    BillingQuote:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, planCode, billingPeriod, currency, catalogVersion, baseAmountMinor, discountAmountMinor, addonAmountMinor, totalAmountMinor, activeEstablishmentCount, includedEstablishments, addonEstablishments, promotionCode, promotionStatus, lines, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        planCode: { $ref: "#/components/schemas/FairScalePlanCode" }
+        billingPeriod: { $ref: "#/components/schemas/BillingPeriod" }
+        currency: { type: string, const: USD }
+        catalogVersion: { type: integer, minimum: 1 }
+        baseAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        discountAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        addonAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        totalAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        activeEstablishmentCount: { type: integer, minimum: 1 }
+        includedEstablishments: { type: integer, minimum: 1 }
+        addonEstablishments: { type: integer, minimum: 0 }
+        promotionCode: { type: [string, 'null'], enum: [WELCOME_MONTHLY15, ANNUAL20, null] }
+        promotionStatus: { type: string, enum: [NONE, ELIGIBLE, RESERVED, CONSUMED] }
+        lines: { type: array, minItems: 1, items: { $ref: "#/components/schemas/BillingQuoteLine" } }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    EstimateBillingCapacityRequest:
+      type: object
+      additionalProperties: false
+      required: [activeEstablishmentCount, addonEstablishmentCount]
+      properties:
+        activeEstablishmentCount: { type: integer, minimum: 1, maximum: 10000 }
+        addonEstablishmentCount: { type: integer, minimum: 0, maximum: 10000 }
+    BillingCapacity:
+      type: object
+      additionalProperties: false
+      required: [organizationId, planCode, includedEstablishments, activeEstablishments, addonEstablishments, effectiveEstablishments, overCapacity, currency]
+      properties:
+        organizationId: { type: string, format: uuid }
+        planCode: { $ref: "#/components/schemas/FairScalePlanCode" }
+        includedEstablishments: { type: integer, minimum: 1 }
+        activeEstablishments: { type: integer, minimum: 0 }
+        addonEstablishments: { type: integer, minimum: 0 }
+        effectiveEstablishments: { type: integer, minimum: 1 }
+        overCapacity: { type: boolean }
+        currency: { type: string, const: USD }
