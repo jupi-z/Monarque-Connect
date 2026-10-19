@@ -35,6 +35,7 @@ The evidence manifest must also include the target environment, provider name, o
 - [x] Implement a deterministic deployment preflight with non-production bypass limited to local/test environments.
 - [x] Add regression tests for fail-closed behavior, placeholder secrets, expired evidence, environment mismatch and complete evidence.
 - [x] Add an explicit package command and environment template entries.
+- [x] Route internal pull requests through the dedicated `monarque-ci-pr-isolated` runner while retaining `ubuntu-latest` for fork pull requests; route trusted `main` validation through `monarque-ci`.
 - [ ] Select and configure a real payment provider or approve a separately audited manual payment circuit.
 - [ ] Execute and retain mandate, reconciliation, observability, backup/restore and compliance evidence for the target environment.
 - [ ] Re-run the canonical HTTP scenario and update Docs/92, Docs/93 and Docs/98 with the actual artifacts.
@@ -51,3 +52,7 @@ The evidence manifest must also include the target environment, provider name, o
 ## Current decision
 
 This plan makes the remaining work executable and prevents accidental commercial activation. It does not close Phase 9.6: the unchecked items are external facts that cannot be manufactured by repository changes.
+
+## CI runner policy
+
+The repository is public. Fork pull requests must not execute on a self-hosted machine and therefore retain the GitHub-hosted runner. Pull requests from this repository use the dedicated isolated label `monarque-ci-pr-isolated`; the trusted `main` workflow uses `monarque-ci`. Both runners must remain disposable, patched and free of long-lived credentials. This routing is a capacity workaround, not a substitute for review or for the external FairScale gates.
