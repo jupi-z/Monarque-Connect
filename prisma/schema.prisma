@@ -138,6 +138,78 @@ enum BillingPeriod {
   YEARLY
 }
 
+enum BillingTermStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELED
+  EXPIRED
+}
+
+enum BillingCheckoutStatus {
+  CREATED
+  PAYMENT_PENDING
+  PAID
+  CANCELED
+  EXPIRED
+}
+
+enum BillingInvoiceStatus {
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum BillingPaymentAttemptStatus {
+  CREATED
+  REQUIRES_ACTION
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum BillingPaymentStatus {
+  SUCCEEDED
+  PARTIALLY_REFUNDED
+  REFUNDED
+  CHARGEBACK
+}
+
+enum BillingRefundStatus {
+  REQUESTED
+  SUCCEEDED
+  FAILED
+}
+
+enum BillingProviderEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+enum BillingScheduledChangeKind {
+  PLAN_CHANGE
+  PERIOD_CHANGE
+  ADDON_CHANGE
+  CANCELLATION
+}
+
+enum BillingScheduledChangeStatus {
+  PENDING
+  APPLIED
+  CANCELED
+}
+
+enum BillingAddonStatus {
+  ACTIVE
+  SCHEDULED_TO_REMOVE
+  CANCELED
+}
+
 enum QuotaUnit {
   COUNT
   BYTES
@@ -594,30 +666,30 @@ model FoundationProbeProjection {
 }
 
 model User {
-  id                   String           @id @db.Uuid
-  email                String           @db.VarChar(320)
-  normalizedEmail      String           @unique @map("normalized_email") @db.VarChar(320)
-  phone                String?          @db.VarChar(40)
-  passwordHash         String           @map("password_hash") @db.VarChar(255)
-  firstName            String           @map("first_name") @db.VarChar(100)
-  lastName             String           @map("last_name") @db.VarChar(100)
-  status               UserStatus       @default(ACTIVE)
-  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  memberships          Membership[]
-  refreshSessions      RefreshSession[]
-  createdExpenses      Expense[]
-  createdCashAccounts  CashAccount[]
-  createdCashMovements CashMovement[]
-  createdMessagingConversations Conversation[] @relation("MessagingConversationCreatedBy")
+  id                                String                                @id @db.Uuid
+  email                             String                                @db.VarChar(320)
+  normalizedEmail                   String                                @unique @map("normalized_email") @db.VarChar(320)
+  phone                             String?                               @db.VarChar(40)
+  passwordHash                      String                                @map("password_hash") @db.VarChar(255)
+  firstName                         String                                @map("first_name") @db.VarChar(100)
+  lastName                          String                                @map("last_name") @db.VarChar(100)
+  status                            UserStatus                            @default(ACTIVE)
+  createdAt                         DateTime                              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                         DateTime                              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  memberships                       Membership[]
+  refreshSessions                   RefreshSession[]
+  createdExpenses                   Expense[]
+  createdCashAccounts               CashAccount[]
+  createdCashMovements              CashMovement[]
+  createdMessagingConversations     Conversation[]                        @relation("MessagingConversationCreatedBy")
   messagingOrganizationParticipants ConversationOrganizationParticipant[] @relation("MessagingOrganizationParticipantCreatedBy")
-  messagingUserParticipants         ConversationUserParticipant[] @relation("MessagingUserParticipantUser")
-  authoredMessages                   Message[] @relation("MessageAuthor")
-  createdMessagingInvitations        MessagingInvitation[] @relation("MessagingInvitationCreatedBy")
-  targetedMessagingInvitations       MessagingInvitation[] @relation("MessagingInvitationTargetUser")
-  createdMessagingBlocks             MessagingOrganizationBlock[] @relation("MessagingBlockCreatedBy")
-  networkTrustCommandReceipts        NetworkTrustCommandReceipt[]
-  messagingCommandReceipts           MessagingCommandReceipt[]
+  messagingUserParticipants         ConversationUserParticipant[]         @relation("MessagingUserParticipantUser")
+  authoredMessages                  Message[]                             @relation("MessageAuthor")
+  createdMessagingInvitations       MessagingInvitation[]                 @relation("MessagingInvitationCreatedBy")
+  targetedMessagingInvitations      MessagingInvitation[]                 @relation("MessagingInvitationTargetUser")
+  createdMessagingBlocks            MessagingOrganizationBlock[]          @relation("MessagingBlockCreatedBy")
+  networkTrustCommandReceipts       NetworkTrustCommandReceipt[]
+  messagingCommandReceipts          MessagingCommandReceipt[]
 
   @@index([status])
   @@map("users")
@@ -683,11 +755,11 @@ model ModuleCatalog {
 }
 
 model Plan {
-  code           String        @id @db.VarChar(64)
-  name           String        @db.VarChar(160)
-  description    String?       @db.VarChar(500)
-  managedService Boolean       @default(false) @map("managed_service")
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  code           String         @id @db.VarChar(64)
+  name           String         @db.VarChar(160)
+  description    String?        @db.VarChar(500)
+  managedService Boolean        @default(false) @map("managed_service")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   versions       PlanVersion[]
   priceVersions  PriceVersion[]
 
@@ -743,7 +815,7 @@ model PriceVersion {
   id                        String             @id @db.Uuid
   planCode                  String             @map("plan_code") @db.VarChar(64)
   version                   Int
-  billingPeriod             BillingPeriod     @map("billing_period")
+  billingPeriod             BillingPeriod      @map("billing_period")
   currency                  String             @db.Char(3)
   status                    PriceVersionStatus
   baseAmountMinor           BigInt             @map("base_amount_minor")
@@ -764,15 +836,15 @@ model PriceVersion {
 }
 
 model PriceComponent {
-  id             String            @id @db.Uuid
-  priceVersionId String            @map("price_version_id") @db.Uuid
-  code           String            @db.VarChar(64)
+  id             String             @id @db.Uuid
+  priceVersionId String             @map("price_version_id") @db.Uuid
+  code           String             @db.VarChar(64)
   kind           PriceComponentKind
-  currency       String            @db.Char(3)
-  amountMinor    BigInt            @map("amount_minor")
-  capacityUnits  Int               @map("capacity_units")
-  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  priceVersion   PriceVersion      @relation(fields: [priceVersionId], references: [id], onDelete: Cascade)
+  currency       String             @db.Char(3)
+  amountMinor    BigInt             @map("amount_minor")
+  capacityUnits  Int                @map("capacity_units")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  priceVersion   PriceVersion       @relation(fields: [priceVersionId], references: [id], onDelete: Cascade)
 
   @@unique([priceVersionId, code])
   @@index([code, kind])
@@ -780,31 +852,37 @@ model PriceComponent {
 }
 
 model BillingCustomer {
-  id                   String                         @id @db.Uuid
-  identityKey          String?                        @unique @map("identity_key") @db.VarChar(200)
-  displayName          String                         @map("display_name") @db.VarChar(200)
+  id                   String                        @id @db.Uuid
+  identityKey          String?                       @unique @map("identity_key") @db.VarChar(200)
+  displayName          String                        @map("display_name") @db.VarChar(200)
   status               BillingCustomerStatus         @default(UNVERIFIED)
-  verifiedAt           DateTime?                      @map("verified_at") @db.Timestamptz(6)
-  createdAt            DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime                       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  verifiedAt           DateTime?                     @map("verified_at") @db.Timestamptz(6)
+  createdAt            DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                      @updatedAt @map("updated_at") @db.Timestamptz(6)
   organizations        BillingCustomerOrganization[]
   quotes               BillingQuote[]
   promotionRedemptions BillingPromotionRedemption[]
   promotionEligibility BillingPromotionEligibility[]
+  subscriptionTerms    BillingSubscriptionTerm[]
+  checkoutOrders       BillingCheckoutOrder[]
+  invoices             BillingInvoice[]
+  paymentAttempts      BillingPaymentAttempt[]
+  payments             BillingPayment[]
+  providerEvents       BillingProviderEventInbox[]
 
   @@index([status, createdAt])
   @@map("billing_customers")
 }
 
 model BillingCustomerOrganization {
-  billingCustomerId String                            @map("billing_customer_id") @db.Uuid
-  organizationId    String                            @map("organization_id") @db.Uuid
-  role              BillingCustomerOrganizationRole  @default(OWNER)
-  evidenceJson      Json                              @default("{}") @map("evidence_json")
-  verifiedAt        DateTime?                         @map("verified_at") @db.Timestamptz(6)
-  createdAt         DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
-  billingCustomer   BillingCustomer                   @relation(fields: [billingCustomerId], references: [id], onDelete: Cascade)
-  organization      Organization                      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  billingCustomerId String                          @map("billing_customer_id") @db.Uuid
+  organizationId    String                          @map("organization_id") @db.Uuid
+  role              BillingCustomerOrganizationRole @default(OWNER)
+  evidenceJson      Json                            @default("{}") @map("evidence_json")
+  verifiedAt        DateTime?                       @map("verified_at") @db.Timestamptz(6)
+  createdAt         DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  billingCustomer   BillingCustomer                 @relation(fields: [billingCustomerId], references: [id], onDelete: Cascade)
+  organization      Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@id([billingCustomerId, organizationId])
   @@index([organizationId])
@@ -812,33 +890,35 @@ model BillingCustomerOrganization {
 }
 
 model BillingQuote {
-  id                       String                    @id @db.Uuid
-  organizationId           String                    @map("organization_id") @db.Uuid
-  billingCustomerId        String                    @map("billing_customer_id") @db.Uuid
-  priceVersionId           String                    @map("price_version_id") @db.Uuid
-  idempotencyKey           String                    @map("idempotency_key") @db.VarChar(200)
+  id                       String                       @id @db.Uuid
+  organizationId           String                       @map("organization_id") @db.Uuid
+  billingCustomerId        String                       @map("billing_customer_id") @db.Uuid
+  priceVersionId           String                       @map("price_version_id") @db.Uuid
+  idempotencyKey           String                       @map("idempotency_key") @db.VarChar(200)
   status                   BillingQuoteStatus
-  planCode                 String                    @map("plan_code") @db.VarChar(64)
-  billingPeriod            BillingPeriod             @map("billing_period")
-  currency                 String                    @db.Char(3)
-  catalogVersion           Int                       @map("catalog_version")
-  baseAmountMinor          BigInt                    @map("base_amount_minor")
-  discountAmountMinor      BigInt                    @map("discount_amount_minor")
-  addonAmountMinor         BigInt                    @map("addon_amount_minor")
-  totalAmountMinor         BigInt                    @map("total_amount_minor")
-  activeEstablishmentCount Int                       @map("active_establishment_count")
-  includedEstablishments   Int                       @map("included_establishments")
-  addonEstablishments      Int                       @map("addon_establishments")
-  promotionCode            String?                   @map("promotion_code") @db.VarChar(80)
-  promotionStatus          BillingPromotionStatus   @default(NONE) @map("promotion_status")
-  expiresAt                DateTime                  @map("expires_at") @db.Timestamptz(6)
-  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  billingCustomer          BillingCustomer           @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
-  priceVersion             PriceVersion              @relation(fields: [priceVersionId], references: [id], onDelete: Restrict)
+  planCode                 String                       @map("plan_code") @db.VarChar(64)
+  billingPeriod            BillingPeriod                @map("billing_period")
+  currency                 String                       @db.Char(3)
+  catalogVersion           Int                          @map("catalog_version")
+  baseAmountMinor          BigInt                       @map("base_amount_minor")
+  discountAmountMinor      BigInt                       @map("discount_amount_minor")
+  addonAmountMinor         BigInt                       @map("addon_amount_minor")
+  totalAmountMinor         BigInt                       @map("total_amount_minor")
+  activeEstablishmentCount Int                          @map("active_establishment_count")
+  includedEstablishments   Int                          @map("included_establishments")
+  addonEstablishments      Int                          @map("addon_establishments")
+  promotionCode            String?                      @map("promotion_code") @db.VarChar(80)
+  promotionStatus          BillingPromotionStatus       @default(NONE) @map("promotion_status")
+  expiresAt                DateTime                     @map("expires_at") @db.Timestamptz(6)
+  createdAt                DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization             Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  billingCustomer          BillingCustomer              @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
+  priceVersion             PriceVersion                 @relation(fields: [priceVersionId], references: [id], onDelete: Restrict)
   lines                    BillingQuoteLine[]
   promotionRedemptions     BillingPromotionRedemption[]
+  subscriptionTerm         BillingSubscriptionTerm?
+  checkoutOrder            BillingCheckoutOrder?
 
   @@unique([organizationId, idempotencyKey])
   @@index([organizationId, createdAt])
@@ -847,17 +927,17 @@ model BillingQuote {
 }
 
 model BillingQuoteLine {
-  id                  String        @id @db.Uuid
-  quoteId             String        @map("quote_id") @db.Uuid
-  code                String        @db.VarChar(64)
-  description         String        @db.VarChar(240)
+  id                  String       @id @db.Uuid
+  quoteId             String       @map("quote_id") @db.Uuid
+  code                String       @db.VarChar(64)
+  description         String       @db.VarChar(240)
   quantity            Int
-  unitAmountMinor     BigInt        @map("unit_amount_minor")
-  discountAmountMinor BigInt        @map("discount_amount_minor")
-  totalAmountMinor    BigInt        @map("total_amount_minor")
-  currency            String        @db.Char(3)
-  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  quote               BillingQuote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  unitAmountMinor     BigInt       @map("unit_amount_minor")
+  discountAmountMinor BigInt       @map("discount_amount_minor")
+  totalAmountMinor    BigInt       @map("total_amount_minor")
+  currency            String       @db.Char(3)
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  quote               BillingQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
   @@index([quoteId, code])
   @@map("billing_quote_lines")
@@ -877,10 +957,13 @@ model BillingPromotionRedemption {
   releasedAt        DateTime?              @map("released_at") @db.Timestamptz(6)
   billingCustomer   BillingCustomer        @relation(fields: [billingCustomerId], references: [id], onDelete: Cascade)
   quote             BillingQuote?          @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  billingInvoiceId  String?                @map("billing_invoice_id") @db.Uuid
+  billingInvoice    BillingInvoice?        @relation(fields: [billingInvoiceId], references: [id], onDelete: SetNull)
 
   @@unique([billingCustomerId, promotionCode, billingPeriod, sequence])
   @@unique([quoteId, promotionCode])
   @@index([billingCustomerId, promotionCode, status])
+  @@index([billingInvoiceId])
   @@map("billing_promotion_redemptions")
 }
 
@@ -902,78 +985,86 @@ model BillingPromotionEligibility {
 }
 
 model Organization {
-  id                              String                         @id @db.Uuid
-  businessTypeCode                String                         @map("business_type_code") @db.VarChar(64)
-  name                            String                         @db.VarChar(160)
-  legalName                       String?                        @map("legal_name") @db.VarChar(200)
-  handle                          String                         @unique @db.VarChar(50)
-  defaultCurrency                 String                         @map("default_currency") @db.Char(3)
-  status                          OrganizationStatus             @default(ACTIVE)
-  createdAt                       DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                       DateTime                       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  businessType                    BusinessType                   @relation(fields: [businessTypeCode], references: [code])
-  establishments                  Establishment[]
-  memberships                     Membership[]
-  invitations                     Invitation[]
-  auditEvents                     AuditEvent[]
-  subscriptions                   Subscription[]
-  moduleActivations               OrganizationModuleActivation[]
-  quotaUsages                     OrganizationQuotaUsage[]
-  quotaReservations               QuotaReservation[]
-  quotaLedgers                    QuotaLedger[]
-  entitlements                    OrganizationEntitlement[]
-  businessParties                 BusinessParty[]
-  items                           Item[]
-  warehouses                      Warehouse[]
-  leads                           Lead[]
-  opportunities                   Opportunity[]
-  networkProfile                  OrganizationNetworkProfile?
-  networkTrust                    OrganizationNetworkTrust?
-  connectionRequestsSent          ConnectionRequest[]            @relation("ConnectionRequestsSent")
-  connectionRequestsReceived      ConnectionRequest[]            @relation("ConnectionRequestsReceived")
-  networkInquiriesSent            NetworkInquiry[]               @relation("NetworkInquiriesSent")
-  networkInquiriesReceived        NetworkInquiry[]               @relation("NetworkInquiriesReceived")
-  salesNumberCounters             SalesNumberCounter[]
-  quotes                          Quote[]
-  salesOrders                     SalesOrder[]
-  invoices                        Invoice[]
-  paymentRecords                  PaymentRecord[]
-  supplierRfqs                    SupplierRFQ[]
-  purchaseOrders                  PurchaseOrder[]
-  goodsReceipts                   GoodsReceipt[]
-  goodsReceiptInventoryLinks      GoodsReceiptInventoryLink[]
-  goodsReceiptInventoryEntries    GoodsReceiptInventoryEntry[]
-  inventoryMovements              InventoryMovement[]
-  inventoryBalances               InventoryBalance[]
-  inventoryReconciliations        InventoryReconciliation[]
-  expenses                        Expense[]
-  expenseIdempotencyKeys          ExpenseIdempotencyKey[]
-  cashAccounts                    CashAccount[]
-  cashMovements                   CashMovement[]
-  cashAccountIdempotencyKeys      CashAccountIdempotencyKey[]
-  cashMovementIdempotencyKeys     CashMovementIdempotencyKey[]
-  purchaseIdempotencyKeys         PurchaseIdempotencyKey[]
-  projects                        Project[]
-  tasks                           Task[]
-  documents                       Document[]
-  documentLinks                   DocumentLink[]
-  phase8IdempotencyKeys           Phase8IdempotencyKey[]
-  messagingConversationsLow       Conversation[]                  @relation("MessagingConversationLow")
-  messagingConversationsHigh      Conversation[]                  @relation("MessagingConversationHigh")
+  id                                String                                @id @db.Uuid
+  businessTypeCode                  String                                @map("business_type_code") @db.VarChar(64)
+  name                              String                                @db.VarChar(160)
+  legalName                         String?                               @map("legal_name") @db.VarChar(200)
+  handle                            String                                @unique @db.VarChar(50)
+  defaultCurrency                   String                                @map("default_currency") @db.Char(3)
+  status                            OrganizationStatus                    @default(ACTIVE)
+  createdAt                         DateTime                              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                         DateTime                              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  businessType                      BusinessType                          @relation(fields: [businessTypeCode], references: [code])
+  establishments                    Establishment[]
+  memberships                       Membership[]
+  invitations                       Invitation[]
+  auditEvents                       AuditEvent[]
+  subscriptions                     Subscription[]
+  moduleActivations                 OrganizationModuleActivation[]
+  quotaUsages                       OrganizationQuotaUsage[]
+  quotaReservations                 QuotaReservation[]
+  quotaLedgers                      QuotaLedger[]
+  entitlements                      OrganizationEntitlement[]
+  businessParties                   BusinessParty[]
+  items                             Item[]
+  warehouses                        Warehouse[]
+  leads                             Lead[]
+  opportunities                     Opportunity[]
+  networkProfile                    OrganizationNetworkProfile?
+  networkTrust                      OrganizationNetworkTrust?
+  connectionRequestsSent            ConnectionRequest[]                   @relation("ConnectionRequestsSent")
+  connectionRequestsReceived        ConnectionRequest[]                   @relation("ConnectionRequestsReceived")
+  networkInquiriesSent              NetworkInquiry[]                      @relation("NetworkInquiriesSent")
+  networkInquiriesReceived          NetworkInquiry[]                      @relation("NetworkInquiriesReceived")
+  salesNumberCounters               SalesNumberCounter[]
+  quotes                            Quote[]
+  salesOrders                       SalesOrder[]
+  invoices                          Invoice[]
+  paymentRecords                    PaymentRecord[]
+  supplierRfqs                      SupplierRFQ[]
+  purchaseOrders                    PurchaseOrder[]
+  goodsReceipts                     GoodsReceipt[]
+  goodsReceiptInventoryLinks        GoodsReceiptInventoryLink[]
+  goodsReceiptInventoryEntries      GoodsReceiptInventoryEntry[]
+  inventoryMovements                InventoryMovement[]
+  inventoryBalances                 InventoryBalance[]
+  inventoryReconciliations          InventoryReconciliation[]
+  expenses                          Expense[]
+  expenseIdempotencyKeys            ExpenseIdempotencyKey[]
+  cashAccounts                      CashAccount[]
+  cashMovements                     CashMovement[]
+  cashAccountIdempotencyKeys        CashAccountIdempotencyKey[]
+  cashMovementIdempotencyKeys       CashMovementIdempotencyKey[]
+  purchaseIdempotencyKeys           PurchaseIdempotencyKey[]
+  projects                          Project[]
+  tasks                             Task[]
+  documents                         Document[]
+  documentLinks                     DocumentLink[]
+  phase8IdempotencyKeys             Phase8IdempotencyKey[]
+  messagingConversationsLow         Conversation[]                        @relation("MessagingConversationLow")
+  messagingConversationsHigh        Conversation[]                        @relation("MessagingConversationHigh")
   messagingOrganizationParticipants ConversationOrganizationParticipant[]
-  messagingUserParticipants        ConversationUserParticipant[]
-  messagingInvitationsSent         MessagingInvitation[]            @relation("MessagingInvitationOrganization")
-  messagingInvitationsTargeted     MessagingInvitation[]            @relation("MessagingInvitationTargetOrganization")
-  messagingMessages                Message[]                        @relation("MessageSourceOrganization")
-  messagingBlocksCreated           MessagingOrganizationBlock[]     @relation("MessagingBlockSourceOrganization")
-  messagingBlocksTargeted          MessagingOrganizationBlock[]     @relation("MessagingBlockTargetOrganization")
-  messagingRateBuckets             MessagingRateBucket[]
-  networkTrustCommandReceipts      NetworkTrustCommandReceipt[]
-  messagingCommandReceipts         MessagingCommandReceipt[]
-  networkSupplierRfqRecipients    SupplierRFQRecipient[]         @relation("NetworkSupplierRFQRecipients")
-  purchaseOrdersAsNetworkSupplier PurchaseOrder[]                @relation("PurchaseOrderSupplierOrganization")
-  billingCustomerOrganizations    BillingCustomerOrganization[]
-  billingQuotes                   BillingQuote[]
+  messagingUserParticipants         ConversationUserParticipant[]
+  messagingInvitationsSent          MessagingInvitation[]                 @relation("MessagingInvitationOrganization")
+  messagingInvitationsTargeted      MessagingInvitation[]                 @relation("MessagingInvitationTargetOrganization")
+  messagingMessages                 Message[]                             @relation("MessageSourceOrganization")
+  messagingBlocksCreated            MessagingOrganizationBlock[]          @relation("MessagingBlockSourceOrganization")
+  messagingBlocksTargeted           MessagingOrganizationBlock[]          @relation("MessagingBlockTargetOrganization")
+  messagingRateBuckets              MessagingRateBucket[]
+  networkTrustCommandReceipts       NetworkTrustCommandReceipt[]
+  messagingCommandReceipts          MessagingCommandReceipt[]
+  networkSupplierRfqRecipients      SupplierRFQRecipient[]                @relation("NetworkSupplierRFQRecipients")
+  purchaseOrdersAsNetworkSupplier   PurchaseOrder[]                       @relation("PurchaseOrderSupplierOrganization")
+  billingCustomerOrganizations      BillingCustomerOrganization[]
+  billingQuotes                     BillingQuote[]
+  billingSubscriptionTerms          BillingSubscriptionTerm[]
+  billingCheckoutOrders             BillingCheckoutOrder[]
+  billingInvoices                   BillingInvoice[]
+  billingPaymentAttempts            BillingPaymentAttempt[]
+  billingPayments                   BillingPayment[]
+  billingSubscriptionAddons         BillingSubscriptionAddon[]
+  billingScheduledChanges           BillingScheduledChange[]
+  billingProviderEvents             BillingProviderEventInbox[]
 
   @@index([businessTypeCode])
   @@index([status])
@@ -1028,21 +1119,270 @@ model ConnectionRequest {
 }
 
 model Subscription {
-  id             String             @id @db.Uuid
-  organizationId String             @map("organization_id") @db.Uuid
-  planVersionId  String             @map("plan_version_id") @db.Uuid
+  id             String                   @id @db.Uuid
+  organizationId String                   @map("organization_id") @db.Uuid
+  planVersionId  String                   @map("plan_version_id") @db.Uuid
   status         SubscriptionStatus
-  startsAt       DateTime           @map("starts_at") @db.Timestamptz(6)
-  endsAt         DateTime?          @map("ends_at") @db.Timestamptz(6)
-  canceledAt     DateTime?          @map("canceled_at") @db.Timestamptz(6)
-  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  planVersion    PlanVersion        @relation(fields: [planVersionId], references: [id], onDelete: Restrict)
+  startsAt       DateTime                 @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime?                @map("ends_at") @db.Timestamptz(6)
+  canceledAt     DateTime?                @map("canceled_at") @db.Timestamptz(6)
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  planVersion    PlanVersion              @relation(fields: [planVersionId], references: [id], onDelete: Restrict)
+  billingTerm    BillingSubscriptionTerm?
 
   @@index([organizationId, status, startsAt, endsAt])
   @@index([planVersionId])
   @@map("subscriptions")
+}
+
+model BillingSubscriptionTerm {
+  id                  String                     @id @db.Uuid
+  billingCustomerId   String                     @map("billing_customer_id") @db.Uuid
+  organizationId      String                     @map("organization_id") @db.Uuid
+  subscriptionId      String                     @unique @map("subscription_id") @db.Uuid
+  sourceQuoteId       String?                    @unique @map("source_quote_id") @db.Uuid
+  status              BillingTermStatus
+  planCode            String                     @map("plan_code") @db.VarChar(64)
+  billingPeriod       BillingPeriod              @map("billing_period")
+  currency            String                     @db.Char(3)
+  catalogVersion      Int                        @map("catalog_version")
+  baseAmountMinor     BigInt                     @map("base_amount_minor")
+  discountAmountMinor BigInt                     @map("discount_amount_minor")
+  addonAmountMinor    BigInt                     @map("addon_amount_minor")
+  totalAmountMinor    BigInt                     @map("total_amount_minor")
+  startsAt            DateTime                   @map("starts_at") @db.Timestamptz(6)
+  currentPeriodStart  DateTime                   @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd    DateTime                   @map("current_period_end") @db.Timestamptz(6)
+  nextRenewalAt       DateTime?                  @map("next_renewal_at") @db.Timestamptz(6)
+  canceledAt          DateTime?                  @map("canceled_at") @db.Timestamptz(6)
+  createdAt           DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  billingCustomer     BillingCustomer            @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
+  organization        Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription        Subscription               @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  sourceQuote         BillingQuote?              @relation(fields: [sourceQuoteId], references: [id], onDelete: Restrict)
+  checkoutOrders      BillingCheckoutOrder[]
+  invoices            BillingInvoice[]
+  paymentAttempts     BillingPaymentAttempt[]
+  addons              BillingSubscriptionAddon[]
+  scheduledChanges    BillingScheduledChange[]
+
+  @@index([organizationId, status, currentPeriodEnd])
+  @@index([billingCustomerId, status, currentPeriodEnd])
+  @@map("billing_subscription_terms")
+}
+
+model BillingCheckoutOrder {
+  id                 String                   @id @db.Uuid
+  organizationId     String                   @map("organization_id") @db.Uuid
+  billingCustomerId  String                   @map("billing_customer_id") @db.Uuid
+  subscriptionTermId String?                  @map("subscription_term_id") @db.Uuid
+  quoteId            String                   @unique @map("quote_id") @db.Uuid
+  idempotencyKey     String                   @map("idempotency_key") @db.VarChar(200)
+  status             BillingCheckoutStatus
+  currency           String                   @db.Char(3)
+  amountMinor        BigInt                   @map("amount_minor")
+  expiresAt          DateTime                 @map("expires_at") @db.Timestamptz(6)
+  createdAt          DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  billingCustomer    BillingCustomer          @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
+  subscriptionTerm   BillingSubscriptionTerm? @relation(fields: [subscriptionTermId], references: [id], onDelete: Restrict)
+  quote              BillingQuote             @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  paymentAttempts    BillingPaymentAttempt[]
+  invoice            BillingInvoice?
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, status, createdAt])
+  @@map("billing_checkout_orders")
+}
+
+model BillingInvoice {
+  id                   String                       @id @db.Uuid
+  billingCustomerId    String                       @map("billing_customer_id") @db.Uuid
+  organizationId       String                       @map("organization_id") @db.Uuid
+  subscriptionTermId   String                       @map("subscription_term_id") @db.Uuid
+  checkoutOrderId      String?                      @unique @map("checkout_order_id") @db.Uuid
+  number               String                       @unique @db.VarChar(40)
+  sequence             Int
+  status               BillingInvoiceStatus
+  currency             String                       @db.Char(3)
+  periodStart          DateTime                     @map("period_start") @db.Timestamptz(6)
+  periodEnd            DateTime                     @map("period_end") @db.Timestamptz(6)
+  subtotalMinor        BigInt                       @map("subtotal_minor")
+  discountMinor        BigInt                       @map("discount_minor")
+  taxMinor             BigInt                       @default(0) @map("tax_minor")
+  totalMinor           BigInt                       @map("total_minor")
+  amountPaidMinor      BigInt                       @default(0) @map("amount_paid_minor")
+  issuedAt             DateTime                     @default(now()) @map("issued_at") @db.Timestamptz(6)
+  dueAt                DateTime                     @map("due_at") @db.Timestamptz(6)
+  paidAt               DateTime?                    @map("paid_at") @db.Timestamptz(6)
+  voidedAt             DateTime?                    @map("voided_at") @db.Timestamptz(6)
+  billingCustomer      BillingCustomer              @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
+  organization         Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscriptionTerm     BillingSubscriptionTerm      @relation(fields: [subscriptionTermId], references: [id], onDelete: Restrict)
+  checkoutOrder        BillingCheckoutOrder?        @relation(fields: [checkoutOrderId], references: [id], onDelete: Restrict)
+  lines                BillingInvoiceLine[]
+  paymentAttempts      BillingPaymentAttempt[]
+  payments             BillingPayment[]
+  promotionRedemptions BillingPromotionRedemption[]
+
+  @@unique([subscriptionTermId, sequence])
+  @@unique([subscriptionTermId, periodStart, periodEnd])
+  @@index([organizationId, status, issuedAt])
+  @@index([billingCustomerId, status, issuedAt])
+  @@map("billing_invoices")
+}
+
+model BillingInvoiceLine {
+  id              String         @id @db.Uuid
+  invoiceId       String         @map("invoice_id") @db.Uuid
+  lineIndex       Int            @map("line_index")
+  code            String         @db.VarChar(64)
+  description     String         @db.VarChar(240)
+  quantity        Int
+  unitAmountMinor BigInt         @map("unit_amount_minor")
+  discountMinor   BigInt         @map("discount_minor")
+  totalMinor      BigInt         @map("total_minor")
+  currency        String         @db.Char(3)
+  invoice         BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceId, lineIndex])
+  @@map("billing_invoice_lines")
+}
+
+model BillingPaymentAttempt {
+  id                 String                      @id @db.Uuid
+  billingCustomerId  String                      @map("billing_customer_id") @db.Uuid
+  organizationId     String                      @map("organization_id") @db.Uuid
+  subscriptionTermId String?                     @map("subscription_term_id") @db.Uuid
+  checkoutOrderId    String?                     @map("checkout_order_id") @db.Uuid
+  invoiceId          String?                     @map("invoice_id") @db.Uuid
+  idempotencyKey     String                      @map("idempotency_key") @db.VarChar(200)
+  provider           String                      @db.VarChar(64)
+  providerPaymentId  String?                     @map("provider_payment_id") @db.VarChar(200)
+  status             BillingPaymentAttemptStatus
+  amountMinor        BigInt                      @map("amount_minor")
+  currency           String                      @db.Char(3)
+  failureCode        String?                     @map("failure_code") @db.VarChar(120)
+  createdAt          DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  billingCustomer    BillingCustomer             @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
+  organization       Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscriptionTerm   BillingSubscriptionTerm?    @relation(fields: [subscriptionTermId], references: [id], onDelete: Restrict)
+  checkoutOrder      BillingCheckoutOrder?       @relation(fields: [checkoutOrderId], references: [id], onDelete: Restrict)
+  invoice            BillingInvoice?             @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  payment            BillingPayment?
+
+  @@unique([organizationId, idempotencyKey])
+  @@unique([provider, providerPaymentId])
+  @@index([organizationId, status, createdAt])
+  @@map("billing_payment_attempts")
+}
+
+model BillingPayment {
+  id                    String                @id @db.Uuid
+  paymentAttemptId      String                @unique @map("payment_attempt_id") @db.Uuid
+  billingCustomerId     String                @map("billing_customer_id") @db.Uuid
+  organizationId        String                @map("organization_id") @db.Uuid
+  invoiceId             String                @map("invoice_id") @db.Uuid
+  provider              String                @db.VarChar(64)
+  externalTransactionId String                @unique @map("external_transaction_id") @db.VarChar(200)
+  status                BillingPaymentStatus
+  amountMinor           BigInt                @map("amount_minor")
+  currency              String                @db.Char(3)
+  receivedAt            DateTime              @default(now()) @map("received_at") @db.Timestamptz(6)
+  paymentAttempt        BillingPaymentAttempt @relation(fields: [paymentAttemptId], references: [id], onDelete: Restrict)
+  billingCustomer       BillingCustomer       @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
+  organization          Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice               BillingInvoice        @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  refunds               BillingRefund[]
+
+  @@index([organizationId, receivedAt])
+  @@map("billing_payments")
+}
+
+model BillingRefund {
+  id               String              @id @db.Uuid
+  paymentId        String              @map("payment_id") @db.Uuid
+  providerRefundId String?             @unique @map("provider_refund_id") @db.VarChar(200)
+  amountMinor      BigInt              @map("amount_minor")
+  currency         String              @db.Char(3)
+  status           BillingRefundStatus
+  reason           String              @db.VarChar(240)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  payment          BillingPayment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId, createdAt])
+  @@map("billing_refunds")
+}
+
+model BillingProviderEventInbox {
+  id                String                     @id @db.Uuid
+  provider          String                     @db.VarChar(64)
+  providerEventId   String                     @map("provider_event_id") @db.VarChar(200)
+  organizationId    String?                    @map("organization_id") @db.Uuid
+  billingCustomerId String?                    @map("billing_customer_id") @db.Uuid
+  eventType         String                     @map("event_type") @db.VarChar(120)
+  payloadHash       String                     @map("payload_hash") @db.Char(64)
+  status            BillingProviderEventStatus
+  failureReason     String?                    @map("failure_reason") @db.VarChar(240)
+  attemptCount      Int                        @default(0) @map("attempt_count")
+  receivedAt        DateTime                   @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt       DateTime?                  @map("processed_at") @db.Timestamptz(6)
+  organization      Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  billingCustomer   BillingCustomer?           @relation(fields: [billingCustomerId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerEventId])
+  @@index([status, receivedAt])
+  @@index([organizationId, receivedAt])
+  @@map("billing_provider_event_inbox")
+}
+
+model BillingSubscriptionAddon {
+  id                 String                  @id @db.Uuid
+  subscriptionTermId String                  @map("subscription_term_id") @db.Uuid
+  organizationId     String                  @map("organization_id") @db.Uuid
+  code               String                  @db.VarChar(64)
+  status             BillingAddonStatus
+  quantity           Int
+  billingPeriod      BillingPeriod           @map("billing_period")
+  currency           String                  @db.Char(3)
+  unitAmountMinor    BigInt                  @map("unit_amount_minor")
+  startsAt           DateTime                @map("starts_at") @db.Timestamptz(6)
+  endsAt             DateTime?               @map("ends_at") @db.Timestamptz(6)
+  scheduledEndAt     DateTime?               @map("scheduled_end_at") @db.Timestamptz(6)
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  subscriptionTerm   BillingSubscriptionTerm @relation(fields: [subscriptionTermId], references: [id], onDelete: Restrict)
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionTermId, code, startsAt])
+  @@index([organizationId, status, startsAt])
+  @@map("billing_subscription_addons")
+}
+
+model BillingScheduledChange {
+  id                  String                       @id @db.Uuid
+  subscriptionTermId  String                       @map("subscription_term_id") @db.Uuid
+  organizationId      String                       @map("organization_id") @db.Uuid
+  kind                BillingScheduledChangeKind
+  status              BillingScheduledChangeStatus
+  effectiveAt         DateTime                     @map("effective_at") @db.Timestamptz(6)
+  targetPlanCode      String?                      @map("target_plan_code") @db.VarChar(64)
+  targetBillingPeriod BillingPeriod?               @map("target_billing_period")
+  targetStateJson     Json                         @default("{}") @map("target_state_json")
+  requestedByUserId   String?                      @map("requested_by_user_id") @db.Uuid
+  createdAt           DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  appliedAt           DateTime?                    @map("applied_at") @db.Timestamptz(6)
+  canceledAt          DateTime?                    @map("canceled_at") @db.Timestamptz(6)
+  subscriptionTerm    BillingSubscriptionTerm      @relation(fields: [subscriptionTermId], references: [id], onDelete: Restrict)
+  organization        Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, effectiveAt])
+  @@index([subscriptionTermId, kind, status])
+  @@map("billing_scheduled_changes")
 }
 
 model OrganizationModuleActivation {
@@ -1151,36 +1491,36 @@ model QuotaLedger {
 }
 
 model Establishment {
-  id                         String                         @id @db.Uuid
-  organizationId             String                         @map("organization_id") @db.Uuid
-  code                       String                         @db.VarChar(50)
-  name                       String                         @db.VarChar(160)
-  type                       EstablishmentType
-  isPrimary                  Boolean                        @default(false) @map("is_primary")
-  status                     EstablishmentStatus            @default(ACTIVE)
-  addressJson                Json?                          @map("address_json")
-  createdAt                  DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                  DateTime                       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  organization               Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  scopeLinks                 MembershipEstablishmentScope[]
-  invitationScopeLinks       InvitationEstablishmentScope[]
-  warehouses                 Warehouse[]
-  opportunities              Opportunity[]
-  quotes                     Quote[]
-  salesOrders                SalesOrder[]
-  invoices                   Invoice[]
-  paymentRecords             PaymentRecord[]
-  supplierRfqs               SupplierRFQ[]
-  purchaseOrders             PurchaseOrder[]
-  goodsReceipts              GoodsReceipt[]
-  goodsReceiptInventoryLinks GoodsReceiptInventoryLink[]
-  inventoryMovements         InventoryMovement[]
-  inventoryReconciliations   InventoryReconciliation[]
-  expenses                   Expense[]
-  cashAccounts               CashAccount[]
-  cashMovements              CashMovement[]
-  projects                   Project[]
-  documents                  Document[]
+  id                                String                                @id @db.Uuid
+  organizationId                    String                                @map("organization_id") @db.Uuid
+  code                              String                                @db.VarChar(50)
+  name                              String                                @db.VarChar(160)
+  type                              EstablishmentType
+  isPrimary                         Boolean                               @default(false) @map("is_primary")
+  status                            EstablishmentStatus                   @default(ACTIVE)
+  addressJson                       Json?                                 @map("address_json")
+  createdAt                         DateTime                              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                         DateTime                              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization                      Organization                          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scopeLinks                        MembershipEstablishmentScope[]
+  invitationScopeLinks              InvitationEstablishmentScope[]
+  warehouses                        Warehouse[]
+  opportunities                     Opportunity[]
+  quotes                            Quote[]
+  salesOrders                       SalesOrder[]
+  invoices                          Invoice[]
+  paymentRecords                    PaymentRecord[]
+  supplierRfqs                      SupplierRFQ[]
+  purchaseOrders                    PurchaseOrder[]
+  goodsReceipts                     GoodsReceipt[]
+  goodsReceiptInventoryLinks        GoodsReceiptInventoryLink[]
+  inventoryMovements                InventoryMovement[]
+  inventoryReconciliations          InventoryReconciliation[]
+  expenses                          Expense[]
+  cashAccounts                      CashAccount[]
+  cashMovements                     CashMovement[]
+  projects                          Project[]
+  documents                         Document[]
   messagingOrganizationParticipants ConversationOrganizationParticipant[]
 
   @@unique([organizationId, code])
@@ -2286,22 +2626,22 @@ model Phase8IdempotencyKey {
 }
 
 model Conversation {
-  id                    String                    @id @db.Uuid
-  organizationLowId     String                    @map("organization_low_id") @db.Uuid
-  organizationHighId    String                    @map("organization_high_id") @db.Uuid
-  status                MessagingConversationStatus @default(OPEN)
-  lastMessageSequence   BigInt                    @default(0) @map("last_message_sequence")
-  createdByUserId       String                    @map("created_by_user_id") @db.Uuid
-  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  organizationLow       Organization              @relation("MessagingConversationLow", fields: [organizationLowId], references: [id], onDelete: Cascade)
-  organizationHigh      Organization              @relation("MessagingConversationHigh", fields: [organizationHighId], references: [id], onDelete: Cascade)
-  createdByUser          User                      @relation("MessagingConversationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  id                       String                                @id @db.Uuid
+  organizationLowId        String                                @map("organization_low_id") @db.Uuid
+  organizationHighId       String                                @map("organization_high_id") @db.Uuid
+  status                   MessagingConversationStatus           @default(OPEN)
+  lastMessageSequence      BigInt                                @default(0) @map("last_message_sequence")
+  createdByUserId          String                                @map("created_by_user_id") @db.Uuid
+  createdAt                DateTime                              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organizationLow          Organization                          @relation("MessagingConversationLow", fields: [organizationLowId], references: [id], onDelete: Cascade)
+  organizationHigh         Organization                          @relation("MessagingConversationHigh", fields: [organizationHighId], references: [id], onDelete: Cascade)
+  createdByUser            User                                  @relation("MessagingConversationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   organizationParticipants ConversationOrganizationParticipant[]
-  userParticipants       ConversationUserParticipant[]
-  invitations             MessagingInvitation[]
-  messages                Message[]
-  rateBuckets             MessagingRateBucket[]
+  userParticipants         ConversationUserParticipant[]
+  invitations              MessagingInvitation[]
+  messages                 Message[]
+  rateBuckets              MessagingRateBucket[]
 
   @@unique([organizationLowId, organizationHighId])
   @@index([organizationLowId, status, updatedAt])
@@ -2310,22 +2650,22 @@ model Conversation {
 }
 
 model ConversationOrganizationParticipant {
-  id                       String                    @id @db.Uuid
-  conversationId           String                    @map("conversation_id") @db.Uuid
-  organizationId           String                    @map("organization_id") @db.Uuid
-  establishmentId          String?                   @map("establishment_id") @db.Uuid
-  status                   MessagingParticipantStatus @default(ACTIVE)
-  joinedAt                 DateTime?                 @map("joined_at") @db.Timestamptz(6)
-  leftAt                   DateTime?                 @map("left_at") @db.Timestamptz(6)
-  revokedAt                DateTime?                 @map("revoked_at") @db.Timestamptz(6)
-  historyVisibleFromSequence BigInt                  @default(0) @map("history_visible_from_sequence")
-  createdByUserId          String                    @map("created_by_user_id") @db.Uuid
-  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  conversation             Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  establishment            Establishment?           @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  createdByUser            User                      @relation("MessagingOrganizationParticipantCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  id                         String                     @id @db.Uuid
+  conversationId             String                     @map("conversation_id") @db.Uuid
+  organizationId             String                     @map("organization_id") @db.Uuid
+  establishmentId            String?                    @map("establishment_id") @db.Uuid
+  status                     MessagingParticipantStatus @default(ACTIVE)
+  joinedAt                   DateTime?                  @map("joined_at") @db.Timestamptz(6)
+  leftAt                     DateTime?                  @map("left_at") @db.Timestamptz(6)
+  revokedAt                  DateTime?                  @map("revoked_at") @db.Timestamptz(6)
+  historyVisibleFromSequence BigInt                     @default(0) @map("history_visible_from_sequence")
+  createdByUserId            String                     @map("created_by_user_id") @db.Uuid
+  createdAt                  DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  conversation               Conversation               @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization               Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment              Establishment?             @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdByUser              User                       @relation("MessagingOrganizationParticipantCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@unique([conversationId, organizationId])
   @@unique([id, organizationId])
@@ -2334,20 +2674,20 @@ model ConversationOrganizationParticipant {
 }
 
 model ConversationUserParticipant {
-  id                       String                    @id @db.Uuid
-  conversationId           String                    @map("conversation_id") @db.Uuid
-  organizationId           String                    @map("organization_id") @db.Uuid
-  userId                   String                    @map("user_id") @db.Uuid
-  status                   MessagingParticipantStatus @default(ACTIVE)
-  joinedAt                 DateTime?                 @map("joined_at") @db.Timestamptz(6)
-  leftAt                   DateTime?                 @map("left_at") @db.Timestamptz(6)
-  revokedAt                DateTime?                 @map("revoked_at") @db.Timestamptz(6)
-  historyVisibleFromSequence BigInt                  @default(0) @map("history_visible_from_sequence")
-  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  conversation             Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user                     User                      @relation("MessagingUserParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+  id                         String                     @id @db.Uuid
+  conversationId             String                     @map("conversation_id") @db.Uuid
+  organizationId             String                     @map("organization_id") @db.Uuid
+  userId                     String                     @map("user_id") @db.Uuid
+  status                     MessagingParticipantStatus @default(ACTIVE)
+  joinedAt                   DateTime?                  @map("joined_at") @db.Timestamptz(6)
+  leftAt                     DateTime?                  @map("left_at") @db.Timestamptz(6)
+  revokedAt                  DateTime?                  @map("revoked_at") @db.Timestamptz(6)
+  historyVisibleFromSequence BigInt                     @default(0) @map("history_visible_from_sequence")
+  createdAt                  DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  conversation               Conversation               @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization               Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                       User                       @relation("MessagingUserParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, organizationId, userId])
   @@unique([id, organizationId])
@@ -2357,28 +2697,28 @@ model ConversationUserParticipant {
 }
 
 model MessagingInvitation {
-  id                       String                    @id @db.Uuid
-  type                     MessagingInvitationType
-  status                   MessagingInvitationStatus @default(PENDING)
-  conversationId           String                    @map("conversation_id") @db.Uuid
-  organizationId           String                    @map("organization_id") @db.Uuid
-  targetOrganizationId     String                    @map("target_organization_id") @db.Uuid
-  targetUserId             String?                   @map("target_user_id") @db.Uuid
-  tokenDigest              String                    @unique @map("token_digest") @db.VarChar(128)
-  tokenCiphertext          String                    @map("token_ciphertext") @db.VarChar(4096)
-  tokenIssuedAt            DateTime                  @map("token_issued_at") @db.Timestamptz(6)
-  tokenDeliveredAt         DateTime?                 @map("token_delivered_at") @db.Timestamptz(6)
-  tokenExpiresAt           DateTime                  @map("token_expires_at") @db.Timestamptz(6)
-  expiresAt                DateTime                  @map("expires_at") @db.Timestamptz(6)
-  acceptedAt               DateTime?                 @map("accepted_at") @db.Timestamptz(6)
-  createdByUserId          String                    @map("created_by_user_id") @db.Uuid
-  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  conversation             Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  organization             Organization              @relation("MessagingInvitationOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
-  targetOrganization       Organization              @relation("MessagingInvitationTargetOrganization", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
-  targetUser               User?                     @relation("MessagingInvitationTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
-  createdByUser            User                      @relation("MessagingInvitationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  id                   String                    @id @db.Uuid
+  type                 MessagingInvitationType
+  status               MessagingInvitationStatus @default(PENDING)
+  conversationId       String                    @map("conversation_id") @db.Uuid
+  organizationId       String                    @map("organization_id") @db.Uuid
+  targetOrganizationId String                    @map("target_organization_id") @db.Uuid
+  targetUserId         String?                   @map("target_user_id") @db.Uuid
+  tokenDigest          String                    @unique @map("token_digest") @db.VarChar(128)
+  tokenCiphertext      String                    @map("token_ciphertext") @db.VarChar(4096)
+  tokenIssuedAt        DateTime                  @map("token_issued_at") @db.Timestamptz(6)
+  tokenDeliveredAt     DateTime?                 @map("token_delivered_at") @db.Timestamptz(6)
+  tokenExpiresAt       DateTime                  @map("token_expires_at") @db.Timestamptz(6)
+  expiresAt            DateTime                  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt           DateTime?                 @map("accepted_at") @db.Timestamptz(6)
+  createdByUserId      String                    @map("created_by_user_id") @db.Uuid
+  createdAt            DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  conversation         Conversation              @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization         Organization              @relation("MessagingInvitationOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
+  targetOrganization   Organization              @relation("MessagingInvitationTargetOrganization", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+  targetUser           User?                     @relation("MessagingInvitationTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  createdByUser        User                      @relation("MessagingInvitationCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@index([targetOrganizationId, type, status, expiresAt])
   @@index([targetUserId, type, status, expiresAt])
@@ -2407,17 +2747,17 @@ model Message {
 }
 
 model MessagingOrganizationBlock {
-  id                     String       @id @db.Uuid
-  sourceOrganizationId   String       @map("source_organization_id") @db.Uuid
-  targetOrganizationId   String       @map("target_organization_id") @db.Uuid
-  createdByUserId        String       @map("created_by_user_id") @db.Uuid
-  reason                 String?      @db.VarChar(500)
-  active                 Boolean      @default(true)
-  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  revokedAt              DateTime?    @map("revoked_at") @db.Timestamptz(6)
-  sourceOrganization     Organization @relation("MessagingBlockSourceOrganization", fields: [sourceOrganizationId], references: [id], onDelete: Cascade)
-  targetOrganization     Organization @relation("MessagingBlockTargetOrganization", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
-  createdByUser          User         @relation("MessagingBlockCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  id                   String       @id @db.Uuid
+  sourceOrganizationId String       @map("source_organization_id") @db.Uuid
+  targetOrganizationId String       @map("target_organization_id") @db.Uuid
+  createdByUserId      String       @map("created_by_user_id") @db.Uuid
+  reason               String?      @db.VarChar(500)
+  active               Boolean      @default(true)
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt            DateTime?    @map("revoked_at") @db.Timestamptz(6)
+  sourceOrganization   Organization @relation("MessagingBlockSourceOrganization", fields: [sourceOrganizationId], references: [id], onDelete: Cascade)
+  targetOrganization   Organization @relation("MessagingBlockTargetOrganization", fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+  createdByUser        User         @relation("MessagingBlockCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@unique([sourceOrganizationId, targetOrganizationId])
   @@index([targetOrganizationId, active])
@@ -2425,23 +2765,23 @@ model MessagingOrganizationBlock {
 }
 
 model MessagingRateBucket {
-  id                     String       @id @db.Uuid
-  organizationId         String?      @map("organization_id") @db.Uuid
-  conversationId         String?      @map("conversation_id") @db.Uuid
-  dimension              String       @db.VarChar(32)
-  dimensionKeyHash       String       @map("dimension_key_hash") @db.VarChar(128)
-  windowStarted          DateTime     @map("window_started") @db.Timestamptz(6)
-  windowEnds             DateTime     @map("window_ends") @db.Timestamptz(6)
-  attemptCount           Int          @default(0) @map("attempt_count")
-  acceptedCount          Int          @default(0) @map("accepted_count")
-  rejectedCount          Int          @default(0) @map("rejected_count")
-  blockedUntil           DateTime?    @map("blocked_until") @db.Timestamptz(6)
-  contentFingerprintHmac String?      @map("content_fingerprint_hmac") @db.VarChar(128)
-  fingerprintCount       Int          @default(0) @map("fingerprint_count")
-  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  organization           Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  conversation           Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id                     String                           @id @db.Uuid
+  organizationId         String?                          @map("organization_id") @db.Uuid
+  conversationId         String?                          @map("conversation_id") @db.Uuid
+  dimension              String                           @db.VarChar(32)
+  dimensionKeyHash       String                           @map("dimension_key_hash") @db.VarChar(128)
+  windowStarted          DateTime                         @map("window_started") @db.Timestamptz(6)
+  windowEnds             DateTime                         @map("window_ends") @db.Timestamptz(6)
+  attemptCount           Int                              @default(0) @map("attempt_count")
+  acceptedCount          Int                              @default(0) @map("accepted_count")
+  rejectedCount          Int                              @default(0) @map("rejected_count")
+  blockedUntil           DateTime?                        @map("blocked_until") @db.Timestamptz(6)
+  contentFingerprintHmac String?                          @map("content_fingerprint_hmac") @db.VarChar(128)
+  fingerprintCount       Int                              @default(0) @map("fingerprint_count")
+  createdAt              DateTime                         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization           Organization?                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation           Conversation?                    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   fingerprints           MessagingRateBucketFingerprint[]
 
   @@unique([dimension, dimensionKeyHash, windowStarted])
@@ -2451,13 +2791,13 @@ model MessagingRateBucket {
 }
 
 model MessagingRateBucketFingerprint {
-  id             String             @id @db.Uuid
-  rateBucketId   String             @map("rate_bucket_id") @db.Uuid
-  fingerprintHmac String            @map("fingerprint_hmac") @db.VarChar(128)
-  attemptCount   Int                @default(0) @map("attempt_count")
-  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  rateBucket     MessagingRateBucket @relation(fields: [rateBucketId], references: [id], onDelete: Cascade)
+  id              String              @id @db.Uuid
+  rateBucketId    String              @map("rate_bucket_id") @db.Uuid
+  fingerprintHmac String              @map("fingerprint_hmac") @db.VarChar(128)
+  attemptCount    Int                 @default(0) @map("attempt_count")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rateBucket      MessagingRateBucket @relation(fields: [rateBucketId], references: [id], onDelete: Cascade)
 
   @@unique([rateBucketId, fingerprintHmac])
   @@index([fingerprintHmac, updatedAt])
@@ -2465,18 +2805,18 @@ model MessagingRateBucketFingerprint {
 }
 
 model MessagingCommandReceipt {
-  id              String       @id @db.Uuid
-  organizationId  String       @map("organization_id") @db.Uuid
-  actorUserId     String       @map("actor_user_id") @db.Uuid
-  operation       String       @db.VarChar(80)
-  idempotencyKey  String       @map("idempotency_key") @db.VarChar(200)
-  payloadHash     String       @map("payload_hash") @db.VarChar(128)
-  resourceType    String       @map("resource_type") @db.VarChar(80)
-  resourceId      String       @map("resource_id") @db.Uuid
-  responseJson    Json         @map("response_json")
-  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  actorUser       User         @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  id             String       @id @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  actorUserId    String       @map("actor_user_id") @db.Uuid
+  operation      String       @db.VarChar(80)
+  idempotencyKey String       @map("idempotency_key") @db.VarChar(200)
+  payloadHash    String       @map("payload_hash") @db.VarChar(128)
+  resourceType   String       @map("resource_type") @db.VarChar(80)
+  resourceId     String       @map("resource_id") @db.Uuid
+  responseJson   Json         @map("response_json")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser      User         @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@unique([organizationId, actorUserId, operation, idempotencyKey])
   @@index([organizationId, createdAt])
@@ -2484,18 +2824,18 @@ model MessagingCommandReceipt {
 }
 
 model NetworkTrustCommandReceipt {
-  id                       String                    @id @db.Uuid
-  organizationId           String                    @map("organization_id") @db.Uuid
-  actorUserId              String                    @map("actor_user_id") @db.Uuid
-  idempotencyKey           String                    @map("idempotency_key") @db.VarChar(200)
-  payloadHash              String                    @map("payload_hash") @db.VarChar(128)
-  verificationStatus       NetworkVerificationStatus @map("verification_status")
-  verifiedAt               DateTime?                 @map("verified_at") @db.Timestamptz(6)
-  verificationExpiresAt    DateTime?                 @map("verification_expires_at") @db.Timestamptz(6)
-  reason                   String                    @db.VarChar(500)
-  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  actorUser                User                      @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  id                    String                    @id @db.Uuid
+  organizationId        String                    @map("organization_id") @db.Uuid
+  actorUserId           String                    @map("actor_user_id") @db.Uuid
+  idempotencyKey        String                    @map("idempotency_key") @db.VarChar(200)
+  payloadHash           String                    @map("payload_hash") @db.VarChar(128)
+  verificationStatus    NetworkVerificationStatus @map("verification_status")
+  verifiedAt            DateTime?                 @map("verified_at") @db.Timestamptz(6)
+  verificationExpiresAt DateTime?                 @map("verification_expires_at") @db.Timestamptz(6)
+  reason                String                    @db.VarChar(500)
+  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization          Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorUser             User                      @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@unique([organizationId, actorUserId, idempotencyKey])
   @@index([organizationId, createdAt])

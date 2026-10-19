@@ -1,13 +1,13 @@
 # 93 — Statut FairScale V1
 
 **Baseline de préparation : main@becef9a96163b2331e1d459583d6dde551857c73 ; Phase 9 clôturée.**
-**Au 19/10/2026 : Phase 9.5 clôturée sur `main@0fb133fdfc4a6eb6e1a76389e4eb0bd203a976dd`; Phase 9.6 non commencée.**
+**Au 19/10/2026 : Phase 9.5 clôturée sur `main@041fc5c7406eaeb9165a52df569f1d699b395405`; Phase 9.6 ouverte et en exécution contract-first.**
 
 | Gate | Phase 9.5 | Phase 9.6 |
 |---|---|---|
 | Norme/ADR revus et fusionnés | [x] | prérequis |
-| OpenAPI contract-first | [x] | [ ] |
-| Migrations neuves et upgrade | [x] | [ ] |
+| OpenAPI contract-first | [x] | en cours — tranche 9.6.1 |
+| Migrations neuves et upgrade | [x] | en cours — migration additive 9.6.1 |
 | Catalogue USD et prix versionnés | [x] | dépendance |
 | Retrait du plafond paid users + addons | [x] | dépendance |
 | Unicité welcome/politique annuelle | [x] calcul | [ ] encaissement |

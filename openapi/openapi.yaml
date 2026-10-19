@@ -3297,6 +3297,178 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /organizations/{organizationId}/billing/checkout-orders:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Platform]
+      operationId: createBillingCheckoutOrder
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBillingCheckoutOrderRequest" }
+      responses:
+        "201":
+          description: Checkout order created from an unexpired accepted quote
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingCheckoutOrder" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/billing/checkout-orders/{checkoutOrderId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: checkoutOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Platform]
+      operationId: getBillingCheckoutOrder
+      responses:
+        "200":
+          description: Tenant-scoped checkout order without provider secrets
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingCheckoutOrder" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/billing/checkout-orders/{checkoutOrderId}/payment-attempts:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: checkoutOrderId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Platform]
+      operationId: createBillingPaymentAttempt
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBillingPaymentAttemptRequest" }
+      responses:
+        "201":
+          description: Provider-neutral payment attempt; activation waits for verified confirmation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPaymentAttempt" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/billing/subscriptions:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Platform]
+      operationId: listBillingSubscriptions
+      responses:
+        "200":
+          description: Tenant-scoped platform subscription terms
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/BillingSubscriptionTerm" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/billing/invoices:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Platform]
+      operationId: listBillingInvoices
+      responses:
+        "200":
+          description: Tenant-scoped Monarque Group invoices, distinct from SALES invoices
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/BillingInvoice" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /organizations/{organizationId}/billing/invoices/{invoiceId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: invoiceId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Platform]
+      operationId: getBillingInvoice
+      responses:
+        "200":
+          description: Immutable invoice snapshot and payment status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingInvoice" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /organizations/{organizationId}/billing/subscriptions/{subscriptionTermId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: subscriptionTermId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Platform]
+      operationId: cancelBillingSubscription
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CancelBillingSubscriptionRequest" }
+      responses:
+        "200":
+          description: Renewal cancellation scheduled without deleting data
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingScheduledChange" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /billing/providers/{provider}/webhook:
+    parameters:
+      - { name: provider, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 64 } }
+    post:
+      security: []
+      tags: [Platform]
+      operationId: receiveBillingProviderWebhook
+      parameters:
+        - { name: X-Provider-Signature, in: header, required: true, schema: { type: string, minLength: 1 } }
+        - { name: X-Provider-Event-Id, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "202": { description: Authenticated provider event accepted exactly once into the inbox }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /platform/billing/invoices:
+    get:
+      tags: [Platform]
+      operationId: platformListBillingInvoices
+      responses:
+        "200":
+          description: Platform-admin metadata-only invoice listing
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/BillingInvoiceMetadata" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -5402,3 +5574,115 @@ components:
         effectiveEstablishments: { type: integer, minimum: 1 }
         overCapacity: { type: boolean }
         currency: { type: string, const: USD }
+    CreateBillingCheckoutOrderRequest:
+      type: object
+      additionalProperties: false
+      required: [quoteId]
+      properties:
+        quoteId: { type: string, format: uuid }
+    BillingCheckoutOrder:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, quoteId, status, currency, amountMinor, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        quoteId: { type: string, format: uuid }
+        status: { type: string, enum: [CREATED, PAYMENT_PENDING, PAID, CANCELED, EXPIRED] }
+        currency: { type: string, const: USD }
+        amountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    CreateBillingPaymentAttemptRequest:
+      type: object
+      additionalProperties: false
+      required: [provider]
+      properties:
+        provider: { type: string, minLength: 1, maxLength: 64 }
+    BillingPaymentAttempt:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, provider, status, amountMinor, currency, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        provider: { type: string }
+        providerPaymentId: { type: [string, 'null'] }
+        status: { type: string, enum: [CREATED, REQUIRES_ACTION, PROCESSING, SUCCEEDED, FAILED, CANCELED] }
+        amountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        currency: { type: string, const: USD }
+        failureCode: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    BillingSubscriptionTerm:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, status, planCode, billingPeriod, currency, catalogVersion, totalAmountMinor, currentPeriodStart, currentPeriodEnd]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        status: { type: string, enum: [PENDING, ACTIVE, PAST_DUE, SUSPENDED, CANCELED, EXPIRED] }
+        planCode: { $ref: "#/components/schemas/FairScalePlanCode" }
+        billingPeriod: { $ref: "#/components/schemas/BillingPeriod" }
+        currency: { type: string, const: USD }
+        catalogVersion: { type: integer, minimum: 1 }
+        totalAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        startsAt: { type: string, format: date-time }
+        currentPeriodStart: { type: string, format: date-time }
+        currentPeriodEnd: { type: string, format: date-time }
+        nextRenewalAt: { type: [string, 'null'], format: date-time }
+        canceledAt: { type: [string, 'null'], format: date-time }
+    BillingInvoiceLine:
+      type: object
+      additionalProperties: false
+      required: [id, lineIndex, code, description, quantity, unitAmountMinor, discountMinor, totalMinor, currency]
+      properties:
+        id: { type: string, format: uuid }
+        lineIndex: { type: integer, minimum: 0 }
+        code: { type: string }
+        description: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        unitAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        discountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        totalMinor: { $ref: "#/components/schemas/BillingMoney" }
+        currency: { type: string, const: USD }
+    BillingInvoice:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, number, sequence, status, currency, periodStart, periodEnd, subtotalMinor, discountMinor, taxMinor, totalMinor, amountPaidMinor, issuedAt, dueAt, lines]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        number: { type: string, pattern: '^MC-[0-9]{4}-[0-9]{6}$' }
+        sequence: { type: integer, minimum: 1 }
+        status: { type: string, enum: [OPEN, PAID, VOID, UNCOLLECTIBLE] }
+        currency: { type: string, const: USD }
+        periodStart: { type: string, format: date-time }
+        periodEnd: { type: string, format: date-time }
+        subtotalMinor: { $ref: "#/components/schemas/BillingMoney" }
+        discountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        taxMinor: { $ref: "#/components/schemas/BillingMoney" }
+        totalMinor: { $ref: "#/components/schemas/BillingMoney" }
+        amountPaidMinor: { $ref: "#/components/schemas/BillingMoney" }
+        issuedAt: { type: string, format: date-time }
+        dueAt: { type: string, format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        lines: { type: array, items: { $ref: "#/components/schemas/BillingInvoiceLine" } }
+    BillingInvoiceMetadata:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, number, status, currency, totalMinor, amountPaidMinor, issuedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        number: { type: string }
+        status: { type: string, enum: [OPEN, PAID, VOID, UNCOLLECTIBLE] }
+        currency: { type: string, const: USD }
+        totalMinor: { $ref: "#/components/schemas/BillingMoney" }
+        amountPaidMinor: { $ref: "#/components/schemas/BillingMoney" }
+        issuedAt: { type: string, format: date-time }
+    CancelBillingSubscriptionRequest:
+      type: object
+      additionalProperties: false
+      required: [effectiveAt]
+      properties:
+        effectiveAt: { type: string, format: date-time }
