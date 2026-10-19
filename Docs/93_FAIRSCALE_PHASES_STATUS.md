@@ -22,3 +22,8 @@
 Ne jamais clôturer sur la seule écriture du code. Exiger CI GitHub, migrations base vide et upgrade, régressions, preuves Docs/92, PR fusionnée et état mis à jour. La Phase 11 Control Plane globale ne se réduit pas à ses commandes Billing livrées en 9.6.
 
 Liens : [FairScale V1](89_FAIRSCALE_V1_NORMATIVE_SPEC.md) · [Phase 9.5](90_PHASE_9_5_FAIRSCALE_CORE_EXECUTION_SPEC.md) · [Phase 9.6](91_PHASE_9_6_FAIRSCALE_BILLING_EXECUTION_SPEC.md) · [acceptation](92_FAIRSCALE_V1_ACCEPTANCE_MATRIX.md) · [ADR-038](94_ADR_038_FAIRSCALE.md).
+
+## Tickets de réalisation
+- [Phase 9.5 — issue #122](https://github.com/jupi-z/Monarque-Connect/issues/122)
+- [Phase 9.6 — issue #123](https://github.com/jupi-z/Monarque-Connect/issues/123)
+- [Prompt Codex de référence](95_CODEX_FAIRSCALE_EXECUTION_PROMPT.md)
