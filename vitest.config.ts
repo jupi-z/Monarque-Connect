@@ -6,7 +6,6 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     setupFiles: ['tests/setup/reset-test-database.ts'],
     hookTimeout: 60000,
-    pool: 'threads',
     fileParallelism: false,
     minWorkers: 1,
     maxWorkers: 1,

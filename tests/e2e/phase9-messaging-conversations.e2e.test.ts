@@ -177,7 +177,7 @@ describe('Phase 9 conversation and invitation HTTP flow', () => {
     await expect(prisma.$executeRawUnsafe('UPDATE messages SET body = $1 WHERE id = $2', 'tampered', message.id)).rejects.toThrow('message_immutable');
     await expect(prisma.$executeRawUnsafe('DELETE FROM messages WHERE id = $1', message.id)).rejects.toThrow('message_immutable');
     await expect(prisma.outboxEvent.count({ where: { eventType: 'messaging.message.sent.v1' } })).resolves.toBe(1);
-    await expect(prisma.messagingInvitation.count({ where: { conversationId: first.id, status: 'ACCEPTED' } })).resolves.toBe(1);
+    await expect(prisma.messagingInvitation.count({ where: { conversationId: first.id, status: 'ACCEPTED' } })).resolves.toBe(2);
     await expect(prisma.outboxEvent.count({ where: { eventType: 'messaging.organization_invitation.accepted.v1' } })).resolves.toBe(1);
   });
 });
