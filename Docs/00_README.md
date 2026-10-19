@@ -81,6 +81,7 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `92_FAIRSCALE_V1_ACCEPTANCE_MATRIX.md` | Tests de conformité et critères de clôture FairScale |
 | `93_FAIRSCALE_PHASES_STATUS.md` | Statut des phases FairScale |
 | `94_ADR_038_FAIRSCALE.md` | ADR-038 modèle commercial et architecture FairScale |
+| `95_CODEX_FAIRSCALE_EXECUTION_PROMPT.md` | Prompt d'implémentation pour Codex |
 | `superpowers/plans/2026-10-19-fairscale-v1-9-5-9-6-plan.md` | Plan d'exécution pour Codex |
 
 ## Gel documentaire
