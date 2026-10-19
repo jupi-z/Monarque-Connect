@@ -8,7 +8,13 @@ if (connectionString) {
   const databaseName = decodeURIComponent(databaseUrl.pathname.replace(/^\/+/, ''));
   const allowedDatabaseName = /^monarque_connect_(?:ci_)?test(?:_[a-z0-9]+)*$/i.test(databaseName);
 
-  if (!['127.0.0.1', 'localhost'].includes(databaseUrl.hostname) || !allowedDatabaseName) {
+  const isLocalHost = ['127.0.0.1', 'localhost'].includes(databaseUrl.hostname);
+  const isTrustedGitHubActionsHost =
+    databaseUrl.hostname === 'host.docker.internal' &&
+    process.env.CI === 'true' &&
+    process.env.GITHUB_ACTIONS === 'true';
+
+  if ((!isLocalHost && !isTrustedGitHubActionsHost) || !allowedDatabaseName) {
     throw new Error('Test database reset refused: use a local monarque_connect_test database');
   }
 
