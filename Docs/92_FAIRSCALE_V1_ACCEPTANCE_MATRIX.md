@@ -42,7 +42,7 @@
 
 ## Jeux de tests chiffrés obligatoires
 
-- BUSINESS 3 premiers mois mensuels : 38,25 USD chacun ; 4e : 45,00 USD ; 12 premiers mois complets = 527,75 USD ; les 9 suivants = 405 USD, les 3 premiers = 114,75 USD.
+- BUSINESS 3 premiers mois mensuels : 38,25 USD chacun ; 4e : 45,00 USD ; 12 premiers mois complets = 519,75 USD ; les 9 suivants = 405 USD, les 3 premiers = 114,75 USD.
 - BUSINESS annuel : 432,00 USD à l'inscription, puis 432,00 USD à chaque renouvellement si prix de référence inchangé ; pas 540 USD automatiquement.
 - OPERATIONS annuel = 144,00 USD ; ENTERPRISE annuel = 1 728,00 USD.
 - BUSINESS 5 établissements actifs : base 3 + 2 add-ons ; mois régulier = 45 + 20 = 65 USD ; annuel = 432 + 240 = 672 USD.
