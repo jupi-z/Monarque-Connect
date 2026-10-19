@@ -1,7 +1,7 @@
 # 93 — Statut FairScale V1
 
 **Baseline de préparation : main@becef9a96163b2331e1d459583d6dde551857c73 ; Phase 9 clôturée.**
-**Au 19/10/2026 : Phase 9.5 clôturée sur `main@041fc5c7406eaeb9165a52df569f1d699b395405`; Phase 9.6 est techniquement livrée jusqu'à la tranche 9.6.5 sur `main@6309aded22c1fda878aa73941be29e591c22e334`. La clôture commerciale reste conditionnée par les gates live et conformité explicitement listées ci-dessous.**
+**Au 19/10/2026 : Phase 9.5 clôturée sur `main@041fc5c7406eaeb9165a52df569f1d699b395405`; Phase 9.6 est techniquement livrée jusqu'à la tranche 9.6.5 sur `main@dfa14365e1f6357ad83ca1828686d5ef52876600`. La clôture commerciale reste conditionnée par les gates live et conformité explicitement listées ci-dessous.**
 
 | Gate | Phase 9.5 | Phase 9.6 |
 |---|---|---|
@@ -17,7 +17,7 @@
 | Commandes Billing du Control Plane | — | [x] publication de prix versionnés ; concessions/exemptions hors lancement sans mandat validé |
 | Test des frontières Phases 0–9 | [x] | [ ] |
 | CI PR et post-fusion sur main | [x] | [ ] |
-| Preuves de clôture versionnées | [x] | [ ] tranche 9.6.6 ouverte |
+| Preuves de clôture versionnées | [x] | [ ] tranche 9.6.6 ouverte ; préflight opérationnel versionné dans [Docs/99](99_PHASE_9_6_OPERATIONAL_CLOSURE_PLAN.md) |
 
 Ne jamais clôturer sur la seule écriture du code. Exiger CI GitHub, migrations base vide et upgrade, régressions, preuves Docs/92, PR fusionnée et état mis à jour. La Phase 11 Control Plane globale ne se réduit pas à ses commandes Billing livrées en 9.6.
 

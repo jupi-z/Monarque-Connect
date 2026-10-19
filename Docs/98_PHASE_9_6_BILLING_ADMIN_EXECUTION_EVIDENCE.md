@@ -1,6 +1,6 @@
 # 98 — Phase 9.6 : preuve d'exécution Billing Control Plane
 
-**Statut au 19/10/2026 : tranche 9.6.5 fusionnée et vérifiée ; Phase 9.6 globale non clôturée tant que les gates live/conformité restent ouverts.**
+**Statut au 19/10/2026 : tranches 9.6.1 à 9.6.5 fusionnées et vérifiées ; Phase 9.6 globale non clôturée tant que les gates live/conformité restent ouverts.**
 
 Ce document trace la tranche 9.6.5 sans modifier les décisions FairScale V1 ni prétendre à une mise en production payante.
 
@@ -17,7 +17,13 @@ Ce document trace la tranche 9.6.5 sans modifier les décisions FairScale V1 ni 
 
 La commande d'administration publie seulement des métadonnées de catalogue. Elle ne fournit ni fournisseur de paiement live, ni mandat de prélèvement, ni validation fiscale ou réglementaire. Le gate FS-033 reste donc bloquant pour un lancement commercial automatique en staging/production, conformément à Docs/89 et Docs/91.
 
+La passe opérationnelle ajoute `npm run billing:preflight` et [Docs/99](99_PHASE_9_6_OPERATIONAL_CLOSURE_PLAN.md). Le préflight bloque staging/production si le provider est `TEST`, si le secret est absent ou factice, ou si le manifeste d'éléments externes est absent, expiré, incomplet ou destiné à un autre environnement. En `development` et `test`, il se limite à signaler que le contrôle commercial est volontairement ignoré. Ce mécanisme renforce le fail-closed ; il ne constitue pas une preuve externe.
+
 ## Preuves attendues avant fermeture
+
+- exécution du préflight sur l'environnement cible avec un provider non-TEST réellement configuré ;
+- manifeste hors dépôt ou coffre d'exploitation, sans secrets, couvrant provider, mandat, rapprochement, observabilité, backup/restore et conformité ;
+- scénario canonique HTTP et preuves de migration/non-régression mis à jour après cette exécution.
 
 ## Preuves GitHub observées
 

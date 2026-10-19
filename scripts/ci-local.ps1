@@ -59,6 +59,7 @@ try {
   Invoke-Step 'Apply current migrations' { npm run prisma:deploy }
   Invoke-Step 'OpenAPI validation' { npm run openapi:validate }
   Invoke-Step 'Contract validation' { npm run contracts:validate }
+  Invoke-Step 'Billing operational preflight' { npm run billing:preflight }
   Invoke-Step 'Unit and integration test suite' { npm test }
   Invoke-Step 'HTTP E2E suite' { npm run test:e2e }
   Invoke-Step 'Production build' { npm run build }

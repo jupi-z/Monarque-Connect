@@ -31,6 +31,7 @@
     "openapi:validate": "node scripts/validate-openapi.mjs",
     "contracts:validate": "node scripts/validate-contracts.mjs",
     "prisma:validate": "prisma validate",
+    "billing:preflight": "node scripts/check-billing-operational-readiness.mjs",
     "ci:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-local.ps1"
   },
   "dependencies": {

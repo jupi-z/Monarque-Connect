@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { validateEnvironment } from '../src/config/environment.js';
 
@@ -52,5 +55,32 @@ describe('validateEnvironment', () => {
         CORS_ORIGINS: 'https://app.example.com/path',
       }),
     ).toThrow(/CORS origin/);
+  });
+
+  it('fails closed for staging without FairScale operational evidence', () => {
+    expect(() => validateEnvironment({ NODE_ENV: 'staging', DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test' })).toThrow(/operational preflight/);
+  });
+
+  it('accepts staging only with matching, unexpired evidence for every external gate', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'monarque-environment-'));
+    const evidencePath = join(directory, 'evidence.json');
+    try {
+      writeFileSync(evidencePath, JSON.stringify({
+        environment: 'staging',
+        provider: 'LIVE_PROVIDER',
+        observedAt: '2026-10-19T12:00:00.000Z',
+        expiresAt: '2099-10-19T12:00:00.000Z',
+        providerVerified: true,
+        mandateVerified: true,
+        reconciliationVerified: true,
+        observabilityVerified: true,
+        backupRestoreVerified: true,
+        complianceVerified: true,
+        evidenceRefs: ['external-record-1'],
+      }));
+      expect(validateEnvironment({ NODE_ENV: 'staging', DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test', FAIRSCALE_BILLING_PROVIDER: 'LIVE_PROVIDER', FAIRSCALE_BILLING_LIVE_ENABLED: 'true', FAIRSCALE_BILLING_WEBHOOK_SECRET: 'a'.repeat(40), FAIRSCALE_BILLING_OPERATIONAL_EVIDENCE_FILE: evidencePath })).toMatchObject({ FAIRSCALE_BILLING_PROVIDER: 'LIVE_PROVIDER', FAIRSCALE_BILLING_LIVE_ENABLED: true });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
