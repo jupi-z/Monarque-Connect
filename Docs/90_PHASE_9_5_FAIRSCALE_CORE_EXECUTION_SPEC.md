@@ -1,6 +1,6 @@
 # 90 — Phase 9.5 : FairScale commercial core / pricing & capacity
 
-**STATUT : A EXECUTER — phase intermédiaire ENTRE 9 ET 10.**
+**STATUT : EXECUTEE ET CLOTUREE — phase intermédiaire ENTRE 9 ET 10.**
 **Norme : Docs/89 ; décisions : Docs/94 ; gates : Docs/92.**
 Phase 9 (Messaging) est clôturée ; l'implémentation ne doit pas rouvrir les migrations/primitives des phases 0–9. Tous les changements sont des évolutions versionnées et testées.
 
