@@ -307,6 +307,11 @@ enum AuditAction {
   BILLING_PAYMENT_ATTEMPT_CREATED
   BILLING_PROVIDER_EVENT_ACCEPTED
   BILLING_SUBSCRIPTION_CHANGED
+  BILLING_INVOICE_ISSUED
+  BILLING_RENEWAL_SCHEDULED
+  BILLING_DUNNING_TRANSITIONED
+  BILLING_SCHEDULED_CHANGE_APPLIED
+  BILLING_REFUND_RECORDED
   SUPPLIER_RFQ_CREATED
   SUPPLIER_RFQ_UPDATED
   SUPPLIER_RFQ_STATUS_CHANGED
@@ -1371,6 +1376,7 @@ model BillingScheduledChange {
   id                  String                       @id @db.Uuid
   subscriptionTermId  String                       @map("subscription_term_id") @db.Uuid
   organizationId      String                       @map("organization_id") @db.Uuid
+  idempotencyKey      String                       @map("idempotency_key") @db.VarChar(200)
   kind                BillingScheduledChangeKind
   status              BillingScheduledChangeStatus
   effectiveAt         DateTime                     @map("effective_at") @db.Timestamptz(6)
@@ -1384,6 +1390,7 @@ model BillingScheduledChange {
   subscriptionTerm    BillingSubscriptionTerm      @relation(fields: [subscriptionTermId], references: [id], onDelete: Restrict)
   organization        Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@unique([organizationId, idempotencyKey])
   @@index([organizationId, status, effectiveAt])
   @@index([subscriptionTermId, kind, status])
   @@map("billing_scheduled_changes")
