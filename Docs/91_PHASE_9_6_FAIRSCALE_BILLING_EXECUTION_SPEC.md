@@ -1,6 +1,6 @@
 # 91 — Phase 9.6 : FairScale billing, paiements et mise en service commerciale
 
-**STATUT : EN EXECUTION, tranches 9.6.3/9.6.4 livrées et tranche 9.6.5 en cours après validation des contrats 9.6.1/9.6.2.**
+**STATUT : tranches 9.6.1 à 9.6.5 livrées et vérifiées ; tranche 9.6.6 de clôture reste ouverte pour les gates commerciales live et conformité.**
 **Norme : Docs/89 ; plan : Docs/90 ; acceptance : Docs/92.**  
 Cette phase précède la Phase 10 et réalise la couche commerciale de la plateforme ; elle ne clôt **pas** la Phase 11 Control Plane globale.
 
