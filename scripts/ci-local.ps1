@@ -12,7 +12,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker daemon is unavailable. Start Docker Des
 
 $env:NODE_ENV = 'test'
 $env:PORT = '3000'
-$env:DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:5432/monarque_connect'
+$databaseName = "monarque_ci_$PID"
+$env:DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:5432/$databaseName"
 $env:MESSAGING_ABUSE_HMAC_KEY = 'local-ci-messaging-abuse-key'
 
 $compose = Join-Path (Get-Location) 'docker-compose.dev.yml'
@@ -25,6 +26,10 @@ try {
   }
   docker compose -f $compose exec -T postgres pg_isready -U postgres *> $null
   if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL did not become ready within 30 seconds.' }
+
+  Invoke-Step 'Create disposable CI database' {
+    docker compose -f $compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "CREATE DATABASE $databaseName"
+  }
 
   Invoke-Step 'Install locked dependencies' { npm ci }
   Invoke-Step 'Generate Prisma client' { npm run prisma:generate }
@@ -57,5 +62,6 @@ try {
   Invoke-Step 'Production build' { npm run build }
   Write-Host "`nLocal CI mirror passed all available checks." -ForegroundColor Green
 } finally {
+  try { docker compose -f $compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS $databaseName WITH (FORCE)" 1> $null 2> $null } catch { }
   try { docker compose -f $compose down 1> $null 2> $null } catch { }
 }
