@@ -25,6 +25,17 @@ function createDispatcher(consumer: FoundationProbeConsumer, goodsReceiptInvento
     'document.upload_started.v1', 'document.available.v1', 'document.linked.v1',
     'document.unlinked.v1', 'document.revoked.v1',
   ]) dispatcher.register(eventReceipt.consumerName, eventType, 1, eventReceipt.handle.bind(eventReceipt));
+  for (const eventType of [
+    'messaging.conversation.created.v1', 'messaging.conversation.suspended.v1', 'messaging.conversation.resumed.v1',
+    'messaging.invitation.token_issued.v1',
+    'messaging.organization_invitation.created.v1', 'messaging.organization_invitation.accepted.v1',
+    'messaging.organization_invitation.declined.v1', 'messaging.organization_invitation.revoked.v1',
+    'messaging.user_invitation.created.v1', 'messaging.user_invitation.accepted.v1',
+    'messaging.user_invitation.declined.v1', 'messaging.user_invitation.revoked.v1',
+    'messaging.participant.joined.v1', 'messaging.participant.left.v1', 'messaging.participant.revoked.v1',
+    'messaging.message.sent.v1', 'messaging.relation.blocked.v1', 'messaging.relation.unblocked.v1',
+    'messaging.abuse.threshold_exceeded.v1',
+  ]) dispatcher.register(eventReceipt.consumerName, eventType, 1, eventReceipt.handle.bind(eventReceipt));
   return dispatcher;
 }
 

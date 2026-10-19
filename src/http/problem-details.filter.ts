@@ -10,6 +10,8 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const exceptionBody = exception.getResponse();
     const detail = typeof exceptionBody === 'string' ? exceptionBody : this.extractMessage(exceptionBody);
     const requestId = currentEventContext()?.requestId ?? 'unknown';
+    const retryAfterSeconds = (exception as HttpException & { retryAfterSeconds?: unknown }).retryAfterSeconds;
+    if (status === 429 && typeof retryAfterSeconds === 'number' && Number.isFinite(retryAfterSeconds)) response.header('Retry-After', String(Math.max(1, Math.ceil(retryAfterSeconds))));
     response.header('X-Request-Id', requestId).status(status).type('application/problem+json').json({ type: `https://api.monarque-connect.com/problems/${status}`, title: this.title(status), status, detail, requestId });
   }
 

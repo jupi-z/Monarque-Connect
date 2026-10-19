@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
 import { SubscriptionService } from './subscription.service.js';
 
@@ -52,18 +53,18 @@ type ActiveOverride = {
 export class EffectiveEntitlementsService {
   constructor(private readonly prisma: PrismaService, private readonly subscriptions: SubscriptionService) {}
 
-  async resolve(organizationId: string, at: Date = new Date()): Promise<EffectiveEntitlementsProjection> {
-    const organization = await this.prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { status: true, businessTypeCode: true } });
+  async resolve(organizationId: string, at: Date = new Date(), db: PrismaService | Prisma.TransactionClient = this.prisma): Promise<EffectiveEntitlementsProjection> {
+    const organization = await db.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { status: true, businessTypeCode: true } });
     const [catalog, activations, presets, overrides] = await Promise.all([
-      this.prisma.moduleCatalog.findMany({ orderBy: { code: 'asc' } }),
-      this.prisma.organizationModuleActivation.findMany({ where: { organizationId }, select: { moduleCode: true, enabled: true } }),
-      this.prisma.moduleBusinessTypePreset.findMany({ where: { businessTypeCode: organization.businessTypeCode }, select: { moduleCode: true, recommended: true } }),
-      this.prisma.organizationEntitlement.findMany({ where: { organizationId, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ createdAt: 'desc' }, { startsAt: 'desc' }], select: { moduleCode: true, effect: true, limitsJson: true, reason: true } }),
+      db.moduleCatalog.findMany({ orderBy: { code: 'asc' } }),
+      db.organizationModuleActivation.findMany({ where: { organizationId }, select: { moduleCode: true, enabled: true } }),
+      db.moduleBusinessTypePreset.findMany({ where: { businessTypeCode: organization.businessTypeCode }, select: { moduleCode: true, recommended: true } }),
+      db.organizationEntitlement.findMany({ where: { organizationId, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ createdAt: 'desc' }, { startsAt: 'desc' }], select: { moduleCode: true, effect: true, limitsJson: true, reason: true } }),
     ]);
-    const effectiveSubscription = organization.status === 'ACTIVE' ? await this.subscriptions.resolveEffective(organizationId, at) : null;
-    const latestSubscription = effectiveSubscription ?? await this.prisma.subscription.findFirst({ where: { organizationId }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { status: true } });
+    const effectiveSubscription = organization.status === 'ACTIVE' ? await this.subscriptions.resolveEffective(organizationId, at, db) : null;
+    const latestSubscription = effectiveSubscription ?? await db.subscription.findFirst({ where: { organizationId }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { status: true } });
     const planVersion = effectiveSubscription
-      ? await this.prisma.planVersion.findUniqueOrThrow({ where: { id: effectiveSubscription.planVersionId }, select: { planCode: true, version: true, modules: { select: { moduleCode: true, defaultEnabled: true } } } })
+      ? await db.planVersion.findUniqueOrThrow({ where: { id: effectiveSubscription.planVersionId }, select: { planCode: true, version: true, modules: { select: { moduleCode: true, defaultEnabled: true } } } })
       : null;
 
     const included = new Set((planVersion?.modules ?? []).map((module) => module.moduleCode));

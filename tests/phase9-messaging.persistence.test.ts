@@ -91,6 +91,7 @@ describe('Phase 9 Messaging persistence schema', () => {
     const highOrganizationId = organizationIds[1]!;
     const thirdOrganizationId = randomUUID();
     const userId = randomUUID();
+    const membershipId = randomUUID();
     const conversationId = randomUUID();
     const messageId = randomUUID();
 
@@ -126,6 +127,17 @@ describe('Phase 9 Messaging persistence schema', () => {
           ($1, $3, $4, 'ACTIVE', CURRENT_TIMESTAMP, 0, $2, CURRENT_TIMESTAMP),
           ($5, $3, $6, 'ACTIVE', CURRENT_TIMESTAMP, 0, $2, CURRENT_TIMESTAMP)`,
         [randomUUID(), userId, conversationId, lowOrganizationId, randomUUID(), highOrganizationId],
+      );
+      await client.query(
+        `INSERT INTO memberships (id, organization_id, user_id, role, scope_mode, status, updated_at)
+         VALUES ($1, $2, $3, 'OWNER', 'ALL_ESTABLISHMENTS', 'ACTIVE', CURRENT_TIMESTAMP)`,
+        [membershipId, lowOrganizationId, userId],
+      );
+      await client.query(
+        `INSERT INTO conversation_user_participants
+          (id, conversation_id, organization_id, user_id, status, joined_at, history_visible_from_sequence, updated_at)
+         VALUES ($1, $2, $3, $4, 'ACTIVE', CURRENT_TIMESTAMP, 0, CURRENT_TIMESTAMP)`,
+        [randomUUID(), conversationId, lowOrganizationId, userId],
       );
       await client.query('SAVEPOINT before_duplicate_participant');
       await expect(

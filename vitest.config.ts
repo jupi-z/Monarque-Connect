@@ -4,7 +4,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    setupFiles: ['tests/setup/reset-test-database.ts'],
+    hookTimeout: 60000,
     fileParallelism: false,
+    minWorkers: 1,
     maxWorkers: 1,
   },
 });

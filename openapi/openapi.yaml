@@ -2929,6 +2929,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "410": { description: Invitation expired }
 
   /organizations/{organizationId}/conversation-invitations/{invitationId}/token:
     parameters:
@@ -2949,6 +2950,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "410": { description: Invitation expired }
 
   /organizations/{organizationId}/conversation-invitations/{invitationId}/decline:
     parameters:
@@ -2971,6 +2973,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "410": { description: Invitation expired }
 
   /organizations/{organizationId}/conversations/{conversationId}/participant-invitations:
     parameters:

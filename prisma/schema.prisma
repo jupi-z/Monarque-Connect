@@ -230,11 +230,21 @@ enum AuditAction {
   DOCUMENT_UNLINKED
   DOCUMENT_REVOKED
   MESSAGING_CONVERSATION_CREATED
+  MESSAGING_CONVERSATION_SUSPENDED
+  MESSAGING_CONVERSATION_RESUMED
   MESSAGING_INVITATION_CREATED
   MESSAGING_INVITATION_TOKEN_ISSUED
   MESSAGING_INVITATION_ACCEPTED
   MESSAGING_INVITATION_DECLINED
+  MESSAGING_INVITATION_REVOKED
   MESSAGING_PARTICIPANT_INVITED
+  MESSAGING_PARTICIPANT_JOINED
+  MESSAGING_PARTICIPANT_LEFT
+  MESSAGING_PARTICIPANT_REVOKED
+  MESSAGING_MESSAGE_SENT
+  MESSAGING_BLOCK_CREATED
+  MESSAGING_BLOCK_REVOKED
+  MESSAGING_ABUSE_THRESHOLD_EXCEEDED
 }
 
 enum ConnectionRequestStatus {
@@ -2224,15 +2234,31 @@ model MessagingRateBucket {
   rejectedCount          Int          @default(0) @map("rejected_count")
   blockedUntil           DateTime?    @map("blocked_until") @db.Timestamptz(6)
   contentFingerprintHmac String?      @map("content_fingerprint_hmac") @db.VarChar(128)
+  fingerprintCount       Int          @default(0) @map("fingerprint_count")
   createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization           Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   conversation           Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  fingerprints           MessagingRateBucketFingerprint[]
 
   @@unique([dimension, dimensionKeyHash, windowStarted])
   @@index([organizationId, windowEnds])
   @@index([conversationId, windowEnds])
   @@map("messaging_rate_buckets")
+}
+
+model MessagingRateBucketFingerprint {
+  id             String             @id @db.Uuid
+  rateBucketId   String             @map("rate_bucket_id") @db.Uuid
+  fingerprintHmac String            @map("fingerprint_hmac") @db.VarChar(128)
+  attemptCount   Int                @default(0) @map("attempt_count")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rateBucket     MessagingRateBucket @relation(fields: [rateBucketId], references: [id], onDelete: Cascade)
+
+  @@unique([rateBucketId, fingerprintHmac])
+  @@index([fingerprintHmac, updatedAt])
+  @@map("messaging_rate_bucket_fingerprints")
 }
 
 model MessagingCommandReceipt {
