@@ -55,3 +55,5 @@ Le script migration ne supprime aucun enum/table/contrainte historique sans plan
 - Risque capacité désactivée sur downgrade : garder historique et export, revalidation permission efficace.
 
 **Sortie 9.5 : fondation autonome et testée, sans passerelle de paiement prétendument fonctionnelle.**
+
+**Suivi GitHub :** [issue #122](https://github.com/jupi-z/Monarque-Connect/issues/122).
