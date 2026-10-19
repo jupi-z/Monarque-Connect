@@ -56,9 +56,14 @@ describe('Phase 9.5 FairScale HTTP flow', () => {
     await request(server).get(`/api/v1/organizations/${organizationId}/billing/quotes/${quoteId}`).set('Authorization', `Bearer ${otherToken}`).expect(403);
 
     const capacity = bodyOf<{ planCode: string; includedEstablishments: number; activeEstablishments: number }>(await request(server).get(`/api/v1/organizations/${organizationId}/billing/capacity`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
-    expect(capacity).toMatchObject({ planCode: 'CONNECT', includedEstablishments: 1, activeEstablishments: 1 });
+    expect(capacity).toMatchObject({ planCode: 'CONNECT', includedEstablishments: 1, activeEstablishments: 1, currency: 'EUR' });
     const estimate = bodyOf<{ effectiveEstablishments: number; overCapacity: boolean }>(await request(server).post(`/api/v1/organizations/${organizationId}/billing/capacity/estimate`).set('Authorization', `Bearer ${ownerToken}`).send({ activeEstablishmentCount: 2, addonEstablishmentCount: 1 }).expect(200));
     expect(estimate).toMatchObject({ effectiveEstablishments: 2, overCapacity: false });
+
+    const concurrentQuotes = await Promise.all(Array.from({ length: 4 }, (_, index) => request(server).post(`/api/v1/organizations/${organizationId}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `phase95-concurrent-${index}`).send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 3 })));
+    expect(concurrentQuotes.every((response) => response.status === 201)).toBe(true);
+    await expect(prisma.billingPromotionRedemption.count({ where: { promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', status: { in: ['RESERVED', 'CONSUMED'] } } })).resolves.toBe(3);
+    await expect(prisma.billingPromotionRedemption.count({ where: { promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', quoteId: { not: null } } })).resolves.toBe(3);
   });
 });
 
