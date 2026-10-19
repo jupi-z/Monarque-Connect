@@ -16,6 +16,11 @@ on:
         required: false
         default: ''
         type: string
+      database-host:
+        description: Hostname used to reach the isolated PostgreSQL container from the runner
+        required: false
+        default: '127.0.0.1'
+        type: string
 
 permissions:
   contents: read
@@ -26,7 +31,7 @@ jobs:
     env:
       NODE_ENV: test
       PORT: 3000
-      DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || 'postgresql://postgres:postgres@127.0.0.1:55432/monarque_connect_test' }}
+      DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || format('postgresql://postgres:postgres@{0}:55432/monarque_connect_test', inputs.database-host) }}
 
     steps:
       - uses: actions/checkout@v4

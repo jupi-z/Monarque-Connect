@@ -14,12 +14,13 @@ jobs:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/backend-ci-reusable.yml
     with:
-      runner: '["ubuntu-latest"]'
+      runner: ${{ github.event.pull_request.head.repo.full_name == github.repository && '["self-hosted","monarque-ci-pr-isolated"]' || '["ubuntu-latest"]' }}
       ref: refs/pull/${{ github.event.pull_request.number }}/merge
+      database-host: ${{ github.event.pull_request.head.repo.full_name == github.repository && 'host.docker.internal' || '127.0.0.1' }}
 
   validate-main:
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/backend-ci-reusable.yml
     with:
-      runner: '["ubuntu-latest"]'
+      runner: '["self-hosted","monarque-ci"]'
       ref: ${{ github.sha }}
