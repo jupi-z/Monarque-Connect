@@ -121,6 +121,19 @@ const plans = [
   },
 ] as const;
 
+const fairScalePriceVersions = [
+  { planCode: "CONNECT", billingPeriod: "MONTHLY", baseAmountMinor: 0n, welcomeAmountMinor: 0n, annualDiscountAmountMinor: 0n, includedEstablishments: 1 },
+  { planCode: "CONNECT", billingPeriod: "YEARLY", baseAmountMinor: 0n, welcomeAmountMinor: 0n, annualDiscountAmountMinor: 0n, includedEstablishments: 1 },
+  { planCode: "OPERATIONS", billingPeriod: "MONTHLY", baseAmountMinor: 1500n, welcomeAmountMinor: 1275n, annualDiscountAmountMinor: 0n, includedEstablishments: 1 },
+  { planCode: "OPERATIONS", billingPeriod: "YEARLY", baseAmountMinor: 18000n, welcomeAmountMinor: 14400n, annualDiscountAmountMinor: 3600n, includedEstablishments: 1 },
+  { planCode: "BUSINESS", billingPeriod: "MONTHLY", baseAmountMinor: 4500n, welcomeAmountMinor: 3825n, annualDiscountAmountMinor: 0n, includedEstablishments: 3 },
+  { planCode: "BUSINESS", billingPeriod: "YEARLY", baseAmountMinor: 54000n, welcomeAmountMinor: 43200n, annualDiscountAmountMinor: 10800n, includedEstablishments: 3 },
+  { planCode: "ENTERPRISE", billingPeriod: "MONTHLY", baseAmountMinor: 18000n, welcomeAmountMinor: 15300n, annualDiscountAmountMinor: 0n, includedEstablishments: 10 },
+  { planCode: "ENTERPRISE", billingPeriod: "YEARLY", baseAmountMinor: 216000n, welcomeAmountMinor: 172800n, annualDiscountAmountMinor: 43200n, includedEstablishments: 10 },
+] as const;
+
+const fairScaleCatalogPublishedAt = new Date("2026-10-19T00:00:00.000Z");
+
 async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
   for (const businessType of businessTypes) {
     await prisma.businessType.upsert({
@@ -219,6 +232,68 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
           limitValue,
         },
       });
+    }
+
+    for (const price of fairScalePriceVersions.filter(({ planCode }) => planCode === plan.code)) {
+      const priceVersion = await prisma.priceVersion.upsert({
+        where: {
+          planCode_version_billingPeriod: {
+            planCode: price.planCode,
+            version: 1,
+            billingPeriod: price.billingPeriod,
+          },
+        },
+        update: {
+          currency: "USD",
+          status: "ACTIVE",
+          baseAmountMinor: price.baseAmountMinor,
+          welcomeAmountMinor: price.welcomeAmountMinor,
+          annualDiscountAmountMinor: price.annualDiscountAmountMinor,
+          includedEstablishments: price.includedEstablishments,
+          publishedAt: fairScaleCatalogPublishedAt,
+        },
+        create: {
+          id: crypto.randomUUID(),
+          planCode: price.planCode,
+          version: 1,
+          billingPeriod: price.billingPeriod,
+          currency: "USD",
+          status: "ACTIVE",
+          baseAmountMinor: price.baseAmountMinor,
+          welcomeAmountMinor: price.welcomeAmountMinor,
+          annualDiscountAmountMinor: price.annualDiscountAmountMinor,
+          includedEstablishments: price.includedEstablishments,
+          startsAt: fairScaleCatalogPublishedAt,
+          publishedAt: fairScaleCatalogPublishedAt,
+        },
+      });
+
+      if (price.planCode !== "CONNECT") {
+        const addonAmountMinor = price.billingPeriod === "MONTHLY" ? 1000n : 12000n;
+        await prisma.priceComponent.upsert({
+          where: {
+            priceVersionId_code: {
+              priceVersionId: priceVersion.id,
+              code: "ESTABLISHMENT",
+            },
+          },
+          update: {
+            kind: "ESTABLISHMENT_ADDON",
+            currency: "USD",
+            amountMinor: addonAmountMinor,
+            capacityUnits: 1,
+          },
+          create: {
+            id: crypto.randomUUID(),
+            priceVersionId: priceVersion.id,
+            code: "ESTABLISHMENT",
+            kind: "ESTABLISHMENT_ADDON",
+            currency: "USD",
+            amountMinor: addonAmountMinor,
+            capacityUnits: 1,
+          },
+        });
+      }
     }
   }
 }
