@@ -234,39 +234,6 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
       });
     }
 
-    if (plan.code !== "CONNECT") {
-      for (const [version, billingPeriod] of [[2, "MONTHLY"], [3, "YEARLY"]] as const) {
-        const fairScaleCapacity = fairScalePriceVersions.find(({ planCode, billingPeriod: period }) => planCode === plan.code && period === billingPeriod)?.includedEstablishments;
-        if (fairScaleCapacity === undefined) throw new Error(`Missing FairScale capacity for ${plan.code}/${billingPeriod}`);
-        const fairScaleVersion = await prisma.planVersion.upsert({
-          where: { planCode_version: { planCode: plan.code, version } },
-          update: {},
-          create: {
-            id: crypto.randomUUID(),
-            planCode: plan.code,
-            version,
-            status: "DRAFT",
-            currency: "USD",
-            billingPeriod,
-            publishedAt: fairScaleCatalogPublishedAt,
-          },
-        });
-        for (const moduleCode of plan.modules) {
-          await prisma.planVersionModule.upsert({
-            where: { planVersionId_moduleCode: { planVersionId: fairScaleVersion.id, moduleCode } },
-            update: {},
-            create: { planVersionId: fairScaleVersion.id, moduleCode, defaultEnabled: true },
-          });
-        }
-        await prisma.planVersionQuota.upsert({
-          where: { planVersionId_quotaCode: { planVersionId: fairScaleVersion.id, quotaCode: "MAX_ESTABLISHMENTS" } },
-          update: {},
-          create: { id: crypto.randomUUID(), planVersionId: fairScaleVersion.id, quotaCode: "MAX_ESTABLISHMENTS", unit: "COUNT", mode: "CAPACITY", limitValue: fairScaleCapacity },
-        });
-        await prisma.planVersion.update({ where: { id: fairScaleVersion.id }, data: { status: "ACTIVE" } });
-      }
-    }
-
     for (const price of fairScalePriceVersions.filter(({ planCode }) => planCode === plan.code)) {
       const priceVersion = await prisma.priceVersion.upsert({
         where: {
