@@ -12,7 +12,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker daemon is unavailable. Start Docker Des
 
 $env:NODE_ENV = 'test'
 $env:PORT = '3000'
-$databaseName = "monarque_ci_$PID"
+$databaseName = 'monarque_connect_test'
 $env:DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:5432/$databaseName"
 $env:MESSAGING_ABUSE_HMAC_KEY = 'local-ci-messaging-abuse-key'
 
@@ -28,6 +28,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL did not become ready within 30 seconds.' }
 
   Invoke-Step 'Create disposable CI database' {
+    docker compose -f $compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS $databaseName WITH (FORCE)"
     docker compose -f $compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "CREATE DATABASE $databaseName"
   }
 
