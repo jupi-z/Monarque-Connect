@@ -38,3 +38,16 @@ Les contrôles CI ont validé les migrations base vide et upgrade 9.5, les contr
 ## Décision de gate
 
 La livraison technique 9.6.1–9.6.5 est GO. Le lancement commercial automatique reste NO-GO tant qu'aucun provider live vérifié, mandat de paiement opérationnel, rapprochement de production, observabilité, sauvegarde et revue conformité des factures Monarque Group ne sont prouvés. Le provider `TEST` demeure réservé à `NODE_ENV=test` et ne constitue pas une preuve de mise en production.
+
+## Preuve de clôture opérationnelle du dépôt
+
+La PR de clôture opérationnelle [#137](https://github.com/jupi-z/Monarque-Connect/pull/137) a été fusionnée après validation complète du runner isolé de confiance :
+
+- tête de PR validée : `496b7cfcf2ae493cd005a5a37f4c3aaa08322b8c` ;
+- CI PR finale : [Backend CI — run 39296063830](https://github.com/jupi-z/Monarque-Connect/actions/runs/39296063830), conclusion `success` ;
+- merge squash dans `main` : `dbc2dcd8b42894ed72d4ef82f0845c4b8ca57064` ;
+- preuve post-fusion exécutée explicitement sur ce SHA : [Backend CI — run 39300554158](https://github.com/jupi-z/Monarque-Connect/actions/runs/39300554158), conclusion `success`.
+
+La preuve post-fusion a validé 50 migrations depuis une base vide, l'upgrade Phase 9.5 `46 + 4`, l'upgrade Phase 9.6, Prisma, OpenAPI `196` opérations, contrats, `86` fichiers de tests et `312` tests réussis, puis `9` fichiers E2E et `18` tests E2E, build et smoke HTTP. L'exécution a été déclenchée par `workflow_dispatch` sur `main` car GitHub n'a pas créé de run `push` automatique pour ce merge ; elle constitue néanmoins une vérification directe et traçable du commit final.
+
+Cette preuve clôt la tranche technique et de garde opérationnelle du dépôt. Elle ne ferme pas les gates externes listés ci-dessus : l'issue #123 reste volontairement ouverte jusqu'à la production des éléments live, de réconciliation, d'observabilité, de sauvegarde/restauration et de conformité.

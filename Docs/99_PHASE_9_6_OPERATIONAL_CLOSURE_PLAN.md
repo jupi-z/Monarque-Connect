@@ -56,3 +56,5 @@ This plan makes the remaining work executable and prevents accidental commercial
 ## CI runner policy
 
 The repository is public. Fork pull requests must not execute on a self-hosted machine and therefore retain the GitHub-hosted runner. Pull requests from this repository use the dedicated isolated label `monarque-ci-pr-isolated`; the trusted `main` workflow uses `monarque-ci`. Both runners must remain disposable, patched and free of long-lived credentials. This routing is a capacity workaround, not a substitute for review or for the external FairScale gates.
+
+The isolated PR runner currently reaches its disposable PostgreSQL service through the Docker host socket and `host.docker.internal`. This is a privileged infrastructure boundary: it is acceptable only for trusted internal pull requests on this dedicated runner, must never be used for fork pull requests, and must be rebuilt/patched or removed when the temporary CI capacity workaround ends. The workflow keeps fork pull requests on GitHub-hosted runners.
