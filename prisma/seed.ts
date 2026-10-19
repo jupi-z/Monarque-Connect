@@ -1,5 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "@prisma/client";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const connectionString =
   process.env.DATABASE_URL ??
@@ -320,5 +322,5 @@ export async function main(): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]?.replaceAll("\\", "/")}`)
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]))
   await main();
