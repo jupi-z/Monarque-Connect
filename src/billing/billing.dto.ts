@@ -1,5 +1,5 @@
 import type { FairScaleBillingPeriod, FairScalePlanCode } from './fairscale-pricing.js';
-import { IsDateString, IsIn, IsInt, IsUUID, Max, Min, IsOptional } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class CreateBillingQuoteDto {
   @IsIn(['CONNECT', 'OPERATIONS', 'BUSINESS', 'ENTERPRISE'])
@@ -43,4 +43,47 @@ export class CreateBillingPaymentAttemptDto {
 export class CancelBillingSubscriptionDto {
   @IsDateString()
   effectiveAt!: string;
+}
+
+export class ScheduleBillingChangeDto {
+  @IsIn(['PLAN_CHANGE', 'PERIOD_CHANGE', 'ADDON_CHANGE', 'CANCELLATION'])
+  kind!: 'PLAN_CHANGE' | 'PERIOD_CHANGE' | 'ADDON_CHANGE' | 'CANCELLATION';
+
+  @IsOptional()
+  @IsDateString()
+  effectiveAt?: string;
+
+  @IsOptional()
+  @IsIn(['CONNECT', 'OPERATIONS', 'BUSINESS', 'ENTERPRISE'])
+  targetPlanCode?: string;
+
+  @IsOptional()
+  @IsIn(['MONTHLY', 'YEARLY'])
+  targetBillingPeriod?: 'MONTHLY' | 'YEARLY';
+
+  @IsOptional()
+  @IsString()
+  addonCode?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10000)
+  addonQuantity?: number;
+}
+
+export class RunBillingJobDto {
+  @IsOptional()
+  @IsDateString()
+  at?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  limit?: number;
+
+  @IsOptional()
+  @IsIn(['TEST'])
+  provider?: 'TEST';
 }

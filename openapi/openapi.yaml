@@ -3363,18 +3363,18 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
-  /organizations/{organizationId}/billing/subscriptions:
+  /organizations/{organizationId}/billing/subscription:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
     get:
       tags: [Platform]
-      operationId: listBillingSubscriptions
+      operationId: getBillingSubscription
       responses:
         "200":
           description: Tenant-scoped platform subscription terms
           content:
             application/json:
-              schema: { type: array, items: { $ref: "#/components/schemas/BillingSubscriptionTerm" } }
+              schema: { $ref: "#/components/schemas/BillingSubscriptionTerm" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -3410,23 +3410,41 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /organizations/{organizationId}/billing/subscriptions/{subscriptionTermId}/cancel:
+  /organizations/{organizationId}/billing/subscription/{subscriptionTermId}/changes:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
-      - { name: subscriptionTermId, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: termId, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       tags: [Platform]
-      operationId: cancelBillingSubscription
+      operationId: scheduleBillingSubscriptionChange
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/CancelBillingSubscriptionRequest" }
+            schema: { $ref: "#/components/schemas/ScheduleBillingChangeRequest" }
       responses:
         "200":
-          description: Renewal cancellation scheduled without deleting data
+          description: Renewal, plan, period or add-on change scheduled without deleting data
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingScheduledChange" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/billing/subscription/changes/{changeId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: changeId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Platform]
+      operationId: cancelBillingScheduledChange
+      responses:
+        "200":
+          description: Pending billing change canceled
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BillingScheduledChange" }
@@ -3466,6 +3484,48 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: "#/components/schemas/BillingInvoiceMetadata" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /platform/billing/terms:
+    get:
+      tags: [Platform]
+      operationId: platformListBillingTerms
+      responses:
+        "200":
+          description: Platform-admin metadata-only subscription term listing
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/BillingSubscriptionTerm" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /platform/billing/renewals/run:
+    post:
+      tags: [Platform]
+      operationId: platformRunBillingRenewals
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RunBillingJobRequest" }
+      responses:
+        "200": { description: Renewal scheduler result }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /platform/billing/dunning/run:
+    post:
+      tags: [Platform]
+      operationId: platformRunBillingDunning
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RunBillingJobRequest" }
+      responses:
+        "200": { description: Dunning transition result }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5631,6 +5691,36 @@ components:
         currentPeriodEnd: { type: string, format: date-time }
         nextRenewalAt: { type: [string, 'null'], format: date-time }
         canceledAt: { type: [string, 'null'], format: date-time }
+        addons: { type: array, items: { $ref: "#/components/schemas/BillingSubscriptionAddon" } }
+        scheduledChanges: { type: array, items: { $ref: "#/components/schemas/BillingScheduledChange" } }
+    BillingSubscriptionAddon:
+      type: object
+      additionalProperties: false
+      required: [code, quantity, status, unitAmountMinor, startsAt]
+      properties:
+        code: { type: string }
+        quantity: { type: integer, minimum: 0 }
+        status: { type: string, enum: [ACTIVE, SCHEDULED_TO_REMOVE, CANCELED] }
+        unitAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        startsAt: { type: string, format: date-time }
+        scheduledEndAt: { type: [string, 'null'], format: date-time }
+    BillingScheduledChange:
+      type: object
+      additionalProperties: false
+      required: [id, subscriptionTermId, organizationId, kind, status, effectiveAt, targetState, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        subscriptionTermId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        kind: { type: string, enum: [PLAN_CHANGE, PERIOD_CHANGE, ADDON_CHANGE, CANCELLATION] }
+        status: { type: string, enum: [PENDING, APPLIED, CANCELED] }
+        effectiveAt: { type: string, format: date-time }
+        targetPlanCode: { type: [string, 'null'], enum: [CONNECT, OPERATIONS, BUSINESS, ENTERPRISE, null] }
+        targetBillingPeriod: { type: [string, 'null'], enum: [MONTHLY, YEARLY, null] }
+        targetState: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+        appliedAt: { type: [string, 'null'], format: date-time }
+        canceledAt: { type: [string, 'null'], format: date-time }
     BillingInvoiceLine:
       type: object
       additionalProperties: false
@@ -5686,3 +5776,21 @@ components:
       required: [effectiveAt]
       properties:
         effectiveAt: { type: string, format: date-time }
+    ScheduleBillingChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [PLAN_CHANGE, PERIOD_CHANGE, ADDON_CHANGE, CANCELLATION] }
+        effectiveAt: { type: string, format: date-time }
+        targetPlanCode: { $ref: "#/components/schemas/FairScalePlanCode" }
+        targetBillingPeriod: { $ref: "#/components/schemas/BillingPeriod" }
+        addonCode: { type: string, maxLength: 64 }
+        addonQuantity: { type: integer, minimum: 0, maximum: 10000 }
+    RunBillingJobRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        at: { type: string, format: date-time }
+        limit: { type: integer, minimum: 1, maximum: 500 }
+        provider: { type: string, enum: [TEST] }
