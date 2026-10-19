@@ -84,3 +84,7 @@ Les changements de statut, plan et entitlement sont idempotents et protégés co
 ## API
 
 Les routes sont sous `/api/v1/platform/*` et protégées par une policy plateforme distincte.
+
+## FairScale V1 — tranche Billing du Control Plane (Phase 9.6)
+
+À ajouter **sans déclarer la Phase 11 globale achevée** : tableau d'exploitation des souscriptions/prix versionnés, invoices plateforme, paiements rapprochés, redemptions promo, incidents et dérogations temporaires auditables. Limiter PLATFORM_SUPPORT aux métadonnées nécessaires, PLATFORM_ADMIN aux mutations autorisées. Aucun accès implicite à SALES tenant, à l'historique privé, ou aux clés prestataire. Les mutations d'argent et de droits sont idempotentes et émettent Audit/Outbox atomiques. Source : [FairScale V1](89_FAIRSCALE_V1_NORMATIVE_SPEC.md), [Phase 9.6](91_PHASE_9_6_FAIRSCALE_BILLING_EXECUTION_SPEC.md).
