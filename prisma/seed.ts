@@ -236,6 +236,39 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
       });
     }
 
+    for (const billingPeriod of ["MONTHLY", "YEARLY"] as const) {
+      const fairScalePlanVersion = await prisma.planVersion.upsert({
+        where: { planCode_version: { planCode: plan.code, version: billingPeriod === "MONTHLY" ? 2 : 3 } },
+        update: {},
+        create: {
+          id: crypto.randomUUID(),
+          planCode: plan.code,
+          version: billingPeriod === "MONTHLY" ? 2 : 3,
+          status: "ACTIVE",
+          currency: "USD",
+          billingPeriod,
+          publishedAt: fairScaleCatalogPublishedAt,
+        },
+      });
+      for (const moduleCode of plan.modules) {
+        await prisma.planVersionModule.upsert({
+          where: { planVersionId_moduleCode: { planVersionId: fairScalePlanVersion.id, moduleCode } },
+          update: {},
+          create: { planVersionId: fairScalePlanVersion.id, moduleCode, defaultEnabled: true },
+        });
+      }
+      for (const [quotaCode, limitValue] of [
+        ["MAX_USERS", plan.maxUsers],
+        ["MAX_ESTABLISHMENTS", plan.maxEstablishments],
+      ] as const) {
+        await prisma.planVersionQuota.upsert({
+          where: { planVersionId_quotaCode: { planVersionId: fairScalePlanVersion.id, quotaCode } },
+          update: {},
+          create: { id: crypto.randomUUID(), planVersionId: fairScalePlanVersion.id, quotaCode, unit: "COUNT", mode: "CAPACITY", limitValue },
+        });
+      }
+    }
+
     for (const price of fairScalePriceVersions.filter(({ planCode }) => planCode === plan.code)) {
       const priceVersion = await prisma.priceVersion.upsert({
         where: {
@@ -245,15 +278,7 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
             billingPeriod: price.billingPeriod,
           },
         },
-        update: {
-          currency: "USD",
-          status: "ACTIVE",
-          baseAmountMinor: price.baseAmountMinor,
-          welcomeAmountMinor: price.welcomeAmountMinor,
-          annualDiscountAmountMinor: price.annualDiscountAmountMinor,
-          includedEstablishments: price.includedEstablishments,
-          publishedAt: fairScaleCatalogPublishedAt,
-        },
+        update: {},
         create: {
           id: crypto.randomUUID(),
           planCode: price.planCode,
@@ -279,12 +304,7 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
               code: "ESTABLISHMENT",
             },
           },
-          update: {
-            kind: "ESTABLISHMENT_ADDON",
-            currency: "USD",
-            amountMinor: addonAmountMinor,
-            capacityUnits: 1,
-          },
+          update: {},
           create: {
             id: crypto.randomUUID(),
             priceVersionId: priceVersion.id,

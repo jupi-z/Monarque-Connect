@@ -42,8 +42,7 @@ export class BillingService {
     this.authorization.assertPermission(context, 'billing:write');
     this.validateQuoteInput(input, rawIdempotencyKey);
     const idempotencyKey = rawIdempotencyKey!.trim();
-    const asOf = input.asOf ? new Date(input.asOf) : new Date();
-    if (Number.isNaN(asOf.getTime())) throw new BadRequestException('asOf must be a valid date');
+    const asOf = new Date();
     const payloadHash = this.hash({ planCode: input.planCode, billingPeriod: input.billingPeriod, activeEstablishmentCount: input.activeEstablishmentCount, asOf: asOf.toISOString() });
     const eventContext = currentEventContext() ?? createRequestContext();
 
@@ -143,15 +142,19 @@ export class BillingService {
   async capacity(principal: AuthPrincipal, organizationId: string): Promise<unknown> {
     const context = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(context, 'billing:read');
-    const subscription = await this.prisma.subscription.findFirst({ where: { organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: new Date() }, OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], include: { planVersion: true } });
+    const now = new Date();
+    const subscription = await this.prisma.subscription.findFirst({ where: { organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], include: { planVersion: true } });
     if (!subscription) throw new ConflictException('Organization has no effective subscription');
     const fairScale = subscription.planVersion.planCode !== 'CONNECT' && await this.hasVerifiedFairScaleCustomer(organizationId);
     const price = fairScale ? await this.prisma.priceVersion.findFirst({ where: { planCode: subscription.planVersion.planCode, billingPeriod: 'MONTHLY', status: 'ACTIVE', currency: 'USD' }, orderBy: { version: 'desc' } }) : null;
     const legacyQuota = await this.prisma.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: subscription.planVersionId, quotaCode: 'MAX_ESTABLISHMENTS' } }, select: { limitValue: true } });
     if (!price && !legacyQuota) throw new ConflictException('Establishment capacity catalog is not available');
     const activeEstablishments = await this.prisma.establishment.count({ where: { organizationId, status: 'ACTIVE' } });
+    const addonRows = await this.prisma.billingSubscriptionAddon.findMany({ where: { organizationId, status: 'ACTIVE', startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }], subscriptionTerm: { status: { in: ['ACTIVE', 'PAST_DUE'] }, currentPeriodStart: { lte: now }, OR: [{ currentPeriodEnd: { gt: now } }, { currentPeriodEnd: now }] } }, select: { quantity: true } });
+    const addonEstablishments = addonRows.reduce((total, addon) => total + addon.quantity, 0);
     const includedEstablishments = price?.includedEstablishments ?? Number(legacyQuota!.limitValue);
-    return { organizationId, planCode: subscription.planVersion.planCode, includedEstablishments, activeEstablishments, addonEstablishments: 0, effectiveEstablishments: includedEstablishments, overCapacity: activeEstablishments > includedEstablishments, currency: price?.currency.trim() ?? subscription.planVersion.currency.trim() };
+    const effectiveEstablishments = includedEstablishments + addonEstablishments;
+    return { organizationId, planCode: subscription.planVersion.planCode, includedEstablishments, activeEstablishments, addonEstablishments, effectiveEstablishments, overCapacity: activeEstablishments > effectiveEstablishments, currency: price?.currency.trim() ?? subscription.planVersion.currency.trim() };
   }
 
   async estimateCapacity(principal: AuthPrincipal, organizationId: string, input: EstimateBillingCapacityDto): Promise<unknown> {

@@ -65,6 +65,17 @@ describe('Organization subscriptions', () => {
     await expect(prisma.outboxEvent.count({ where: { organizationId, eventType: 'subscription.transitioned' } })).resolves.toBe(2);
   });
 
+  it('keeps a past-due subscription effective only during the seven-day grace window', async () => {
+    const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    const startsAt = new Date('2026-11-01T00:00:00.000Z');
+    const endsAt = new Date('2026-12-01T00:00:00.000Z');
+    const created = await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt, endsAt });
+
+    await subscriptions.transition(created.id, 'PAST_DUE', endsAt, 'payment overdue');
+    await expect(subscriptions.resolveEffective(organizationId, new Date('2026-12-07T23:59:59.999Z'))).resolves.toMatchObject({ id: created.id, status: 'PAST_DUE' });
+    await expect(subscriptions.resolveEffective(organizationId, new Date('2026-12-08T00:00:00.000Z'))).resolves.toBeNull();
+  });
+
   it('rejects concurrent overlapping finite subscriptions at the database boundary', async () => {
     const connect = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
     const operations = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });

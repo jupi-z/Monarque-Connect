@@ -252,7 +252,10 @@ export class QuotaService {
       const subscription = await client.subscription.findFirst({ where: { organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersion: { select: { planCode: true } } } });
       if (subscription && await this.hasVerifiedFairScaleCustomer(client, organizationId)) {
         const price = await client.priceVersion.findFirst({ where: { planCode: subscription.planVersion.planCode, billingPeriod: 'MONTHLY', currency: 'USD', status: 'ACTIVE', startsAt: { lte: at }, OR: [{ retiredAt: null }, { retiredAt: { gt: at } }] }, orderBy: [{ version: 'desc' }, { startsAt: 'desc' }], select: { includedEstablishments: true } });
-        if (price) return BigInt(price.includedEstablishments);
+        if (price) {
+          const addons = await client.billingSubscriptionAddon.findMany({ where: { organizationId, status: 'ACTIVE', startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }], subscriptionTerm: { status: { in: ['ACTIVE', 'PAST_DUE'] }, currentPeriodStart: { lte: at }, OR: [{ currentPeriodEnd: { gt: at } }, { currentPeriodEnd: at }] } }, select: { quantity: true } });
+          return BigInt(price.includedEstablishments + addons.reduce((total, addon) => total + addon.quantity, 0));
+        }
       }
     }
     const overrides = await client.organizationEntitlement.findMany({ where: { organizationId, moduleCode: this.quotaModuleCode(quotaCode), effect: 'LIMIT_OVERRIDE', startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ createdAt: 'desc' }, { startsAt: 'desc' }], select: { limitsJson: true } });

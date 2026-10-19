@@ -6,6 +6,7 @@ import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
 import { createDomainEvent } from '../events/domain-event.factory.js';
 import { createRequestContext, currentEventContext, type EventContext } from '../events/event-context.js';
 import type { VerifiedBillingProviderEvent } from './billing-provider.port.js';
+import { addBillingPeriod } from './billing-period.js';
 
 @Injectable()
 export class BillingProviderService {
@@ -58,12 +59,10 @@ export class BillingProviderService {
       const existingTerm = await tx.billingSubscriptionTerm.findFirst({ where: { organizationId: checkoutOrder.organizationId, status: { in: ['PENDING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] } }, select: { id: true } });
       if (existingTerm) throw new ConflictException('Organization already has an effective FairScale billing term');
       const quote = await tx.billingQuote.findUniqueOrThrow({ where: { id: checkoutOrder.quoteId }, include: { lines: true } });
-      const planVersion = await tx.planVersion.findFirst({ where: { planCode: quote.planCode, billingPeriod: quote.billingPeriod, status: 'ACTIVE' }, orderBy: { version: 'desc' } });
+      const planVersion = await tx.planVersion.findFirst({ where: { planCode: quote.planCode, billingPeriod: quote.billingPeriod, currency: 'USD', status: 'ACTIVE' }, orderBy: { version: 'desc' } });
       if (!planVersion) throw new ConflictException('No active plan version is available for the paid quote');
       const periodStart = new Date();
-      const periodEnd = new Date(periodStart);
-      if (quote.billingPeriod === 'MONTHLY') periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
-      else periodEnd.setUTCFullYear(periodEnd.getUTCFullYear() + 1);
+      const periodEnd = addBillingPeriod(periodStart, quote.billingPeriod);
       const currentSubscription = await tx.subscription.findFirst({ where: { organizationId: quote.organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] }, startsAt: { lte: periodStart }, OR: [{ endsAt: null }, { endsAt: { gt: periodStart } }] }, include: { planVersion: true }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }] });
       if (currentSubscription && currentSubscription.planVersion.planCode !== 'CONNECT') throw new ConflictException('Organization already has a paid subscription; use a scheduled plan change');
       if (currentSubscription) await tx.subscription.update({ where: { id: currentSubscription.id }, data: { status: 'EXPIRED', endsAt: periodStart } });
@@ -99,6 +98,11 @@ export class BillingProviderService {
     await tx.billingPayment.create({ data: { id: randomUUID(), paymentAttemptId: attempt.id, billingCustomerId: attempt.billingCustomerId, organizationId: attempt.organizationId, invoiceId: invoice.id, provider, externalTransactionId: event.providerPaymentId, status: 'SUCCEEDED', amountMinor: event.amountMinor, currency: event.currency } });
     await tx.billingInvoice.update({ where: { id: invoice.id }, data: { status: 'PAID', amountPaidMinor: event.amountMinor, paidAt: new Date() } });
     await tx.billingPaymentAttempt.update({ where: { id: attempt.id }, data: { status: 'SUCCEEDED' } });
+    const redemption = await tx.billingPromotionRedemption.findFirst({ where: { billingInvoiceId: invoice.id, promotionCode: 'WELCOME_MONTHLY15', status: 'RESERVED' } });
+    if (redemption) {
+      await tx.billingPromotionRedemption.update({ where: { id: redemption.id }, data: { status: 'CONSUMED', consumedAt: invoice.periodStart } });
+      await tx.billingPromotionEligibility.update({ where: { billingCustomerId_promotionCode: { billingCustomerId: attempt.billingCustomerId, promotionCode: 'WELCOME_MONTHLY15' } }, data: { monthlyPaidCount: { increment: 1 } } });
+    }
     await tx.billingSubscriptionTerm.update({ where: { id: invoice.subscriptionTermId }, data: { status: 'ACTIVE', currentPeriodStart: invoice.periodStart, currentPeriodEnd: invoice.periodEnd, nextRenewalAt: invoice.periodEnd } });
     await tx.subscription.update({ where: { id: invoice.subscriptionTerm.subscriptionId }, data: { status: 'ACTIVE', startsAt: invoice.periodStart, endsAt: invoice.periodEnd } });
     await tx.auditEvent.create({ data: { id: randomUUID(), action: 'BILLING_SUBSCRIPTION_CHANGED', actorUserId: null, organizationId: attempt.organizationId, targetType: 'BillingInvoice', targetId: invoice.id, requestId: context.requestId ?? null, correlationId: context.correlationId, metadataJson: { status: 'RENEWED', amountMinor: event.amountMinor.toString(), provider, externalTransactionId: event.providerPaymentId } } });

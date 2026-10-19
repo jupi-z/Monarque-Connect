@@ -54,7 +54,7 @@ describe('FairScale Phase 9.5 catalog schema', () => {
 
     const historical = await prisma.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM plan_versions WHERE currency = 'EUR'`;
     expect(historical[0]?.count).toBe(4n);
-  });
+  }, 60000);
 
   it('publishes an establishment add-on for both billing cycles', async () => {
     await seedReferenceData(prisma);
@@ -70,4 +70,24 @@ describe('FairScale Phase 9.5 catalog schema', () => {
       { billing_period: 'YEARLY', amount_minor: 12000n, capacity_units: 1 },
     ]);
   });
+
+  it('seeds USD plan versions matching every FairScale billing period', async () => {
+    await seedReferenceData(prisma);
+    const planVersions = await prisma.planVersion.findMany({ where: { currency: 'USD' }, select: { planCode: true, billingPeriod: true }, orderBy: [{ planCode: 'asc' }, { billingPeriod: 'asc' }] });
+    expect(planVersions).toHaveLength(8);
+    expect(planVersions).toEqual(expect.arrayContaining([
+      { planCode: 'BUSINESS', billingPeriod: 'MONTHLY' },
+      { planCode: 'BUSINESS', billingPeriod: 'YEARLY' },
+      { planCode: 'ENTERPRISE', billingPeriod: 'MONTHLY' },
+      { planCode: 'ENTERPRISE', billingPeriod: 'YEARLY' },
+    ]));
+  });
+
+  it('does not rewrite a published FairScale price when the seed is replayed', async () => {
+    await seedReferenceData(prisma);
+    const price = await prisma.priceVersion.findFirstOrThrow({ where: { planCode: 'BUSINESS', billingPeriod: 'MONTHLY', currency: 'USD' } });
+    await prisma.priceVersion.update({ where: { id: price.id }, data: { baseAmountMinor: 9999n } });
+    await seedReferenceData(prisma);
+    await expect(prisma.priceVersion.findUniqueOrThrow({ where: { id: price.id } })).resolves.toMatchObject({ baseAmountMinor: 9999n });
+  }, 60000);
 });

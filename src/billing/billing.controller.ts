@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
@@ -6,7 +6,7 @@ import { PlatformAuthorizationService } from '../entitlements/platform-authoriza
 import { BillingService } from './billing.service.js';
 import { BillingProviderService } from './billing-provider.service.js';
 import { BillingLifecycleService } from './billing-lifecycle.service.js';
-import { CreateBillingCheckoutOrderDto, CreateBillingPaymentAttemptDto, CreateBillingQuoteDto, EstimateBillingCapacityDto, PublishBillingPriceDto, RunBillingJobDto, ScheduleBillingChangeDto } from './billing.dto.js';
+import { CreateBillingCheckoutOrderDto, CreateBillingPaymentAttemptDto, CreateBillingQuoteDto, EstimateBillingCapacityDto, LinkBillingCustomerOrganizationDto, PublishBillingPriceDto, RunBillingJobDto, ScheduleBillingChangeDto, SetBillingCustomerVerificationDto } from './billing.dto.js';
 import { BillingAdminService } from './billing-admin.service.js';
 
 @Controller()
@@ -43,6 +43,18 @@ export class PlatformBillingController {
   async publishPrice(@CurrentPrincipal() principal: AuthPrincipal, @Headers('idempotency-key') key: string | undefined, @Body() input: PublishBillingPriceDto): Promise<unknown> {
     this.platformAuthorization.assertPlatformAdmin(principal);
     return this.admin.publishPrice(principal, input, key);
+  }
+
+  @Put('customers/:customerId/verification')
+  async setCustomerVerification(@CurrentPrincipal() principal: AuthPrincipal, @Param('customerId') customerId: string, @Headers('idempotency-key') key: string | undefined, @Body() input: SetBillingCustomerVerificationDto): Promise<unknown> {
+    this.platformAuthorization.assertPlatformAdmin(principal);
+    return this.admin.setCustomerVerification(principal, customerId, input, key);
+  }
+
+  @Post('customers/:customerId/organizations/:organizationId')
+  async linkOrganization(@CurrentPrincipal() principal: AuthPrincipal, @Param('customerId') customerId: string, @Param('organizationId') organizationId: string, @Body() input: LinkBillingCustomerOrganizationDto): Promise<unknown> {
+    this.platformAuthorization.assertPlatformAdmin(principal);
+    return this.admin.linkOrganization(principal, customerId, organizationId, input);
   }
 
   @Get('terms')

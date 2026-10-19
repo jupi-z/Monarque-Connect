@@ -33,7 +33,7 @@ describe("Product entitlements catalog and plan reference data", () => {
 
     await expect(prisma.moduleCatalog.count()).resolves.toBe(22);
     await expect(prisma.plan.count()).resolves.toBe(4);
-    await expect(prisma.planVersion.count()).resolves.toBe(4);
+    await expect(prisma.planVersion.count()).resolves.toBe(12);
     await expect(prisma.planVersionModule.count()).resolves.toBeGreaterThan(0);
 
     const connect = await prisma.planVersion.findUnique({
@@ -64,7 +64,7 @@ describe("Product entitlements catalog and plan reference data", () => {
     await expect(
       prisma.planVersion.update({
         where: { id: original.id },
-        data: { version: 2 },
+        data: { version: 4 },
       }),
     ).rejects.toThrow();
 
@@ -73,7 +73,7 @@ describe("Product entitlements catalog and plan reference data", () => {
         data: {
           id: crypto.randomUUID(),
           planCode: original.planCode,
-          version: 2,
+          version: 4,
           status: "DRAFT",
           currency: original.currency,
           billingPeriod: original.billingPeriod,
@@ -81,7 +81,7 @@ describe("Product entitlements catalog and plan reference data", () => {
       }),
     ).resolves.toMatchObject({
       planCode: "CONNECT",
-      version: 2,
+      version: 4,
       status: "DRAFT",
     });
   });
@@ -90,7 +90,7 @@ describe("Product entitlements catalog and plan reference data", () => {
     await expect(
       Promise.all([seedReferenceData(prisma), seedReferenceData(prisma)]),
     ).resolves.toBeDefined();
-    await expect(prisma.planVersion.count()).resolves.toBe(4);
-    await expect(prisma.planVersionModule.count()).resolves.toBe(51);
+    await expect(prisma.planVersion.count()).resolves.toBe(12);
+    await expect(prisma.planVersionModule.count()).resolves.toBe(153);
   });
 });
