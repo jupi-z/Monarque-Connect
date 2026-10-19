@@ -87,6 +87,9 @@ jobs:
       - name: Verify empty-database and Phase 8 upgrade migrations
         if: ${{ hashFiles('scripts/verify-phase9-migrations.mjs') != '' }}
         run: npm run prisma:phase9:migration-proof
+      - name: Verify empty-database and Phase 9 upgrade migrations
+        if: ${{ hashFiles('scripts/verify-phase95-migrations.mjs') != '' }}
+        run: npm run prisma:phase95:migration-proof
       - run: npm run prisma:deploy
       - run: npm run openapi:validate
       - run: npm run contracts:validate

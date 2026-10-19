@@ -108,6 +108,7 @@ export class BillingService {
   }
 
   private async ensureBillingCustomer(tx: Prisma.TransactionClient, organizationId: string): Promise<{ id: string }> {
+    await tx.$queryRaw(Prisma.sql`SELECT id FROM organizations WHERE id = ${organizationId}::uuid FOR UPDATE`);
     const linked = await tx.billingCustomerOrganization.findFirst({ where: { organizationId }, select: { billingCustomerId: true } });
     if (linked) return { id: linked.billingCustomerId };
     const organization = await tx.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { name: true } });

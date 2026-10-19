@@ -53,6 +53,8 @@ describe('Phase 9.5 FairScale HTTP flow', () => {
     const replay = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase95-business-monthly-5').send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 5 }).expect(201));
     expect(replay.id).toBe(quoteId);
     await request(server).post(`/api/v1/organizations/${organizationId}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase95-business-monthly-5').send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 4 }).expect(409);
+    const annual = bodyOf<{ totalAmountMinor: number; discountAmountMinor: number; addonAmountMinor: number; promotionCode: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase95-business-annual-3').send({ planCode: 'BUSINESS', billingPeriod: 'YEARLY', activeEstablishmentCount: 3 }).expect(201));
+    expect(annual).toMatchObject({ totalAmountMinor: 43200, discountAmountMinor: 10800, addonAmountMinor: 0, promotionCode: 'ANNUAL20' });
     await request(server).get(`/api/v1/organizations/${organizationId}/billing/quotes/${quoteId}`).set('Authorization', `Bearer ${otherToken}`).expect(403);
 
     const capacity = bodyOf<{ planCode: string; includedEstablishments: number; activeEstablishments: number }>(await request(server).get(`/api/v1/organizations/${organizationId}/billing/capacity`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
@@ -60,10 +62,28 @@ describe('Phase 9.5 FairScale HTTP flow', () => {
     const estimate = bodyOf<{ effectiveEstablishments: number; overCapacity: boolean }>(await request(server).post(`/api/v1/organizations/${organizationId}/billing/capacity/estimate`).set('Authorization', `Bearer ${ownerToken}`).send({ activeEstablishmentCount: 2, addonEstablishmentCount: 1 }).expect(200));
     expect(estimate).toMatchObject({ effectiveEstablishments: 2, overCapacity: false });
 
+    const customer = await prisma.billingCustomer.findFirstOrThrow({ where: { organizations: { some: { organizationId } } } });
+    await prisma.billingCustomer.update({ where: { id: customer.id }, data: { status: 'VERIFIED', verifiedAt: new Date() } });
+    const businessPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: businessPlan.id } });
+    const verifiedCapacity = bodyOf<{ planCode: string; includedEstablishments: number; currency: string }>(await request(server).get(`/api/v1/organizations/${organizationId}/billing/capacity`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    expect(verifiedCapacity).toMatchObject({ planCode: 'BUSINESS', includedEstablishments: 3, currency: 'USD' });
+
     const concurrentQuotes = await Promise.all(Array.from({ length: 4 }, (_, index) => request(server).post(`/api/v1/organizations/${organizationId}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `phase95-concurrent-${index}`).send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 3 })));
     expect(concurrentQuotes.every((response) => response.status === 201)).toBe(true);
     await expect(prisma.billingPromotionRedemption.count({ where: { promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', status: { in: ['RESERVED', 'CONSUMED'] } } })).resolves.toBe(3);
     await expect(prisma.billingPromotionRedemption.count({ where: { promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', quoteId: { not: null } } })).resolves.toBe(3);
+  });
+
+  it('serializes first-quote billing identity creation for a new organization', async () => {
+    const server = serverOf(app);
+    const newOrganization = bodyOf<{ id: string }>(await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'First quote concurrency tenant', handle: `fairscale-concurrency-${randomUUID().slice(0, 8)}`, defaultCurrency: 'EUR', establishmentName: 'Head office' }).expect(201));
+
+    const responses = await Promise.all(Array.from({ length: 4 }, (_, index) => request(server).post(`/api/v1/organizations/${newOrganization.id}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `phase95-first-quote-${index}`).send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 3 })));
+
+    expect(responses.every((response) => response.status === 201)).toBe(true);
+    await expect(prisma.billingCustomerOrganization.count({ where: { organizationId: newOrganization.id } })).resolves.toBe(1);
+    await expect(prisma.billingPromotionRedemption.count({ where: { billingCustomer: { organizations: { some: { organizationId: newOrganization.id } } }, promotionCode: 'WELCOME_MONTHLY15', status: { in: ['RESERVED', 'CONSUMED'] } } })).resolves.toBe(3);
   });
 });
 

@@ -42,10 +42,14 @@ describe('FairScale Phase 9.5 catalog schema', () => {
 
     expect(prices).toHaveLength(8);
     expect(prices).toEqual(expect.arrayContaining([
+      expect.objectContaining({ plan_code: 'CONNECT', billing_period: 'MONTHLY', currency: 'USD', base_amount_minor: 0n, welcome_amount_minor: 0n, annual_discount_amount_minor: 0n, included_establishments: 1, status: 'ACTIVE' }),
+      expect.objectContaining({ plan_code: 'CONNECT', billing_period: 'YEARLY', currency: 'USD', base_amount_minor: 0n, welcome_amount_minor: 0n, annual_discount_amount_minor: 0n, included_establishments: 1, status: 'ACTIVE' }),
       expect.objectContaining({ plan_code: 'OPERATIONS', billing_period: 'MONTHLY', currency: 'USD', base_amount_minor: 1500n, welcome_amount_minor: 1275n, annual_discount_amount_minor: 0n, included_establishments: 1, status: 'ACTIVE' }),
+      expect.objectContaining({ plan_code: 'OPERATIONS', billing_period: 'YEARLY', currency: 'USD', base_amount_minor: 18000n, welcome_amount_minor: 14400n, annual_discount_amount_minor: 3600n, included_establishments: 1, status: 'ACTIVE' }),
       expect.objectContaining({ plan_code: 'BUSINESS', billing_period: 'MONTHLY', currency: 'USD', base_amount_minor: 4500n, welcome_amount_minor: 3825n, annual_discount_amount_minor: 0n, included_establishments: 3, status: 'ACTIVE' }),
-      expect.objectContaining({ plan_code: 'ENTERPRISE', billing_period: 'MONTHLY', currency: 'USD', base_amount_minor: 18000n, welcome_amount_minor: 15300n, annual_discount_amount_minor: 0n, included_establishments: 10, status: 'ACTIVE' }),
       expect.objectContaining({ plan_code: 'BUSINESS', billing_period: 'YEARLY', currency: 'USD', base_amount_minor: 54000n, welcome_amount_minor: 43200n, annual_discount_amount_minor: 10800n, included_establishments: 3, status: 'ACTIVE' }),
+      expect.objectContaining({ plan_code: 'ENTERPRISE', billing_period: 'MONTHLY', currency: 'USD', base_amount_minor: 18000n, welcome_amount_minor: 15300n, annual_discount_amount_minor: 0n, included_establishments: 10, status: 'ACTIVE' }),
+      expect.objectContaining({ plan_code: 'ENTERPRISE', billing_period: 'YEARLY', currency: 'USD', base_amount_minor: 216000n, welcome_amount_minor: 172800n, annual_discount_amount_minor: 43200n, included_establishments: 10, status: 'ACTIVE' }),
     ]));
 
     const historical = await prisma.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM plan_versions WHERE currency = 'EUR'`;

@@ -48,6 +48,7 @@ try {
   Invoke-Step 'Phase 7 migration proof' { npm run prisma:phase7:migration-proof }
   Invoke-Step 'Phase 8 migration proof' { npm run prisma:phase8:migration-proof }
   Invoke-Step 'Phase 9 migration proof' { npm run prisma:phase9:migration-proof }
+  Invoke-Step 'Phase 9.5 migration proof' { npm run prisma:phase95:migration-proof }
   Invoke-Step 'Apply current migrations' { npm run prisma:deploy }
   Invoke-Step 'OpenAPI validation' { npm run openapi:validate }
   Invoke-Step 'Contract validation' { npm run contracts:validate }
