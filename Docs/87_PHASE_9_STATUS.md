@@ -1,58 +1,44 @@
 # Phase 9 — Messaging B2B : statut
 
-**Baseline de cadrage :** `main@45b733363f413484f6713b1c5523e119e4def1ec`
-**État au 18 octobre 2026 :** implémentation Phase 9 préparée dans la branche empilée `monarque/phase9-messages`, PR #119. Les mutations Messaging, le cycle de vie, l'anti-abus, l'audit/Outbox et les consommateurs idempotents sont versionnés. La CI cumulative PR #327 valide l'état antérieur au durcissement ; le durcissement courant est vérifié localement et attend une exécution GitHub disponible. La Phase 9 n'est pas déclarée clôturée : les PR #118/#119 doivent encore être intégrées selon leur ordre d'empilement et la CI post-fusion de `main` reste obligatoire.
-**Référence normative :** [86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md](86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md)
+**État au 19 octobre 2026 :** clôturée techniquement et documentairement sur `main@6941f9108ce9ff3182201c03f8f0bb8df8342459`.
 
-## Périmètre approuvé
+**Références normatives :**
 
-- conversations REST entre exactement deux organisations reliées par Network `ACCEPTED` ;
-- participants utilisateurs explicites, distincts des participants organisationnels ;
-- messages texte immuables, attribution serveur et idempotence `clientMessageId` ;
-- invitation organisationnelle acceptée par `OWNER`/`ADMIN`, puis invitation utilisateur explicite avec token ;
-- autorisation centralisée, entitlements `MESSAGING`, permissions et scopes établissement ;
-- blocage relationnel et anti-abus persistant ;
-- audit et Outbox atomiques, événements minimisés et versionnés.
+- [86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md](86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md)
+- [plan d'exécution](superpowers/plans/2026-10-15-phase-9-messaging-b2b-plan.md)
+- [preuve d'exécution](88_PHASE_9_EXECUTION_EVIDENCE.md)
 
-## Avancement
+## Périmètre livré
 
-| Gate | État |
-|---|---|
-| Spécification normative | [x] corrigée selon l'audit : invitations, historique, transitions, vérification et anti-abus |
-| Écart vérification Network documenté | [x] émetteur vérifié ; destinataire recevable mais non émetteur sans vérification |
-| Commande plateforme `VERIFIED` | [x] livrée et fusionnée avec Task 2 : `PUT /platform/organizations/{organizationId}/network-trust`, PR #117 |
-| Confidentialité de l'historique | [x] borne `historyVisibleFromSequence` figée |
-| Autorité des transitions | [x] suspension/reprise Control Plane uniquement ; pas de fermeture MVP |
-| Anti-abus sur refus `429` | [x] preuve commitée avant erreur HTTP, sans message/événement d'envoi |
-| Remise des tokens | [x] endpoint REST authentifié, token chiffré au repos et absent des logs/événements |
-| Immutabilité Message | [x] trigger PostgreSQL prévu et test direct SQL ajouté au plan |
-| Contrats OpenAPI détaillés | [x] draft contract added and validated: 177 operations |
-| Plan d'exécution | [x] `Docs/superpowers/plans/2026-10-15-phase-9-messaging-b2b-plan.md` |
-| Task 1 — persistance | [x] PR #116 fusionnée sur `main@58e2d8b`; CI PR et post-fusion vertes |
-| Task 2 — autorisation et confiance Network | [x] PR #117 fusionnée sur `main@a701c68`; CI PR et post-fusion vertes |
-| Task 3 — conversations et invitations | [~] implémentée et validée par la CI cumulative historique #327 ; PR #118 reste ouverte et doit être intégrée avant la PR d'implémentation |
-| Task 4 — messages immuables | [x] implémentée localement : idempotence, séquence PostgreSQL, pagination, attribution serveur et trigger d'immutabilité |
-| Task 5 — blocage, suspension interne et anti-abus | [x] implémentée localement : blocage bidirectionnel, révocation des invitations en attente, commande de modération interne, compteurs et preuve `429` |
-| Task 6 — audit, Outbox et consumers | [x] événements versionnés, payloads minimisés et consumer idempotent `eventId` branchés pour les événements Messaging |
-| Stabilisation corrective de revue | [~] idempotence fonctionnelle et concurrente `clientMessageId`, verrouillage des décisions d'invitation, compteurs anti-abus par empreinte, revalidation transactionnelle des accès, invariants PostgreSQL, secrets fail-closed et entitlements transactionnels implémentés ; preuve GitHub à rejouer |
-| Tests PostgreSQL/E2E/sécurité | [~] suite complète locale verte après durcissement ; preuve GitHub PR et post-fusion encore requise |
-| Preuves de migration Phase 2 → Phase 9 | [x] preuves Phase 2, 3, 5, 6, 7, 8 et 9 exécutées sur bases neuves et upgrades PostgreSQL dédiés |
-| Runner local équivalent CI | [x] `npm run ci:local` versionné ; suite locale rendue déterministe par base de test fraîche et exécution séquentielle |
-| CI PR et post-fusion | [~] PR sur runner GitHub hébergé isolé, exécution #329 indisponible avant étapes pour quota hébergé ; push `main` sur runner auto-hébergé de confiance ; CI post-fusion `main` encore à obtenir |
-| Clôture Phase 9 | [ ] |
+- conversations REST bilatérales entre deux organisations reliées par Network `ACCEPTED` ;
+- participants organisationnels et utilisateurs explicites, avec invitations et tokens protégés ;
+- messages texte immuables, attribution serveur, séquence PostgreSQL, pagination et idempotence ;
+- autorisation centralisée par tenant, entitlement `MESSAGING`, permission et scope établissement ;
+- blocage relationnel, suspension/reprise de modération et anti-abus persistant ;
+- audit et Outbox atomiques, événements versionnés minimisés et consumers idempotents ;
+- commande plateforme de vérification Network `VERIFIED` réutilisée par Messaging.
 
-## Preuves d'exécution déjà obtenues
+Les conversations de groupe, WebSocket, pièces jointes, recherche plein texte, édition/suppression de messages et IA restent hors MVP.
 
-- Task 1 : PR #116, CI PR [`38656069662`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38656069662), CI post-fusion [`38656556180`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38656556180).
-- Task 2 : PR #117, CI PR [`38657951588`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38657951588), CI post-fusion [`38658428563`](https://github.com/jupi-z/Monarque-Connect/actions/runs/38658428563).
-- Validation cumulative de la branche d'implémentation : PR #119, run [`39148395178`](https://github.com/jupi-z/Monarque-Connect/actions/runs/39148395178), `validate=success` ; migrations, PostgreSQL, E2E, OpenAPI, contrats, tests, build et smoke HTTP réussis.
-- Runner : `monarque-connect-ci`, labels `self-hosted`, `linux`, `x64`, `monarque-ci`, service systemd actif et connecté à GitHub.
-- Validation locale du 18 octobre 2026 sur le commit de stabilisation `53471103f1d95e138122defb6e3e256567949612` : suite complète PostgreSQL de 76 fichiers / 281 tests passés ; suite E2E de 7 fichiers / 14 tests passés.
-- Contrôles statiques locaux : `prisma validate`, typecheck, lint, build, OpenAPI (177 opérations), contrats et `git diff --check` réussis. Les preuves de migrations Phase 2, 3, 5, 6, 7, 8 et 9 ont appliqué toutes les migrations attendues sur bases fraîches et upgrades dédiés.
-- Le harness Vitest utilise une base locale explicitement nommée `_test`, la réinitialise hors `_prisma_migrations`, et exécute les fichiers séquentiellement afin d'empêcher les collisions entre suites historiques partageant des identifiants métier.
-- La workflow CI exécute les PR sur `ubuntu-latest` via l'événement standard `pull_request`, afin que le code contrôlé par une PR ne puisse pas exécuter de code arbitraire sur l'hôte persistant. Le run #329 a toutefois été refusé avant démarrage de job par l'indisponibilité/quota du runner hébergé ; il ne constitue pas une preuve de succès. Le push de `main` reste validé sur le runner Linux auto-hébergé `monarque-ci`, avec le port PostgreSQL `55432` distinct du développement. `pull_request_target` est volontairement exclu.
+## Gates
 
-## Garde-fous
+| Gate | État | Preuve |
+|---|---|---|
+| Spécification, autorisations et frontières | [x] | `Docs/86_PHASE9_MESSAGING_B2B_EXECUTION_SPEC.md` |
+| Persistance, migrations et invariants PostgreSQL | [x] | 45 migrations déployées ; preuve Phase 9 dans la CI |
+| Conversations, invitations et tokens | [x] | PR #118 fusionnée |
+| Messages, idempotence et concurrence | [x] | PR #120 fusionnée |
+| Blocage, suspension et anti-abus | [x] | PR #120 fusionnée |
+| Audit, Outbox et consumers | [x] | PR #120 fusionnée |
+| OpenAPI et contrats | [x] | 177 opérations validées |
+| Tests PostgreSQL et régressions | [x] | CI PR #120 et CI post-fusion |
+| Tests HTTP/E2E | [x] | CI PR #120 et CI post-fusion |
+| CI PR | [x] | [run 39223880612](https://github.com/jupi-z/Monarque-Connect/actions/runs/39223880612) |
+| CI post-fusion `main` | [x] | [run 39224474237](https://github.com/jupi-z/Monarque-Connect/actions/runs/39224474237) |
+| Clôture Phase 9 | [x] | PR #120, `main@6941f91` |
 
-La commande plateforme d'attribution de `VERIFIED` est désormais livrée et testée dans Task 2 ; elle reste une précondition opérationnelle aux premiers envois. La branche contient en plus une stabilisation corrective de revue qui doit passer sa CI complète avant intégration. Aucune clôture ne sera déclarée avant la fusion ordonnée des PR #118 puis #119, la CI post-fusion sur `main` et la vérification finale des branches. Toute décision qui modifierait les invariants des Phases 0 à 8 doit être arrêtée avant son implémentation.
+## Gouvernance
 
+La fusion a suivi le processus branche dédiée → PR → CI GitHub hébergée → squash merge → CI post-fusion. Les branches de travail Phase 9 ont été supprimées ; `main` est la seule branche distante restante. La ruleset `main` impose une PR, interdit les suppressions et non-fast-forward, autorise le squash et exige `validate-pr / validate`, sans approbation humaine bloquante.
+
+La protection de `main` reste suivie par l'issue [#6](https://github.com/jupi-z/Monarque-Connect/issues/6) pour les évolutions de gouvernance qui ne conditionnent pas la clôture fonctionnelle de cette phase.

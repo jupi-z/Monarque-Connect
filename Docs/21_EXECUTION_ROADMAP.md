@@ -125,7 +125,7 @@ Les contrats OpenAPI ont été gelés avant migrations et implémentation. La Ph
 8 n'a pas modifié les invariants des Phases 0 à 7.
 
 ## Phase 9 — Messaging B2B
-Conversations, messages, network policies, anti-abuse baseline.
+Phase clôturée sur `main@6941f9108ce9ff3182201c03f8f0bb8df8342459`. Le périmètre couvre les conversations bilatérales REST, les invitations et participants explicites, les messages immuables et idempotents, le blocage relationnel, l'anti-abus persistant, l'audit et l'Outbox. Les preuves sont regroupées dans `Docs/88_PHASE_9_EXECUTION_EVIDENCE.md`; la CI PR #120 et la CI post-fusion Backend #39224474237 sont vertes. Le suivi GitHub est l'issue #114.
 
 ## Phase 10 — Intelligence
 
