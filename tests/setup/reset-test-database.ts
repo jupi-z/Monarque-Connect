@@ -10,7 +10,7 @@ if (connectionString) {
 
   const isLocalHost = ['127.0.0.1', 'localhost'].includes(databaseUrl.hostname);
   const isTrustedGitHubActionsHost =
-    databaseUrl.hostname === 'host.docker.internal' &&
+    ['host.docker.internal', 'monarque-ci-postgres'].includes(databaseUrl.hostname) &&
     process.env.CI === 'true' &&
     process.env.GITHUB_ACTIONS === 'true';
 
