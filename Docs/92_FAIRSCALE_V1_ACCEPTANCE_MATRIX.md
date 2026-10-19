@@ -1,6 +1,6 @@
 # 92 — FairScale V1 : matrice d'acceptation et preuves attendues
 
-**Statut initial : non testé / non implémenté.** Chaque ligne doit acquérir test, commit, CI PR, CI post-fusion et preuve de migration si applicable ; ne pas cocher sans exécution GitHub.
+**Statut : matrice initiale mise à jour après clôture Phase 9.5.** Les lignes 9.5 sont couvertes par [Docs/96](96_PHASE_9_5_FAIRSCALE_CLOSURE_EVIDENCE.md) et les preuves GitHub associées ; les lignes 9.6 restent ouvertes. Ne jamais cocher une ligne sans test, commit, CI PR, CI post-fusion et preuve de migration si applicable.
 
 | ID | Scénario d'acceptation | Phase |
 |---|---|---|

@@ -1,11 +1,11 @@
 # 89 — Monarque FairScale V1 : spécification normative
 
-**Statut : DECISION PRODUIT VALIDEE, IMPLEMENTATION NON COMMENCEE.**  
-**Baseline : main@becef9a96163b2331e1d459583d6dde551857c73 (Phase 9 clôturée).**  
+**Statut : DECISION PRODUIT VALIDEE ; Phase 9.5 IMPLEMENTEE ET CLOTUREE ; Phase 9.6 NON COMMENCEE.**
+**Baseline de préparation : main@becef9a96163b2331e1d459583d6dde551857c73 (Phase 9 clôturée).**
 **Propriétaire : Monarque Group S.A.S.**  
 **Exécution : Phase 9.5 (fondations) puis Phase 9.6 (cycle commercial), AVANT Phase 10.**
 
-Ce document décrit la **cible V1** et n'affirme pas que le code existant la réalise. Les entitlements par module restent ceux de Docs/33. Les nouvelles règles de capacité et prix se substitueront aux *anciennes valeurs seedées* uniquement via nouvelles versions et migrations compatibles.
+Ce document décrit la **cible V1**. La Phase 9.5 réalise le catalogue, le pricing, les promotions de devis, les capacités et l'identité de facturation préparatoire ; la Phase 9.6 reste nécessaire pour les paiements et l'activation commerciale. Les entitlements par module restent ceux de Docs/33. Les nouvelles règles de capacité et prix se substituent aux *anciennes valeurs seedées* uniquement via nouvelles versions et migrations compatibles. Voir Docs/96 pour les preuves.
 
 ## 1. Philosophie et invariants
 

@@ -1,6 +1,6 @@
 # ADR-038 — FairScale V1 : pricing/capacity séparés des entitlements
 
-**Statut : ACCEPTED (décision de produit), non implémenté**  
+**Statut : ACCEPTED (décision de produit), Phase 9.5 implémentée ; Phase 9.6 restante**
 **Date : 2026-10-19**  
 **Norme : Docs/89_FAIRSCALE_V1_NORMATIVE_SPEC.md**
 
