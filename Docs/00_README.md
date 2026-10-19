@@ -73,6 +73,15 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `68_PHASE_4_NETWORK_TRUST_DISCOVERY_EVIDENCE.md` | Preuves de la tranche trust et discovery Network Phase 4 |
 | `82_PHASE8_PROJECTS_DOCUMENTS_EXECUTION_SPEC.md` | Spécification d'exécution Phase 8 |
 | `83_PHASE_8_STATUS.md` | Statut et gates Phase 8 |
+| `87_PHASE_9_STATUS.md` | Clôture Phase 9 |
+| `88_PHASE_9_EXECUTION_EVIDENCE.md` | Preuves Phase 9 |
+| `89_FAIRSCALE_V1_NORMATIVE_SPEC.md` | Spécification normative Monarque FairScale V1 |
+| `90_PHASE_9_5_FAIRSCALE_CORE_EXECUTION_SPEC.md` | Phase 9.5 : prix et capacités |
+| `91_PHASE_9_6_FAIRSCALE_BILLING_EXECUTION_SPEC.md` | Phase 9.6 : cycle commercial et paiements |
+| `92_FAIRSCALE_V1_ACCEPTANCE_MATRIX.md` | Tests de conformité et critères de clôture FairScale |
+| `93_FAIRSCALE_PHASES_STATUS.md` | Statut des phases FairScale |
+| `94_ADR_038_FAIRSCALE.md` | ADR-038 modèle commercial et architecture FairScale |
+| `superpowers/plans/2026-10-19-fairscale-v1-9-5-9-6-plan.md` | Plan d'exécution pour Codex |
 
 ## Gel documentaire
 
