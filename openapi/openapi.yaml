@@ -3410,7 +3410,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /organizations/{organizationId}/billing/subscription/{subscriptionTermId}/changes:
+  /organizations/{organizationId}/billing/subscription/{termId}/changes:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
       - { name: termId, in: path, required: true, schema: { type: string, format: uuid } }
@@ -3486,6 +3486,28 @@ paths:
               schema: { type: array, items: { $ref: "#/components/schemas/BillingInvoiceMetadata" } }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+
+  /platform/billing/prices:
+    post:
+      tags: [Platform]
+      operationId: platformPublishBillingPrice
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublishBillingPriceRequest" }
+      responses:
+        "201":
+          description: New immutable versioned FairScale price published
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillingPriceVersion" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /platform/billing/terms:
     get:
@@ -5757,6 +5779,17 @@ components:
         dueAt: { type: string, format: date-time }
         paidAt: { type: [string, 'null'], format: date-time }
         lines: { type: array, items: { $ref: "#/components/schemas/BillingInvoiceLine" } }
+        payments: { type: array, items: { $ref: "#/components/schemas/BillingPaymentSnapshot" } }
+    BillingPaymentSnapshot:
+      type: object
+      additionalProperties: false
+      required: [id, status, amountMinor, externalTransactionId, receivedAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [SUCCEEDED, REFUNDED, CHARGEBACK] }
+        amountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        externalTransactionId: { type: string }
+        receivedAt: { type: string, format: date-time }
     BillingInvoiceMetadata:
       type: object
       additionalProperties: false
@@ -5770,6 +5803,50 @@ components:
         totalMinor: { $ref: "#/components/schemas/BillingMoney" }
         amountPaidMinor: { $ref: "#/components/schemas/BillingMoney" }
         issuedAt: { type: string, format: date-time }
+    BillingPriceVersion:
+      type: object
+      additionalProperties: false
+      required: [id, planCode, version, billingPeriod, currency, status, baseAmountMinor, welcomeAmountMinor, annualDiscountAmountMinor, includedEstablishments, startsAt, publishedAt, addons]
+      properties:
+        id: { type: string, format: uuid }
+        planCode: { $ref: "#/components/schemas/FairScalePlanCode" }
+        version: { type: integer, minimum: 1 }
+        billingPeriod: { $ref: "#/components/schemas/BillingPeriod" }
+        currency: { type: string, const: USD }
+        status: { type: string, enum: [DRAFT, ACTIVE, RETIRED] }
+        baseAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        welcomeAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        annualDiscountAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        includedEstablishments: { type: integer, minimum: 1 }
+        startsAt: { type: string, format: date-time }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        retiredAt: { type: [string, 'null'], format: date-time }
+        addons:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [code, amountMinor, capacityUnits, currency]
+            properties:
+              code: { type: string }
+              amountMinor: { $ref: "#/components/schemas/BillingMoney" }
+              capacityUnits: { type: integer, minimum: 1 }
+              currency: { type: string, const: USD }
+    PublishBillingPriceRequest:
+      type: object
+      additionalProperties: false
+      required: [planCode, billingPeriod, currency, baseAmountMinor, welcomeAmountMinor, annualDiscountAmountMinor, includedEstablishments, addonAmountMinor, addonCapacityUnits]
+      properties:
+        planCode: { $ref: "#/components/schemas/FairScalePlanCode" }
+        billingPeriod: { $ref: "#/components/schemas/BillingPeriod" }
+        currency: { type: string, pattern: '^[A-Z]{3}$', const: USD }
+        baseAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        welcomeAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        annualDiscountAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        includedEstablishments: { type: integer, minimum: 1 }
+        addonAmountMinor: { $ref: "#/components/schemas/BillingMoney" }
+        addonCapacityUnits: { type: integer, minimum: 1 }
+        startsAt: { type: string, format: date-time }
     CancelBillingSubscriptionRequest:
       type: object
       additionalProperties: false

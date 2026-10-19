@@ -1,5 +1,5 @@
 import type { FairScaleBillingPeriod, FairScalePlanCode } from './fairscale-pricing.js';
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min } from 'class-validator';
 
 export class CreateBillingQuoteDto {
   @IsIn(['CONNECT', 'OPERATIONS', 'BUSINESS', 'ENTERPRISE'])
@@ -86,4 +86,50 @@ export class RunBillingJobDto {
   @IsOptional()
   @IsIn(['TEST'])
   provider?: 'TEST';
+}
+
+export class PublishBillingPriceDto {
+  @IsIn(['CONNECT', 'OPERATIONS', 'BUSINESS', 'ENTERPRISE'])
+  planCode!: 'CONNECT' | 'OPERATIONS' | 'BUSINESS' | 'ENTERPRISE';
+
+  @IsIn(['MONTHLY', 'YEARLY'])
+  billingPeriod!: 'MONTHLY' | 'YEARLY';
+
+  @IsString()
+  @Matches(/^[A-Z]{3}$/)
+  currency!: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(1000000000)
+  baseAmountMinor!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(1000000000)
+  welcomeAmountMinor!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(1000000000)
+  annualDiscountAmountMinor!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  includedEstablishments!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(1000000000)
+  addonAmountMinor!: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  addonCapacityUnits!: number;
+
+  @IsOptional()
+  @IsDateString()
+  startsAt?: string;
 }

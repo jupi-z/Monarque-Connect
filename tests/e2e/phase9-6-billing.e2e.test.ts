@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { exportPKCS8, exportSPKI } from 'jose';
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { Response } from 'supertest';
@@ -17,6 +18,7 @@ describe('Phase 9.6 Billing HTTP flow', () => {
   let app: INestApplication;
   let ownerToken = '';
   let otherToken = '';
+  let platformAdminToken = '';
   let organizationId = '';
 
   beforeAll(async () => {
@@ -37,6 +39,10 @@ describe('Phase 9.6 Billing HTTP flow', () => {
     const server = serverOf(app);
     ownerToken = (await registerAndLogin(server, 'phase96-billing-owner@example.test')).token;
     otherToken = (await registerAndLogin(server, 'phase96-billing-other@example.test')).token;
+    const platformAdmin = await registerAndLogin(server, 'phase96-billing-platform@example.test');
+    platformAdminToken = platformAdmin.token;
+    const platformAdminUser = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: platformAdmin.email } });
+    app.get(ConfigService).set('PLATFORM_ADMIN_USER_IDS', [platformAdminUser.id]);
     organizationId = bodyOf<{ id: string }>(await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Billing E2E tenant', handle: `billing-${randomUUID().slice(0, 8)}`, defaultCurrency: 'EUR', establishmentName: 'Head office' }).expect(201)).id;
   });
 
@@ -57,8 +63,10 @@ describe('Phase 9.6 Billing HTTP flow', () => {
     await request(server).post('/api/v1/billing/providers/TEST/webhook').set('x-provider-event-id', 'phase96-e2e-provider-event-1').set('x-provider-signature', signature).send(payload).expect(202);
     const subscription = bodyOf<{ planCode: string; status: string; totalAmountMinor: number }>(await request(server).get(`/api/v1/organizations/${organizationId}/billing/subscription`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
     expect(subscription).toMatchObject({ planCode: 'BUSINESS', status: 'ACTIVE', totalAmountMinor: 3825 });
-    const invoices = bodyOf<Array<{ status: string; amountPaidMinor: number }>>(await request(server).get(`/api/v1/organizations/${organizationId}/billing/invoices`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    const invoices = bodyOf<Array<{ id: string; status: string; amountPaidMinor: number }>>(await request(server).get(`/api/v1/organizations/${organizationId}/billing/invoices`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
     expect(invoices).toMatchObject([{ status: 'PAID', amountPaidMinor: 3825 }]);
+    const invoice = await request(server).get(`/api/v1/organizations/${organizationId}/billing/invoices/${invoices[0]!.id}`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    expect(invoice.body).toMatchObject({ id: invoices[0]!.id, status: 'PAID' });
     await request(server).post('/api/v1/billing/providers/TEST/webhook').set('x-provider-event-id', 'phase96-e2e-provider-event-1').set('x-provider-signature', signature).send(payload).expect(202);
     const refundPayload = { ...payload, status: 'REFUNDED' };
     const refundSignature = createHmac('sha256', process.env.FAIRSCALE_BILLING_WEBHOOK_SECRET ?? 'test-fairscale-webhook-secret').update(JSON.stringify(refundPayload)).digest('hex');
@@ -68,14 +76,24 @@ describe('Phase 9.6 Billing HTTP flow', () => {
     const refundedInvoices = bodyOf<Array<{ status: string; amountPaidMinor: number }>>(await request(server).get(`/api/v1/organizations/${organizationId}/billing/invoices`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
     expect(refundedInvoices).toEqual(expect.arrayContaining([expect.objectContaining({ status: 'UNCOLLECTIBLE', amountPaidMinor: 0 })]));
     await request(server).get(`/api/v1/organizations/${organizationId}/billing/invoices`).set('Authorization', `Bearer ${otherToken}`).expect(403);
+    await request(server).get(`/api/v1/organizations/${organizationId}/billing/invoices/${invoices[0]!.id}`).set('Authorization', `Bearer ${otherToken}`).expect(403);
+  });
+
+  it('publishes a versioned price only through the platform admin surface', async () => {
+    const server = serverOf(app);
+    const input = { planCode: 'BUSINESS', billingPeriod: 'MONTHLY', currency: 'USD', baseAmountMinor: 4600, welcomeAmountMinor: 3910, annualDiscountAmountMinor: 0, includedEstablishments: 3, addonAmountMinor: 1100, addonCapacityUnits: 1 };
+    const published = bodyOf<{ version: number; baseAmountMinor: number }>(await request(server).post('/api/v1/platform/billing/prices').set('Authorization', `Bearer ${platformAdminToken}`).set('Idempotency-Key', 'phase96-admin-price-1').send(input).expect(201));
+    expect(published).toMatchObject({ version: 2, baseAmountMinor: 4600 });
+    await request(server).post('/api/v1/platform/billing/prices').set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase96-admin-price-2').send(input).expect(403);
+    await request(server).post('/api/v1/platform/billing/prices').set('Authorization', `Bearer ${platformAdminToken}`).set('Idempotency-Key', 'phase96-admin-price-1').send(input).expect(201);
   });
 });
 
-async function registerAndLogin(server: Parameters<typeof request>[0], email: string): Promise<{ token: string }> {
+async function registerAndLogin(server: Parameters<typeof request>[0], email: string): Promise<{ token: string; email: string }> {
   const password = 'correct horse battery staple';
   const registration = bodyOf<{ email: string }>(await request(server).post('/api/v1/auth/register').send({ email, password, firstName: 'FairScale', lastName: 'Test' }).expect(201));
   const login = bodyOf<{ accessToken: string }>(await request(server).post('/api/v1/auth/login').send({ identifier: registration.email, password }).expect(200));
-  return { token: login.accessToken };
+  return { token: login.accessToken, email: registration.email };
 }
 
 function bodyOf<T>(response: Response): T { return response.body as T; }

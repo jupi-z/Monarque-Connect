@@ -6,7 +6,8 @@ import { PlatformAuthorizationService } from '../entitlements/platform-authoriza
 import { BillingService } from './billing.service.js';
 import { BillingProviderService } from './billing-provider.service.js';
 import { BillingLifecycleService } from './billing-lifecycle.service.js';
-import { CreateBillingCheckoutOrderDto, CreateBillingPaymentAttemptDto, CreateBillingQuoteDto, EstimateBillingCapacityDto, RunBillingJobDto, ScheduleBillingChangeDto } from './billing.dto.js';
+import { CreateBillingCheckoutOrderDto, CreateBillingPaymentAttemptDto, CreateBillingQuoteDto, EstimateBillingCapacityDto, PublishBillingPriceDto, RunBillingJobDto, ScheduleBillingChangeDto } from './billing.dto.js';
+import { BillingAdminService } from './billing-admin.service.js';
 
 @Controller()
 export class BillingCatalogController {
@@ -26,6 +27,7 @@ export class BillingController {
   @Post('checkout-orders/:checkoutOrderId/payment-attempts') createPaymentAttempt(@CurrentPrincipal() principal: AuthPrincipal, @Param('organizationId') organizationId: string, @Param('checkoutOrderId') checkoutOrderId: string, @Headers('idempotency-key') key: string | undefined, @Body() input: CreateBillingPaymentAttemptDto): Promise<unknown> { return this.billing.createPaymentAttempt(principal, organizationId, checkoutOrderId, input, key); }
   @Get('subscription') getSubscription(@CurrentPrincipal() principal: AuthPrincipal, @Param('organizationId') organizationId: string): Promise<unknown> { return this.lifecycle.getSubscription(principal, organizationId); }
   @Get('invoices') listInvoices(@CurrentPrincipal() principal: AuthPrincipal, @Param('organizationId') organizationId: string): Promise<unknown> { return this.lifecycle.listInvoices(principal, organizationId); }
+  @Get('invoices/:invoiceId') getInvoice(@CurrentPrincipal() principal: AuthPrincipal, @Param('organizationId') organizationId: string, @Param('invoiceId') invoiceId: string): Promise<unknown> { return this.lifecycle.getInvoice(principal, organizationId, invoiceId); }
   @Post('subscription/:termId/changes') scheduleChange(@CurrentPrincipal() principal: AuthPrincipal, @Param('organizationId') organizationId: string, @Param('termId') termId: string, @Headers('idempotency-key') key: string | undefined, @Body() input: ScheduleBillingChangeDto): Promise<unknown> { return this.lifecycle.scheduleChange(principal, organizationId, termId, input, key); }
   @Post('subscription/changes/:changeId/cancel') cancelChange(@CurrentPrincipal() principal: AuthPrincipal, @Param('organizationId') organizationId: string, @Param('changeId') changeId: string): Promise<unknown> { return this.lifecycle.cancelScheduledChange(principal, organizationId, changeId); }
   @Get('capacity') capacity(@CurrentPrincipal() principal: AuthPrincipal, @Param('organizationId') organizationId: string): Promise<unknown> { return this.billing.capacity(principal, organizationId); }
@@ -35,7 +37,13 @@ export class BillingController {
 @Controller('platform/billing')
 @UseGuards(AuthGuard)
 export class PlatformBillingController {
-  constructor(private readonly platformAuthorization: PlatformAuthorizationService, private readonly lifecycle: BillingLifecycleService) {}
+  constructor(private readonly platformAuthorization: PlatformAuthorizationService, private readonly lifecycle: BillingLifecycleService, private readonly admin: BillingAdminService) {}
+
+  @Post('prices')
+  async publishPrice(@CurrentPrincipal() principal: AuthPrincipal, @Headers('idempotency-key') key: string | undefined, @Body() input: PublishBillingPriceDto): Promise<unknown> {
+    this.platformAuthorization.assertPlatformAdmin(principal);
+    return this.admin.publishPrice(principal, input, key);
+  }
 
   @Get('terms')
   async listTerms(@CurrentPrincipal() principal: AuthPrincipal): Promise<unknown> {
