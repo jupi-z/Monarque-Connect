@@ -32,7 +32,7 @@
 
 ---
 
-### Task 1: Figer les types persistants et la migration PostgreSQL
+### Task 1: Figer les types persistants et la migration PostgreSQL — TERMINÉE
 
 **Files:**
 - Modify: `prisma/schema.prisma`
@@ -50,9 +50,9 @@
 - [ ] Ajouter au SQL un trigger `BEFORE UPDATE OR DELETE` sur `messages` qui lève `message_immutable`, et tester directement update/delete dans PostgreSQL.
 - [ ] Écrire le test PostgreSQL qui vérifie les contraintes depuis une base réelle et refuse les doublons/cross-tenant incohérents.
 - [ ] Exécuter `npm run prisma:validate` puis `npx prisma migrate deploy` sur la base de test et vérifier que la migration est seule à ajouter les objets Phase 9.
-- [ ] Committer `feat(phase9): add messaging persistence model`.
+- [x] PR #116 fusionnée sur `main@58e2d8b6490d97a22cec5863fcded859ea8a76b1`; CI PR et post-fusion vertes.
 
-### Task 2: Centraliser la policy Network, vérification et autorisation Messaging
+### Task 2: Centraliser la policy Network, vérification et autorisation Messaging — TERMINÉE
 
 **Files:**
 - Modify: `src/tenancy/authorization.service.ts`
@@ -73,9 +73,9 @@
 - [ ] Filtrer les participations et organisations dans chaque query d'autorisation avant d'appeler les services métier.
 - [ ] Retourner `404` pour un acteur non participant afin de réduire l'oracle de ressource ; conserver les `403` normalisés pour une ressource connue mais interdite.
 - [ ] Tester rôles, entitlements, `ALL_ESTABLISHMENTS`/`SELECTED_ESTABLISHMENTS`, `UNVERIFIED`, `EXPIRED`, connexion non acceptée, suspension et blocage.
-- [ ] Committer `feat(phase9): centralize messaging authorization policy`.
+- [x] PR #117 fusionnée sur `main@a701c688f6694429ab57fcd68268494fbf186570`; CI PR et post-fusion vertes.
 
-### Task 3: Implémenter conversations et invitations explicites
+### Task 3: Implémenter conversations et invitations explicites — EN COURS
 
 **Files:**
 - Create: `src/messaging/messaging.module.ts`
@@ -105,7 +105,7 @@
 - [ ] Interdire tout `participants/me` et toute adhésion directe par UUID.
 - [ ] Implémenter départ volontaire et révocation par l'autorité de l'organisation, avec suppression immédiate de l'accès et borne de réadhésion future.
 - [ ] Couvrir en HTTP les réponses `401/403/404/409` et l'absence totale de messages avant adhésion.
-- [ ] Committer `feat(phase9): add explicit messaging invitations`.
+- [ ] Committer et PR dédiés après validation locale complète ; les messages et l'anti-abus restent hors périmètre de cette tâche.
 
 ### Task 4: Implémenter messages immuables, idempotence et pagination
 
@@ -172,7 +172,7 @@
 - Modify: `scripts/validate-contracts.mjs` si nécessaire pour les DTO Messaging
 - Test: `tests/phase9-messaging.contracts.test.ts`
 
-- [ ] Conserver les 175 opérations actuellement valides et vérifier que chaque operationId correspond à un controller runtime.
+- [ ] Conserver les 177 opérations actuellement valides et vérifier que chaque operationId correspond à un controller runtime.
 - [ ] Ajouter les schémas détaillés `Conversation`, `Message`, `ConversationInvitation`, pages, commandes, statuts et `TooManyRequests` déjà figés dans le contrat.
 - [ ] Décrire `POST .../conversation-invitations/{id}/token` sans exposer le token dans les schémas de liste, ainsi que `PUT /platform/organizations/{id}/network-trust` et ses erreurs.
 - [ ] Vérifier que les headers `Idempotency-Key`, `Retry-After`, les curseurs et les erreurs sont cohérents avec les services.

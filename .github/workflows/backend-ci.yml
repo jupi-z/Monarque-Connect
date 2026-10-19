@@ -5,81 +5,20 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    env:
-      NODE_ENV: test
-      PORT: 3000
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/monarque_connect_test
+  validate-pr:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/backend-ci-reusable.yml
+    with:
+      runner: '["ubuntu-latest"]'
+      ref: refs/pull/${{ github.event.pull_request.number }}/merge
 
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: monarque_connect_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - run: npm run prisma:generate
-      - name: Audit runtime dependency graph
-        run: |
-          npm audit --json > /tmp/npm-audit.json || true
-          node scripts/check-runtime-audit.mjs /tmp/npm-audit.json
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run prisma:validate
-      - name: Verify empty-database and Phase 1 upgrade migrations
-        run: npm run prisma:phase2:migration-proof
-      - name: Verify empty-database and Phase 2 upgrade migrations
-        run: npm run prisma:phase3:migration-proof
-      - name: Verify empty-database and Phase 4 upgrade migrations
-        run: npm run prisma:phase5:migration-proof
-      - name: Verify empty-database and Phase 5 upgrade migrations
-        run: npm run prisma:phase6:migration-proof
-      - name: Verify empty-database and Phase 6 upgrade migrations
-        run: npm run prisma:phase7:migration-proof
-      - name: Verify empty-database and Phase 7 upgrade migrations
-        run: npm run prisma:phase8:migration-proof
-      - run: npm run prisma:deploy
-      - run: npm run openapi:validate
-      - run: npm run contracts:validate
-      - run: npm test
-      - name: Run HTTP E2E suite
-        run: npm run test:e2e
-      - run: npm run build
-      - name: Smoke HTTP health endpoints
-        run: |
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/monarque-jwt-private.pem
-          openssl rsa -pubout -in /tmp/monarque-jwt-private.pem -out /tmp/monarque-jwt-public.pem
-          export JWT_ISSUER=monarque-connect-ci
-          export JWT_AUDIENCE=monarque-connect-api-ci
-          export JWT_KEY_ID=ci-ephemeral-key-1
-          export JWT_PRIVATE_KEY_PEM="$(cat /tmp/monarque-jwt-private.pem)"
-          export JWT_PUBLIC_KEY_PEM="$(cat /tmp/monarque-jwt-public.pem)"
-          npm run start > /tmp/monarque-connect.log 2>&1 &
-          APP_PID=$!
-          trap 'kill $APP_PID 2>/dev/null || true' EXIT
-          for i in $(seq 1 20); do
-            if curl -fsS http://127.0.0.1:3000/api/v1/health/live > /dev/null; then
-              break
-            fi
-            sleep 1
-          done
-          curl -fsS http://127.0.0.1:3000/api/v1/health/live
-          curl -fsS http://127.0.0.1:3000/api/v1/health/ready
+  validate-main:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/backend-ci-reusable.yml
+    with:
+      runner: '["ubuntu-latest"]'
+      ref: ${{ github.sha }}
