@@ -50,3 +50,5 @@ Un tenant s'inscrit sur CONNECT, achète un plan payant, paie, est activé selon
 Échec à toute gate Docs/92, défaut de signature fournisseur, double encaissement, prix client comme autorité, suppression de données sur résiliation, nouveau forfait imposé par effectif/secteur, accès plateforme aux données métier sans droit, migration destructrice non testée, publicité trompeuse ENTERPRISE.
 
 **Sortie 9.6 : mécanisme commercial V1 prouvé ; reprise Phase 10 ensuite.**
+
+**Suivi GitHub :** [issue #123](https://github.com/jupi-z/Monarque-Connect/issues/123).
