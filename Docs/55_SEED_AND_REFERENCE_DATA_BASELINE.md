@@ -24,3 +24,7 @@ Le seed fournit uniquement les données de référence nécessaires au fonctionn
 ## Preuves
 
 Les tests `tests/entitlements/catalog-and-plans.integration.test.ts` vérifient le seed idempotent, l'immutabilité des versions et les invocations concurrentes. Les tests d'entitlements vérifient que les recommandations ne deviennent pas une autorité d'autorisation.
+
+## Transition à venir : FairScale V1
+
+La présente baseline décrit **le seed historique de Phase 2**, et non l'offre commercialisable FairScale V1. À partir de la Phase 9.5, créer des versions supplémentaires non destructives en USD et leurs tarifs ; conserver les versions historiques (notamment EUR/MONTHLY) pour traçabilité. Le quota MAX_USERS demeure sur CONNECT seulement ; il ne doit plus limiter les forfaits payants. Les établissements/quotas et extensions deviennent dépendants des capacités consenties. La migration et le seed doivent rester idempotents et être éprouvés sur données existantes. Voir [Docs/89](89_FAIRSCALE_V1_NORMATIVE_SPEC.md) et [Docs/90](90_PHASE_9_5_FAIRSCALE_CORE_EXECUTION_SPEC.md).
