@@ -32,8 +32,9 @@ try {
   $auditFile = Join-Path $env:TEMP "monarque-npm-audit-$PID.json"
   try {
     Write-Host "`n=== Audit runtime dependency graph ===" -ForegroundColor Cyan
-    npm audit --json *> $auditFile
+    $auditOutput = npm.cmd audit --json 2> $null
     $auditExit = $LASTEXITCODE
+    [System.IO.File]::WriteAllText($auditFile, ($auditOutput -join [Environment]::NewLine), [System.Text.UTF8Encoding]::new($false))
     node scripts/check-runtime-audit.mjs $auditFile
     if ($LASTEXITCODE -ne 0) { throw "Runtime dependency audit failed (npm audit exit $auditExit)." }
   } finally { Remove-Item -LiteralPath $auditFile -Force -ErrorAction SilentlyContinue }
@@ -56,5 +57,5 @@ try {
   Invoke-Step 'Production build' { npm run build }
   Write-Host "`nLocal CI mirror passed all available checks." -ForegroundColor Green
 } finally {
-  docker compose -f $compose down *> $null
+  try { docker compose -f $compose down 1> $null 2> $null } catch { }
 }
