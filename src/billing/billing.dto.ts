@@ -1,5 +1,5 @@
 import type { FairScaleBillingPeriod, FairScalePlanCode } from './fairscale-pricing.js';
-import { IsDateString, IsIn, IsInt, Max, Min, IsOptional } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsUUID, Max, Min, IsOptional } from 'class-validator';
 
 export class CreateBillingQuoteDto {
   @IsIn(['CONNECT', 'OPERATIONS', 'BUSINESS', 'ENTERPRISE'])
@@ -24,4 +24,23 @@ export class EstimateBillingCapacityDto {
   @Min(0)
   @Max(10000)
   addonEstablishmentCount!: number;
+}
+
+export class CreateBillingCheckoutOrderDto {
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
+
+  @IsUUID()
+  quoteId!: string;
+}
+
+export class CreateBillingPaymentAttemptDto {
+  @IsIn(['MANUAL_REVIEW', 'TEST'])
+  provider!: string;
+}
+
+export class CancelBillingSubscriptionDto {
+  @IsDateString()
+  effectiveAt!: string;
 }

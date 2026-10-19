@@ -8,7 +8,7 @@ import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
 import { createDomainEvent } from '../events/domain-event.factory.js';
 import { createRequestContext, currentEventContext } from '../events/event-context.js';
 import { calculateFairScaleQuote, type FairScaleBillingPeriod, type FairScalePlanCode, type FairScalePromotion } from './fairscale-pricing.js';
-import type { CreateBillingQuoteDto, EstimateBillingCapacityDto } from './billing.dto.js';
+import type { CreateBillingCheckoutOrderDto, CreateBillingPaymentAttemptDto, CreateBillingQuoteDto, EstimateBillingCapacityDto } from './billing.dto.js';
 
 const planCodes = new Set<FairScalePlanCode>(['CONNECT', 'OPERATIONS', 'BUSINESS', 'ENTERPRISE']);
 const billingPeriods = new Set<FairScaleBillingPeriod>(['MONTHLY', 'YEARLY']);
@@ -76,6 +76,68 @@ export class BillingService {
     const quote = await this.prisma.billingQuote.findFirst({ where: { id: quoteId, organizationId }, include: { lines: true } });
     if (!quote) throw new NotFoundException('Billing quote not found');
     return this.serializeQuote(quote);
+  }
+
+  async createCheckoutOrder(principal: AuthPrincipal, organizationId: string, input: CreateBillingCheckoutOrderDto, rawIdempotencyKey?: string): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'billing:write');
+    const idempotencyKey = this.requireIdempotencyKey(rawIdempotencyKey);
+    if (!input.quoteId) throw new BadRequestException('quoteId is required');
+    const eventContext = currentEventContext() ?? createRequestContext();
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM organizations WHERE id = ${organizationId}::uuid FOR UPDATE`);
+      const existing = await tx.billingCheckoutOrder.findUnique({ where: { organizationId_idempotencyKey: { organizationId, idempotencyKey } } });
+      if (existing) {
+        if (existing.quoteId !== input.quoteId) throw new ConflictException('Idempotency-Key was already used with a different checkout order');
+        return this.serializeCheckoutOrder(existing);
+      }
+      const quote = await tx.billingQuote.findFirst({ where: { id: input.quoteId, organizationId }, include: { lines: true } });
+      if (!quote) throw new NotFoundException('Billing quote not found');
+      if (!['ISSUED', 'ACCEPTED'].includes(quote.status) || quote.expiresAt <= now) throw new ConflictException('Billing quote is expired or no longer payable');
+      const expiresAt = input.expiresAt ? new Date(input.expiresAt) : new Date(Math.min(quote.expiresAt.getTime(), now.getTime() + quoteLifetimeMs));
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt <= now || expiresAt > quote.expiresAt) throw new BadRequestException('expiresAt must be valid and no later than the quote expiry');
+      const order = await tx.billingCheckoutOrder.create({ data: { id: randomUUID(), organizationId, billingCustomerId: quote.billingCustomerId, quoteId: quote.id, idempotencyKey, status: 'CREATED', currency: quote.currency, amountMinor: quote.totalAmountMinor, expiresAt } });
+      await tx.billingQuote.update({ where: { id: quote.id }, data: { status: 'ACCEPTED' } });
+      await tx.auditEvent.create({ data: { id: randomUUID(), action: 'BILLING_CHECKOUT_CREATED', actorUserId: principal.userId, organizationId, targetType: 'BillingCheckoutOrder', targetId: order.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { quoteId: quote.id, amountMinor: quote.totalAmountMinor.toString(), currency: quote.currency.trim() } } });
+      await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'billing.checkout.created', eventVersion: 1, occurredAt: now.toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'BillingCheckoutOrder', id: order.id }, organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'fairscale-billing-checkout', payload: { quoteId: quote.id, amountMinor: quote.totalAmountMinor.toString(), currency: quote.currency.trim() } }));
+      return this.serializeCheckoutOrder(order);
+    });
+  }
+
+  async getCheckoutOrder(principal: AuthPrincipal, organizationId: string, checkoutOrderId: string): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'billing:read');
+    const order = await this.prisma.billingCheckoutOrder.findFirst({ where: { id: checkoutOrderId, organizationId } });
+    if (!order) throw new NotFoundException('Billing checkout order not found');
+    return this.serializeCheckoutOrder(order);
+  }
+
+  async createPaymentAttempt(principal: AuthPrincipal, organizationId: string, checkoutOrderId: string, input: CreateBillingPaymentAttemptDto, rawIdempotencyKey?: string): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'billing:write');
+    const idempotencyKey = this.requireIdempotencyKey(rawIdempotencyKey);
+    if (!input.provider) throw new BadRequestException('provider is required');
+    const eventContext = currentEventContext() ?? createRequestContext();
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.billingCheckoutOrder.findFirst({ where: { id: checkoutOrderId, organizationId } });
+      if (!order) throw new NotFoundException('Billing checkout order not found');
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM billing_checkout_orders WHERE id = ${checkoutOrderId}::uuid FOR UPDATE`);
+      if (!['CREATED', 'PAYMENT_PENDING'].includes(order.status) || order.expiresAt <= new Date()) throw new ConflictException('Checkout order is not payable');
+      const existing = await tx.billingPaymentAttempt.findUnique({ where: { organizationId_idempotencyKey: { organizationId, idempotencyKey } } });
+      if (existing) {
+        if (existing.checkoutOrderId !== checkoutOrderId || existing.provider !== input.provider) throw new ConflictException('Idempotency-Key was already used with a different payment attempt');
+        return this.serializePaymentAttempt(existing);
+      }
+      if (input.provider !== 'TEST' || process.env.NODE_ENV !== 'test') throw new ConflictException('No verified billing payment provider is enabled');
+      const attemptId = randomUUID();
+      const attempt = await tx.billingPaymentAttempt.create({ data: { id: attemptId, billingCustomerId: order.billingCustomerId, organizationId, checkoutOrderId: order.id, idempotencyKey, provider: input.provider, providerPaymentId: `test_${attemptId}`, status: 'REQUIRES_ACTION', amountMinor: order.amountMinor, currency: order.currency } });
+      await tx.billingCheckoutOrder.update({ where: { id: order.id }, data: { status: 'PAYMENT_PENDING' } });
+      await tx.auditEvent.create({ data: { id: randomUUID(), action: 'BILLING_PAYMENT_ATTEMPT_CREATED', actorUserId: principal.userId, organizationId, targetType: 'BillingPaymentAttempt', targetId: attempt.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { checkoutOrderId: order.id, provider: input.provider, amountMinor: order.amountMinor.toString(), currency: order.currency.trim() } } });
+      await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'billing.payment_attempt.created', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'BillingPaymentAttempt', id: attempt.id }, organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'fairscale-billing-payment', payload: { checkoutOrderId: order.id, provider: input.provider, amountMinor: order.amountMinor.toString(), currency: order.currency.trim() } }));
+      return this.serializePaymentAttempt(attempt);
+    });
   }
 
   async capacity(principal: AuthPrincipal, organizationId: string): Promise<unknown> {
@@ -164,6 +226,19 @@ export class BillingService {
     if (!billingPeriods.has(input.billingPeriod)) throw new BadRequestException('billingPeriod is invalid');
     if (!Number.isSafeInteger(input.activeEstablishmentCount) || input.activeEstablishmentCount < 1) throw new BadRequestException('activeEstablishmentCount is invalid');
     if (!rawKey?.trim() || rawKey.length > 200 || /[\r\n]/.test(rawKey)) throw new BadRequestException('Idempotency-Key is required and invalid');
+  }
+
+  private requireIdempotencyKey(rawKey?: string): string {
+    if (!rawKey?.trim() || rawKey.length > 200 || /[\r\n]/.test(rawKey)) throw new BadRequestException('Idempotency-Key is required and invalid');
+    return rawKey.trim();
+  }
+
+  private serializeCheckoutOrder(order: { id: string; organizationId: string; quoteId: string; status: string; currency: string; amountMinor: bigint; expiresAt: Date; createdAt: Date }): unknown {
+    return { id: order.id, organizationId: order.organizationId, quoteId: order.quoteId, status: order.status, currency: order.currency.trim(), amountMinor: Number(order.amountMinor), expiresAt: order.expiresAt.toISOString(), createdAt: order.createdAt.toISOString() };
+  }
+
+  private serializePaymentAttempt(attempt: { id: string; organizationId: string; provider: string; providerPaymentId: string | null; status: string; amountMinor: bigint; currency: string; failureCode: string | null; createdAt: Date }): unknown {
+    return { id: attempt.id, organizationId: attempt.organizationId, provider: attempt.provider, providerPaymentId: attempt.providerPaymentId, status: attempt.status, amountMinor: Number(attempt.amountMinor), currency: attempt.currency.trim(), failureCode: attempt.failureCode, createdAt: attempt.createdAt.toISOString() };
   }
 
   private hash(value: unknown): string { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
