@@ -88,7 +88,7 @@ describe('Organization quota reservations', () => {
   });
 
   it('does not apply a commercial MAX_USERS limit to paid FairScale plans', async () => {
-    const paidPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });
+    const paidPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 2 } } });
     await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: paidPlan.id } });
 
     await expect(prisma.$transaction((tx) => quotas.consume(tx, { organizationId, quotaCode: 'MAX_USERS', amount: 1000n, idempotencyKey: 'paid-user-capacity', resourceType: 'Membership', resourceId: crypto.randomUUID() }))).resolves.toMatchObject({ amount: 1000n, status: 'COMMITTED' });
@@ -97,7 +97,7 @@ describe('Organization quota reservations', () => {
   });
 
   it('uses the FairScale included establishment capacity for paid plans', async () => {
-    const paidPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } } });
+    const paidPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 2 } } });
     await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: paidPlan.id } });
 
     await expect(prisma.$transaction((tx) => quotas.consume(tx, { organizationId, quotaCode: 'MAX_ESTABLISHMENTS', amount: 3n, idempotencyKey: 'paid-establishments-3', resourceType: 'Establishment', resourceId: crypto.randomUUID() }))).resolves.toMatchObject({ amount: 3n, limit: 3n, status: 'COMMITTED' });

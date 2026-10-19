@@ -51,8 +51,8 @@ export class QuotaService {
     const at = input.at ?? new Date();
     const subscription = await this.subscriptions.resolveEffective(input.organizationId, at);
     if (!subscription) throw new ConflictException('Organization has no active subscription');
-    const plan = await this.prisma.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { billingPeriod: true, planCode: true } });
-    if (input.quotaCode === 'MAX_USERS' && plan.planCode !== 'CONNECT') return this.unlimitedResult(input);
+    const plan = await this.prisma.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { billingPeriod: true, planCode: true, currency: true } });
+    if (input.quotaCode === 'MAX_USERS' && plan.planCode !== 'CONNECT' && plan.currency === 'USD') return this.unlimitedResult(input);
     const quota = await this.prisma.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: subscription.planVersionId, quotaCode: input.quotaCode } } });
     if (!quota) throw new ConflictException('Quota is not included in the active plan');
     const periodKey = this.periodKey(quota.mode, plan.billingPeriod, at);
@@ -102,10 +102,10 @@ export class QuotaService {
     this.assertInput(input);
     if (!input.resourceType.trim() || !input.resourceId.trim()) throw new BadRequestException('Quota resource is invalid');
     const at = input.at ?? new Date();
-    const subscription = await tx.subscription.findFirst({ where: { organizationId: input.organizationId, organization: { status: 'ACTIVE' }, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersion: { select: { id: true, planCode: true, billingPeriod: true } } } });
+    const subscription = await tx.subscription.findFirst({ where: { organizationId: input.organizationId, organization: { status: 'ACTIVE' }, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersion: { select: { id: true, planCode: true, currency: true, billingPeriod: true } } } });
     if (!subscription) throw new ConflictException('Organization has no active subscription');
     const plan = subscription.planVersion;
-    if (input.quotaCode === 'MAX_USERS' && plan.planCode !== 'CONNECT') return this.unlimitedResult(input);
+    if (input.quotaCode === 'MAX_USERS' && plan.planCode !== 'CONNECT' && plan.currency === 'USD') return this.unlimitedResult(input);
     const quota = await tx.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: plan.id, quotaCode: input.quotaCode } } });
     if (!quota) throw new ConflictException('Quota is not included in the active plan');
     const periodKey = this.periodKey(quota.mode, plan.billingPeriod, at);
@@ -143,10 +143,10 @@ export class QuotaService {
     this.assertInput(input);
     if (!input.resourceType.trim() || !input.resourceId.trim()) throw new BadRequestException('Quota resource is invalid');
     const at = input.at ?? new Date();
-    const subscription = await tx.subscription.findFirst({ where: { organizationId: input.organizationId, organization: { status: 'ACTIVE' }, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersion: { select: { id: true, planCode: true, billingPeriod: true } } } });
+    const subscription = await tx.subscription.findFirst({ where: { organizationId: input.organizationId, organization: { status: 'ACTIVE' }, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersion: { select: { id: true, planCode: true, currency: true, billingPeriod: true } } } });
     if (!subscription) throw new ConflictException('Organization has no active subscription');
     const plan = subscription.planVersion;
-    if (input.quotaCode === 'MAX_USERS' && plan.planCode !== 'CONNECT') return this.unlimitedResult(input);
+    if (input.quotaCode === 'MAX_USERS' && plan.planCode !== 'CONNECT' && plan.currency === 'USD') return this.unlimitedResult(input);
     const quota = await tx.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: plan.id, quotaCode: input.quotaCode } } });
     if (!quota || quota.mode !== 'CAPACITY') throw new ConflictException('Quota is not a capacity quota');
     const periodKey = this.periodKey(quota.mode, plan.billingPeriod, at);
@@ -190,8 +190,8 @@ export class QuotaService {
   async list(organizationId: string, at = new Date()): Promise<Array<{ quotaCode: string; unit: string; mode: QuotaMode; limit: string; used: string; reserved: string; available: string; periodKey: string }>> {
     const subscription = await this.subscriptions.resolveEffective(organizationId, at);
     if (!subscription) return [];
-    const plan = await this.prisma.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { planCode: true, billingPeriod: true, quotas: { select: { quotaCode: true, unit: true, mode: true, limitValue: true } } } });
-    const quotas = plan.planCode === 'CONNECT' ? plan.quotas : plan.quotas.filter((quota) => quota.quotaCode !== 'MAX_USERS');
+    const plan = await this.prisma.planVersion.findUniqueOrThrow({ where: { id: subscription.planVersionId }, select: { planCode: true, currency: true, billingPeriod: true, quotas: { select: { quotaCode: true, unit: true, mode: true, limitValue: true } } } });
+    const quotas = plan.planCode === 'CONNECT' || plan.currency !== 'USD' ? plan.quotas : plan.quotas.filter((quota) => quota.quotaCode !== 'MAX_USERS');
     const periodKeys = [...new Set(quotas.map((quota) => this.periodKey(quota.mode, plan.billingPeriod, at)))];
     const limits = await this.effectiveLimits(this.prisma, organizationId, quotas, at);
     const usages = await this.prisma.organizationQuotaUsage.findMany({ where: { organizationId, periodKey: { in: periodKeys } }, select: { quotaCode: true, periodKey: true, usedValue: true, reservedValue: true } });
@@ -248,8 +248,8 @@ export class QuotaService {
 
   private async effectiveLimit(client: PrismaService | Prisma.TransactionClient, organizationId: string, quotaCode: string, baseLimit: bigint, at: Date): Promise<bigint> {
     if (quotaCode === 'MAX_ESTABLISHMENTS') {
-      const subscription = await client.subscription.findFirst({ where: { organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersion: { select: { planCode: true } } } });
-      if (subscription) {
+      const subscription = await client.subscription.findFirst({ where: { organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { planVersion: { select: { planCode: true, currency: true } } } });
+      if (subscription?.planVersion.currency === 'USD') {
         const price = await client.priceVersion.findFirst({ where: { planCode: subscription.planVersion.planCode, billingPeriod: 'MONTHLY', currency: 'USD', status: 'ACTIVE', startsAt: { lte: at }, OR: [{ retiredAt: null }, { retiredAt: { gt: at } }] }, orderBy: [{ version: 'desc' }, { startsAt: 'desc' }], select: { includedEstablishments: true } });
         if (price) return BigInt(price.includedEstablishments);
       }
