@@ -95,6 +95,44 @@ enum PlanVersionStatus {
   RETIRED
 }
 
+enum PriceVersionStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+enum PriceComponentKind {
+  BASE_PLAN
+  ESTABLISHMENT_ADDON
+}
+
+enum BillingCustomerStatus {
+  UNVERIFIED
+  VERIFIED
+  REVIEW_REQUIRED
+  SUSPENDED
+}
+
+enum BillingCustomerOrganizationRole {
+  OWNER
+  MEMBER
+}
+
+enum BillingQuoteStatus {
+  ISSUED
+  EXPIRED
+  ACCEPTED
+  CANCELED
+}
+
+enum BillingPromotionStatus {
+  NONE
+  ELIGIBLE
+  RESERVED
+  CONSUMED
+  RELEASED
+}
+
 enum BillingPeriod {
   MONTHLY
   YEARLY
@@ -651,6 +689,7 @@ model Plan {
   managedService Boolean       @default(false) @map("managed_service")
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   versions       PlanVersion[]
+  priceVersions  PriceVersion[]
 
   @@map("plans")
 }
@@ -698,6 +737,168 @@ model PlanVersionQuota {
 
   @@unique([planVersionId, quotaCode])
   @@map("plan_version_quotas")
+}
+
+model PriceVersion {
+  id                        String             @id @db.Uuid
+  planCode                  String             @map("plan_code") @db.VarChar(64)
+  version                   Int
+  billingPeriod             BillingPeriod     @map("billing_period")
+  currency                  String             @db.Char(3)
+  status                    PriceVersionStatus
+  baseAmountMinor           BigInt             @map("base_amount_minor")
+  welcomeAmountMinor        BigInt             @map("welcome_amount_minor")
+  annualDiscountAmountMinor BigInt             @default(0) @map("annual_discount_amount_minor")
+  includedEstablishments    Int                @map("included_establishments")
+  startsAt                  DateTime           @map("starts_at") @db.Timestamptz(6)
+  publishedAt               DateTime?          @map("published_at") @db.Timestamptz(6)
+  retiredAt                 DateTime?          @map("retired_at") @db.Timestamptz(6)
+  createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  plan                      Plan               @relation(fields: [planCode], references: [code], onDelete: Restrict)
+  components                PriceComponent[]
+  quotes                    BillingQuote[]
+
+  @@unique([planCode, version, billingPeriod])
+  @@index([planCode, status, billingPeriod, startsAt])
+  @@map("price_versions")
+}
+
+model PriceComponent {
+  id             String            @id @db.Uuid
+  priceVersionId String            @map("price_version_id") @db.Uuid
+  code           String            @db.VarChar(64)
+  kind           PriceComponentKind
+  currency       String            @db.Char(3)
+  amountMinor    BigInt            @map("amount_minor")
+  capacityUnits  Int               @map("capacity_units")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  priceVersion   PriceVersion      @relation(fields: [priceVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([priceVersionId, code])
+  @@index([code, kind])
+  @@map("price_components")
+}
+
+model BillingCustomer {
+  id                   String                         @id @db.Uuid
+  identityKey          String?                        @unique @map("identity_key") @db.VarChar(200)
+  displayName          String                         @map("display_name") @db.VarChar(200)
+  status               BillingCustomerStatus         @default(UNVERIFIED)
+  verifiedAt           DateTime?                      @map("verified_at") @db.Timestamptz(6)
+  createdAt            DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organizations        BillingCustomerOrganization[]
+  quotes               BillingQuote[]
+  promotionRedemptions BillingPromotionRedemption[]
+  promotionEligibility BillingPromotionEligibility[]
+
+  @@index([status, createdAt])
+  @@map("billing_customers")
+}
+
+model BillingCustomerOrganization {
+  billingCustomerId String                            @map("billing_customer_id") @db.Uuid
+  organizationId    String                            @map("organization_id") @db.Uuid
+  role              BillingCustomerOrganizationRole  @default(OWNER)
+  evidenceJson      Json                              @default("{}") @map("evidence_json")
+  verifiedAt        DateTime?                         @map("verified_at") @db.Timestamptz(6)
+  createdAt         DateTime                          @default(now()) @map("created_at") @db.Timestamptz(6)
+  billingCustomer   BillingCustomer                   @relation(fields: [billingCustomerId], references: [id], onDelete: Cascade)
+  organization      Organization                      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([billingCustomerId, organizationId])
+  @@index([organizationId])
+  @@map("billing_customer_organizations")
+}
+
+model BillingQuote {
+  id                       String                    @id @db.Uuid
+  organizationId           String                    @map("organization_id") @db.Uuid
+  billingCustomerId        String                    @map("billing_customer_id") @db.Uuid
+  priceVersionId           String                    @map("price_version_id") @db.Uuid
+  idempotencyKey           String                    @map("idempotency_key") @db.VarChar(200)
+  status                   BillingQuoteStatus
+  planCode                 String                    @map("plan_code") @db.VarChar(64)
+  billingPeriod            BillingPeriod             @map("billing_period")
+  currency                 String                    @db.Char(3)
+  catalogVersion           Int                       @map("catalog_version")
+  baseAmountMinor          BigInt                    @map("base_amount_minor")
+  discountAmountMinor      BigInt                    @map("discount_amount_minor")
+  addonAmountMinor         BigInt                    @map("addon_amount_minor")
+  totalAmountMinor         BigInt                    @map("total_amount_minor")
+  activeEstablishmentCount Int                       @map("active_establishment_count")
+  includedEstablishments   Int                       @map("included_establishments")
+  addonEstablishments      Int                       @map("addon_establishments")
+  promotionCode            String?                   @map("promotion_code") @db.VarChar(80)
+  promotionStatus          BillingPromotionStatus   @default(NONE) @map("promotion_status")
+  expiresAt                DateTime                  @map("expires_at") @db.Timestamptz(6)
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  billingCustomer          BillingCustomer           @relation(fields: [billingCustomerId], references: [id], onDelete: Restrict)
+  priceVersion             PriceVersion              @relation(fields: [priceVersionId], references: [id], onDelete: Restrict)
+  lines                    BillingQuoteLine[]
+  promotionRedemptions     BillingPromotionRedemption[]
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, createdAt])
+  @@index([billingCustomerId, createdAt])
+  @@map("billing_quotes")
+}
+
+model BillingQuoteLine {
+  id                  String        @id @db.Uuid
+  quoteId             String        @map("quote_id") @db.Uuid
+  code                String        @db.VarChar(64)
+  description         String        @db.VarChar(240)
+  quantity            Int
+  unitAmountMinor     BigInt        @map("unit_amount_minor")
+  discountAmountMinor BigInt        @map("discount_amount_minor")
+  totalAmountMinor    BigInt        @map("total_amount_minor")
+  currency            String        @db.Char(3)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  quote               BillingQuote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, code])
+  @@map("billing_quote_lines")
+}
+
+model BillingPromotionRedemption {
+  id                String                 @id @db.Uuid
+  billingCustomerId String                 @map("billing_customer_id") @db.Uuid
+  quoteId           String?                @map("quote_id") @db.Uuid
+  promotionCode     String                 @map("promotion_code") @db.VarChar(80)
+  billingPeriod     BillingPeriod          @map("billing_period")
+  sequence          Int
+  amountMinor       BigInt                 @map("amount_minor")
+  status            BillingPromotionStatus
+  reservedAt        DateTime               @default(now()) @map("reserved_at") @db.Timestamptz(6)
+  consumedAt        DateTime?              @map("consumed_at") @db.Timestamptz(6)
+  releasedAt        DateTime?              @map("released_at") @db.Timestamptz(6)
+  billingCustomer   BillingCustomer        @relation(fields: [billingCustomerId], references: [id], onDelete: Cascade)
+  quote             BillingQuote?          @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  @@unique([billingCustomerId, promotionCode, billingPeriod, sequence])
+  @@unique([quoteId, promotionCode])
+  @@index([billingCustomerId, promotionCode, status])
+  @@map("billing_promotion_redemptions")
+}
+
+model BillingPromotionEligibility {
+  id                String          @id @db.Uuid
+  billingCustomerId String          @map("billing_customer_id") @db.Uuid
+  promotionCode     String          @map("promotion_code") @db.VarChar(80)
+  eligible          Boolean         @default(true)
+  monthlyPaidCount  Int             @default(0) @map("monthly_paid_count")
+  firstEligibleAt   DateTime?       @map("first_eligible_at") @db.Timestamptz(6)
+  lockedAt          DateTime?       @map("locked_at") @db.Timestamptz(6)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  billingCustomer   BillingCustomer @relation(fields: [billingCustomerId], references: [id], onDelete: Cascade)
+
+  @@unique([billingCustomerId, promotionCode])
+  @@index([promotionCode, eligible])
+  @@map("billing_promotion_eligibilities")
 }
 
 model Organization {
@@ -771,6 +972,8 @@ model Organization {
   messagingCommandReceipts         MessagingCommandReceipt[]
   networkSupplierRfqRecipients    SupplierRFQRecipient[]         @relation("NetworkSupplierRFQRecipients")
   purchaseOrdersAsNetworkSupplier PurchaseOrder[]                @relation("PurchaseOrderSupplierOrganization")
+  billingCustomerOrganizations    BillingCustomerOrganization[]
+  billingQuotes                   BillingQuote[]
 
   @@index([businessTypeCode])
   @@index([status])
