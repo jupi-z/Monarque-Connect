@@ -313,6 +313,8 @@ enum AuditAction {
   BILLING_SCHEDULED_CHANGE_APPLIED
   BILLING_REFUND_RECORDED
   BILLING_PRICE_VERSION_PUBLISHED
+  BILLING_CUSTOMER_VERIFICATION_CHANGED
+  BILLING_CUSTOMER_ORGANIZATION_LINKED
   SUPPLIER_RFQ_CREATED
   SUPPLIER_RFQ_UPDATED
   SUPPLIER_RFQ_STATUS_CHANGED
@@ -863,13 +865,13 @@ model PriceComponent {
 }
 
 model BillingCustomer {
-  id                   String                        @id @db.Uuid
-  identityKey          String?                       @unique @map("identity_key") @db.VarChar(200)
-  displayName          String                        @map("display_name") @db.VarChar(200)
-  status               BillingCustomerStatus         @default(UNVERIFIED)
-  verifiedAt           DateTime?                     @map("verified_at") @db.Timestamptz(6)
-  createdAt            DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime                      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                   String                               @id @db.Uuid
+  identityKey          String?                              @unique @map("identity_key") @db.VarChar(200)
+  displayName          String                               @map("display_name") @db.VarChar(200)
+  status               BillingCustomerStatus                @default(UNVERIFIED)
+  verifiedAt           DateTime?                            @map("verified_at") @db.Timestamptz(6)
+  createdAt            DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                             @updatedAt @map("updated_at") @db.Timestamptz(6)
   organizations        BillingCustomerOrganization[]
   quotes               BillingQuote[]
   promotionRedemptions BillingPromotionRedemption[]
@@ -880,9 +882,26 @@ model BillingCustomer {
   paymentAttempts      BillingPaymentAttempt[]
   payments             BillingPayment[]
   providerEvents       BillingProviderEventInbox[]
+  verificationReceipts BillingCustomerVerificationReceipt[]
 
   @@index([status, createdAt])
   @@map("billing_customers")
+}
+
+model BillingCustomerVerificationReceipt {
+  id                 String                @id @db.Uuid
+  billingCustomerId  String                @map("billing_customer_id") @db.Uuid
+  actorUserId        String                @map("actor_user_id") @db.Uuid
+  idempotencyKey     String                @map("idempotency_key") @db.VarChar(200)
+  payloadHash        String                @map("payload_hash") @db.Char(64)
+  verificationStatus BillingCustomerStatus @map("verification_status")
+  reason             String                @db.VarChar(500)
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  billingCustomer    BillingCustomer       @relation(fields: [billingCustomerId], references: [id], onDelete: Cascade)
+
+  @@unique([billingCustomerId, actorUserId, idempotencyKey])
+  @@index([billingCustomerId, createdAt])
+  @@map("billing_customer_verification_receipts")
 }
 
 model BillingCustomerOrganization {
@@ -1239,6 +1258,7 @@ model BillingInvoice {
   paymentAttempts      BillingPaymentAttempt[]
   payments             BillingPayment[]
   promotionRedemptions BillingPromotionRedemption[]
+  scheduledChange      BillingScheduledChange?
 
   @@unique([subscriptionTermId, sequence])
   @@unique([subscriptionTermId, periodStart, periodEnd])
@@ -1389,8 +1409,10 @@ model BillingScheduledChange {
   createdAt           DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
   appliedAt           DateTime?                    @map("applied_at") @db.Timestamptz(6)
   canceledAt          DateTime?                    @map("canceled_at") @db.Timestamptz(6)
+  billingInvoiceId    String?                      @unique @map("billing_invoice_id") @db.Uuid
   subscriptionTerm    BillingSubscriptionTerm      @relation(fields: [subscriptionTermId], references: [id], onDelete: Restrict)
   organization        Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  billingInvoice      BillingInvoice?              @relation(fields: [billingInvoiceId], references: [id], onDelete: Restrict)
 
   @@unique([organizationId, idempotencyKey])
   @@index([organizationId, status, effectiveAt])

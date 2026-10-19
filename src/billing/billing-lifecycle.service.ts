@@ -13,7 +13,7 @@ import type { ScheduleBillingChangeDto } from './billing.dto.js';
 const dunningGraceMs = 7 * 24 * 60 * 60 * 1000;
 type BillingTermView = Prisma.BillingSubscriptionTermGetPayload<{ include: { addons: true; scheduledChanges: true } }>;
 type BillingInvoiceView = Prisma.BillingInvoiceGetPayload<{ include: { lines: true; payments: true } }>;
-type BillingScheduledChangeView = Prisma.BillingScheduledChangeGetPayload<{ select: { id: true; subscriptionTermId: true; organizationId: true; kind: true; status: true; effectiveAt: true; targetPlanCode: true; targetBillingPeriod: true; targetStateJson: true; createdAt: true; appliedAt: true; canceledAt: true } }>;
+type BillingScheduledChangeView = Prisma.BillingScheduledChangeGetPayload<{ select: { id: true; subscriptionTermId: true; organizationId: true; kind: true; status: true; effectiveAt: true; targetPlanCode: true; targetBillingPeriod: true; targetStateJson: true; billingInvoiceId: true; createdAt: true; appliedAt: true; canceledAt: true } }>;
 
 @Injectable()
 export class BillingLifecycleService {
@@ -91,16 +91,16 @@ export class BillingLifecycleService {
     });
   }
 
-  async applyScheduledChanges(at = new Date(), limit = 100): Promise<{ applied: number }> {
+  async applyScheduledChanges(at = new Date(), limit = 100, provider?: 'TEST'): Promise<{ applied: number }> {
     const pending = await this.prisma.billingScheduledChange.findMany({ where: { status: 'PENDING', effectiveAt: { lte: at } }, orderBy: [{ effectiveAt: 'asc' }, { createdAt: 'asc' }], take: limit, select: { id: true } });
     let applied = 0;
-    for (const candidate of pending) if (await this.applyOneScheduledChange(candidate.id, at)) applied += 1;
+    for (const candidate of pending) if (await this.applyOneScheduledChange(candidate.id, at, provider)) applied += 1;
     return { applied };
   }
 
   async renewDueTerms(at = new Date(), limit = 100, provider?: 'TEST'): Promise<{ invoicesIssued: number; paymentAttemptsCreated: number }> {
     if (provider && (provider !== 'TEST' || process.env.NODE_ENV !== 'test')) throw new ConflictException('The requested billing provider is not enabled');
-    await this.applyScheduledChanges(at, limit);
+    await this.applyScheduledChanges(at, limit, provider);
     const due = await this.prisma.billingSubscriptionTerm.findMany({ where: { status: 'ACTIVE', nextRenewalAt: { lte: at } }, orderBy: [{ nextRenewalAt: 'asc' }, { createdAt: 'asc' }], take: limit, select: { id: true } });
     let invoicesIssued = 0;
     let paymentAttemptsCreated = 0;
@@ -136,21 +136,27 @@ export class BillingLifecycleService {
     const eventContext = currentEventContext() ?? createRequestContext();
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw(Prisma.sql`SELECT id FROM billing_subscription_terms WHERE id = ${termId}::uuid FOR UPDATE`);
-      const term = await tx.billingSubscriptionTerm.findUnique({ where: { id: termId }, include: { subscription: true, addons: { where: { status: 'ACTIVE' } } } });
+      const term = await tx.billingSubscriptionTerm.findUnique({ where: { id: termId }, include: { subscription: true, addons: { where: { status: 'ACTIVE', startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }], AND: [{ OR: [{ scheduledEndAt: null }, { scheduledEndAt: { gt: at } }] }] } } } });
       if (!term || term.status !== 'ACTIVE' || !term.nextRenewalAt || term.nextRenewalAt > at) return { invoice: false, attempt: false };
+      const pendingChange = await tx.billingScheduledChange.findFirst({ where: { subscriptionTermId: term.id, status: 'PENDING', effectiveAt: { lte: at }, kind: { in: ['PLAN_CHANGE', 'PERIOD_CHANGE', 'ADDON_CHANGE'] } }, select: { id: true } });
+      if (pendingChange) return { invoice: false, attempt: false };
       const periodStart = term.currentPeriodEnd;
       const periodEnd = addBillingPeriod(periodStart, term.billingPeriod);
       const existing = await tx.billingInvoice.findUnique({ where: { subscriptionTermId_periodStart_periodEnd: { subscriptionTermId: term.id, periodStart, periodEnd } } });
       if (existing) return { invoice: false, attempt: false };
       const price = await tx.priceVersion.findFirst({ where: { planCode: term.planCode, billingPeriod: term.billingPeriod, currency: 'USD', status: 'ACTIVE' }, orderBy: { version: 'desc' }, include: { components: true } });
       if (!price) throw new ConflictException('No active price is available for billing renewal');
-      const discount = term.billingPeriod === 'YEARLY' ? price.annualDiscountAmountMinor : 0n;
-      const addonAmount = term.addonAmountMinor;
+      const welcomePromotion = term.billingPeriod === 'MONTHLY' ? await this.renewalWelcomePromotion(tx, term.billingCustomerId) : null;
+      const discount = welcomePromotion ? price.baseAmountMinor - price.welcomeAmountMinor : term.billingPeriod === 'YEARLY' ? price.annualDiscountAmountMinor : 0n;
+      const addonAmount = term.addons.reduce((total, addon) => total + BigInt(addon.quantity) * addon.unitAmountMinor, 0n);
       const total = price.baseAmountMinor - discount + addonAmount;
       const sequence = ((await tx.billingInvoice.findFirst({ where: { subscriptionTermId: term.id }, orderBy: { sequence: 'desc' }, select: { sequence: true } }))?.sequence ?? 0) + 1;
       const rows = await tx.$queryRaw<Array<{ nextval: bigint }>>(Prisma.sql`SELECT nextval('billing_invoice_number_seq')`);
       if (rows[0]?.nextval === undefined) throw new ConflictException('Billing invoice sequence is unavailable');
       const invoice = await tx.billingInvoice.create({ data: { id: randomUUID(), billingCustomerId: term.billingCustomerId, organizationId: term.organizationId, subscriptionTermId: term.id, number: `MC-${periodStart.getUTCFullYear()}-${String(rows[0].nextval).padStart(6, '0')}`, sequence, status: 'OPEN', currency: term.currency, periodStart, periodEnd, subtotalMinor: price.baseAmountMinor + addonAmount, discountMinor: discount, totalMinor: total, amountPaidMinor: 0n, dueAt: periodStart, lines: { create: [{ id: randomUUID(), lineIndex: 0, code: 'BASE_PLAN', description: `FairScale ${term.billingPeriod.toLowerCase()} renewal`, quantity: 1, unitAmountMinor: price.baseAmountMinor, discountMinor: discount, totalMinor: price.baseAmountMinor - discount, currency: term.currency }, ...(addonAmount > 0n ? [{ id: randomUUID(), lineIndex: 1, code: 'ADDON', description: 'FairScale recurring add-on', quantity: 1, unitAmountMinor: addonAmount, discountMinor: 0n, totalMinor: addonAmount, currency: term.currency }] : [])] } } });
+      if (welcomePromotion) {
+        await tx.billingPromotionRedemption.create({ data: { id: randomUUID(), billingCustomerId: term.billingCustomerId, billingInvoiceId: invoice.id, promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', sequence: welcomePromotion.sequence, amountMinor: discount, status: 'RESERVED' } });
+      }
       let attempt = false;
       if (provider === 'TEST') {
         const id = randomUUID();
@@ -171,18 +177,21 @@ export class BillingLifecycleService {
       if (!invoice || invoice.status !== 'OPEN') return null;
       await tx.$queryRaw(Prisma.sql`SELECT id FROM billing_subscription_terms WHERE id = ${invoice.subscriptionTermId}::uuid FOR UPDATE`);
       const term = await tx.billingSubscriptionTerm.findUniqueOrThrow({ where: { id: invoice.subscriptionTermId }, include: { subscription: true } });
-      const next = at.getTime() - invoice.dueAt.getTime() > dunningGraceMs ? 'SUSPENDED' : 'PAST_DUE';
+      const next = at.getTime() - invoice.dueAt.getTime() >= dunningGraceMs ? 'SUSPENDED' : 'PAST_DUE';
       if (term.status === next && term.subscription.status === next) return null;
       await tx.billingSubscriptionTerm.update({ where: { id: term.id }, data: { status: next, nextRenewalAt: null } });
       await tx.subscription.update({ where: { id: term.subscriptionId }, data: { status: next } });
-      if (next === 'SUSPENDED') await tx.billingInvoice.update({ where: { id: invoice.id }, data: { status: 'UNCOLLECTIBLE' } });
+      if (next === 'SUSPENDED') {
+        await tx.billingInvoice.update({ where: { id: invoice.id }, data: { status: 'UNCOLLECTIBLE' } });
+        await tx.billingPromotionRedemption.updateMany({ where: { billingInvoiceId: invoice.id, status: 'RESERVED' }, data: { status: 'RELEASED', releasedAt: at } });
+      }
       await tx.auditEvent.create({ data: { id: randomUUID(), action: 'BILLING_DUNNING_TRANSITIONED', actorUserId: null, organizationId: term.organizationId, targetType: 'BillingSubscriptionTerm', targetId: term.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { invoiceId: invoice.id, status: next, at: at.toISOString() } } });
       await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'billing.dunning.transitioned', eventVersion: 1, occurredAt: at.toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'BillingSubscriptionTerm', id: term.id }, organizationId: term.organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'fairscale-billing-lifecycle', payload: { invoiceId: invoice.id, status: next } }));
       return next;
     });
   }
 
-  private async applyOneScheduledChange(changeId: string, at: Date): Promise<boolean> {
+  private async applyOneScheduledChange(changeId: string, at: Date, provider?: 'TEST'): Promise<boolean> {
     const eventContext = currentEventContext() ?? createRequestContext();
     return this.prisma.$transaction(async (tx) => {
       const change = await tx.billingScheduledChange.findUnique({ where: { id: changeId } });
@@ -201,6 +210,56 @@ export class BillingLifecycleService {
         if (!plan || !price) throw new ConflictException('Target billing plan is not available');
         const nextEnd = addBillingPeriod(change.effectiveAt, period);
         const total = price.baseAmountMinor - (period === 'YEARLY' ? price.annualDiscountAmountMinor : 0n) + term.addonAmountMinor;
+        let invoice = change.billingInvoiceId ? await tx.billingInvoice.findUnique({ where: { id: change.billingInvoiceId } }) : null;
+        if (!invoice) {
+          const sequence = ((await tx.billingInvoice.findFirst({ where: { subscriptionTermId: term.id }, orderBy: { sequence: 'desc' }, select: { sequence: true } }))?.sequence ?? 0) + 1;
+          const rows = await tx.$queryRaw<Array<{ nextval: bigint }>>(Prisma.sql`SELECT nextval('billing_invoice_number_seq')`);
+          if (rows[0]?.nextval === undefined) throw new ConflictException('Billing invoice sequence is unavailable');
+          invoice = await tx.billingInvoice.create({
+            data: {
+              id: randomUUID(),
+              billingCustomerId: term.billingCustomerId,
+              organizationId: term.organizationId,
+              subscriptionTermId: term.id,
+              number: `MC-${change.effectiveAt.getUTCFullYear()}-${String(rows[0].nextval).padStart(6, '0')}`,
+              sequence,
+              status: 'OPEN',
+              currency: 'USD',
+              periodStart: change.effectiveAt,
+              periodEnd: nextEnd,
+              subtotalMinor: price.baseAmountMinor + term.addonAmountMinor,
+              discountMinor: period === 'YEARLY' ? price.annualDiscountAmountMinor : 0n,
+              totalMinor: total,
+              amountPaidMinor: 0n,
+              dueAt: change.effectiveAt,
+              lines: {
+                create: [
+                  {
+                    id: randomUUID(),
+                    lineIndex: 0,
+                    code: 'BASE_PLAN',
+                    description: `FairScale ${period.toLowerCase()} plan change`,
+                    quantity: 1,
+                    unitAmountMinor: price.baseAmountMinor,
+                    discountMinor: period === 'YEARLY' ? price.annualDiscountAmountMinor : 0n,
+                    totalMinor: price.baseAmountMinor - (period === 'YEARLY' ? price.annualDiscountAmountMinor : 0n),
+                    currency: 'USD',
+                  },
+                  ...(term.addonAmountMinor > 0n ? [{ id: randomUUID(), lineIndex: 1, code: 'ADDON', description: 'FairScale recurring add-on', quantity: 1, unitAmountMinor: term.addonAmountMinor, discountMinor: 0n, totalMinor: term.addonAmountMinor, currency: 'USD' }] : []),
+                ],
+              },
+            },
+          });
+          await tx.billingScheduledChange.update({ where: { id: change.id }, data: { billingInvoiceId: invoice.id } });
+          if (provider === 'TEST') {
+            const attemptId = randomUUID();
+            await tx.billingPaymentAttempt.create({ data: { id: attemptId, billingCustomerId: term.billingCustomerId, organizationId: term.organizationId, subscriptionTermId: term.id, invoiceId: invoice.id, idempotencyKey: `scheduled-change:${change.id}`, provider, providerPaymentId: `test_${attemptId}`, status: 'REQUIRES_ACTION', amountMinor: total, currency: 'USD' } });
+          }
+          await tx.auditEvent.create({ data: { id: randomUUID(), action: 'BILLING_INVOICE_ISSUED', actorUserId: null, organizationId: term.organizationId, targetType: 'BillingInvoice', targetId: invoice.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { scheduledChangeId: change.id, kind: change.kind, effectiveAt: change.effectiveAt.toISOString(), totalMinor: total.toString(), paymentAttemptCreated: provider === 'TEST' } } });
+          await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'billing.invoice.issued', eventVersion: 1, occurredAt: at.toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'BillingInvoice', id: invoice.id }, organizationId: term.organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'fairscale-billing-lifecycle', payload: { invoiceId: invoice.id, scheduledChangeId: change.id, totalMinor: total.toString() } }));
+          return false;
+        }
+        if (invoice.status !== 'PAID' || invoice.amountPaidMinor !== invoice.totalMinor) return false;
         await tx.subscription.update({ where: { id: term.subscriptionId }, data: { planVersionId: plan.id, status: 'ACTIVE', startsAt: change.effectiveAt, endsAt: nextEnd } });
         await tx.billingSubscriptionTerm.update({ where: { id: term.id }, data: { status: 'ACTIVE', planCode, billingPeriod: period, currency: 'USD', catalogVersion: price.version, baseAmountMinor: price.baseAmountMinor, discountAmountMinor: period === 'YEARLY' ? price.annualDiscountAmountMinor : 0n, totalAmountMinor: total, currentPeriodStart: change.effectiveAt, currentPeriodEnd: nextEnd, nextRenewalAt: nextEnd } });
       } else {
@@ -208,15 +267,64 @@ export class BillingLifecycleService {
         const addonCode = state.addonCode;
         const quantity = state.addonQuantity;
         if (!addonCode || quantity === null) throw new ConflictException('Addon change is incomplete');
+        const price = await tx.priceVersion.findFirst({ where: { planCode: term.planCode, billingPeriod: term.billingPeriod, currency: 'USD', status: 'ACTIVE' }, orderBy: { version: 'desc' }, include: { components: true } });
+        const component = price?.components.find((candidate) => candidate.code === addonCode);
+        if (quantity > 0 && (!price || !component)) throw new ConflictException('Addon is not available for this plan');
+        const targetAddonAmount = quantity > 0 && component ? BigInt(quantity) * component.amountMinor : 0n;
+        if (quantity > 0) {
+          const nextEnd = addBillingPeriod(change.effectiveAt, term.billingPeriod);
+          const discount = term.billingPeriod === 'YEARLY' ? (price?.annualDiscountAmountMinor ?? 0n) : 0n;
+          const total = (price?.baseAmountMinor ?? 0n) - discount + targetAddonAmount;
+          let invoice = change.billingInvoiceId ? await tx.billingInvoice.findUnique({ where: { id: change.billingInvoiceId } }) : null;
+          if (!invoice) {
+            const sequence = ((await tx.billingInvoice.findFirst({ where: { subscriptionTermId: term.id }, orderBy: { sequence: 'desc' }, select: { sequence: true } }))?.sequence ?? 0) + 1;
+            const rows = await tx.$queryRaw<Array<{ nextval: bigint }>>(Prisma.sql`SELECT nextval('billing_invoice_number_seq')`);
+            if (rows[0]?.nextval === undefined) throw new ConflictException('Billing invoice sequence is unavailable');
+            invoice = await tx.billingInvoice.create({
+              data: {
+                id: randomUUID(),
+                billingCustomerId: term.billingCustomerId,
+                organizationId: term.organizationId,
+                subscriptionTermId: term.id,
+                number: `MC-${change.effectiveAt.getUTCFullYear()}-${String(rows[0].nextval).padStart(6, '0')}`,
+                sequence,
+                status: 'OPEN',
+                currency: 'USD',
+                periodStart: change.effectiveAt,
+                periodEnd: nextEnd,
+                subtotalMinor: (price?.baseAmountMinor ?? 0n) + targetAddonAmount,
+                discountMinor: discount,
+                totalMinor: total,
+                amountPaidMinor: 0n,
+                dueAt: change.effectiveAt,
+                lines: {
+                  create: [
+                    { id: randomUUID(), lineIndex: 0, code: 'BASE_PLAN', description: `FairScale ${term.billingPeriod.toLowerCase()} addon change`, quantity: 1, unitAmountMinor: price?.baseAmountMinor ?? 0n, discountMinor: discount, totalMinor: (price?.baseAmountMinor ?? 0n) - discount, currency: 'USD' },
+                    { id: randomUUID(), lineIndex: 1, code: 'ADDON', description: 'FairScale recurring add-on', quantity, unitAmountMinor: component?.amountMinor ?? 0n, discountMinor: 0n, totalMinor: targetAddonAmount, currency: component?.currency ?? 'USD' },
+                  ],
+                },
+              },
+            });
+            await tx.billingScheduledChange.update({ where: { id: change.id }, data: { billingInvoiceId: invoice.id } });
+            if (provider === 'TEST') {
+              const attemptId = randomUUID();
+              await tx.billingPaymentAttempt.create({ data: { id: attemptId, billingCustomerId: term.billingCustomerId, organizationId: term.organizationId, subscriptionTermId: term.id, invoiceId: invoice.id, idempotencyKey: `scheduled-change:${change.id}`, provider, providerPaymentId: `test_${attemptId}`, status: 'REQUIRES_ACTION', amountMinor: total, currency: 'USD' } });
+            }
+            await tx.auditEvent.create({ data: { id: randomUUID(), action: 'BILLING_INVOICE_ISSUED', actorUserId: null, organizationId: term.organizationId, targetType: 'BillingInvoice', targetId: invoice.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { scheduledChangeId: change.id, kind: change.kind, totalMinor: total.toString(), paymentAttemptCreated: provider === 'TEST' } } });
+            await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'billing.invoice.issued', eventVersion: 1, occurredAt: at.toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'BillingInvoice', id: invoice.id }, organizationId: term.organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'fairscale-billing-lifecycle', payload: { invoiceId: invoice.id, scheduledChangeId: change.id, totalMinor: total.toString() } }));
+            return false;
+          }
+          if (invoice.status !== 'PAID' || invoice.amountPaidMinor !== invoice.totalMinor) return false;
+        }
         const existing = await tx.billingSubscriptionAddon.findFirst({ where: { subscriptionTermId: term.id, code: addonCode, startsAt: change.effectiveAt } });
         if (quantity === 0) {
           await tx.billingSubscriptionAddon.updateMany({ where: { subscriptionTermId: term.id, code: addonCode, status: 'ACTIVE' }, data: { status: 'SCHEDULED_TO_REMOVE', scheduledEndAt: change.effectiveAt } });
         } else if (!existing) {
-          const price = await tx.priceVersion.findFirst({ where: { planCode: term.planCode, billingPeriod: term.billingPeriod, currency: 'USD', status: 'ACTIVE' }, orderBy: { version: 'desc' }, include: { components: true } });
-          const component = price?.components.find((candidate) => candidate.code === addonCode);
           if (!component) throw new ConflictException('Addon is not available for this plan');
+          await tx.billingSubscriptionAddon.updateMany({ where: { subscriptionTermId: term.id, code: addonCode, status: 'ACTIVE' }, data: { status: 'SCHEDULED_TO_REMOVE', scheduledEndAt: change.effectiveAt } });
           await tx.billingSubscriptionAddon.create({ data: { id: randomUUID(), subscriptionTermId: term.id, organizationId: term.organizationId, code: addonCode, status: 'ACTIVE', quantity, billingPeriod: term.billingPeriod, currency: component.currency, unitAmountMinor: component.amountMinor, startsAt: change.effectiveAt } });
         }
+        await tx.billingSubscriptionTerm.update({ where: { id: term.id }, data: { addonAmountMinor: targetAddonAmount, totalAmountMinor: term.baseAmountMinor - term.discountAmountMinor + targetAddonAmount } });
       }
       const updated = await tx.billingScheduledChange.update({ where: { id: change.id }, data: { status: 'APPLIED', appliedAt: at } });
       await tx.auditEvent.create({ data: { id: randomUUID(), action: 'BILLING_SCHEDULED_CHANGE_APPLIED', actorUserId: null, organizationId: change.organizationId, targetType: 'BillingScheduledChange', targetId: change.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { kind: change.kind, effectiveAt: change.effectiveAt.toISOString() } } });
@@ -236,6 +344,16 @@ export class BillingLifecycleService {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return { addonCode: null, addonQuantity: null };
     const record = value as Record<string, unknown>;
     return { addonCode: typeof record.addonCode === 'string' ? record.addonCode : null, addonQuantity: typeof record.addonQuantity === 'number' ? record.addonQuantity : null };
+  }
+
+  private async renewalWelcomePromotion(tx: Prisma.TransactionClient, billingCustomerId: string): Promise<{ sequence: number } | null> {
+    await tx.$queryRaw(Prisma.sql`SELECT id FROM billing_customers WHERE id = ${billingCustomerId}::uuid FOR UPDATE`);
+    const eligibility = await tx.billingPromotionEligibility.findUnique({ where: { billingCustomerId_promotionCode: { billingCustomerId, promotionCode: 'WELCOME_MONTHLY15' } } });
+    if (!eligibility?.eligible || eligibility.monthlyPaidCount >= 3) return null;
+    const activeRedemption = await tx.billingPromotionRedemption.count({ where: { billingCustomerId, promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', status: { in: ['RESERVED', 'CONSUMED'] } } });
+    if (activeRedemption >= 3) return null;
+    const last = await tx.billingPromotionRedemption.findFirst({ where: { billingCustomerId, promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY' }, orderBy: { sequence: 'desc' }, select: { sequence: true } });
+    return { sequence: (last?.sequence ?? 0) + 1 };
   }
 
   private requireIdempotencyKey(value?: string): string {
@@ -284,6 +402,6 @@ export class BillingLifecycleService {
   }
 
   private serializeScheduledChange(change: BillingScheduledChangeView): unknown {
-    return { id: change.id, subscriptionTermId: change.subscriptionTermId, organizationId: change.organizationId, kind: change.kind, status: change.status, effectiveAt: change.effectiveAt.toISOString(), targetPlanCode: change.targetPlanCode, targetBillingPeriod: change.targetBillingPeriod, targetState: change.targetStateJson, createdAt: change.createdAt.toISOString(), appliedAt: change.appliedAt?.toISOString() ?? null, canceledAt: change.canceledAt?.toISOString() ?? null };
+    return { id: change.id, subscriptionTermId: change.subscriptionTermId, organizationId: change.organizationId, kind: change.kind, status: change.status, effectiveAt: change.effectiveAt.toISOString(), targetPlanCode: change.targetPlanCode, targetBillingPeriod: change.targetBillingPeriod, targetState: change.targetStateJson, billingInvoiceId: change.billingInvoiceId, createdAt: change.createdAt.toISOString(), appliedAt: change.appliedAt?.toISOString() ?? null, canceledAt: change.canceledAt?.toISOString() ?? null };
   }
 }

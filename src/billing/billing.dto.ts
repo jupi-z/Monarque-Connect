@@ -1,5 +1,22 @@
 import type { FairScaleBillingPeriod, FairScalePlanCode } from './fairscale-pricing.js';
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
+
+export class SetBillingCustomerVerificationDto {
+  @IsIn(['UNVERIFIED', 'VERIFIED', 'REVIEW_REQUIRED', 'SUSPENDED'])
+  status!: 'UNVERIFIED' | 'VERIFIED' | 'REVIEW_REQUIRED' | 'SUSPENDED';
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class LinkBillingCustomerOrganizationDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  reason!: string;
+}
 
 export class CreateBillingQuoteDto {
   @IsIn(['CONNECT', 'OPERATIONS', 'BUSINESS', 'ENTERPRISE'])

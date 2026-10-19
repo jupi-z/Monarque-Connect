@@ -38,7 +38,33 @@ describe('FairScale Billing admin price publication', () => {
     expect(predecessor.retiredAt).toBeInstanceOf(Date);
     await expect(admin.publishPrice(principal, input, 'admin-price-1')).resolves.toEqual(first);
     await expect(admin.publishPrice(principal, { ...input, baseAmountMinor: 4700 }, 'admin-price-1')).rejects.toThrow('another price publication');
+    await expect(admin.publishPrice(principal, { ...input, welcomeAmountMinor: 3900 }, 'admin-price-1')).rejects.toThrow('another price publication');
     await expect(prisma.auditEvent.count({ where: { actorUserId, action: 'BILLING_PRICE_VERSION_PUBLISHED', targetId: first.id } })).resolves.toBe(1);
     await expect(prisma.outboxEvent.count({ where: { aggregateId: first.id, eventType: 'billing.price.published' } })).resolves.toBe(1);
+  });
+
+  it('records an idempotent platform verification decision for a BillingCustomer', async () => {
+    const principal = { userId: actorUserId, sessionId: randomUUID() };
+    const customer = await prisma.billingCustomer.create({ data: { id: randomUUID(), displayName: 'Verified FairScale customer', identityKey: `test:verification:${randomUUID()}` } });
+    const verified = await admin.setCustomerVerification(principal, customer.id, { status: 'VERIFIED', reason: 'Validated commercial evidence' }, 'customer-verification-1') as { id: string; status: string; verifiedAt: string | null };
+    expect(verified).toMatchObject({ id: customer.id, status: 'VERIFIED' });
+    expect(verified.verifiedAt).toEqual(expect.any(String));
+    await expect(admin.setCustomerVerification(principal, customer.id, { status: 'VERIFIED', reason: 'Validated commercial evidence' }, 'customer-verification-1')).resolves.toMatchObject({ id: customer.id, status: 'VERIFIED' });
+    await expect(admin.setCustomerVerification(principal, customer.id, { status: 'SUSPENDED', reason: 'Different decision' }, 'customer-verification-1')).rejects.toThrow('another verification decision');
+    await expect(prisma.auditEvent.count({ where: { actorUserId, action: 'BILLING_CUSTOMER_VERIFICATION_CHANGED', targetId: customer.id } })).resolves.toBe(1);
+    await prisma.billingCustomer.delete({ where: { id: customer.id } });
+  });
+
+  it('prevents an organization from being linked to two commercial identities', async () => {
+    const principal = { userId: actorUserId, sessionId: randomUUID() };
+    const organization = await prisma.organization.create({ data: { id: randomUUID(), businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Commercial identity tenant', handle: `commercial-${randomUUID().slice(0, 8)}`, defaultCurrency: 'EUR' } });
+    const first = await prisma.billingCustomer.create({ data: { id: randomUUID(), displayName: 'First legal identity', identityKey: `test:first:${randomUUID()}` } });
+    const second = await prisma.billingCustomer.create({ data: { id: randomUUID(), displayName: 'Second legal identity', identityKey: `test:second:${randomUUID()}` } });
+    await expect(admin.linkOrganization(principal, first.id, organization.id, { reason: 'Validated legal evidence A' })).resolves.toMatchObject({ billingCustomerId: first.id, organizationId: organization.id });
+    await expect(admin.linkOrganization(principal, first.id, organization.id, { reason: 'Replay of same link' })).resolves.toMatchObject({ billingCustomerId: first.id, organizationId: organization.id });
+    await expect(admin.linkOrganization(principal, second.id, organization.id, { reason: 'Conflicting legal evidence' })).rejects.toThrow('already linked');
+    await expect(prisma.auditEvent.count({ where: { action: 'BILLING_CUSTOMER_ORGANIZATION_LINKED', targetType: 'BillingCustomerOrganization', organizationId: organization.id } })).resolves.toBe(1);
+    await prisma.organization.delete({ where: { id: organization.id } });
+    await prisma.billingCustomer.deleteMany({ where: { id: { in: [first.id, second.id] } } });
   });
 });

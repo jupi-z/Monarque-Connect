@@ -129,7 +129,7 @@ Phase clôturée sur `main@6941f9108ce9ff3182201c03f8f0bb8df8342459`. Le périm�
 
 ## Phase 9.5 — FairScale V1 : Commercial Core, Pricing et Capacity
 
-**État : spécifiée, NON implémentée.** Phase intermédiaire obligatoire après Phase 9, avant Phase 10.
+**État : clôturée techniquement.** Phase 9.5 est livrée et documentée ; ses invariants servent de prérequis à la facturation 9.6.
 
 Implémenter le modèle monétaire USD versionné, le catalogue tarifaire, les calculs déterministes, l'identité commerciale et l'unicité des promotions, les capacités d'établissements/enseignes et leurs extensions, ainsi que l'absence de plafond commercial d'utilisateurs dans les forfaits payants. Exiger migrations additives, contrats OpenAPI, tests PostgreSQL/E2E, CI et aucune régression des Phases 0–9.
 
@@ -137,7 +137,7 @@ Implémenter le modèle monétaire USD versionné, le catalogue tarifaire, les c
 
 ## Phase 9.6 — FairScale V1 : Billing, Paiements et Control Plane commercial
 
-**État : spécifiée, NON implémentée.** Dépend strictement de la clôture Phase 9.5.
+**État : livrée techniquement, stabilisation corrective en cours.** Les tranches Billing et FairScale sont implémentées ; la clôture globale reste soumise à la CI post-fusion et aux gates live/conformité de [Docs/99](99_PHASE_9_6_OPERATIONAL_CLOSURE_PLAN.md). Une CI verte seule ne constitue pas une autorisation de commercialisation.
 
 Implémenter cycle souscription payante, échéances, promotion welcome à usage unique, avantage annuel renouvelable, factures SaaS **distinctes de SALES tenant**, encaissements réellement vérifiés et adaptateur de paiement neutre, anti-rejeu, prorata, changements de plan, grâce/relance/annulation, commandes administrateur Billing minimales et scénario E2E complet. Ne pas prétendre livrer tout le Control Plane Phase 11.
 

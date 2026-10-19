@@ -8,6 +8,7 @@ import { createRequestContext, currentEventContext } from '../events/event-conte
 
 type LifecycleStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'EXPIRED' | 'CANCELED';
 const effectiveStatuses: LifecycleStatus[] = ['TRIALING', 'ACTIVE', 'PAST_DUE'];
+const dunningGraceMs = 7 * 24 * 60 * 60 * 1000;
 const transitions: Record<LifecycleStatus, readonly LifecycleStatus[]> = {
   TRIALING: ['ACTIVE', 'PAST_DUE', 'SUSPENDED', 'EXPIRED', 'CANCELED'],
   ACTIVE: ['PAST_DUE', 'SUSPENDED', 'EXPIRED', 'CANCELED'],
@@ -77,7 +78,17 @@ export class SubscriptionService {
 
   async resolveEffective(organizationId: string, at: Date, db: PrismaService | Prisma.TransactionClient = this.prisma): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null; planVersionId: string } | null> {
     return db.subscription.findFirst({
-      where: { organizationId, organization: { status: 'ACTIVE' }, status: { in: effectiveStatuses }, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] },
+      where: {
+        organizationId,
+        organization: { status: 'ACTIVE' },
+        status: { in: effectiveStatuses },
+        startsAt: { lte: at },
+        OR: [
+          { status: { not: 'PAST_DUE' }, endsAt: null },
+          { status: { not: 'PAST_DUE' }, endsAt: { gt: at } },
+          { status: 'PAST_DUE', endsAt: { gt: new Date(at.getTime() - dunningGraceMs) } },
+        ],
+      },
       orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
       select: { id: true, status: true, startsAt: true, endsAt: true, planVersionId: true },
     });
