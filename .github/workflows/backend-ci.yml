@@ -13,13 +13,12 @@ jobs:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/backend-ci-reusable.yml
     with:
-      runner: '["self-hosted", "linux", "x64", "monarque-ci-pr-isolated"]'
+      runner: '["ubuntu-latest"]'
       ref: refs/pull/${{ github.event.pull_request.number }}/merge
-      database-url: postgresql://postgres:postgres@host.docker.internal:55433/monarque_connect_test
 
   validate-main:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/backend-ci-reusable.yml
     with:
-      runner: '["self-hosted", "linux", "x64", "monarque-ci"]'
+      runner: '["ubuntu-latest"]'
       ref: ${{ github.sha }}
