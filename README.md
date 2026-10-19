@@ -4,13 +4,8 @@ Monarque Connect est un **Business Operating Network** conçu pour aider les ent
 
 Le produit combine dans un même écosystème un **réseau économique entre entreprises**, un **Business OS opérationnel**, une **couche d’intelligence** et un **Control Plane SaaS**. Le backend est autonome et **100 % API-first** : les interfaces Web, mobile ou administrateur sont des clients séparés et remplaçables.
 
-> **État du projet**
->
-> La baseline fonctionnelle et architecturale **v1.2 — AI-Native Foundation** est figée.  
-> La fondation technique du backend est validée et **Phase 0.5 — Event Fabric** est terminée sur `main`.  
-> **Phase 1 — Identity & Tenancy**, **Phase 2 — Product Entitlements** et **Phase 3 — Référentiels** sont terminées et vérifiées sur `main`. La Phase 3 livre les business parties, le catalogue métier et les warehouses ; ses preuves sont dans `Docs/62_PHASE_3_CLOSURE_EVIDENCE.md`. **Phase 4 — CRM + Network entry est ouverte en exécution par tranches** : CRM fondation, profils, trust/discovery et connexions B2B sont livrés ; `NetworkInquiry → CRM` reste à construire et à prouver. Son cadrage est dans `Docs/64_PHASE4_CRM_NETWORK_EXECUTION_SPEC.md`.
->
-> Les modules métier décrits ci-dessous représentent la **cible du MVP**. Ils ne sont pas tous encore implémentés.
+> **État du projet au 19 octobre 2026**
+> La fondation et les Phases **0 à 9 sont clôturées** sur main ; la Phase 9 Messaging a ses preuves dans [Docs/88](Docs/88_PHASE_9_EXECUTION_EVIDENCE.md). **FairScale V1 est une évolution commerciale à implémenter en deux phases intermédiaires 9.5 puis 9.6 avant Phase 10** ; ses spécifications normatives se trouvent dans [Docs/89](Docs/89_FAIRSCALE_V1_NORMATIVE_SPEC.md). Les Phases 10, 11, 11.5 et 12 restent à faire. Les modules décrits ci-dessous peuvent représenter la cible, pas une garantie de disponibilité complète.
 
 ## Pourquoi Monarque Connect ?
 

@@ -39,3 +39,5 @@
 | ADR-035 | Agent = principal technique délégué, sans accès DB direct | Accepted |
 | ADR-036 | Actions agentiques high-impact exigent confirmation humaine et revalidation | Accepted |
 | ADR-037 | Vector store/embeddings différés jusqu'à besoin démontré | Accepted |
+
+| ADR-038 | FairScale V1 : fonctions, capacités et facturation SaaS séparées ; phases 9.5/9.6 | Accepted — implémentation en attente ([détail](94_ADR_038_FAIRSCALE.md)) |

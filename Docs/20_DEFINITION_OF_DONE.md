@@ -30,6 +30,19 @@ Le MVP n'est terminé que lorsque :
 - [ ] tenant data export/portability
 - [ ] platform control plane
 
+## Commercialisation SaaS — FairScale V1 (phases 9.5 et 9.6)
+
+- [ ] prix en USD versionnés et exacts : 15/45/180 USD mensuels, CONNECT gratuit
+- [ ] welcome mensuel -15 % trois premières mensualités admissibles, une fois par entreprise, sans réactivation
+- [ ] réduction annuelle -20 % à **chaque** paiement annuel, sans cumul avec welcome
+- [ ] plans payants sans limitation commerciale au nombre d'utilisateurs internes
+- [ ] capacité d'établissements incluse + addons explicites et audités
+- [ ] factures, paiements et renouvellements plateforme distincts de SALES métier
+- [ ] checkout/activation uniquement après paiement confirmé ; pas de double activation ni double débit sur replays
+- [ ] résiliation et downgrade conservent les données et l'export, dunning/audit vérifiés
+- [ ] clôture séparée des Phases 9.5 et 9.6 avec preuves Docs/92, CI GitHub PR puis post-fusion
+- [ ] revue des exigences juridiques de vente et de facturation de Monarque Group avant lancement commercial
+
 ## Produit à quatre piliers
 
 - [ ] Network expose un profil de confiance sans score opaque

@@ -127,3 +127,13 @@ Le preset peut être modifié ensuite sans changer le business type.
 Une version de plan utilisée par un client n'est pas mutée de manière destructive. Une nouvelle version est créée puis les subscriptions sont migrées explicitement.
 
 Les `module_code` sont stables et ne sont pas recyclés.
+
+## 9. Évolution normative FairScale V1 (après clôture Phase 9)
+
+La politique de tarification et de capacité **cible** est décrite par [Docs/89](89_FAIRSCALE_V1_NORMATIVE_SPEC.md) et l'[ADR-038](94_ADR_038_FAIRSCALE.md). Elle n'est **pas implémentée** dans le seed actuel : ne pas affirmer que ses prix ou capacités sont déjà activés.
+
+- CONNECT reste gratuit, OPERATIONS 15 USD/mois, BUSINESS 45 USD/mois, ENTERPRISE 180 USD/mois (prix de base) ; annuel -20 % à chaque paiement ; mensualités de bienvenue -15 % lors de trois échéances admissibles, une fois par entreprise.
+- Les modules ci-dessus restent la frontière fonctionnelle. Le secteur/taille/effectif n'impose pas le plan.
+- Le plafond commercial MAX_USERS est retiré des **plans payants** uniquement après migration ; les 5 utilisateurs CONNECT restent garde-fou du gratuit. Aucun supplément par employé payant.
+- Capacités de référence : 1/1/3/10 établissements, souscripteur peut acquérir une capacité d'établissement additionnelle via paiement et consentement ; quota effectif côté serveur, jamais décision frontend.
+- La Phase 9.5 implémente catalogue et quotas ; la Phase 9.6 implémente l'encaissement et la gestion d'abonnement. Les versions historiques ne sont jamais réécrites pour leur faire dire qu'elles ont toujours eu ces propriétés.
