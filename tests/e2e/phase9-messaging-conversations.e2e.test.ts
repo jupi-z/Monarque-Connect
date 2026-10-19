@@ -40,18 +40,78 @@ describe('Phase 9 conversation and invitation HTTP flow', () => {
     app.useGlobalFilters(new ProblemDetailsFilter());
     await app.init();
     prisma = app.get(PrismaService);
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE messaging_command_receipts, messaging_invitations, conversation_user_participants, conversation_organization_participants, messages, messaging_organization_blocks, messaging_rate_buckets, conversations RESTART IDENTITY CASCADE');
-    await prisma.auditEvent.deleteMany();
-    await prisma.outboxEvent.deleteMany();
-    await prisma.membershipEstablishmentScope.deleteMany();
-    await prisma.invitationEstablishmentScope.deleteMany();
-    await prisma.invitation.deleteMany();
-    await prisma.membership.deleteMany();
-    await prisma.establishment.deleteMany();
-    await prisma.organization.deleteMany();
-    await prisma.refreshSession.deleteMany();
-    await prisma.user.deleteMany();
-    await prisma.loginRateLimitBucket.deleteMany();
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE
+      outbox_events,
+      event_consumer_receipts,
+      refresh_sessions,
+      login_rate_limit_buckets,
+      organization_network_profiles,
+      organization_network_trust,
+      connection_requests,
+      subscriptions,
+      organization_module_activations,
+      organization_entitlements,
+      organization_quota_usages,
+      quota_reservations,
+      quota_ledgers,
+      establishments,
+      business_parties,
+      expenses,
+      expense_idempotency_keys,
+      cash_accounts,
+      cash_account_idempotency_keys,
+      cash_movements,
+      cash_movement_idempotency_keys,
+      leads,
+      opportunities,
+      network_inquiries,
+      inventory_movements,
+      inventory_balances,
+      inventory_reconciliations,
+      warehouses,
+      items,
+      membership_establishment_scopes,
+      memberships,
+      invitations,
+      invitation_establishment_scopes,
+      audit_events,
+      sales_number_counters,
+      quote_lines,
+      quotes,
+      sales_order_lines,
+      sales_orders,
+      invoice_lines,
+      invoices,
+      payment_records,
+      supplier_rfq_recipients,
+      supplier_rfq_lines,
+      supplier_rfqs,
+      purchase_idempotency_keys,
+      purchase_order_lines,
+      purchase_orders,
+      goods_receipt_inventory_entries,
+      goods_receipt_inventory_links,
+      goods_receipt_correction_lines,
+      goods_receipt_corrections,
+      goods_receipt_lines,
+      goods_receipts,
+      projects,
+      tasks,
+      documents,
+      document_links,
+      phase8_idempotency_keys,
+      messaging_command_receipts,
+      messaging_invitations,
+      conversation_user_participants,
+      conversation_organization_participants,
+      messages,
+      messaging_organization_blocks,
+      messaging_rate_buckets,
+      conversations,
+      network_trust_command_receipts,
+      organizations,
+      users
+      RESTART IDENTITY CASCADE`);
     await seedReferenceData(prisma);
     const server = app.getHttpServer() as unknown as Parameters<typeof request>[0];
     const ownerOne = await registerAndLogin(server, 'phase9-task3-one@example.test');
