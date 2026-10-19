@@ -312,6 +312,7 @@ enum AuditAction {
   BILLING_DUNNING_TRANSITIONED
   BILLING_SCHEDULED_CHANGE_APPLIED
   BILLING_REFUND_RECORDED
+  BILLING_PRICE_VERSION_PUBLISHED
   SUPPLIER_RFQ_CREATED
   SUPPLIER_RFQ_UPDATED
   SUPPLIER_RFQ_STATUS_CHANGED
@@ -834,6 +835,7 @@ model PriceVersion {
   startsAt                  DateTime           @map("starts_at") @db.Timestamptz(6)
   publishedAt               DateTime?          @map("published_at") @db.Timestamptz(6)
   retiredAt                 DateTime?          @map("retired_at") @db.Timestamptz(6)
+  idempotencyKey            String?            @unique @map("idempotency_key") @db.VarChar(200)
   createdAt                 DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   plan                      Plan               @relation(fields: [planCode], references: [code], onDelete: Restrict)
   components                PriceComponent[]

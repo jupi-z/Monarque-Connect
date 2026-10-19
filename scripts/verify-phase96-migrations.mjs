@@ -63,6 +63,8 @@ async function structuralProof(databaseUrl) {
     const indexes = await pool.query("SELECT tablename, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename IN ('billing_invoices', 'billing_payment_attempts', 'billing_scheduled_changes') AND indexdef LIKE 'CREATE UNIQUE INDEX%'");
     const definitions = indexes.rows.map((row) => `${row.tablename} ${row.indexdef.replaceAll('"', '').replace(/\s+/g, ' ')}`);
     for (const required of ['(subscription_term_id, period_start, period_end)', '(provider, provider_payment_id)', '(organization_id, idempotency_key)']) if (!definitions.some((definition) => definition.includes(required))) throw new Error(`Phase 9.6 structural proof missing unique index ${required}`);
+    const priceKey = await pool.query("SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'price_versions_idempotency_key_key'");
+    if (priceKey.rowCount !== 1) throw new Error('Phase 9.6 structural proof missing idempotent price publication index');
     const sequence = await pool.query("SELECT 1 FROM pg_class WHERE relkind = 'S' AND relname = 'billing_invoice_number_seq'");
     if (sequence.rowCount !== 1) throw new Error('Phase 9.6 structural proof missing billing invoice sequence');
     const triggers = await pool.query("SELECT tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE c.relname IN ('billing_invoice_lines', 'billing_payments') AND NOT t.tgisinternal");

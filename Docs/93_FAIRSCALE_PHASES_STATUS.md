@@ -1,20 +1,20 @@
 # 93 — Statut FairScale V1
 
 **Baseline de préparation : main@becef9a96163b2331e1d459583d6dde551857c73 ; Phase 9 clôturée.**
-**Au 19/10/2026 : Phase 9.5 clôturée sur `main@041fc5c7406eaeb9165a52df569f1d699b395405`; Phase 9.6 ouverte et en exécution contract-first.**
+**Au 19/10/2026 : Phase 9.5 clôturée sur `main@041fc5c7406eaeb9165a52df569f1d699b395405`; Phase 9.6 est en exécution, avec contrats, checkout vérifié, renouvellements/dunning livrés et Control Plane Billing minimal en cours.**
 
 | Gate | Phase 9.5 | Phase 9.6 |
 |---|---|---|
 | Norme/ADR revus et fusionnés | [x] | prérequis |
-| OpenAPI contract-first | [x] | en cours — tranche 9.6.1 |
-| Migrations neuves et upgrade | [x] | en cours — migration additive 9.6.1 |
+| OpenAPI contract-first | [x] | [x] tranches livrées ; preuve finale ouverte |
+| Migrations neuves et upgrade | [x] | [x] migrations additives ; preuve finale ouverte |
 | Catalogue USD et prix versionnés | [x] | dépendance |
 | Retrait du plafond paid users + addons | [x] | dépendance |
 | Unicité welcome/politique annuelle | [x] calcul | [ ] encaissement |
 | Devis et quote serveur | [x] | usage commercial |
-| Invoices et paiements de la plateforme | — | [ ] |
-| Webhooks/adaptateurs et incidents | — | [ ] |
-| Commandes Billing du Control Plane | — | [ ] |
+| Invoices et paiements de la plateforme | — | [x] chemin TEST vérifié ; provider live restant bloquant |
+| Webhooks/adaptateurs et incidents | — | [x] adaptateur TEST signé/idempotent ; provider live restant bloquant |
+| Commandes Billing du Control Plane | — | en cours — publication de prix versionnés |
 | Test des frontières Phases 0–9 | [x] | [ ] |
 | CI PR et post-fusion sur main | [x] | [ ] |
 | Preuves de clôture versionnées | [x] | [ ] |

@@ -7,11 +7,12 @@ import { BillingCatalogController, BillingController, BillingProviderController,
 import { BillingProviderService } from './billing-provider.service.js';
 import { BillingLifecycleService } from './billing-lifecycle.service.js';
 import { BillingService } from './billing.service.js';
+import { BillingAdminService } from './billing-admin.service.js';
 
 @Module({
   imports: [AuthModule, EventModule, EntitlementsModule, TenancyModule],
   controllers: [BillingCatalogController, BillingController, BillingProviderController, PlatformBillingController],
-  providers: [BillingService, BillingProviderService, BillingLifecycleService],
-  exports: [BillingService, BillingProviderService, BillingLifecycleService],
+  providers: [BillingService, BillingProviderService, BillingLifecycleService, BillingAdminService],
+  exports: [BillingService, BillingProviderService, BillingLifecycleService, BillingAdminService],
 })
 export class BillingModule {}

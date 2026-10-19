@@ -60,6 +60,18 @@ async function seed(databaseUrl) {
   });
 }
 
+async function addCurrentSeedCompatibilityColumns(databaseUrl) {
+  // The proof intentionally deploys only the Phase 9.5 migration set, while the
+  // repository seed is compiled from the current Prisma schema. Keep this
+  // compatibility column outside _prisma_migrations so the historical proof
+  // remains exact; the real column is proven by the Phase 9.6 migration proof.
+  const pool = new Pool({ connectionString: databaseUrl });
+  try {
+    await pool.query('ALTER TABLE price_versions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(200)');
+    await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS price_versions_idempotency_key_key ON price_versions(idempotency_key)');
+  } finally { await pool.end(); }
+}
+
 async function appliedNames(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   try { return (await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name')).rows.map((row) => row.migration_name); }
@@ -91,7 +103,7 @@ try {
   await createDatabase(adminPool, databaseNames.empty); await createDatabase(adminPool, databaseNames.upgrade);
 
   const phase95MigrationSet = [...preFairScaleMigrationDirectories, ...phase95MigrationDirectories];
-  await writeMigrationSet(phase95MigrationSet); await migrate(databaseUrls.empty); await structuralProof(databaseUrls.empty);
+  await writeMigrationSet(phase95MigrationSet); await migrate(databaseUrls.empty); await structuralProof(databaseUrls.empty); await addCurrentSeedCompatibilityColumns(databaseUrls.empty);
   await seed(databaseUrls.empty); await seed(databaseUrls.empty);
   const emptyPool = new Pool({ connectionString: databaseUrls.empty });
   try {
@@ -106,7 +118,7 @@ try {
   await writeMigrationSet(preFairScaleMigrationDirectories); await migrate(databaseUrls.upgrade);
   const beforeFairScale = await appliedNames(databaseUrls.upgrade);
   if (beforeFairScale.length !== preFairScaleMigrationDirectories.length || beforeFairScale.at(-1) !== preFairScaleMigrationDirectories.at(-1)) throw new Error('Phase 9.5 upgrade baseline mismatch');
-  await writeMigrationSet(phase95MigrationSet); await migrate(databaseUrls.upgrade); await structuralProof(databaseUrls.upgrade);
+  await writeMigrationSet(phase95MigrationSet); await migrate(databaseUrls.upgrade); await structuralProof(databaseUrls.upgrade); await addCurrentSeedCompatibilityColumns(databaseUrls.upgrade);
   const finalNames = await appliedNames(databaseUrls.upgrade);
   if (finalNames.length !== phase95MigrationSet.length || finalNames.at(-1) !== fairScaleStart) throw new Error('Phase 9.5 upgrade migration set mismatch');
   await seed(databaseUrls.upgrade); await seed(databaseUrls.upgrade);

@@ -42,6 +42,14 @@ export class BillingLifecycleService {
     return invoices.map((invoice) => this.serializeInvoice(invoice));
   }
 
+  async getInvoice(principal: AuthPrincipal, organizationId: string, invoiceId: string): Promise<unknown> {
+    const context = await this.authorization.requireMembership(principal, organizationId);
+    this.authorization.assertPermission(context, 'billing:read');
+    const invoice = await this.prisma.billingInvoice.findFirst({ where: { id: invoiceId, organizationId }, include: { lines: true, payments: true } });
+    if (!invoice) throw new NotFoundException('Billing invoice not found');
+    return this.serializeInvoice(invoice);
+  }
+
   async scheduleChange(principal: AuthPrincipal, organizationId: string, termId: string, input: ScheduleBillingChangeDto, rawIdempotencyKey?: string): Promise<unknown> {
     const context = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(context, 'billing:write');
@@ -257,6 +265,7 @@ export class BillingLifecycleService {
       id: invoice.id,
       organizationId: invoice.organizationId,
       number: invoice.number,
+      sequence: invoice.sequence,
       status: invoice.status,
       currency: invoice.currency.trim(),
       periodStart: invoice.periodStart.toISOString(),
@@ -269,7 +278,7 @@ export class BillingLifecycleService {
       issuedAt: invoice.issuedAt.toISOString(),
       dueAt: invoice.dueAt.toISOString(),
       paidAt: invoice.paidAt?.toISOString() ?? null,
-      lines: invoice.lines.map((line) => ({ code: line.code, quantity: line.quantity, unitAmountMinor: Number(line.unitAmountMinor), discountMinor: Number(line.discountMinor), totalMinor: Number(line.totalMinor) })),
+      lines: invoice.lines.map((line) => ({ id: line.id, lineIndex: line.lineIndex, code: line.code, description: line.description, quantity: line.quantity, unitAmountMinor: Number(line.unitAmountMinor), discountMinor: Number(line.discountMinor), totalMinor: Number(line.totalMinor), currency: line.currency.trim() })),
       payments: invoice.payments.map((payment) => ({ id: payment.id, status: payment.status, amountMinor: Number(payment.amountMinor), externalTransactionId: payment.externalTransactionId, receivedAt: payment.receivedAt.toISOString() })),
     };
   }
