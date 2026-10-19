@@ -9,9 +9,11 @@ const sourceMigrationsPath = join(process.cwd(), 'prisma', 'migrations');
 const migrationDirectories = (await readdir(sourceMigrationsPath, { withFileTypes: true }))
   .filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
 const fairScaleStart = '20261019101428_add_fairscale_catalog_and_billing_identity';
+const phase96Start = '20261019131202_phase96_billing_transactions';
 const preFairScaleMigrationDirectories = migrationDirectories.filter((name) => name < fairScaleStart);
-const fairScaleMigrationDirectories = migrationDirectories.filter((name) => name >= fairScaleStart);
-if (fairScaleMigrationDirectories.length !== 1 || fairScaleMigrationDirectories[0] !== fairScaleStart) throw new Error('Unexpected FairScale migration set');
+const phase95MigrationDirectories = migrationDirectories.filter((name) => name >= fairScaleStart && name < phase96Start);
+const laterFairScaleMigrationDirectories = migrationDirectories.filter((name) => name >= phase96Start);
+if (phase95MigrationDirectories.length !== 1 || phase95MigrationDirectories[0] !== fairScaleStart) throw new Error('Unexpected Phase 9.5 migration set');
 
 const baseUrl = new URL(process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/monarque_connect');
 const adminUrl = new URL(baseUrl); adminUrl.pathname = '/postgres';
@@ -40,8 +42,9 @@ async function migrate(databaseUrl) {
   const configPath = join(tempRoot, 'prisma.config.ts');
   await writeFile(configPath, "import { defineConfig } from 'prisma/config';\nexport default defineConfig({ schema: 'prisma/schema.prisma', migrations: { path: 'prisma/migrations' }, datasource: { url: process.env.DATABASE_URL } });\n", 'utf8');
   await new Promise((resolve, reject) => {
-    const executable = join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'prisma.cmd' : 'prisma');
-    execFile(executable, ['migrate', 'deploy', '--config', configPath], { cwd: tempRoot, env: { ...process.env, DATABASE_URL: databaseUrl }, maxBuffer: 10 * 1024 * 1024, shell: process.platform === 'win32' }, (error, stdout, stderr) => {
+    const executable = process.execPath;
+    const prismaEntryPoint = join(process.cwd(), 'node_modules', 'prisma', 'build', 'index.js');
+    execFile(executable, [prismaEntryPoint, 'migrate', 'deploy', '--config', configPath], { cwd: tempRoot, env: { ...process.env, DATABASE_URL: databaseUrl }, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (stdout) process.stdout.write(stdout); if (stderr) process.stderr.write(stderr); if (error) reject(error); else resolve();
     });
   });
@@ -87,7 +90,8 @@ const adminPool = new Pool({ connectionString: adminUrl.toString() });
 try {
   await createDatabase(adminPool, databaseNames.empty); await createDatabase(adminPool, databaseNames.upgrade);
 
-  await writeMigrationSet(migrationDirectories); await migrate(databaseUrls.empty); await structuralProof(databaseUrls.empty);
+  const phase95MigrationSet = [...preFairScaleMigrationDirectories, ...phase95MigrationDirectories];
+  await writeMigrationSet(phase95MigrationSet); await migrate(databaseUrls.empty); await structuralProof(databaseUrls.empty);
   await seed(databaseUrls.empty); await seed(databaseUrls.empty);
   const emptyPool = new Pool({ connectionString: databaseUrls.empty });
   try {
@@ -102,11 +106,11 @@ try {
   await writeMigrationSet(preFairScaleMigrationDirectories); await migrate(databaseUrls.upgrade);
   const beforeFairScale = await appliedNames(databaseUrls.upgrade);
   if (beforeFairScale.length !== preFairScaleMigrationDirectories.length || beforeFairScale.at(-1) !== preFairScaleMigrationDirectories.at(-1)) throw new Error('Phase 9.5 upgrade baseline mismatch');
-  await writeMigrationSet(migrationDirectories); await migrate(databaseUrls.upgrade); await structuralProof(databaseUrls.upgrade);
+  await writeMigrationSet(phase95MigrationSet); await migrate(databaseUrls.upgrade); await structuralProof(databaseUrls.upgrade);
   const finalNames = await appliedNames(databaseUrls.upgrade);
-  if (finalNames.length !== migrationDirectories.length || finalNames.at(-1) !== fairScaleStart) throw new Error('Phase 9.5 upgrade migration set mismatch');
+  if (finalNames.length !== phase95MigrationSet.length || finalNames.at(-1) !== fairScaleStart) throw new Error('Phase 9.5 upgrade migration set mismatch');
   await seed(databaseUrls.upgrade); await seed(databaseUrls.upgrade);
-  console.log(`Phase 9.5 migration proof passed: empty database (${migrationDirectories.length} migrations) and Phase 9 upgrade (${preFairScaleMigrationDirectories.length} + ${fairScaleMigrationDirectories.length} migrations), additive FairScale schema and idempotent seed verified.`);
+  console.log(`Phase 9.5 migration proof passed: empty database (${phase95MigrationSet.length} migrations) and Phase 9 upgrade (${preFairScaleMigrationDirectories.length} + ${phase95MigrationDirectories.length} migrations), additive FairScale schema and idempotent seed verified. Later FairScale migrations intentionally excluded: ${laterFairScaleMigrationDirectories.length}.`);
 } finally {
   await dropDatabase(adminPool, databaseNames.empty); await dropDatabase(adminPool, databaseNames.upgrade); await adminPool.end();
   await rm(tempRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
