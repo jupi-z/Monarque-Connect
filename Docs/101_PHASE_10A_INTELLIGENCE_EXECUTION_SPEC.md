@@ -1,8 +1,10 @@
 # 101 — Phase 10A : Intelligence déterministe
 
-**Statut : spécification normative proposée, en attente de revue.**
+**Statut : spécification normative retenue pour l’exécution Phase 10A.**
 
 **Baseline examinée :** `main@26cf9c5e71d83674c2c8954f7c3eda00874293ea`.
+
+**Suivi d’exécution :** [issue Phase 10A #141](https://github.com/jupi-z/Monarque-Connect/issues/141) ; [statut et gates](102_PHASE_10A_STATUS.md).
 
 **Dépendances :** Phases 0–9 livrées ; fondations FairScale 9.5/9.6 intégrées techniquement. L’issue #123 reste ouverte pour les conditions externes de commercialisation et n’est pas une dépendance fonctionnelle de cette phase.
 
@@ -44,9 +46,9 @@ Le rebuild relit les faits métier autorisés, remplace/upsert les clés de proj
 
 ### 4.1 `MetricSnapshot`
 
-Snapshot unique par organisation, établissement éventuel, code/version de métrique, fenêtre ou instant de mesure, devise et dimensions normalisées. Champs minimaux : UUID, `organizationId`, `establishmentId?`, `scopeKey` non nullable (`ORG` ou `ESTABLISHMENT:<uuid>`), `metricCode`, `definitionVersion`, `periodStart?`, `periodEnd?`, `asOf?`, `valueDecimal?`, `valueJson?`, `currency?`, `dimensionKey` non nullable, `calculatedAt`, `sourceAsOf`, `createdAt`, `updatedAt`.
+Snapshot unique par organisation, établissement éventuel, code/version de métrique, fenêtre ou instant de mesure, devise et dimensions normalisées. Champs minimaux : UUID, `organizationId`, `establishmentId?`, `scopeKey` non nullable (`ORG` ou `ESTABLISHMENT:<uuid>`), `metricCode`, `definitionVersion`, `periodStart?`, `periodEnd?`, `asOf?`, `valueDecimal?`, `valueJson?`, `currency?`, `currencyKey` non nullable (`currency` ISO 4217 ou `NONE`), `dimensionKey` non nullable, `calculatedAt`, `sourceAsOf`, `createdAt`, `updatedAt`.
 
-Contraintes : exactement l’un des modes temporels est renseigné : fenêtre (`periodStart < periodEnd`, UTC demi-ouverte) ou instant (`asOf`). Les indexes uniques couvrent `organizationId`, `scopeKey`, `metricCode`, `definitionVersion`, les dimensions, la devise et le mode temporel ; `scopeKey` évite les doublons `NULL` des clés uniques PostgreSQL. Les calculs lisent les tables sources dans un snapshot cohérent `REPEATABLE READ`. Valeurs numériques exactes, jamais `Float`. Les snapshots d’une même clé sont upsertés, non historisés à chaque calcul ; les périodes passées sont conservées tant que les faits sources du tenant le sont et sont reconstruisibles après restauration. Une migration ne stocke pas de données sources privées redondantes.
+Contraintes : exactement l’un des modes temporels est renseigné : fenêtre (`periodStart < periodEnd`, UTC demi-ouverte) ou instant (`asOf`), vérifié par `CHECK`. Deux indexes uniques partiels PostgreSQL distincts couvrent respectivement le mode fenêtre (`periodStart`, `periodEnd`) et le mode instant (`asOf`), avec `organizationId`, `scopeKey`, `metricCode`, `definitionVersion`, `dimensionKey` et `currencyKey`. Aucun champ nullable ne participe à la clé d’unicité. `scopeKey` évite les doublons d’établissement, `currencyKey` normalise l’absence de devise. Les calculs lisent les tables sources dans un snapshot cohérent `REPEATABLE READ`. Valeurs numériques exactes, jamais `Float`. Les snapshots d’une même clé sont upsertés, non historisés à chaque calcul ; les périodes passées sont conservées tant que les faits sources du tenant le sont et sont reconstruisibles après restauration. Une migration ne stocke pas de données sources privées redondantes.
 
 ### 4.2 `InsightAlert`
 
@@ -60,16 +62,16 @@ Tous les intervalles demandés par l’API sont UTC et demi-ouverts. Les règles
 
 | Code | Définition déterministe | Source et dimension |
 |---|---|---|
-| `SALES_ISSUED` | Nombre et total `totalGross` des factures dont `issuedAt` appartient à la période ; exclure `DRAFT` et `VOID`. | `Invoice`; devise obligatoire ; établissement. Le total est une activité de facturation, pas un revenu comptable reconnu. |
+| `SALES_ISSUED` | Nombre et total `totalGross` des factures actuellement non `DRAFT`/`VOID` dont `issuedAt` appartient à la période. Une facture annulée ultérieurement est exclue au recalcul, y compris de sa période d’émission. | `Invoice`; devise obligatoire ; établissement. Le total est une activité de facturation actuelle, pas un historique immuable ni un revenu comptable reconnu. |
 | `PAYMENTS_RECORDED` | Flux net par `recordedAt` : enregistrement racine (`reversalOfId = null`) compté positivement, y compris s’il est ensuite passé à `REVERSED` ; enregistrement lié de reversal compté négativement dans sa propre période. Une reversal tardive ne réécrit donc pas le flux historique de la période du paiement initial. | `PaymentRecord`; devise et établissement. |
-| `RECEIVABLES_OUTSTANDING` | Pour chaque facture non `VOID`, `totalGross` moins les paiements racines et reversals liés enregistrés jusqu’à `sourceAsOf`; retourner la somme par devise. | `Invoice` + `PaymentRecord`; établissement. Ne pas plafonner silencieusement les soldes négatifs. |
+| `RECEIVABLES_OUTSTANDING` | État courant à `sourceAsOf` : pour chaque facture actuellement non `VOID`, `totalGross` moins les paiements racines et reversals liés dont `recordedAt <= sourceAsOf`; retourner la somme par devise. Aucun instant historique choisi par le client n’est accepté, car les sources ne conservent pas l’historique complet des transitions d’état de facture. | `Invoice` + `PaymentRecord`; établissement. Ne pas plafonner silencieusement les soldes négatifs. |
 | `QUOTE_ORDER_CONVERSION` | Cohorte des devis créés dans la période dont le statut a quitté `DRAFT`; numérateur = devis de cette cohorte avec un `SalesOrder` lié, dénominateur = taille de la cohorte. | `Quote` + `SalesOrder`; établissement ; exposer numérateur, dénominateur et ratio, pas seulement le ratio. |
 | `EXPENSES_RECORDED` | Nombre et somme des dépenses `RECORDED` par `expenseDate`; exclure `DRAFT` et `VOID`. | `Expense`; devise et établissement. |
-| `CASH_BALANCE` | Somme signée de tous les mouvements du ledger jusqu’à `sourceAsOf`, `IN` positif et `OUT` négatif, incluant les corrections append-only selon leur sens. | `CashMovement`; devise, établissement et compte. Ne pas agréger des devises différentes. |
+| `CASH_BALANCE` | État courant à `sourceAsOf`, obtenu par somme signée des mouvements enregistrés jusqu’à cette mesure, `IN` positif et `OUT` négatif, incluant les corrections append-only selon leur sens. Aucun solde historique à date libre n’est promis en V1. | `CashMovement`; devise, établissement et compte. Ne pas agréger des devises différentes. |
 | `INVENTORY_ON_HAND` | Quantité actuelle issue de `InventoryBalance`, sans addition entre unités différentes. | `InventoryBalance` + `Item` + `Warehouse`; établissement, entrepôt, article et unité. La valeur est un état à `sourceAsOf`, non une série historique. |
 | `PURCHASE_ORDERS_PENDING` | Nombre de bons de commande en `SENT`, `CONFIRMED` ou `PARTIALLY_RECEIVED`. | `PurchaseOrder`; établissement. Aucun montant d’achat n’est présenté comme dépense payée. |
-| `PROJECTS_OVERDUE` | Nombre de projets non `COMPLETED`/`CANCELLED` avec `dueOn` antérieur à la date UTC courante. | `Project`; établissement. |
-| `CRM_PIPELINE` | Nombre et somme des opportunités `OPEN` actives, groupés par devise ; valeur manquante exclue du total et comptée séparément. | `Opportunity`; établissement. Ce n’est pas une prévision probabiliste. |
+| `PROJECTS_OVERDUE` | État courant mesuré à `sourceAsOf` : nombre de projets actuellement non `COMPLETED`/`CANCELLED` avec `dueOn` antérieur à la date UTC de mesure. Aucun historique de retard passé n’est déduit. | `Project`; établissement. |
+| `CRM_PIPELINE` | État courant mesuré à `sourceAsOf` : nombre et somme des opportunités `OPEN` actives, groupés par devise ; valeur manquante exclue du total et comptée séparément. | `Opportunity`; établissement. Ce n’est pas une prévision probabiliste ni une série historique. |
 | `NETWORK_INQUIRIES_CONVERTED` | Nombre d’inquiries de l’organisation liées à un lead ou une opportunité dans la période de création. | `NetworkInquiry` + lien de conversion tenant local ; aucune donnée du tenant tiers n’est agrégée ou exposée. |
 
 Une métrique dont le module source n’est pas autorisé/actif ou dont la permission manque est omise de la réponse. Une demande explicite de cette métrique renvoie un refus standard sans révéler les enregistrements sous-jacents.
@@ -81,7 +83,7 @@ Le premier registre met en œuvre uniquement les règles dont les sources dispos
 - `INVOICE_OVERDUE` : facture `ISSUED` ou `PARTIALLY_PAID`, montant restant positif, `dueAt` antérieur à la date UTC courante ; résolution au paiement complet, à l’annulation/void ou lorsque la date n’est plus échue.
 - `PROJECT_OVERDUE` : projet actif non terminé/non annulé avec `dueOn` antérieur à la date UTC courante ; résolution à la fin, à l’annulation ou au changement de date.
 
-Les deux règles ont la sévérité `WARNING` en V1. La sévérité est une constante de registre versionnée, pas une appréciation calculée par le client.
+Les deux règles ont la sévérité `WARNING` en V1. La sévérité est une constante de registre versionnée, pas une appréciation calculée par le client. L’évaluation porte sur l’état courant à `sourceAsOf` ; la V1 n’affirme pas à quelle date passée une facture ou un projet est devenu en retard.
 
 Les alertes « stock sous seuil », « document proche d’expiration » et « RFQ sans réponse » sont prévues par `Docs/37`, mais leurs seuils/dates métier ne sont pas tous présents dans le schéma courant. Elles ne doivent pas être simulées à partir d’heuristiques. Elles restent inactives en 10A jusqu’à une décision contractuelle séparée et à l’ajout explicite des champs sources nécessaires. Cette phase peut les activer dans une PR ultérieure sans changer le format commun d’alerte.
 
@@ -120,7 +122,7 @@ Routes sous `/api/v1/organizations/{organizationId}/intelligence` :
 - `GET /alerts` — filtres de statut/sévérité, curseur opaque et limite maximale 100 ; filtres appliqués après autorisation/scope.
 - `GET /alerts/{alertId}` — détail minimal après validation tenant, permission source et établissement.
 
-Règles communes : période maximale 366 jours pour séries, dates RFC3339 UTC, `from < to`, pagination keyset, aucune liste d’établissement fournie ne peut élargir le scope du demandeur, réponse avec `calculatedAt`/`sourceAsOf`, `403` pour accès non autorisé et `404` pour identifiant non visible selon les conventions existantes. Le contrat OpenAPI précis (schémas, exemples, codes d’erreur, paramètres) et tests contractuels précèdent tout code ou migration.
+Règles communes : période maximale 366 jours pour séries, dates RFC3339 UTC, `from < to`, pagination keyset, aucune liste d’établissement fournie ne peut élargir le scope du demandeur, réponse avec `calculatedAt`/`sourceAsOf`, `403` pour accès non autorisé et `404` pour identifiant non visible selon les conventions existantes. Les métriques d’activité prennent `from`/`to`; les métriques d’état courant sont mesurées à `sourceAsOf` et n’acceptent pas une date historique choisie par le client. Le registre expose le type `ACTIVITY` ou `CURRENT_STATE` ; aucun historique artificiel n’est généré pour `CURRENT_STATE`. Le contrat OpenAPI précis (schémas, exemples, codes d’erreur, paramètres) et tests contractuels précèdent tout code ou migration.
 
 ## 9. Entitlements, catalogue et activation
 
@@ -147,8 +149,8 @@ Les nouvelles tables utilisent FKs composites tenant/établissement, index tenan
 
 ## 12. Séquencement obligatoire
 
-1. Revue et gel de cette spécification, de la matrice métrique/permissions et des écarts de source.
-2. Issue Phase 10A, statut, roadmap et tracker synchronisés après acceptation normative.
+1. Spécification, matrice métrique/permissions et écarts de source gelés dans ce document.
+2. Issue Phase 10A #141, statut, roadmap et tracker synchronisés.
 3. Contrats OpenAPI et tests contractuels, sans migration métier.
 4. Modèles/projections et migrations additives avec preuves base vide/upgrade.
 5. KPI et consumers par groupes de domaines, tests PostgreSQL et HTTP à chaque PR.

@@ -137,16 +137,16 @@ Implémenter le modèle monétaire USD versionné, le catalogue tarifaire, les c
 
 ## Phase 9.6 — FairScale V1 : Billing, Paiements et Control Plane commercial
 
-**État : livrée techniquement, stabilisation corrective en cours.** Les tranches Billing et FairScale sont implémentées ; la clôture globale reste soumise à la CI post-fusion et aux gates live/conformité de [Docs/99](99_PHASE_9_6_OPERATIONAL_CLOSURE_PLAN.md). Une CI verte seule ne constitue pas une autorisation de commercialisation.
+**État : intégration technique stabilisée sur `main@26cf9c5e71d83674c2c8954f7c3eda00874293ea`.** Les corrections FairScale et l’activation des extensions à la première souscription sont fusionnées ; la CI post-fusion #39397452560 est verte. Les gates live/conformité de [Docs/99](99_PHASE_9_6_OPERATIONAL_CLOSURE_PLAN.md) restent ouverts et bloquent la commercialisation, pas le démarrage de Phase 10A. Une CI verte seule ne constitue pas une autorisation de commercialisation.
 
 Implémenter cycle souscription payante, échéances, promotion welcome à usage unique, avantage annuel renouvelable, factures SaaS **distinctes de SALES tenant**, encaissements réellement vérifiés et adaptateur de paiement neutre, anti-rejeu, prorata, changements de plan, grâce/relance/annulation, commandes administrateur Billing minimales et scénario E2E complet. Ne pas prétendre livrer tout le Control Plane Phase 11.
 
-**Gates :** Docs/89, Docs/91, Docs/92 ; clôture documentée dans Docs/93 après CI PR et post-fusion. La Phase 10 ne débute qu'après l'intégration vérifiée des changements FairScale.
+**Gates :** Docs/89, Docs/91, Docs/92 ; stabilisation technique documentée dans Docs/100 après fusion PR #139/#140 et CI post-fusion. Les gates externes de commercialisation sont suivis séparément dans Docs/99 et l’issue #123.
 
 ## Phase 10 — Intelligence
 
 ### 10A — déterministe
-KPI projections, metric snapshots, deterministic insight rules, alerts, dashboards API.
+**État : cadrage normatif accepté, exécution ouverte.** La norme est [Docs/101](101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md), le statut/gating est dans [Docs/102](102_PHASE_10A_STATUS.md), et le plan détaillé est dans [Docs/superpowers/plans/2026-10-20-phase-10a-intelligence.md](superpowers/plans/2026-10-20-phase-10a-intelligence.md). Livrer les projections KPI, snapshots reconstruisibles, règles/alertes déterministes et API dashboard avant 10B.
 
 ### 10B — probabiliste gouverné
 Premières features IA ciblées seulement si les gates de `48_AI_SECURITY_AND_EVALUATION.md` sont satisfaites :
