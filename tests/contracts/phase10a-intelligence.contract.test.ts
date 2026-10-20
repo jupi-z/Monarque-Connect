@@ -86,6 +86,15 @@ describe('Phase 10A Intelligence OpenAPI contract', () => {
     ]);
   });
 
+  it('requires the nullable next cursor in both paginated response schemas', async () => {
+    const spec = await load();
+    for (const name of ['IntelligenceMetricPage', 'IntelligenceAlertPage']) {
+      const schema = schemaByName(spec, name);
+      expect(schema.required).toContain('nextCursor');
+      expect(schema.properties?.nextCursor?.type).toEqual(['string', 'null']);
+    }
+  });
+
   it('uses exact decimal strings and distinguishes activity from current state', async () => {
     const spec = await load();
     expect(schemaByName(spec, 'IntelligenceDecimal')).toMatchObject({ type: 'string', pattern: '^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$' });

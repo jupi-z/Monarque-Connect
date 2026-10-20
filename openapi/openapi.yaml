@@ -6054,7 +6054,7 @@ components:
     IntelligenceMetricPage:
       type: object
       additionalProperties: false
-      required: [items, hasMore]
+      required: [items, hasMore, nextCursor]
       properties:
         items:
           type: array
@@ -6080,7 +6080,7 @@ components:
     IntelligenceAlertPage:
       type: object
       additionalProperties: false
-      required: [items, hasMore]
+      required: [items, hasMore, nextCursor]
       properties:
         items:
           type: array
