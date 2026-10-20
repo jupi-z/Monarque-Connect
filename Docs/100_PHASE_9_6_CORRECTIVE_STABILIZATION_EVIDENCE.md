@@ -56,8 +56,12 @@ Ces migrations ajoutent le lien facture/changement programmé, les receipts de v
 
 ## Limites qui restent explicitement ouvertes
 
-Cette preuve ne constitue pas une autorisation de commercialisation. L'issue #123 reste ouverte jusqu'à la preuve d'un fournisseur de paiement réel vérifié ou d'un circuit manuel contrôlé, au rapprochement opérationnel, aux sauvegardes/restaurations, à la validation fiscale/juridique et à la CI PR puis post-fusion sur `main`.
+Cette preuve ne constitue pas une autorisation de commercialisation. L'issue #123 reste ouverte jusqu'à la preuve d'un fournisseur de paiement réel vérifié ou d'un circuit manuel contrôlé, au rapprochement opérationnel, aux sauvegardes/restaurations et à la validation fiscale/juridique. La CI PR et post-fusion correspondante est maintenant vérifiée ; voir la clarification de provenance datée ci-dessous.
 
 Le fournisseur `TEST` reste réservé à l'environnement de test et ne peut pas être utilisé comme moyen de paiement de production.
 
 Les notifications désordonnées, remboursements/chargebacks et contrôles d'infrastructure de runner doivent rester couverts par la matrice finale et les gates opérationnelles de [Docs/99](99_PHASE_9_6_OPERATIONAL_CLOSURE_PLAN.md).
+
+## Clarification de provenance — 20/10/2026
+
+Cette preuve a été rédigée avant la fusion des correctifs. Les PR #139 et #140 ont depuis été fusionnées dans `main`; la livraison complémentaire d'activation initiale des extensions est dans [PR #140](https://github.com/jupi-z/Monarque-Connect/pull/140), merge commit `26cf9c5e71d83674c2c8954f7c3eda00874293ea`. Son check PR `validate-pr / validate` a la conclusion `SUCCESS` dans [Backend CI #39395508774](https://github.com/jupi-z/Monarque-Connect/actions/runs/39395508774). Le check `validate-main / validate` post-fusion est `SUCCESS` dans [Backend CI #39397452560](https://github.com/jupi-z/Monarque-Connect/actions/runs/39397452560), sur ce même SHA. Cette clarification ne réécrit pas les preuves locales historiques ci-dessus et ne ferme pas les gates externes de commercialisation de l'issue #123.

@@ -83,6 +83,9 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `94_ADR_038_FAIRSCALE.md` | ADR-038 modèle commercial et architecture FairScale |
 | `95_CODEX_FAIRSCALE_EXECUTION_PROMPT.md` | Prompt d'implémentation pour Codex |
 | `superpowers/plans/2026-10-19-fairscale-v1-9-5-9-6-plan.md` | Plan d'exécution pour Codex |
+| `101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md` | Spécification normative Phase 10A |
+| `102_PHASE_10A_STATUS.md` | Statut et critères d'acceptation Phase 10A |
+| `superpowers/plans/2026-10-20-phase-10a-intelligence.md` | Plan d'exécution Phase 10A |
 
 ## Gel documentaire
 
