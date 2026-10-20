@@ -14,10 +14,10 @@ jobs:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/backend-ci-reusable.yml
     with:
-      runner: ${{ github.event.pull_request.head.repo.full_name == github.repository && '["self-hosted","monarque-ci-pr-isolated"]' || '["ubuntu-latest"]' }}
+      runner: '["ubuntu-latest"]'
       ref: refs/pull/${{ github.event.pull_request.number }}/merge
-      database-host: ${{ github.event.pull_request.head.repo.full_name == github.repository && 'monarque-ci-postgres' || '127.0.0.1' }}
-      database-port: ${{ github.event.pull_request.head.repo.full_name == github.repository && '5432' || '55432' }}
+      database-host: '127.0.0.1'
+      database-port: '55432'
 
   validate-main:
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
