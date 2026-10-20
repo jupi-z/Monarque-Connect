@@ -102,6 +102,10 @@ jobs:
       - name: Verify empty-database and Phase 9.6 upgrade migrations
         if: ${{ hashFiles('scripts/verify-phase96-migrations.mjs') != '' }}
         run: npm run prisma:phase96:migration-proof
+
+      - name: Verify empty-database and Phase 9.6 upgrade migrations for Phase 10A
+        if: ${{ hashFiles('scripts/verify-phase10a-migrations.mjs') != '' }}
+        run: npm run prisma:phase10a:migration-proof
       - run: npm run prisma:deploy
       - run: npm run openapi:validate
       - run: npm run contracts:validate
