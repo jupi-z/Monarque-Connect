@@ -8,6 +8,7 @@ import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { Response } from 'supertest';
 import { AppModule } from '../../src/app.module.js';
+import { BillingLifecycleService } from '../../src/billing/billing-lifecycle.service.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
 import { ProblemDetailsFilter } from '../../src/http/problem-details.filter.js';
 import { seedReferenceData } from '../../prisma/seed.js';
@@ -77,6 +78,39 @@ describe('Phase 9.6 Billing HTTP flow', () => {
     expect(refundedInvoices).toEqual(expect.arrayContaining([expect.objectContaining({ status: 'UNCOLLECTIBLE', amountPaidMinor: 0 })]));
     await request(server).get(`/api/v1/organizations/${organizationId}/billing/invoices`).set('Authorization', `Bearer ${otherToken}`).expect(403);
     await request(server).get(`/api/v1/organizations/${organizationId}/billing/invoices/${invoices[0]!.id}`).set('Authorization', `Bearer ${otherToken}`).expect(403);
+  });
+
+  it('activates purchased establishment addons on initial payment and carries them into renewal', async () => {
+    const server = serverOf(app);
+    const prisma = app.get(PrismaService);
+    const lifecycle = app.get(BillingLifecycleService);
+    const organization = bodyOf<{ id: string }>(await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Initial addon tenant', handle: `billing-addon-${randomUUID().slice(0, 8)}`, defaultCurrency: 'EUR', establishmentName: 'Head office' }).expect(201));
+
+    const quote = bodyOf<{ id: string; totalAmountMinor: number }>(await request(server).post(`/api/v1/organizations/${organization.id}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase96-initial-addon-quote').send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 5 }).expect(201));
+    expect(quote.totalAmountMinor).toBe(5825);
+    const order = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organization.id}/billing/checkout-orders`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase96-initial-addon-order').send({ quoteId: quote.id }).expect(201));
+    const attempt = bodyOf<{ providerPaymentId: string; amountMinor: number }>(await request(server).post(`/api/v1/organizations/${organization.id}/billing/checkout-orders/${order.id}/payment-attempts`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase96-initial-addon-attempt').send({ provider: 'TEST' }).expect(201));
+    const payload = { providerPaymentId: attempt.providerPaymentId, amountMinor: attempt.amountMinor, currency: 'USD', status: 'SUCCEEDED' };
+    const signature = createHmac('sha256', process.env.FAIRSCALE_BILLING_WEBHOOK_SECRET ?? 'test-fairscale-webhook-secret').update(JSON.stringify(payload)).digest('hex');
+    await request(server).post('/api/v1/billing/providers/TEST/webhook').set('x-provider-event-id', 'phase96-initial-addon-payment').set('x-provider-signature', signature).send(payload).expect(202);
+    const customer = await prisma.billingCustomer.findFirstOrThrow({ where: { organizations: { some: { organizationId: organization.id } } } });
+    await request(server).put(`/api/v1/platform/billing/customers/${customer.id}/verification`).set('Authorization', `Bearer ${platformAdminToken}`).set('Idempotency-Key', 'phase96-initial-addon-verification').send({ status: 'VERIFIED', reason: 'E2E verified commercial identity' }).expect(200);
+
+    const capacity = bodyOf<{ includedEstablishments: number; addonEstablishments: number; effectiveEstablishments: number }>(await request(server).get(`/api/v1/organizations/${organization.id}/billing/capacity`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    expect(capacity).toMatchObject({ includedEstablishments: 3, addonEstablishments: 2, effectiveEstablishments: 5 });
+    const term = await prisma.billingSubscriptionTerm.findFirstOrThrow({ where: { organizationId: organization.id } });
+    await expect(prisma.billingSubscriptionAddon.findMany({ where: { subscriptionTermId: term.id, status: 'ACTIVE' } })).resolves.toEqual([expect.objectContaining({ code: 'ESTABLISHMENT', quantity: 2, unitAmountMinor: 1000n })]);
+
+    await prisma.billingSubscriptionTerm.update({ where: { id: term.id }, data: { currentPeriodStart: new Date('2026-01-01T00:00:00.000Z'), currentPeriodEnd: new Date('2026-02-01T00:00:00.000Z'), nextRenewalAt: new Date('2026-02-01T00:00:00.000Z') } });
+    await prisma.billingSubscriptionAddon.updateMany({ where: { subscriptionTermId: term.id }, data: { startsAt: new Date('2026-01-01T00:00:00.000Z') } });
+    await expect(lifecycle.renewDueTerms(new Date('2026-02-01T00:00:00.000Z'), 100, 'TEST')).resolves.toMatchObject({ invoicesIssued: 1, paymentAttemptsCreated: 1 });
+    const renewalAttempt = await prisma.billingPaymentAttempt.findFirstOrThrow({ where: { subscriptionTermId: term.id, invoiceId: { not: null }, status: 'REQUIRES_ACTION' }, orderBy: { createdAt: 'desc' } });
+    const renewalPayload = { providerPaymentId: renewalAttempt.providerPaymentId, amountMinor: Number(renewalAttempt.amountMinor), currency: 'USD', status: 'SUCCEEDED' };
+    const renewalSignature = createHmac('sha256', process.env.FAIRSCALE_BILLING_WEBHOOK_SECRET ?? 'test-fairscale-webhook-secret').update(JSON.stringify(renewalPayload)).digest('hex');
+    await request(server).post('/api/v1/billing/providers/TEST/webhook').set('x-provider-event-id', 'phase96-initial-addon-renewal').set('x-provider-signature', renewalSignature).send(renewalPayload).expect(202);
+    const renewalInvoice = await prisma.billingInvoice.findUniqueOrThrow({ where: { id: renewalAttempt.invoiceId! }, include: { lines: true } });
+    expect(renewalInvoice).toMatchObject({ status: 'PAID', totalMinor: 5825n });
+    expect(renewalInvoice.lines).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'ADDON', totalMinor: 2000n })]));
   });
 
   it('publishes a versioned price only through the platform admin surface', async () => {
