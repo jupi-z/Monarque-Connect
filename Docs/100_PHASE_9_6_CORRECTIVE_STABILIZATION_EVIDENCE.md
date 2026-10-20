@@ -19,6 +19,14 @@ Cette passe répond aux constats FS-AUD-001 à FS-AUD-010 et aux contrôles dire
 - vérification explicite et auditée des `BillingCustomer`, distincte du paiement ;
 - rattachement plateforme contrôlé d'une organisation à une identité Billing existante, avec refus des doubles rattachements.
 
+## Complément FS-AUD-016 — extensions à la première activation
+
+La contre-vérification a identifié que le paiement initial persistait le montant des extensions dans le devis, le contrat et la facture, mais ne matérialisait pas les lignes `BillingSubscriptionAddon`. La capacité effective ne pouvait donc pas refléter immédiatement les établissements supplémentaires achetés.
+
+Le correctif crée maintenant, dans la même transaction que l'activation après paiement vérifié, une ligne `BillingSubscriptionAddon` par extension économique du devis (`ESTABLISHMENT`, quantité, période, devise, prix unitaire et date d'effet). Le renouvellement réutilise ensuite cette ligne comme source de vérité pour la facturation et la capacité.
+
+La preuve E2E couvre le parcours HTTP suivant : devis BUSINESS pour cinq établissements, paiement TEST vérifié, vérification Billing contrôlée, capacité effective de cinq établissements, puis renouvellement payé avec une ligne d'extension de 2 000 centimes. La preuve est ajoutée dans `tests/e2e/phase9-6-billing.e2e.test.ts`.
+
 ## Preuves locales exécutées
 
 Les résultats ci-dessous sont des preuves locales reproductibles ; ils ne remplacent pas la CI GitHub obligatoire :
@@ -35,6 +43,7 @@ Les résultats ci-dessous sont des preuves locales reproductibles ; ils ne rempl
 | Billing admin PostgreSQL | 3 tests réussis |
 | FairScale catalog PostgreSQL | 4 tests réussis |
 | FairScale HTTP E2E | 2 tests réussis |
+| E2E initial addons + renouvellement | 3 tests réussis sur la suite Billing HTTP |
 | `npm run build` | réussi |
 
 ## Migrations additives
