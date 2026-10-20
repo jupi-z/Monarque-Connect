@@ -58,7 +58,7 @@ Les rôles plateforme sont séparés des memberships tenant.
 | Network connections read/write | ✓/✓ | ✓/✓ | ✓/✓ | –/– | ✓/✓ | ✓/– |
 | Network inquiries read/write | ✓/✓ | ✓/✓ | ✓/✓ | –/– | ✓/✓ | ✓/– |
 | Messaging | ✓ | ✓ | ✓ | ✓ | ✓ | read |
-| Insights read | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Insights read (`intelligence:read`) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Export tenant | ✓ | ✓ | – | – | – | – |
 | Audit read | ✓ | ✓ | – | – | – | – |
 

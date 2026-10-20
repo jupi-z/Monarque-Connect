@@ -124,6 +124,18 @@ Routes sous `/api/v1/organizations/{organizationId}/intelligence` :
 
 Règles communes : période maximale 366 jours pour séries, dates RFC3339 UTC, `from < to`, pagination keyset, aucune liste d’établissement fournie ne peut élargir le scope du demandeur, réponse avec `calculatedAt`/`sourceAsOf`, `403` pour accès non autorisé et `404` pour identifiant non visible selon les conventions existantes. Les métriques d’activité prennent `from`/`to`; les métriques d’état courant sont mesurées à `sourceAsOf` et n’acceptent pas une date historique choisie par le client. Le registre expose le type `ACTIVITY` ou `CURRENT_STATE` ; aucun historique artificiel n’est généré pour `CURRENT_STATE`. Le contrat OpenAPI précis (schémas, exemples, codes d’erreur, paramètres) et tests contractuels précèdent tout code ou migration.
 
+### 8.1 Contrat de réponse JSON
+
+Le contrat V1 utilise les schémas OpenAPI `IntelligenceDashboard`, `IntelligenceMetricPage`, `IntelligenceMetricValue`, `IntelligenceAlertPage` et `IntelligenceAlert`. Une valeur de métrique expose `metricCode`, `definitionVersion`, `kind`, `calculatedAt`, `sourceAsOf`, `value`, ainsi que `period` uniquement lorsque la valeur représente une fenêtre d’activité et `dimensions` lorsque la définition l’exige. `kind` est strictement `ACTIVITY` ou `CURRENT_STATE`.
+
+`value` est un objet typé par les champs applicables à la métrique : `count`, `amount`, `currency`, `numerator`, `denominator`, `ratio`, `quantity`, `unit` et `missingValueCount`. `amount`, `ratio` et `quantity` sont des chaînes décimales exactes, jamais des nombres JSON binaires. Le registre détermine les champs présents et leurs dimensions ; le client ne fournit aucune formule.
+
+Le dashboard retourne `metrics`, `openAlerts` (maximum 20), `calculatedAt` et `sourceAsOf`. Les listes de métriques et d’alertes retournent `items`, `hasMore` et `nextCursor` nullable. Le curseur est opaque, borné à 2 048 caractères et lié au tenant, au scope, aux filtres, au tri et à la version du format ; sa validité contextuelle est vérifiée côté serveur. La limite de page par défaut est 20 et son maximum est 100.
+
+Pour `/metrics`, `from` et `to` sont absents ensemble ou présents ensemble ; quand ils sont fournis, ils doivent être des timestamps RFC3339 terminés par `Z`, croissants, sur au plus 366 jours. Le dashboard exige ces deux timestamps. Un résultat `CURRENT_STATE` n’est jamais recalculé à une date passée sélectionnée par le client.
+
+Pendant le déploiement progressif, ces routes authentifiées valident l’organisation, l’entitlement `INTELLIGENCE_BASIC` et `intelligence:read`, puis retournent `501 Not Implemented` jusqu’à l’arrivée des projections et lectures effectives. Cette réponse transitoire ne constitue pas une API livrée ; les résultats métier restent indisponibles jusqu’aux tâches d’implémentation correspondantes.
+
 ## 9. Entitlements, catalogue et activation
 
 La phase réutilise le module `INTELLIGENCE_BASIC` et son entitlement FairScale. L’endpoint vérifie à chaque requête entitlement effectif et activation ; aucune permission n’est mise en cache côté client. Les snapshots d’un module source désactivé ne sont pas servis via l’API, mais leur suppression n’est pas automatique. Une suspension d’organisation bloque les routes conformément aux contrôles tenant existants.

@@ -113,4 +113,11 @@ describe('tenant authorization policy', () => {
     expect(rolePermissions.OPERATIONS).not.toContain('cash:write');
     expect(rolePermissions.VIEWER).not.toEqual(expect.arrayContaining(['inventory:write', 'expenses:write', 'cash:write']));
   });
+
+  it('grants Intelligence read to every tenant role without granting source permissions', () => {
+    for (const role of ['OWNER', 'ADMIN', 'SALES', 'FINANCE', 'OPERATIONS', 'VIEWER'] as const) {
+      expect(rolePermissions[role]).toContain('intelligence:read');
+    }
+    expect(rolePermissions.VIEWER).not.toContain('sales:payments:write');
+  });
 });

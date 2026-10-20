@@ -3098,12 +3098,119 @@ paths:
         "200": { description: Export job status and short-lived download metadata when ready }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /organizations/{organizationId}/intelligence/dashboard:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Intelligence]
+      operationId: getIntelligenceDashboard
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date-time, pattern: 'Z$' } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date-time, pattern: 'Z$' } }
+        - $ref: "#/components/parameters/EstablishmentFilterId"
+      responses:
+        "200":
+          description: Authorized tenant dashboard projections for the requested activity window and current-state metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntelligenceDashboard" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /organizations/{organizationId}/intelligence/metrics:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Intelligence]
+      operationId: listIntelligenceMetrics
+      parameters:
+        - name: metricCodes
+          in: query
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              type: string
+              enum: [SALES_ISSUED, PAYMENTS_RECORDED, RECEIVABLES_OUTSTANDING, QUOTE_ORDER_CONVERSION, EXPENSES_RECORDED, CASH_BALANCE, INVENTORY_ON_HAND, PURCHASE_ORDERS_PENDING, PROJECTS_OVERDUE, CRM_PIPELINE, NETWORK_INQUIRIES_CONVERTED]
+        - { name: from, in: query, required: false, schema: { type: string, format: date-time, pattern: 'Z$' } }
+        - { name: to, in: query, required: false, schema: { type: string, format: date-time, pattern: 'Z$' } }
+        - $ref: "#/components/parameters/EstablishmentFilterId"
+        - name: grain
+          in: query
+          required: false
+          schema: { type: string, enum: [DAY, WEEK, MONTH], default: DAY }
+        - { name: cursor, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 2048, description: Opaque cursor bound to tenant, scope, filters, sort order and cursor version } }
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Authorized, bounded metric projections with exact decimal strings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntelligenceMetricPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /organizations/{organizationId}/intelligence/alerts:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Intelligence]
+      operationId: listIntelligenceAlerts
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [OPEN, RESOLVED], default: OPEN } }
+        - { name: severity, in: query, required: false, schema: { type: string, enum: [WARNING] } }
+        - $ref: "#/components/parameters/EstablishmentFilterId"
+        - { name: cursor, in: query, required: false, schema: { type: string, minLength: 1, maxLength: 2048, description: Opaque cursor bound to tenant, scope, filters, sort order and cursor version } }
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Scope-filtered, keyset-paginated deterministic alerts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntelligenceAlertPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
+  /organizations/{organizationId}/intelligence/alerts/{alertId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - { name: alertId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [Intelligence]
+      operationId: getIntelligenceAlert
+      responses:
+        "200":
+          description: Minimal alert detail after tenant, source permission and establishment-scope checks
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntelligenceAlert" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "501": { $ref: "#/components/responses/NotImplemented" }
+
   /organizations/{organizationId}/insights/overview:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
     get:
       tags: [Intelligence]
       operationId: getInsightsOverview
+      deprecated: true
+      description: Deprecated legacy documentation path. Use /organizations/{organizationId}/intelligence/dashboard.
       responses:
         "200": { description: KPI overview restricted to tenant and establishment scope }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -3114,6 +3221,8 @@ paths:
     get:
       tags: [Intelligence]
       operationId: listInsightAlerts
+      deprecated: true
+      description: Deprecated legacy documentation path. Use /organizations/{organizationId}/intelligence/alerts.
       responses:
         "200": { description: Insight alerts }
 
@@ -3629,6 +3738,11 @@ components:
           schema: { $ref: "#/components/schemas/Problem" }
     NotFound:
       description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    NotImplemented:
+      description: Route is registered but the Phase 10A projection runtime is not yet delivered
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
@@ -5871,3 +5985,105 @@ components:
         at: { type: string, format: date-time }
         limit: { type: integer, minimum: 1, maximum: 500 }
         provider: { type: string, enum: [TEST] }
+    IntelligenceMetricKind:
+      type: string
+      enum: [ACTIVITY, CURRENT_STATE]
+    IntelligenceMetricCode:
+      type: string
+      enum: [SALES_ISSUED, PAYMENTS_RECORDED, RECEIVABLES_OUTSTANDING, QUOTE_ORDER_CONVERSION, EXPENSES_RECORDED, CASH_BALANCE, INVENTORY_ON_HAND, PURCHASE_ORDERS_PENDING, PROJECTS_OVERDUE, CRM_PIPELINE, NETWORK_INQUIRIES_CONVERTED]
+    IntelligenceDecimal:
+      type: string
+      pattern: '^-?(0|[1-9][0-9]*)(\.[0-9]+)?$'
+      description: Exact decimal string; never a JSON floating-point number.
+    IntelligenceMetricPayload:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        count: { type: integer, minimum: 0 }
+        amount: { $ref: "#/components/schemas/IntelligenceDecimal" }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        numerator: { type: integer, minimum: 0 }
+        denominator: { type: integer, minimum: 0 }
+        ratio: { $ref: "#/components/schemas/IntelligenceDecimal" }
+        quantity: { $ref: "#/components/schemas/IntelligenceDecimal" }
+        unit: { type: string, minLength: 1, maxLength: 32 }
+        missingValueCount: { type: integer, minimum: 0 }
+    IntelligenceMetricValue:
+      type: object
+      additionalProperties: false
+      required: [metricCode, definitionVersion, kind, calculatedAt, sourceAsOf, value]
+      properties:
+        metricCode: { $ref: "#/components/schemas/IntelligenceMetricCode" }
+        definitionVersion: { type: integer, minimum: 1 }
+        kind: { $ref: "#/components/schemas/IntelligenceMetricKind" }
+        calculatedAt: { type: string, format: date-time }
+        sourceAsOf: { type: string, format: date-time }
+        period:
+          type: object
+          additionalProperties: false
+          required: [from, to]
+          properties:
+            from: { type: string, format: date-time }
+            to: { type: string, format: date-time }
+        dimensions:
+          type: object
+          additionalProperties: false
+          properties:
+            establishmentId: { type: string, format: uuid }
+            currency: { type: string, pattern: '^[A-Z]{3}$' }
+            accountId: { type: string, format: uuid }
+            warehouseId: { type: string, format: uuid }
+            itemId: { type: string, format: uuid }
+            unit: { type: string, minLength: 1, maxLength: 32 }
+        value: { $ref: "#/components/schemas/IntelligenceMetricPayload" }
+    IntelligenceDashboard:
+      type: object
+      additionalProperties: false
+      required: [metrics, openAlerts, calculatedAt, sourceAsOf]
+      properties:
+        metrics:
+          type: array
+          items: { $ref: "#/components/schemas/IntelligenceMetricValue" }
+        openAlerts:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/IntelligenceAlert" }
+        calculatedAt: { type: string, format: date-time }
+        sourceAsOf: { type: string, format: date-time }
+    IntelligenceMetricPage:
+      type: object
+      additionalProperties: false
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/IntelligenceMetricValue" }
+        hasMore: { type: boolean }
+        nextCursor: { type: [string, 'null'], minLength: 1, maxLength: 2048 }
+    IntelligenceAlert:
+      type: object
+      additionalProperties: false
+      required: [id, ruleCode, ruleVersion, severity, status, sourceType, sourceId, triggeredAt, lastEvaluatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        ruleCode: { type: string, enum: [INVOICE_OVERDUE, PROJECT_OVERDUE] }
+        ruleVersion: { type: integer, minimum: 1 }
+        severity: { type: string, enum: [WARNING] }
+        status: { type: string, enum: [OPEN, RESOLVED] }
+        sourceType: { type: string, enum: [INVOICE, PROJECT] }
+        sourceId: { type: string, format: uuid }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        triggeredAt: { type: string, format: date-time }
+        lastEvaluatedAt: { type: string, format: date-time }
+        resolvedAt: { type: [string, 'null'], format: date-time }
+    IntelligenceAlertPage:
+      type: object
+      additionalProperties: false
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/IntelligenceAlert" }
+        hasMore: { type: boolean }
+        nextCursor: { type: [string, 'null'], minLength: 1, maxLength: 2048 }

@@ -1,6 +1,6 @@
 # 102 — Statut Phase 10A : Intelligence déterministe
 
-**État : ouverte — cadrage normatif accepté, implémentation non commencée.**  
+**État : ouverte — cadrage normatif fusionné ; routes et contrats HTTP en livraison incrémentale, projections métier non disponibles.**
 **Baseline :** `main@26cf9c5e71d83674c2c8954f7c3eda00874293ea` (vérifiée le 20/10/2026).  
 **Spécification :** [Docs/101](101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md).  
 **Plan :** [plan d’exécution Phase 10A](superpowers/plans/2026-10-20-phase-10a-intelligence.md).  
@@ -25,7 +25,7 @@ Livrer les KPI déterministes et versionnés, leurs projections reconstruisibles
 | Lot | État |
 |---|---|
 | Spécification normative et matrice d’autorisations | Acceptées dans Docs/101 |
-| Contrats HTTP détaillés | À implémenter (avant toute migration) |
+| Contrats HTTP détaillés | Routes, DTOs et permissions en PR dédiée ; réponses 501 transitoires jusqu’à livraison des projections |
 | Schéma et migrations | À faire |
 | Registre et calculs KPI | À faire |
 | Consumers, rebuild et alertes | À faire |
