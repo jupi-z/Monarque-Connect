@@ -122,6 +122,7 @@ export type Permission =
   | 'documents:write'
   | 'billing:read'
   | 'billing:write'
+  | 'intelligence:read'
   | 'messaging:read'
   | 'messaging:write'
   | 'messaging:participants:write'
@@ -137,7 +138,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write',
     'sales:invoices:read', 'sales:invoices:write', 'sales:payments:read', 'sales:payments:write',
     'purchases:rfqs:read', 'purchases:rfqs:write', 'purchases:orders:read', 'purchases:orders:write', 'purchases:receipts:read', 'purchases:receipts:write',
-    'projects:read', 'projects:write', 'documents:read', 'documents:write', 'billing:read', 'billing:write',
+    'projects:read', 'projects:write', 'documents:read', 'documents:write', 'billing:read', 'billing:write', 'intelligence:read',
     'messaging:read', 'messaging:write', 'messaging:participants:write', 'messaging:block:write',
   ],
   ADMIN: [
@@ -149,7 +150,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write',
     'sales:invoices:read', 'sales:invoices:write', 'sales:payments:read', 'sales:payments:write',
     'purchases:rfqs:read', 'purchases:rfqs:write', 'purchases:orders:read', 'purchases:orders:write', 'purchases:receipts:read', 'purchases:receipts:write',
-    'projects:read', 'projects:write', 'documents:read', 'documents:write', 'billing:read', 'billing:write',
+    'projects:read', 'projects:write', 'documents:read', 'documents:write', 'billing:read', 'billing:write', 'intelligence:read',
     'messaging:read', 'messaging:write', 'messaging:participants:write', 'messaging:block:write',
   ],
   SALES: [
@@ -157,7 +158,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:trust:read',
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write', 'sales:invoices:read', 'sales:payments:read',
-    'projects:read', 'projects:write', 'documents:read', 'documents:write', 'billing:read',
+    'projects:read', 'projects:write', 'documents:read', 'documents:write', 'billing:read', 'intelligence:read',
     'messaging:read', 'messaging:write',
   ],
   FINANCE: [
@@ -165,7 +166,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'sales:quotes:read', 'sales:orders:read', 'sales:invoices:read', 'sales:invoices:write', 'sales:payments:read', 'sales:payments:write',
     'purchases:rfqs:read', 'purchases:orders:read', 'purchases:receipts:read',
-    'projects:read', 'documents:read', 'billing:read', 'billing:write', 'messaging:read',
+    'projects:read', 'documents:read', 'billing:read', 'billing:write', 'intelligence:read', 'messaging:read',
   ],
   OPERATIONS: [
     'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
@@ -173,7 +174,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'crm:read', 'network:discovery:read', 'network:connections:read', 'network:connections:write', 'network:inquiries:read', 'network:inquiries:write',
     'sales:quotes:read', 'sales:orders:read', 'sales:orders:write', 'sales:invoices:read', 'sales:payments:read',
     'purchases:rfqs:read', 'purchases:rfqs:write', 'purchases:orders:read', 'purchases:orders:write', 'purchases:receipts:read', 'purchases:receipts:write',
-    'projects:read', 'projects:write', 'documents:read', 'documents:write',
+    'projects:read', 'projects:write', 'documents:read', 'documents:write', 'intelligence:read',
     'messaging:read', 'messaging:write',
   ],
   VIEWER: [
@@ -181,6 +182,6 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'network:discovery:read', 'network:connections:read', 'network:inquiries:read',
     'sales:quotes:read', 'sales:orders:read', 'sales:invoices:read', 'sales:payments:read',
     'purchases:rfqs:read', 'purchases:orders:read', 'purchases:receipts:read',
-    'projects:read', 'documents:read', 'messaging:read',
+    'projects:read', 'documents:read', 'intelligence:read', 'messaging:read',
   ],
 };
