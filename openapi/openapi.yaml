@@ -3118,7 +3118,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "501": { $ref: "#/components/responses/NotImplemented" }
 
   /organizations/{organizationId}/intelligence/metrics:
     parameters:
@@ -3158,7 +3157,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "501": { $ref: "#/components/responses/NotImplemented" }
 
   /organizations/{organizationId}/intelligence/alerts:
     parameters:

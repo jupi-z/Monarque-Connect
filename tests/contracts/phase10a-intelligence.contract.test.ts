@@ -117,6 +117,12 @@ describe('Phase 10A Intelligence OpenAPI contract', () => {
     }
   });
 
+  it('does not advertise Not Implemented for dashboard and metric read operations', async () => {
+    const spec = await load();
+    expect(getOperation(spec, `GET ${base}/dashboard`).responses).not.toHaveProperty('501');
+    expect(getOperation(spec, `GET ${base}/metrics`).responses).not.toHaveProperty('501');
+  });
+
   it('marks the legacy Insights paths as deprecated instead of presenting a second contract', async () => {
     const spec = await load();
     expect(spec.paths['/organizations/{organizationId}/insights/overview']?.get?.deprecated).toBe(true);

@@ -35,7 +35,9 @@ class UtcActivityWindowConstraint implements ValidatorConstraintInterface {
 
     const start = Date.parse(from);
     const end = Date.parse(to);
-    return Number.isFinite(start) && Number.isFinite(end) && start < end && end - start <= maxActivityWindowMs;
+    return Number.isFinite(start) && Number.isFinite(end)
+      && start < end && end - start <= maxActivityWindowMs
+      && start % 86_400_000 === 0 && end % 86_400_000 === 0;
   }
 
   defaultMessage(): string {
