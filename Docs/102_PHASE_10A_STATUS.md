@@ -25,7 +25,7 @@ Livrer les KPI déterministes et versionnés, leurs projections reconstruisibles
 | Lot | État |
 |---|---|
 | Spécification normative et matrice d’autorisations | Acceptées dans Docs/101 |
-| Contrats HTTP détaillés | Routes, DTOs et permissions en PR dédiée ; réponses 501 transitoires jusqu’à livraison des projections |
+| Contrats HTTP détaillés | Dashboard et métriques actifs avec contrôle des permissions sources et scopes ; alertes prévues à la tâche 7 |
 | Schéma et migrations | À faire |
 | Registre et calculs KPI | À faire |
 | Consumers, rebuild et alertes | À faire |

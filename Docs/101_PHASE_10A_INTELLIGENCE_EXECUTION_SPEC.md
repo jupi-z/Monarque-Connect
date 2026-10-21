@@ -138,7 +138,7 @@ Le dashboard retourne `metrics`, `openAlerts` (maximum 20), `calculatedAt` et `s
 
 Pour `/metrics`, `from` et `to` sont absents ensemble ou présents ensemble ; quand ils sont fournis, ils doivent être des timestamps RFC3339 terminés par `Z`, représenter des minuits UTC croissants et couvrir au plus 366 jours. Le dashboard exige ces deux timestamps. Un résultat `CURRENT_STATE` n’est jamais recalculé à une date passée sélectionnée par le client.
 
-Pendant le déploiement progressif, ces routes authentifiées valident l’organisation, l’entitlement `INTELLIGENCE_BASIC` et `intelligence:read`, puis retournent `501 Not Implemented` jusqu’à l’arrivée des projections et lectures effectives. Cette réponse transitoire ne constitue pas une API livrée ; les résultats métier restent indisponibles jusqu’aux tâches d’implémentation correspondantes.
+Les lectures dashboard et métriques sont activées à la tâche 6 : elles appliquent l’entitlement `INTELLIGENCE_BASIC`, `intelligence:read`, les permissions et activations des modules sources, ainsi que le scope tenant/établissement. Les routes d’alertes restent transitoirement indisponibles jusqu’à la tâche 7. Un utilisateur peut voir uniquement les métriques et alertes correspondant à ses permissions sources ; un code demandé explicitement sans droit est refusé.
 
 ## 9. Entitlements, catalogue et activation
 

@@ -30,9 +30,14 @@ describe('Phase 10A Intelligence query DTOs', () => {
       from: '2024-01-01T00:00:00+01:00',
       to: '2024-01-02T00:00:00Z',
     });
+    const nonMidnight = plainToInstance(IntelligenceDashboardQuery, {
+      from: '2024-01-01T01:00:00Z',
+      to: '2024-01-02T00:00:00Z',
+    });
 
     expect(invalidProperties(await validate(tooLong))).toContain('from');
     expect(invalidProperties(await validate(nonUtc))).toContain('from');
+    expect(invalidProperties(await validate(nonMidnight))).toContain('from');
   });
 
   it('requires paired increasing activity bounds while allowing current-state-only queries', async () => {

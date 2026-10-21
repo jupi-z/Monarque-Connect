@@ -15,9 +15,8 @@ export class IntelligenceController {
     @CurrentPrincipal() principal: AuthPrincipal,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Query() query: IntelligenceDashboardQuery,
-  ): Promise<never> {
-    void query;
-    return this.intelligence.requireProjectionAccess(principal, organizationId);
+  ) {
+    return this.intelligence.dashboard(principal, organizationId, query);
   }
 
   @Get('metrics')
@@ -25,9 +24,8 @@ export class IntelligenceController {
     @CurrentPrincipal() principal: AuthPrincipal,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Query() query: IntelligenceMetricsQuery,
-  ): Promise<never> {
-    void query;
-    return this.intelligence.requireProjectionAccess(principal, organizationId);
+  ) {
+    return this.intelligence.metrics(principal, organizationId, query);
   }
 
   @Get('alerts')
