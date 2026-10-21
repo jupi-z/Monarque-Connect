@@ -6,12 +6,14 @@ import { EventWorker } from './event-worker.js';
 import { FoundationProbeConsumer } from './foundation-probe.consumer.js';
 import { FoundationProbeService } from './foundation-probe.service.js';
 import { OutboxRepository } from './outbox.repository.js';
-import { PrismaOutboxWriter } from './prisma-outbox.writer.js';
+import { OutboxWriterModule } from './outbox-writer.module.js';
 import { PrismaFoundationProbeService } from './prisma-foundation-probe.service.js';
 import { GoodsReceiptInventoryConsumer } from '../inventory/goods-receipt-inventory.consumer.js';
 import { EventReceiptConsumer } from './event-receipt.consumer.js';
+import { IntelligenceProjectionModule } from '../intelligence/intelligence-projection.module.js';
+import { IntelligenceConsumer } from '../intelligence/intelligence.consumer.js';
 
-function createDispatcher(consumer: FoundationProbeConsumer, goodsReceiptInventory: GoodsReceiptInventoryConsumer, eventReceipt: EventReceiptConsumer): EventDispatcher {
+function createDispatcher(consumer: FoundationProbeConsumer, goodsReceiptInventory: GoodsReceiptInventoryConsumer, eventReceipt: EventReceiptConsumer, intelligence: IntelligenceConsumer): EventDispatcher {
   const dispatcher = new EventDispatcher();
   dispatcher.register(consumer.consumerName, 'foundation.probe.recorded', 1, consumer.handle.bind(consumer));
   dispatcher.register(goodsReceiptInventory.consumerName, 'purchases.goods_receipt.confirmed.v1', 1, goodsReceiptInventory.handle.bind(goodsReceiptInventory));
@@ -36,15 +38,17 @@ function createDispatcher(consumer: FoundationProbeConsumer, goodsReceiptInvento
     'messaging.message.sent.v1', 'messaging.relation.blocked.v1', 'messaging.relation.unblocked.v1',
     'messaging.abuse.threshold_exceeded.v1',
   ]) dispatcher.register(eventReceipt.consumerName, eventType, 1, eventReceipt.handle.bind(eventReceipt));
+  for (const eventType of intelligence.eventTypes) {
+    dispatcher.register(intelligence.consumerName, eventType, 1, intelligence.handle.bind(intelligence));
+  }
   return dispatcher;
 }
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, OutboxWriterModule, IntelligenceProjectionModule],
   providers: [
     EventDatabase,
     OutboxRepository,
-    PrismaOutboxWriter,
     PrismaFoundationProbeService,
     FoundationProbeConsumer,
     GoodsReceiptInventoryConsumer,
@@ -52,7 +56,7 @@ function createDispatcher(consumer: FoundationProbeConsumer, goodsReceiptInvento
     FoundationProbeService,
     {
       provide: EventDispatcher,
-      inject: [FoundationProbeConsumer, GoodsReceiptInventoryConsumer, EventReceiptConsumer],
+      inject: [FoundationProbeConsumer, GoodsReceiptInventoryConsumer, EventReceiptConsumer, IntelligenceConsumer],
       useFactory: createDispatcher,
     },
     {
@@ -62,6 +66,6 @@ function createDispatcher(consumer: FoundationProbeConsumer, goodsReceiptInvento
         new EventWorker(database.pool, repository, dispatcher),
     },
   ],
-  exports: [EventDatabase, OutboxRepository, PrismaOutboxWriter, PrismaFoundationProbeService, FoundationProbeService, EventDispatcher, EventWorker],
+  exports: [EventDatabase, OutboxRepository, OutboxWriterModule, PrismaFoundationProbeService, FoundationProbeService, EventDispatcher, EventWorker],
 })
 export class EventModule {}

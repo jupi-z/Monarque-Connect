@@ -56,6 +56,8 @@ Projection d’alerte déterministe, avec UUID, organisation/établissement éve
 
 Les projections respectent les FKs composites de l’organisation et de l’établissement. Aucune ligne n’est modifiable par une API client.
 
+Le grain persistant V1 des métriques `ACTIVITY` est la journée calendaire UTC, sous forme d’intervalles demi-ouverts `[00:00Z, lendemain 00:00Z)`. Les lectures sur une période regroupent ces journées selon le grain demandé (`DAY`, `WEEK` ou `MONTH`). Un événement tardif recalcule la journée métier affectée depuis les sources canoniques. Les métriques `CURRENT_STATE` ne sont pas converties en séries historiques et l’API ne promet que la mesure la plus récente.
+
 ## 5. Registre initial des KPI
 
 Tous les intervalles demandés par l’API sont UTC et demi-ouverts. Les règles ci-dessous sont les définitions V1 ; elles ne constituent pas des écritures comptables.
@@ -69,7 +71,7 @@ Tous les intervalles demandés par l’API sont UTC et demi-ouverts. Les règles
 | `EXPENSES_RECORDED` | Nombre et somme des dépenses `RECORDED` par `expenseDate`; exclure `DRAFT` et `VOID`. | `Expense`; devise et établissement. |
 | `CASH_BALANCE` | État courant à `sourceAsOf`, obtenu par somme signée des mouvements enregistrés jusqu’à cette mesure, `IN` positif et `OUT` négatif, incluant les corrections append-only selon leur sens. Aucun solde historique à date libre n’est promis en V1. | `CashMovement`; devise, établissement et compte. Ne pas agréger des devises différentes. |
 | `INVENTORY_ON_HAND` | Quantité actuelle issue de `InventoryBalance`, sans addition entre unités différentes. | `InventoryBalance` + `Item` + `Warehouse`; établissement, entrepôt, article et unité. La valeur est un état à `sourceAsOf`, non une série historique. |
-| `PURCHASE_ORDERS_PENDING` | Nombre de bons de commande en `SENT`, `CONFIRMED` ou `PARTIALLY_RECEIVED`. | `PurchaseOrder`; établissement. Aucun montant d’achat n’est présenté comme dépense payée. |
+| `PURCHASE_ORDERS_PENDING` | État courant : nombre de bons de commande en `SENT`, `CONFIRMED` ou `PARTIALLY_RECEIVED`. | `PurchaseOrder`; établissement. Aucun montant d’achat n’est présenté comme dépense payée. |
 | `PROJECTS_OVERDUE` | État courant mesuré à `sourceAsOf` : nombre de projets actuellement non `COMPLETED`/`CANCELLED` avec `dueOn` antérieur à la date UTC de mesure. Aucun historique de retard passé n’est déduit. | `Project`; établissement. |
 | `CRM_PIPELINE` | État courant mesuré à `sourceAsOf` : nombre et somme des opportunités `OPEN` actives, groupés par devise ; valeur manquante exclue du total et comptée séparément. | `Opportunity`; établissement. Ce n’est pas une prévision probabiliste ni une série historique. |
 | `NETWORK_INQUIRIES_CONVERTED` | Nombre d’inquiries de l’organisation liées à un lead ou une opportunité dans la période de création. | `NetworkInquiry` + lien de conversion tenant local ; aucune donnée du tenant tiers n’est agrégée ou exposée. |
@@ -124,7 +126,7 @@ Routes sous `/api/v1/organizations/{organizationId}/intelligence` :
 - `GET /alerts` — filtres de statut/sévérité, curseur opaque et limite maximale 100 ; filtres appliqués après autorisation/scope.
 - `GET /alerts/{alertId}` — détail minimal après validation tenant, permission source et établissement.
 
-Règles communes : période maximale 366 jours pour séries, dates RFC3339 UTC, `from < to`, pagination keyset, aucune liste d’établissement fournie ne peut élargir le scope du demandeur, réponse avec `calculatedAt`/`sourceAsOf`, `403` pour accès non autorisé et `404` pour identifiant non visible selon les conventions existantes. Les métriques d’activité prennent `from`/`to`; les métriques d’état courant sont mesurées à `sourceAsOf` et n’acceptent pas une date historique choisie par le client. Le registre expose le type `ACTIVITY` ou `CURRENT_STATE` ; aucun historique artificiel n’est généré pour `CURRENT_STATE`. Le contrat OpenAPI précis (schémas, exemples, codes d’erreur, paramètres) et tests contractuels précèdent tout code ou migration.
+Règles communes : période maximale 366 jours pour séries, dates RFC3339 UTC, `from < to`, pagination keyset, aucune liste d’établissement fournie ne peut élargir le scope du demandeur, réponse avec `calculatedAt`/`sourceAsOf`, `403` pour accès non autorisé et `404` pour identifiant non visible selon les conventions existantes. Les métriques d’activité prennent `from`/`to` alignés sur des minuits UTC, conformément à leur projection journalière ; les métriques d’état courant sont mesurées à `sourceAsOf` et n’acceptent pas une date historique choisie par le client. Le registre expose le type `ACTIVITY` ou `CURRENT_STATE` ; aucun historique artificiel n’est généré pour `CURRENT_STATE`. Le contrat OpenAPI précis (schémas, exemples, codes d’erreur, paramètres) et tests contractuels précèdent tout code ou migration.
 
 ### 8.1 Contrat de réponse JSON
 
@@ -134,7 +136,7 @@ Le contrat V1 utilise les schémas OpenAPI `IntelligenceDashboard`, `Intelligenc
 
 Le dashboard retourne `metrics`, `openAlerts` (maximum 20), `calculatedAt` et `sourceAsOf`. Les listes de métriques et d’alertes retournent `items`, `hasMore` et `nextCursor` nullable. Le curseur est opaque, borné à 2 048 caractères et lié au tenant, au scope, aux filtres, au tri et à la version du format ; sa validité contextuelle est vérifiée côté serveur. La limite de page par défaut est 20 et son maximum est 100.
 
-Pour `/metrics`, `from` et `to` sont absents ensemble ou présents ensemble ; quand ils sont fournis, ils doivent être des timestamps RFC3339 terminés par `Z`, croissants, sur au plus 366 jours. Le dashboard exige ces deux timestamps. Un résultat `CURRENT_STATE` n’est jamais recalculé à une date passée sélectionnée par le client.
+Pour `/metrics`, `from` et `to` sont absents ensemble ou présents ensemble ; quand ils sont fournis, ils doivent être des timestamps RFC3339 terminés par `Z`, représenter des minuits UTC croissants et couvrir au plus 366 jours. Le dashboard exige ces deux timestamps. Un résultat `CURRENT_STATE` n’est jamais recalculé à une date passée sélectionnée par le client.
 
 Pendant le déploiement progressif, ces routes authentifiées valident l’organisation, l’entitlement `INTELLIGENCE_BASIC` et `intelligence:read`, puis retournent `501 Not Implemented` jusqu’à l’arrivée des projections et lectures effectives. Cette réponse transitoire ne constitue pas une API livrée ; les résultats métier restent indisponibles jusqu’aux tâches d’implémentation correspondantes.
 

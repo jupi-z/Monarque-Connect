@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { PrismaService } from '../database/prisma.service.js';
+import { PrismaService } from '../database/prisma.service.js';
 import { METRIC_REGISTRY } from './metric-registry.js';
 import type { IntelligenceMetricCode } from './intelligence.constants.js';
 
@@ -65,7 +65,11 @@ function stableEntries<T>(map: Map<string, T>): Array<[string, T]> {
 export class MetricCalculatorService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async calculate(metricCode: IntelligenceMetricCode, input: MetricCalculationInput): Promise<MetricCalculationResult[]> {
+  async calculate(
+    metricCode: IntelligenceMetricCode,
+    input: MetricCalculationInput,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<MetricCalculationResult[]> {
     const definition = METRIC_REGISTRY[metricCode];
     if (!definition) throw new BadRequestException('Unknown metric definition.');
     if (!(input.sourceAsOf instanceof Date) || Number.isNaN(input.sourceAsOf.getTime())) {
@@ -92,7 +96,7 @@ export class MetricCalculatorService {
 
     switch (metricCode) {
       case 'SALES_ISSUED': {
-        const rows = await this.prisma.invoice.findMany({
+        const rows = await client.invoice.findMany({
           where: {
             ...scope,
             establishmentId: establishmentFilter(input.establishmentIds),
@@ -113,7 +117,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'PAYMENTS_RECORDED': {
-        const rows = await this.prisma.paymentRecord.findMany({
+        const rows = await client.paymentRecord.findMany({
           where: {
             ...scope,
             establishmentId: establishmentFilter(input.establishmentIds),
@@ -134,7 +138,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'RECEIVABLES_OUTSTANDING': {
-        const rows = await this.prisma.invoice.findMany({
+        const rows = await client.invoice.findMany({
           where: { ...scope, establishmentId: establishmentFilter(input.establishmentIds), status: { notIn: ['DRAFT', 'VOID'] } },
           select: {
             establishmentId: true,
@@ -159,7 +163,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'QUOTE_ORDER_CONVERSION': {
-        const rows = await this.prisma.quote.findMany({
+        const rows = await client.quote.findMany({
           where: {
             ...scope,
             establishmentId: establishmentFilter(input.establishmentIds),
@@ -190,7 +194,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'EXPENSES_RECORDED': {
-        const rows = await this.prisma.expense.findMany({
+        const rows = await client.expense.findMany({
           where: {
             ...scope,
             establishmentId: establishmentFilter(input.establishmentIds),
@@ -211,7 +215,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'CASH_BALANCE': {
-        const rows = await this.prisma.cashMovement.findMany({
+        const rows = await client.cashMovement.findMany({
           where: {
             ...scope,
             establishmentId: establishmentFilter(input.establishmentIds),
@@ -231,7 +235,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'INVENTORY_ON_HAND': {
-        const rows = await this.prisma.inventoryBalance.findMany({
+        const rows = await client.inventoryBalance.findMany({
           where: {
             ...scope,
             ...(input.establishmentIds ? { warehouse: { establishmentId: { in: [...input.establishmentIds] } } } : {}),
@@ -245,7 +249,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'PURCHASE_ORDERS_PENDING': {
-        const rows = await this.prisma.purchaseOrder.findMany({
+        const rows = await client.purchaseOrder.findMany({
           where: {
             ...scope,
             establishmentId: establishmentFilter(input.establishmentIds),
@@ -259,7 +263,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'PROJECTS_OVERDUE': {
-        const rows = await this.prisma.project.findMany({
+        const rows = await client.project.findMany({
           where: {
             ...scope,
             establishmentId: establishmentFilter(input.establishmentIds),
@@ -274,7 +278,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'CRM_PIPELINE': {
-        const rows = await this.prisma.opportunity.findMany({
+        const rows = await client.opportunity.findMany({
           where: { ...scope, establishmentId: establishmentFilter(input.establishmentIds), status: 'OPEN', active: true },
           select: { establishmentId: true, currency: true, expectedValue: true },
         });
@@ -298,7 +302,7 @@ export class MetricCalculatorService {
         break;
       }
       case 'NETWORK_INQUIRIES_CONVERTED': {
-        const rows = await this.prisma.networkInquiry.findMany({
+        const rows = await client.networkInquiry.findMany({
           where: {
             targetOrganizationId: input.organizationId,
             status: 'CONVERTED',

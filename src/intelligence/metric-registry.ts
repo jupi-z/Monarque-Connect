@@ -17,7 +17,7 @@ const definitions = [
   { code: 'EXPENSES_RECORDED', kind: 'ACTIVITY', sourceModules: ['EXPENSES'], requiredPermissions: ['expenses:read'], dimensions: ['establishmentId', 'currencyKey'] },
   { code: 'CASH_BALANCE', kind: 'CURRENT_STATE', sourceModules: ['CASH'], requiredPermissions: ['cash:read'], dimensions: ['establishmentId', 'cashAccountId', 'currencyKey'] },
   { code: 'INVENTORY_ON_HAND', kind: 'CURRENT_STATE', sourceModules: ['INVENTORY'], requiredPermissions: ['inventory:read'], dimensions: ['establishmentId', 'warehouseId', 'itemId', 'unit'] },
-  { code: 'PURCHASE_ORDERS_PENDING', kind: 'ACTIVITY', sourceModules: ['PURCHASES'], requiredPermissions: ['purchases:orders:read'], dimensions: ['establishmentId'] },
+  { code: 'PURCHASE_ORDERS_PENDING', kind: 'CURRENT_STATE', sourceModules: ['PURCHASES'], requiredPermissions: ['purchases:orders:read'], dimensions: ['establishmentId'] },
   { code: 'PROJECTS_OVERDUE', kind: 'CURRENT_STATE', sourceModules: ['PROJECTS'], requiredPermissions: ['projects:read'], dimensions: ['establishmentId'] },
   { code: 'CRM_PIPELINE', kind: 'CURRENT_STATE', sourceModules: ['CRM'], requiredPermissions: ['crm:read'], dimensions: ['establishmentId', 'currencyKey'] },
   { code: 'NETWORK_INQUIRIES_CONVERTED', kind: 'ACTIVITY', sourceModules: ['NETWORK_INQUIRIES'], requiredPermissions: ['network:inquiries:read'], dimensions: [] },
