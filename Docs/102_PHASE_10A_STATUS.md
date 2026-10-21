@@ -25,7 +25,7 @@ Livrer les KPI déterministes et versionnés, leurs projections reconstruisibles
 | Lot | État |
 |---|---|
 | Spécification normative et matrice d’autorisations | Acceptées dans Docs/101 |
-| Contrats HTTP détaillés | Dashboard et métriques actifs avec contrôle des permissions sources et scopes ; alertes prévues à la tâche 7 |
+| Contrats HTTP détaillés | Dashboard, métriques et alertes actifs avec contrôle des permissions sources, scopes et pagination contextuelle |
 | Schéma et migrations | À faire |
 | Registre et calculs KPI | À faire |
 | Consumers, rebuild et alertes | À faire |

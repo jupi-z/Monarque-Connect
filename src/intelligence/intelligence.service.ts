@@ -1,11 +1,11 @@
-import { BadRequestException, ForbiddenException, Injectable, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { AuthorizationService, type Permission } from '../tenancy/authorization.service.js';
 import { METRIC_REGISTRY } from './metric-registry.js';
-import { IntelligenceGrain, type IntelligenceDashboardQuery, type IntelligenceMetricsQuery } from './intelligence.dto.js';
+import { IntelligenceAlertStatus, IntelligenceGrain, type IntelligenceAlertsQuery, type IntelligenceDashboardQuery, type IntelligenceMetricsQuery } from './intelligence.dto.js';
 import type { IntelligenceMetricCode } from './intelligence.constants.js';
 
 type MetricRow = {
@@ -25,6 +25,12 @@ type MetricRow = {
 };
 
 type PageCursor = { v: 1; context: string; metric: string; period: string; dimensions: string };
+type AlertPageCursor = { v: 1; context: string; triggeredAt: string; id: string };
+type AlertReadRow = {
+  id: string; ruleCode: string; ruleVersion: number; severity: string; status: string;
+  sourceType: string; sourceId: string; establishmentId: string | null;
+  triggeredAt: Date; lastEvaluatedAt: Date; resolvedAt: Date | null;
+};
 const NULL_PERIOD = '9999-12-31T00:00:00.000Z';
 const MAX_DASHBOARD_VALUES = 2000;
 
@@ -85,10 +91,60 @@ export class IntelligenceService {
     };
   }
 
-  /** Task 7 owns alert listing and detail. Keep this guard for those routes until then. */
-  async requireProjectionAccess(principal: AuthPrincipal, organizationId: string): Promise<never> {
-    await this.authorization.requireModule(principal, organizationId, 'INTELLIGENCE_BASIC', 'intelligence:read');
-    throw new NotImplementedException('This intelligence operation is not available yet.');
+  async alerts(principal: AuthPrincipal, organizationId: string, query: IntelligenceAlertsQuery) {
+    const context = await this.authorization.requireModule(principal, organizationId, 'INTELLIGENCE_BASIC', 'intelligence:read');
+    const scope = await this.resolveScope(context, query.establishmentId);
+    const sourceTypes = await this.readableAlertSourceTypes(principal, organizationId, context);
+    if (sourceTypes.length === 0) return { items: [], hasMore: false, nextCursor: null };
+    const cursorContext = this.alertCursorContext(organizationId, scope, query.status, query.severity);
+    const after = query.cursor ? this.decodeAlertCursor(query.cursor, cursorContext) : undefined;
+    const pageWhere: Prisma.InsightAlertWhereInput = {
+      organizationId,
+      status: query.status,
+      sourceType: { in: sourceTypes },
+      ...(query.severity ? { severity: query.severity } : {}),
+      ...(scope === undefined ? {} : { establishmentId: { in: [...scope] } }),
+      ...(after ? { OR: [
+        { triggeredAt: { lt: new Date(after.triggeredAt) } },
+        { triggeredAt: new Date(after.triggeredAt), id: { gt: after.id } },
+      ] } : {}),
+    };
+    const rows = await this.prisma.insightAlert.findMany({
+      where: pageWhere,
+      orderBy: [{ triggeredAt: 'desc' }, { id: 'asc' }],
+      take: query.limit + 1,
+      select: alertReadSelection,
+    });
+    const hasMore = rows.length > query.limit;
+    const pageRows = hasMore ? rows.slice(0, query.limit) : rows;
+    const last = pageRows.at(-1);
+    return {
+      items: pageRows.map(toAlertResponse),
+      hasMore,
+      nextCursor: hasMore && last ? this.encodeCursor({
+        v: 1,
+        context: cursorContext,
+        triggeredAt: last.triggeredAt.toISOString(),
+        id: last.id,
+      }) : null,
+    };
+  }
+
+  async alert(principal: AuthPrincipal, organizationId: string, alertId: string) {
+    const context = await this.authorization.requireModule(principal, organizationId, 'INTELLIGENCE_BASIC', 'intelligence:read');
+    const alert = await this.prisma.insightAlert.findFirst({
+      where: {
+        id: alertId,
+        organizationId,
+        ...(context.scopeMode === 'SELECTED_ESTABLISHMENTS' ? { establishmentId: { in: [...context.establishmentIds] } } : {}),
+      },
+      select: alertReadSelection,
+    });
+    if (!alert) throw new NotFoundException('Alert not found');
+    const source = alertSource(alert.sourceType);
+    if (!source) throw new NotFoundException('Alert not found');
+    await this.authorization.requireModule(principal, organizationId, source.module, source.permission);
+    return toAlertResponse(alert);
   }
 
   private async resolveScope(context: Awaited<ReturnType<AuthorizationService['requireMembership']>>, establishmentId?: string) {
@@ -220,11 +276,21 @@ export class IntelligenceService {
   }
 
   private async readOpenAlerts(principal: AuthPrincipal, organizationId: string, context: Awaited<ReturnType<AuthorizationService['requireMembership']>>, scope?: readonly string[]) {
+    const allowedTypes = await this.readableAlertSourceTypes(principal, organizationId, context);
+    if (!allowedTypes.length) return [];
+    const alerts = await this.prisma.insightAlert.findMany({
+      where: { organizationId, status: 'OPEN', sourceType: { in: allowedTypes }, ...(scope === undefined ? {} : { establishmentId: { in: [...scope] } }) },
+      orderBy: [{ triggeredAt: 'desc' }, { id: 'asc' }], take: 20,
+      select: alertReadSelection,
+    });
+    return alerts.map(toAlertResponse);
+  }
+
+  private async readableAlertSourceTypes(principal: AuthPrincipal, organizationId: string, context: Awaited<ReturnType<AuthorizationService['requireMembership']>>) {
     const allowedTypes: string[] = [];
-    for (const [sourceType, source] of Object.entries({
-      INVOICE: { module: 'SALES', permission: 'sales:invoices:read' as Permission },
-      PROJECT: { module: 'PROJECTS', permission: 'projects:read' as Permission },
-    })) {
+    for (const sourceType of ['INVOICE', 'PROJECT']) {
+      const source = alertSource(sourceType);
+      if (!source) continue;
       if (!this.authorization.can(context, source.permission)) continue;
       try {
         await this.authorization.requireModule(principal, organizationId, source.module, source.permission);
@@ -233,24 +299,18 @@ export class IntelligenceService {
         if (!(error instanceof ForbiddenException)) throw error;
       }
     }
-    if (!allowedTypes.length) return [];
-    const alerts = await this.prisma.insightAlert.findMany({
-      where: { organizationId, status: 'OPEN', sourceType: { in: allowedTypes }, ...(scope === undefined ? {} : { establishmentId: { in: [...scope] } }) },
-      orderBy: [{ triggeredAt: 'desc' }, { id: 'asc' }], take: 20,
-      select: { id: true, ruleCode: true, ruleVersion: true, severity: true, status: true, sourceType: true, sourceId: true, establishmentId: true, triggeredAt: true, lastEvaluatedAt: true, resolvedAt: true },
-    });
-    const result = [];
-    for (const alert of alerts) {
-      result.push({ ...alert, triggeredAt: alert.triggeredAt.toISOString(), lastEvaluatedAt: alert.lastEvaluatedAt.toISOString(), resolvedAt: alert.resolvedAt?.toISOString() ?? null });
-    }
-    return result;
+    return allowedTypes;
   }
 
   private cursorContext(organizationId: string, scope: readonly string[] | undefined, codes: readonly string[], from?: Date, to?: Date, grain?: string): string {
     return createHash('sha256').update(JSON.stringify({ v: 1, organizationId, scope: scope ? [...scope].sort() : '*', codes: [...codes].sort(), from: from?.toISOString() ?? null, to: to?.toISOString() ?? null, grain })).digest('hex');
   }
 
-  private encodeCursor(cursor: PageCursor): string { return Buffer.from(JSON.stringify(cursor)).toString('base64url'); }
+  private alertCursorContext(organizationId: string, scope: readonly string[] | undefined, status: IntelligenceAlertStatus, severity?: string): string {
+    return createHash('sha256').update(JSON.stringify({ v: 1, organizationId, scope: scope ? [...scope].sort() : '*', status, severity: severity ?? null, sort: 'TRIGGERED_AT_DESC_ID_ASC' })).digest('hex');
+  }
+
+  private encodeCursor(cursor: PageCursor | AlertPageCursor): string { return Buffer.from(JSON.stringify(cursor)).toString('base64url'); }
 
   private decodeCursor(value: string, context: string): PageCursor {
     try {
@@ -259,6 +319,35 @@ export class IntelligenceService {
       return cursor;
     } catch { throw new BadRequestException('Cursor is invalid or does not match this query.'); }
   }
+
+  private decodeAlertCursor(value: string, context: string): AlertPageCursor {
+    try {
+      const cursor = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as AlertPageCursor;
+      if (cursor.v !== 1 || cursor.context !== context || !cursor.id || !Number.isFinite(Date.parse(cursor.triggeredAt))) throw new Error();
+      return cursor;
+    } catch { throw new BadRequestException('Cursor is invalid or does not match this query.'); }
+  }
+}
+
+const alertReadSelection = {
+  id: true, ruleCode: true, ruleVersion: true, severity: true, status: true,
+  sourceType: true, sourceId: true, establishmentId: true,
+  triggeredAt: true, lastEvaluatedAt: true, resolvedAt: true,
+} as const;
+
+function alertSource(sourceType: string): { module: string; permission: Permission } | undefined {
+  if (sourceType === 'INVOICE') return { module: 'SALES', permission: 'sales:invoices:read' };
+  if (sourceType === 'PROJECT') return { module: 'PROJECTS', permission: 'projects:read' };
+  return undefined;
+}
+
+function toAlertResponse(row: AlertReadRow) {
+  return {
+    id: row.id, ruleCode: row.ruleCode, ruleVersion: row.ruleVersion, severity: row.severity,
+    status: row.status, sourceType: row.sourceType, sourceId: row.sourceId,
+    establishmentId: row.establishmentId, triggeredAt: row.triggeredAt.toISOString(),
+    lastEvaluatedAt: row.lastEvaluatedAt.toISOString(), resolvedAt: row.resolvedAt?.toISOString() ?? null,
+  };
 }
 
 function normalizeJson<T>(value: T): T {

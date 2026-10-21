@@ -24,6 +24,7 @@ type MetricResponse = {
   value: { amount?: string; currency?: string };
   period?: { from: string; to: string };
 };
+type AlertResponse = { id: string; sourceType: string; establishmentId: string | null; resolvedAt: string | null };
 
 describe('Phase 10A Intelligence dashboard and metric HTTP E2E', () => {
   let app: INestApplication;
@@ -38,6 +39,8 @@ describe('Phase 10A Intelligence dashboard and metric HTTP E2E', () => {
   let salesMembershipId = '';
   let connectOrganizationId = '';
   let connectToken = '';
+  let invoiceAlertId = '';
+  let projectAlertId = '';
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await generateKeyPairAsync('rsa', { modulusLength: 2048 });
@@ -177,6 +180,42 @@ describe('Phase 10A Intelligence dashboard and metric HTTP E2E', () => {
     expect(salesDashboard.metrics.some((metric) => metric.metricCode === 'CASH_BALANCE')).toBe(false);
   });
 
+  it('paginates tenant-scoped alerts and enforces source-module and establishment access on detail', async () => {
+    const first = bodyOf<{ items: AlertResponse[]; hasMore: boolean; nextCursor: string | null }>(await request(server())
+      .get(`/api/v1/organizations/${organizationId}/intelligence/alerts?limit=1`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200));
+    expect(first.items).toHaveLength(1);
+    expect(first.hasMore).toBe(true);
+    expect(first.nextCursor).toBeTruthy();
+    expect(first.items[0]).not.toHaveProperty('payloadJson');
+    expect(JSON.stringify(first)).not.toContain('private invoice description');
+
+    const second = bodyOf<{ items: AlertResponse[]; hasMore: boolean; nextCursor: string | null }>(await request(server())
+      .get(`/api/v1/organizations/${organizationId}/intelligence/alerts?limit=1&cursor=${encodeURIComponent(first.nextCursor!)}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200));
+    expect(second.items).toHaveLength(1);
+    expect(second.items[0]?.id).not.toBe(first.items[0]?.id);
+    expect(second.hasMore).toBe(false);
+    expect(JSON.stringify(second)).not.toContain('private project description');
+
+    await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts?status=RESOLVED&limit=1&cursor=${encodeURIComponent(first.nextCursor!)}`).set('Authorization', `Bearer ${ownerToken}`).expect(400);
+    await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts`).set('Authorization', `Bearer ${otherTenantToken}`).expect(403);
+    await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts/${invoiceAlertId}`).set('Authorization', `Bearer ${otherTenantToken}`).expect(403);
+    await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts/${invoiceAlertId}`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+
+    const scoped = bodyOf<{ items: AlertResponse[] }>(await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts`).set('Authorization', `Bearer ${salesToken}`).expect(200));
+    expect(scoped.items.every((alert) => alert.establishmentId === establishmentId)).toBe(true);
+    await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts/${projectAlertId}`).set('Authorization', `Bearer ${salesToken}`).expect(404);
+
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'PROJECTS' } }, create: { id: randomUUID(), organizationId, moduleCode: 'PROJECTS', enabled: false }, update: { enabled: false } });
+    const withProjectsDisabled = bodyOf<{ items: AlertResponse[] }>(await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    expect(withProjectsDisabled.items.some((alert) => alert.id === projectAlertId)).toBe(false);
+    await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts/${projectAlertId}`).set('Authorization', `Bearer ${ownerToken}`).expect(403);
+    await prisma.organizationModuleActivation.deleteMany({ where: { organizationId, moduleCode: 'PROJECTS' } });
+  });
+
   async function seedSnapshots(): Promise<void> {
     const rows = [
       ['EUR', 1, '100.0000', establishmentId],
@@ -202,11 +241,18 @@ describe('Phase 10A Intelligence dashboard and metric HTTP E2E', () => {
       dimensionKey: JSON.stringify({ cashAccountId: randomUUID(), currencyKey: 'EUR', establishmentId }),
       calculatedAt: sourceAsOf, sourceAsOf,
     } });
-    await prisma.insightAlert.create({ data: {
+    const invoiceAlert = await prisma.insightAlert.create({ data: {
       id: randomUUID(), organizationId, establishmentId, ruleCode: 'INVOICE_OVERDUE', ruleVersion: 1,
       severity: 'WARNING', status: 'OPEN', sourceType: 'INVOICE', sourceId: randomUUID(), dedupeKey: `e2e:${randomUUID()}`,
       triggeredAt: sourceAsOf, lastEvaluatedAt: sourceAsOf, payloadJson: { description: 'private invoice description' },
     } });
+    invoiceAlertId = invoiceAlert.id;
+    const projectAlert = await prisma.insightAlert.create({ data: {
+      id: randomUUID(), organizationId, establishmentId: otherEstablishmentId, ruleCode: 'PROJECT_OVERDUE', ruleVersion: 1,
+      severity: 'WARNING', status: 'OPEN', sourceType: 'PROJECT', sourceId: randomUUID(), dedupeKey: `e2e:${randomUUID()}`,
+      triggeredAt: new Date(sourceAsOf.getTime() - 1000), lastEvaluatedAt: sourceAsOf, payloadJson: { description: 'private project description' },
+    } });
+    projectAlertId = projectAlert.id;
   }
 
   async function activateBusinessPlan(tenantId: string): Promise<void> {

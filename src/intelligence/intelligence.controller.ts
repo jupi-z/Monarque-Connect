@@ -33,16 +33,15 @@ export class IntelligenceController {
     @CurrentPrincipal() principal: AuthPrincipal,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Query() query: IntelligenceAlertsQuery,
-  ): Promise<never> {
-    void query;
-    return this.intelligence.requireProjectionAccess(principal, organizationId);
+  ) {
+    return this.intelligence.alerts(principal, organizationId, query);
   }
 
   @Get('alerts/:alertId')
   alert(
     @CurrentPrincipal() principal: AuthPrincipal,
     @Param() params: IntelligenceAlertParams,
-  ): Promise<never> {
-    return this.intelligence.requireProjectionAccess(principal, params.organizationId);
+  ) {
+    return this.intelligence.alert(principal, params.organizationId, params.alertId);
   }
 }
