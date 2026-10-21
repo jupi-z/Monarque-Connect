@@ -74,6 +74,8 @@ Tous les intervalles demandés par l’API sont UTC et demi-ouverts. Les règles
 | `CRM_PIPELINE` | État courant mesuré à `sourceAsOf` : nombre et somme des opportunités `OPEN` actives, groupés par devise ; valeur manquante exclue du total et comptée séparément. | `Opportunity`; établissement. Ce n’est pas une prévision probabiliste ni une série historique. |
 | `NETWORK_INQUIRIES_CONVERTED` | Nombre d’inquiries de l’organisation liées à un lead ou une opportunité dans la période de création. | `NetworkInquiry` + lien de conversion tenant local ; aucune donnée du tenant tiers n’est agrégée ou exposée. |
 
+Les montants et quantités sont agrégés avec l’arithmétique décimale exacte des sources et sérialisés respectivement à 4 et 6 décimales. Le ratio `QUOTE_ORDER_CONVERSION` est arrondi à 12 décimales, mode half-up, conformément à la précision de stockage de `MetricSnapshot.valueDecimal`; le numérateur et le dénominateur restent toujours exposés. Une cohorte vide ne produit aucun groupe de résultat (elle n’est pas artificiellement représentée comme un taux à zéro). Pour `CRM_PIPELINE`, une devise absente est groupée sous la dimension `NONE`; une valeur sans devise ou une valeur attendue absente n’entre pas dans la somme et est comptée dans `missingValueCount`.
+
 Une métrique dont le module source n’est pas autorisé/actif ou dont la permission manque est omise de la réponse. Une demande explicite de cette métrique renvoie un refus standard sans révéler les enregistrements sous-jacents.
 
 ## 6. Règles et alertes initiales
