@@ -1095,6 +1095,8 @@ model Organization {
   billingSubscriptionAddons         BillingSubscriptionAddon[]
   billingScheduledChanges           BillingScheduledChange[]
   billingProviderEvents             BillingProviderEventInbox[]
+  metricSnapshots                   MetricSnapshot[]
+  insightAlerts                     InsightAlert[]
 
   @@index([businessTypeCode])
   @@index([status])
@@ -1557,6 +1559,8 @@ model Establishment {
   projects                          Project[]
   documents                         Document[]
   messagingOrganizationParticipants ConversationOrganizationParticipant[]
+  metricSnapshots                   MetricSnapshot[]
+  insightAlerts                     InsightAlert[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -2875,4 +2879,56 @@ model NetworkTrustCommandReceipt {
   @@unique([organizationId, actorUserId, idempotencyKey])
   @@index([organizationId, createdAt])
   @@map("network_trust_command_receipts")
+}
+
+model MetricSnapshot {
+  id                 String         @id @db.Uuid
+  organizationId     String         @map("organization_id") @db.Uuid
+  establishmentId    String?        @map("establishment_id") @db.Uuid
+  scopeKey           String         @map("scope_key") @db.VarChar(64)
+  metricCode         String         @map("metric_code") @db.VarChar(80)
+  definitionVersion  Int            @map("definition_version")
+  periodStart        DateTime?      @map("period_start") @db.Timestamptz(6)
+  periodEnd          DateTime?      @map("period_end") @db.Timestamptz(6)
+  asOf               DateTime?      @map("as_of") @db.Timestamptz(6)
+  valueDecimal       Decimal?       @map("value_decimal") @db.Decimal(38, 12)
+  valueJson          Json?          @map("value_json") @db.JsonB
+  currency           String?        @db.Char(3)
+  currencyKey        String         @map("currency_key") @db.VarChar(4)
+  dimensionKey       String         @map("dimension_key") @db.VarChar(512)
+  calculatedAt       DateTime       @map("calculated_at") @db.Timestamptz(6)
+  sourceAsOf         DateTime       @map("source_as_of") @db.Timestamptz(6)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment      Establishment? @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, metricCode, calculatedAt])
+  @@index([organizationId, establishmentId, metricCode])
+  @@map("metric_snapshots")
+}
+
+model InsightAlert {
+  id                String         @id @db.Uuid
+  organizationId    String         @map("organization_id") @db.Uuid
+  establishmentId   String?        @map("establishment_id") @db.Uuid
+  ruleCode          String         @map("rule_code") @db.VarChar(80)
+  ruleVersion       Int            @map("rule_version")
+  severity          String         @db.VarChar(16)
+  status            String         @db.VarChar(16)
+  sourceType        String         @map("source_type") @db.VarChar(32)
+  sourceId          String         @map("source_id") @db.Uuid
+  dedupeKey         String         @map("dedupe_key") @db.VarChar(255)
+  triggeredAt       DateTime       @map("triggered_at") @db.Timestamptz(6)
+  lastEvaluatedAt   DateTime       @map("last_evaluated_at") @db.Timestamptz(6)
+  resolvedAt        DateTime?      @map("resolved_at") @db.Timestamptz(6)
+  payloadJson       Json           @default("{}") @map("payload_json") @db.JsonB
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  establishment     Establishment? @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, status, severity, lastEvaluatedAt])
+  @@index([organizationId, establishmentId, status, lastEvaluatedAt])
+  @@map("insight_alerts")
 }
