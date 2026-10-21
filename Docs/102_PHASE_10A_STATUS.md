@@ -1,39 +1,39 @@
 # 102 — Statut Phase 10A : Intelligence déterministe
 
-**État : ouverte — cadrage normatif fusionné ; routes et contrats HTTP en livraison incrémentale, projections métier non disponibles.**
-**Baseline :** `main@26cf9c5e71d83674c2c8954f7c3eda00874293ea` (vérifiée le 20/10/2026).  
-**Spécification :** [Docs/101](101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md).  
-**Plan :** [plan d’exécution Phase 10A](superpowers/plans/2026-10-20-phase-10a-intelligence.md).  
+**État : clôturée techniquement**, sur `main@0909e745ba462784080922fa5e8274bb4ac4a061` (21/10/2026). La clôture couvre le périmètre déterministe de la Phase 10A et ses gates de code/CI ; elle ne constitue ni une validation de production commerciale FairScale ni l’ouverture de la Phase 10B.
+
+**Spécification :** [Docs/101](101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md).
+
+**Preuve de clôture :** [Docs/103](103_PHASE_10A_CLOSURE_EVIDENCE.md).
 **Suivi GitHub :** [issue Phase 10A #141](https://github.com/jupi-z/Monarque-Connect/issues/141) ; [tracker global #11](https://github.com/jupi-z/Monarque-Connect/issues/11).
 
-## Périmètre
+## Périmètre livré
 
-Livrer les KPI déterministes et versionnés, leurs projections reconstruisibles depuis les domaines sources, deux règles d’alertes explicables (`INVOICE_OVERDUE`, `PROJECT_OVERDUE`) et les API tenant-scoped de dashboard, métriques et alertes. Les sources métier restent autoritaires. Aucun modèle IA, système probabiliste, frontend, broker ni modification rétroactive des invariants des Phases 0–9 n’est inclus.
+- Registre versionné et calcul déterministe des 11 KPI définis dans Docs/101.
+- Snapshots tenant-scoped reconstruisibles et alertes déterministes `INVOICE_OVERDUE` / `PROJECT_OVERDUE`.
+- Projections idempotentes via Event Fabric/Outbox, avec rebuild et réconciliation.
+- API REST en lecture seule pour dashboard, métriques et alertes.
+- Autorisations centralisées : tenant, membership, entitlement, activation des modules sources, permissions et scopes d’établissement.
+- Migration additive et contrats OpenAPI ; aucun changement rétroactif des invariants des Phases 0–9.
 
-## Gates d’acceptation
+## Gates de clôture
 
-- [ ] Contrats OpenAPI et permissions gelés et validés avant migration.
-- [ ] Modèles/migration additifs validés depuis base vide et upgrade depuis Phase 9.6.
-- [ ] Tous les 11 KPI couverts par tests exacts : états, périodes UTC, devises, unités, paiements inversés et scopes.
-- [ ] Consommation au moins une fois, rejeu, concurrence, reconstruction et réconciliation prouvés sur PostgreSQL.
-- [ ] Tests HTTP positifs/négatifs couvrant tenant, membership, entitlement, module source, permission et établissement.
-- [ ] OpenAPI, lint, typecheck, tests, E2E, migrations, build et smoke validés dans GitHub Actions sur chaque PR.
-- [ ] CI post-fusion `main` vérifiée et preuves datées/liées avant clôture.
-
-## État des lots
-
-| Lot | État |
+| Gate | État et preuve |
 |---|---|
-| Spécification normative et matrice d’autorisations | Acceptées dans Docs/101 |
-| Contrats HTTP détaillés | Dashboard, métriques et alertes actifs avec contrôle des permissions sources, scopes et pagination contextuelle |
-| Schéma et migrations | À faire |
-| Registre et calculs KPI | À faire |
-| Consumers, rebuild et alertes | À faire |
-| API, isolation et E2E | À faire |
-| CI et preuves post-fusion | À faire |
+| Contrats OpenAPI et permissions gelés avant migration | Validé — PR #143 ; contrôles contractuels verts |
+| Migration additive, base vide et upgrade Phase 9.6 | Validé — PR #144 ; preuves CI reprises dans Docs/103 |
+| 11 KPI, unités, devises, périodes et inversions | Validé — PR #145 ; tests unitaires/PostgreSQL |
+| Consommation, rejeu, concurrence, alertes, rebuild et convergence | Validé — PR #146 ; tests PostgreSQL |
+| Dashboard/métriques et alertes en HTTP avec isolation, scopes, pagination et minimisation | Validé — PR #147/#148 ; E2E et contrats |
+| Lint, typecheck, migrations, OpenAPI, contrats, tests, E2E, build et smoke sur PR | Validé — CI PR #148, run #39605551639, tentative 2 |
+| CI sur le commit fusionné de `main` | Validé — run #39618954323, tentative 2, sur `0909e745ba462784080922fa5e8274bb4ac4a061` |
 
-Les paiements réels et la conformité de FairScale restent des dépendances externes de commercialisation suivies dans l’issue [#123](https://github.com/jupi-z/Monarque-Connect/issues/123), mais ne bloquent pas les fonctionnalités déterministes de Phase 10A.
+Les nombres de tests, les commandes et les liens vérifiables figurent dans [Docs/103](103_PHASE_10A_CLOSURE_EVIDENCE.md). Les tests locaux sont complémentaires et ne remplacent pas ces preuves CI.
+
+## Non-objectifs et réserves indépendantes
+
+La Phase 10B (IA/probabiliste), le frontend et tout agrégat inter-tenant sont hors périmètre de cette clôture. Les paiements réels, le rapprochement, les sauvegardes/restaurations et la conformité de commercialisation FairScale restent des gates externes ouverts dans l’issue [#123](https://github.com/jupi-z/Monarque-Connect/issues/123) et Docs/99 ; la présente clôture ne les déclare pas satisfaits.
 
 ## Gouvernance
 
-Chaque lot est réalisé sur une branche dédiée, en PR, avec les contrôles obligatoires verts avant fusion. Aucun push direct sur `main`. Le statut restera ouvert tant que toutes les preuves des gates ne sont pas effectives ; les tests locaux ne seront jamais présentés comme des exécutions CI GitHub.
+Les livraisons ont suivi branche dédiée → PR → CI requise → fusion. Aucun push direct sur `main` n’a été effectué pour la Phase 10A. La fermeture de l’issue #141 doit accompagner la fusion de Docs/103 et la vérification de sa CI post-fusion.

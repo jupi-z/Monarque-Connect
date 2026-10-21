@@ -48,10 +48,10 @@
 
 **Interfaces:** spec defines the route and metric vocabulary; status document links the GitHub Phase 10A issue and records gates without claiming delivery. No runtime code.
 
-- [ ] Correct the FairScale technical state using verified PR #140 merge and post-merge CI evidence; keep live-payment/compliance gates open.
-- [ ] Add Phase 10A issue and tracker references; record baseline `26cf9c5e71d83674c2c8954f7c3eda00874293ea`.
-- [ ] Verify no contract decision remains implicit: source fields, nullable uniqueness, current-state versus period metrics, error semantics, and permission mapping.
-- [ ] Run `npm run lint`/the repository's documentation checks if configured, inspect `git diff --check`, open a PR, and merge only after GitHub checks succeed.
+- [x] Correct the FairScale technical state using verified PR #140 merge and post-merge CI evidence; keep live-payment/compliance gates open.
+- [x] Add Phase 10A issue and tracker references; record baseline `26cf9c5e71d83674c2c8954f7c3eda00874293ea`.
+- [x] Verify no contract decision remains implicit: source fields, nullable uniqueness, current-state versus period metrics, error semantics, and permission mapping.
+- [x] Run `npm run lint`/the repository's documentation checks if configured, inspect `git diff --check`, open a PR, and merge only after GitHub checks succeed.
 
 ## Task 2: Freeze OpenAPI and permission contract (no migration)
 
@@ -59,10 +59,10 @@
 
 **Interfaces:** `GET /dashboard`, `/metrics`, `/alerts`, `/alerts/{alertId}` under the spec base path. DTOs validate UTC ranges, max 366-day activity windows, known metric codes, page size <= 100, and opaque scope-bound cursors. Source permissions come from `MetricDefinition.requiredPermissions`.
 
-- [ ] Add contract tests for route paths, query schemas, response decimal strings, `ACTIVITY`/`CURRENT_STATE`, errors, and pagination bounds; confirm they fail before implementation.
-- [ ] Add `intelligence:read` to the central permission union and the exact role grants in the authorization matrix.
-- [ ] Implement controller/DTO/module skeleton with guards and OpenAPI annotations; do not add Prisma models or migrations in this task.
-- [ ] Run contract tests and OpenAPI validation; publish a dedicated PR and require GitHub CI before merge.
+- [x] Add contract tests for route paths, query schemas, response decimal strings, `ACTIVITY`/`CURRENT_STATE`, errors, and pagination bounds; confirm they fail before implementation.
+- [x] Add `intelligence:read` to the central permission union and the exact role grants in the authorization matrix.
+- [x] Implement controller/DTO/module skeleton with guards and OpenAPI annotations; do not add Prisma models or migrations in this task.
+- [x] Run contract tests and OpenAPI validation; publish a dedicated PR and require GitHub CI before merge.
 
 ## Task 3: Add projection schema and migration proofs
 
@@ -70,10 +70,10 @@
 
 **Interfaces:** `MetricSnapshot` key is `(organizationId, scopeKey, metricCode, definitionVersion, dimensionKey, currencyKey, temporalKey)` with separate partial unique indexes for period and instant rows; `InsightAlert` uses a partial unique index for open `(organizationId, dedupeKey)`.
 
-- [ ] Write PostgreSQL tests for tenant-composite FKs, exactly-one temporal mode, `periodStart < periodEnd`, both partial unique keys, `currencyKey = NONE`, and open-alert dedupe.
-- [ ] Add Prisma models and an additive SQL migration; include raw PostgreSQL indexes/checks Prisma cannot represent.
-- [ ] Verify `prisma validate`, migration from an empty DB, and upgrade from the Phase 9.6 baseline; confirm no source tables are rewritten.
-- [ ] Publish a focused schema PR and wait for required checks before merge.
+- [x] Write PostgreSQL tests for tenant-composite FKs, exactly-one temporal mode, `periodStart < periodEnd`, both partial unique keys, `currencyKey = NONE`, and open-alert dedupe.
+- [x] Add Prisma models and an additive SQL migration; include raw PostgreSQL indexes/checks Prisma cannot represent.
+- [x] Verify `prisma validate`, migration from an empty DB, and upgrade from the Phase 9.6 baseline; confirm no source tables are rewritten.
+- [x] Publish a focused schema PR and wait for required checks before merge.
 
 ## Task 4: Implement the versioned registry and deterministic calculators
 
@@ -81,10 +81,10 @@
 
 **Interfaces:** `MetricDefinition` exposes `code`, `definitionVersion`, `kind: ACTIVITY | CURRENT_STATE`, `sourceModules`, `requiredPermissions`, dimensions, and a calculator accepting `{ organizationId, establishmentIds, from?, to?, sourceAsOf }` and returning exact typed values.
 
-- [ ] Write one table-driven failing test per KPI: `SALES_ISSUED`, `PAYMENTS_RECORDED`, `RECEIVABLES_OUTSTANDING`, `QUOTE_ORDER_CONVERSION`, `EXPENSES_RECORDED`, `CASH_BALANCE`, `INVENTORY_ON_HAND`, `PURCHASE_ORDERS_PENDING`, `PROJECTS_OVERDUE`, `CRM_PIPELINE`, `NETWORK_INQUIRIES_CONVERTED`.
-- [ ] Implement registry definitions with source status, currency, unit, establishment, and activity/current-state rules exactly as Docs/101.
-- [ ] Implement tenant-bounded Prisma queries; use decimals/BigInt, never JS floating-point for money or quantities.
-- [ ] Run unit suite and add regression cases for payment reversal timing, void invoices, mixed currency, missing opportunity value, and incompatible inventory units.
+- [x] Write one table-driven failing test per KPI: `SALES_ISSUED`, `PAYMENTS_RECORDED`, `RECEIVABLES_OUTSTANDING`, `QUOTE_ORDER_CONVERSION`, `EXPENSES_RECORDED`, `CASH_BALANCE`, `INVENTORY_ON_HAND`, `PURCHASE_ORDERS_PENDING`, `PROJECTS_OVERDUE`, `CRM_PIPELINE`, `NETWORK_INQUIRIES_CONVERTED`.
+- [x] Implement registry definitions with source status, currency, unit, establishment, and activity/current-state rules exactly as Docs/101.
+- [x] Implement tenant-bounded Prisma queries; use decimals/BigInt, never JS floating-point for money or quantities.
+- [x] Run unit suite and add regression cases for payment reversal timing, void invoices, mixed currency, missing opportunity value, and incompatible inventory units.
 
 ## Task 5: Implement transactional projection and alert rules
 
@@ -92,10 +92,10 @@
 
 **Interfaces:** `recompute({ organizationId, establishmentIds?, metricCodes?, period?, sourceAsOf, causeEventId? })`; consumer name `intelligence-projection`; alert evaluator emits only `INVOICE_OVERDUE` and `PROJECT_OVERDUE` warning rules.
 
-- [ ] Write failing PostgreSQL tests for duplicate event receipt, retry, late event, concurrent upsert, monotonic `sourceAsOf`, alert open/resolution/reopen, and rebuild equality.
-- [ ] Recompute from canonical source tables in a consistent transaction; write event receipt and projection/Outbox alert event atomically.
-- [ ] Register existing producer event types. Add only necessary missing source events in the same transaction as their existing source mutation; do not block source writes on worker availability.
-- [ ] Add internal bounded rebuild/reconciliation entry point with no HTTP exposure; verify repeat run is idempotent and cannot overwrite newer results.
+- [x] Write failing PostgreSQL tests for duplicate event receipt, retry, late event, concurrent upsert, monotonic `sourceAsOf`, alert open/resolution/reopen, and rebuild equality.
+- [x] Recompute from canonical source tables in a consistent transaction; write event receipt and projection/Outbox alert event atomically.
+- [x] Register existing producer event types. Add only necessary missing source events in the same transaction as their existing source mutation; do not block source writes on worker availability.
+- [x] Add internal bounded rebuild/reconciliation entry point with no HTTP exposure; verify repeat run is idempotent and cannot overwrite newer results.
 
 ## Task 6: Expose authorized dashboard and metric reads
 
@@ -103,10 +103,10 @@
 
 **Interfaces:** route orchestration calls central membership/entitlement/module checks, `intelligence:read`, then every requested metric's source permissions and establishment scope. Unauthorized explicit metric request returns standard forbidden; dashboard omits non-readable metrics.
 
-- [ ] Add E2E tests for authenticated success, inactive tenant/member, missing entitlement, inactive source module, missing source permission, and unauthorized establishment.
-- [ ] Implement `/dashboard` and `/metrics` with bounded queries and separate activity-series/current-state output.
-- [ ] Assert response contains no ORM-only fields, cross-currency sum, source descriptions, or values from out-of-scope establishments.
-- [ ] Validate OpenAPI and HTTP smoke tests; publish a dedicated PR with CI gates.
+- [x] Add E2E tests for authenticated success, inactive tenant/member, missing entitlement, inactive source module, missing source permission, and unauthorized establishment.
+- [x] Implement `/dashboard` and `/metrics` with bounded queries and separate activity-series/current-state output.
+- [x] Assert response contains no ORM-only fields, cross-currency sum, source descriptions, or values from out-of-scope establishments.
+- [x] Validate OpenAPI and HTTP smoke tests; publish a dedicated PR with CI gates.
 
 ## Task 7: Expose alert reads and harden pagination/isolation
 
@@ -114,10 +114,10 @@
 
 **Interfaces:** cursor binds tenant, scope, filters, sort key, and version; alert detail is visible only when both target tenant/scope and source-module permission pass.
 
-- [ ] Add failing tests for other-tenant IDs, nonparticipant actors, scope escape, source permission revocation, cursor replay with changed filters/tenant, and page boundary duplicates.
-- [ ] Implement `/alerts` keyset pagination and `/alerts/{alertId}` with source authorization before returning data.
-- [ ] Verify alert payload is minimized and only server-generated deterministic metadata is exposed.
-- [ ] Run relevant HTTP E2E and OpenAPI contract suite.
+- [x] Add failing tests for other-tenant IDs, nonparticipant actors, scope escape, source permission revocation, cursor replay with changed filters/tenant, and page boundary duplicates.
+- [x] Implement `/alerts` keyset pagination and `/alerts/{alertId}` with source authorization before returning data.
+- [x] Verify alert payload is minimized and only server-generated deterministic metadata is exposed.
+- [x] Run relevant HTTP E2E and OpenAPI contract suite.
 
 ## Task 8: Full regression, evidence, and Phase 10A closure
 
@@ -125,7 +125,7 @@
 
 **Interfaces:** closure evidence references merged commits and actual CI run URLs; no prospective or local-only results are labeled as GitHub CI.
 
-- [ ] Run full lint, typecheck, tests, PostgreSQL suites, E2E, OpenAPI, migration-empty/upgrade, build, and smoke validation from a clean checkout of final Phase 10A candidate.
-- [ ] Merge only after every required PR check succeeds; verify post-merge `main` CI separately.
-- [ ] Record exact SHA, CI run URL, executed commands, counts, migration baseline, and known non-goals; keep Phase 10B and FairScale commercial launch gates open.
+- [x] Run full lint, typecheck, tests, PostgreSQL suites, E2E, OpenAPI, migration-empty/upgrade, build, and smoke validation from a clean checkout of final Phase 10A candidate.
+- [x] Merge only after every required PR check succeeds; verify post-merge `main` CI separately.
+- [x] Record exact SHA, CI run URL, executed commands, counts, migration baseline, and known non-goals; keep Phase 10B and FairScale commercial launch gates open.
 - [ ] Close the Phase 10A issue only after post-merge evidence is verified and linked.

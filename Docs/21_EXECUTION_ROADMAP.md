@@ -146,7 +146,7 @@ Implémenter cycle souscription payante, échéances, promotion welcome à usage
 ## Phase 10 — Intelligence
 
 ### 10A — déterministe
-**État : cadrage normatif accepté, exécution ouverte.** La norme est [Docs/101](101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md), le statut/gating est dans [Docs/102](102_PHASE_10A_STATUS.md), et le plan détaillé est dans [Docs/superpowers/plans/2026-10-20-phase-10a-intelligence.md](superpowers/plans/2026-10-20-phase-10a-intelligence.md). Livrer les projections KPI, snapshots reconstruisibles, règles/alertes déterministes et API dashboard avant 10B.
+**État : clôturée techniquement sur `main@0909e745ba462784080922fa5e8274bb4ac4a061`.** Les 11 KPI déterministes, projections reconstruisibles, règles/alertes et lectures HTTP dashboard, métriques et alertes sont livrés ; les migrations et gates CI PR/post-fusion sont prouvés dans [Docs/103](103_PHASE_10A_CLOSURE_EVIDENCE.md). Le détail du statut figure dans [Docs/102](102_PHASE_10A_STATUS.md). Cette clôture technique n’ouvre pas automatiquement 10B et ne lève aucun gate externe de commercialisation FairScale (#123).
 
 ### 10B — probabiliste gouverné
 Premières features IA ciblées seulement si les gates de `48_AI_SECURITY_AND_EVALUATION.md` sont satisfaites :
