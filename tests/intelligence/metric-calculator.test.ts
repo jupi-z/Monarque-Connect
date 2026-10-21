@@ -94,7 +94,7 @@ const cases: Array<{
     ],
   },
   {
-    code: 'PURCHASE_ORDERS_PENDING', kind: 'ACTIVITY', sourceModules: ['PURCHASES'], requiredPermissions: ['purchases:orders:read'], model: 'purchaseOrder',
+    code: 'PURCHASE_ORDERS_PENDING', kind: 'CURRENT_STATE', sourceModules: ['PURCHASES'], requiredPermissions: ['purchases:orders:read'], model: 'purchaseOrder',
     rows: [{ establishmentId }, { establishmentId }, { establishmentId: otherEstablishmentId }],
     expected: [
       { dimensions: { establishmentId }, value: { count: 2 } },
@@ -190,6 +190,15 @@ describe('versioned metric registry and deterministic calculations', () => {
     const models = prismaWithRows('invoice', []);
     const calculator = new MetricCalculatorService(models as unknown as PrismaService);
     await expect(calculator.calculate('SALES_ISSUED', { organizationId, sourceAsOf })).rejects.toThrow(/half-open/i);
+  });
+
+  it('calculates current pending purchase orders without an artificial activity window', async () => {
+    const models = prismaWithRows('purchaseOrder', [{ establishmentId }]);
+    const calculator = new MetricCalculatorService(models as unknown as PrismaService);
+    const result = await calculator.calculate('PURCHASE_ORDERS_PENDING', { organizationId, sourceAsOf });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.kind).toBe('CURRENT_STATE');
+    expect(models.purchaseOrder.findMany).toHaveBeenCalledOnce();
   });
 
   it('uses an establishment relation filter for inventory and the recipient tenant for Network inquiries', async () => {
