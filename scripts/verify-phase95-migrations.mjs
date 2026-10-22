@@ -3,6 +3,7 @@ import { join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import pg from 'pg';
+import { assertMigrationSet } from './migration-proof-utils.mjs';
 
 const { Pool } = pg;
 const sourceMigrationsPath = join(process.cwd(), 'prisma', 'migrations');
@@ -74,7 +75,7 @@ async function addCurrentSeedCompatibilityColumns(databaseUrl) {
 
 async function appliedNames(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
-  try { return (await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name')).rows.map((row) => row.migration_name); }
+  try { return (await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name')).rows.map((row) => row.migration_name); }
   finally { await pool.end(); }
 }
 
@@ -117,10 +118,10 @@ try {
 
   await writeMigrationSet(preFairScaleMigrationDirectories); await migrate(databaseUrls.upgrade);
   const beforeFairScale = await appliedNames(databaseUrls.upgrade);
-  if (beforeFairScale.length !== preFairScaleMigrationDirectories.length || beforeFairScale.at(-1) !== preFairScaleMigrationDirectories.at(-1)) throw new Error('Phase 9.5 upgrade baseline mismatch');
+  assertMigrationSet(beforeFairScale, preFairScaleMigrationDirectories, 'Phase 9.5 upgrade baseline');
   await writeMigrationSet(phase95MigrationSet); await migrate(databaseUrls.upgrade); await structuralProof(databaseUrls.upgrade); await addCurrentSeedCompatibilityColumns(databaseUrls.upgrade);
   const finalNames = await appliedNames(databaseUrls.upgrade);
-  if (finalNames.length !== phase95MigrationSet.length || finalNames.at(-1) !== fairScaleStart) throw new Error('Phase 9.5 upgrade migration set mismatch');
+  assertMigrationSet(finalNames, phase95MigrationSet, 'Phase 9.5 upgrade');
   await seed(databaseUrls.upgrade); await seed(databaseUrls.upgrade);
   console.log(`Phase 9.5 migration proof passed: empty database (${phase95MigrationSet.length} migrations) and Phase 9 upgrade (${preFairScaleMigrationDirectories.length} + ${phase95MigrationDirectories.length} migrations), additive FairScale schema and idempotent seed verified. Later FairScale migrations intentionally excluded: ${laterFairScaleMigrationDirectories.length}.`);
 } finally {

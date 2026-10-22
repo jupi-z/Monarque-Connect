@@ -3,6 +3,7 @@ import { join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import pg from 'pg';
+import { assertMigrationSet } from './migration-proof-utils.mjs';
 
 const { Pool } = pg;
 const phase6Start = '20261013170000_add_purchase_documents';
@@ -61,7 +62,7 @@ async function dropDatabase(pool, name) { if (await databaseExists(pool, name)) 
 async function appliedNames(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   try {
-    const result = await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name');
+    const result = await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name');
     return result.rows.map((row) => row.migration_name);
   } finally {
     await pool.end();
@@ -104,18 +105,18 @@ try {
   await writeMigrationSet(migrationDirectories);
   await runMigrateDeploy(databaseUrls.empty);
   const emptyNames = await appliedNames(databaseUrls.empty);
-  if (emptyNames.length !== migrationDirectories.length || emptyNames.at(-1) !== migrationDirectories.at(-1)) throw new Error(`Phase 6 empty baseline mismatch: expected ${migrationDirectories.length} migrations ending at ${migrationDirectories.at(-1)}, got ${emptyNames.length} ending at ${emptyNames.at(-1)}`);
+  assertMigrationSet(emptyNames, migrationDirectories, 'Phase 6 empty baseline');
   await structuralProof(databaseUrls.empty);
 
   await writeMigrationSet(phase5MigrationDirectories);
   await runMigrateDeploy(databaseUrls.upgrade);
   const phase5Names = await appliedNames(databaseUrls.upgrade);
-  if (phase5Names.length !== phase5MigrationDirectories.length || phase5Names.at(-1) !== phase5MigrationDirectories.at(-1)) throw new Error(`Phase 5 upgrade baseline mismatch: expected ${phase5MigrationDirectories.length} migrations ending at ${phase5MigrationDirectories.at(-1)}, got ${phase5Names.length} ending at ${phase5Names.at(-1)}`);
+  assertMigrationSet(phase5Names, phase5MigrationDirectories, 'Phase 5 upgrade baseline');
 
   await writeMigrationSet(migrationDirectories);
   await runMigrateDeploy(databaseUrls.upgrade);
   const finalNames = await appliedNames(databaseUrls.upgrade);
-  if (finalNames.length !== migrationDirectories.length || finalNames.at(-1) !== migrationDirectories.at(-1)) throw new Error(`Phase 6 upgrade mismatch: expected ${migrationDirectories.length} migrations ending at ${migrationDirectories.at(-1)}, got ${finalNames.length} ending at ${finalNames.at(-1)}`);
+  assertMigrationSet(finalNames, migrationDirectories, 'Phase 6 upgrade');
   await structuralProof(databaseUrls.upgrade);
 
   console.log(`Phase 6 migration proof passed: empty database (${migrationDirectories.length} migrations) and Phase 5 upgrade (${phase5MigrationDirectories.length} + ${phase6MigrationDirectories.length} migrations).`);

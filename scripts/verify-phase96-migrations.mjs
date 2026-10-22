@@ -3,6 +3,7 @@ import { join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import pg from 'pg';
+import { assertMigrationSet } from './migration-proof-utils.mjs';
 
 const { Pool } = pg;
 const sourceMigrationsPath = join(process.cwd(), 'prisma', 'migrations');
@@ -48,7 +49,7 @@ async function seed(databaseUrl) {
 
 async function appliedNames(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
-  try { return (await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name')).rows.map((row) => row.migration_name); }
+  try { return (await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name')).rows.map((row) => row.migration_name); }
   finally { await pool.end(); }
 }
 
@@ -83,10 +84,10 @@ try {
   await writeMigrationSet(migrationDirectories); await migrate(databaseUrls.empty); await structuralProof(databaseUrls.empty); await seed(databaseUrls.empty); await seed(databaseUrls.empty);
   await writeMigrationSet(phase95MigrationDirectories); await migrate(databaseUrls.upgrade);
   const before = await appliedNames(databaseUrls.upgrade);
-  if (before.length !== phase95MigrationDirectories.length || before.at(-1) !== phase95MigrationDirectories.at(-1)) throw new Error('Phase 9.6 upgrade baseline mismatch');
+  assertMigrationSet(before, phase95MigrationDirectories, 'Phase 9.6 upgrade baseline');
   await writeMigrationSet(migrationDirectories); await migrate(databaseUrls.upgrade); await structuralProof(databaseUrls.upgrade); await seed(databaseUrls.upgrade); await seed(databaseUrls.upgrade);
   const after = await appliedNames(databaseUrls.upgrade);
-  if (after.length !== migrationDirectories.length || after.at(-1) !== migrationDirectories.at(-1)) throw new Error('Phase 9.6 upgrade migration set mismatch');
+  assertMigrationSet(after, migrationDirectories, 'Phase 9.6 upgrade');
   console.log(`Phase 9.6 migration proof passed: empty database (${migrationDirectories.length} migrations) and Phase 9.5 upgrade (${phase95MigrationDirectories.length} + ${phase96MigrationDirectories.length} migrations), immutable billing structures and idempotent seed verified.`);
 } finally {
   await dropDatabase(adminPool, databaseNames.empty); await dropDatabase(adminPool, databaseNames.upgrade); await adminPool.end();

@@ -3,6 +3,7 @@ import { join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import pg from 'pg';
+import { assertMigrationSet } from './migration-proof-utils.mjs';
 
 const { Pool } = pg;
 const sourceMigrationsPath = join(process.cwd(), 'prisma', 'migrations');
@@ -91,11 +92,9 @@ try {
   await runMigrateDeploy(databaseUrls.upgrade);
   const phase2Pool = new Pool({ connectionString: databaseUrls.upgrade });
   try {
-    const result = await phase2Pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name');
+    const result = await phase2Pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name');
     const appliedNames = result.rows.map((row) => row.migration_name);
-    if (appliedNames.length !== phase2MigrationDirectories.length || appliedNames.at(-1) !== phase2MigrationDirectories.at(-1)) {
-      throw new Error(`Phase 2 baseline mismatch: expected ${phase2MigrationDirectories.length} migrations ending at ${phase2MigrationDirectories.at(-1)}, got ${appliedNames.length} ending at ${appliedNames.at(-1)}`);
-    }
+    assertMigrationSet(appliedNames, phase2MigrationDirectories, 'Phase 2 baseline');
   } finally {
     await phase2Pool.end();
   }
@@ -104,11 +103,9 @@ try {
   await runMigrateDeploy(databaseUrls.upgrade);
   const finalPool = new Pool({ connectionString: databaseUrls.upgrade });
   try {
-    const result = await finalPool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name');
+    const result = await finalPool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name');
     const appliedNames = result.rows.map((row) => row.migration_name);
-    if (appliedNames.length !== migrationDirectories.length || appliedNames.at(-1) !== migrationDirectories.at(-1)) {
-      throw new Error(`Phase 3 upgrade mismatch: expected ${migrationDirectories.length} migrations ending at ${migrationDirectories.at(-1)}, got ${appliedNames.length} ending at ${appliedNames.at(-1)}`);
-    }
+    assertMigrationSet(appliedNames, migrationDirectories, 'Phase 3 upgrade');
   } finally {
     await finalPool.end();
   }

@@ -3,6 +3,7 @@ import { join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import pg from 'pg';
+import { assertMigrationSet } from './migration-proof-utils.mjs';
 
 const { Pool } = pg;
 const sourceMigrationsPath = join(process.cwd(), 'prisma', 'migrations');
@@ -39,7 +40,7 @@ async function migrate(databaseUrl) {
 
 async function appliedNames(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
-  try { const result = await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name'); return result.rows.map((row) => row.migration_name); } finally { await pool.end(); }
+  try { const result = await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name'); return result.rows.map((row) => row.migration_name); } finally { await pool.end(); }
 }
 
 async function structuralProof(databaseUrl) {
@@ -69,14 +70,14 @@ try {
   await createDatabase(adminPool, databaseNames.empty); await createDatabase(adminPool, databaseNames.upgrade);
   await writeMigrationSet(migrationDirectories); await migrate(databaseUrls.empty);
   const emptyNames = await appliedNames(databaseUrls.empty);
-  if (emptyNames.length !== migrationDirectories.length || emptyNames.at(-1) !== migrationDirectories.at(-1)) throw new Error('Phase 9 empty database migration set mismatch');
+  assertMigrationSet(emptyNames, migrationDirectories, 'Phase 9 empty database');
   await structuralProof(databaseUrls.empty);
   await writeMigrationSet(phase8MigrationDirectories); await migrate(databaseUrls.upgrade);
   const phase8Names = await appliedNames(databaseUrls.upgrade);
-  if (phase8Names.length !== phase8MigrationDirectories.length || phase8Names.at(-1) !== phase8MigrationDirectories.at(-1)) throw new Error('Phase 8 upgrade baseline mismatch');
+  assertMigrationSet(phase8Names, phase8MigrationDirectories, 'Phase 8 upgrade baseline');
   await writeMigrationSet(migrationDirectories); await migrate(databaseUrls.upgrade);
   const finalNames = await appliedNames(databaseUrls.upgrade);
-  if (finalNames.length !== migrationDirectories.length || finalNames.at(-1) !== migrationDirectories.at(-1)) throw new Error('Phase 9 upgrade migration set mismatch');
+  assertMigrationSet(finalNames, migrationDirectories, 'Phase 9 upgrade');
   await structuralProof(databaseUrls.upgrade);
   console.log(`Phase 9 migration proof passed: empty database (${migrationDirectories.length} migrations) and Phase 8 upgrade (${phase8MigrationDirectories.length} + ${phase9MigrationDirectories.length} migrations).`);
 } finally {
