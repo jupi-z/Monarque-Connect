@@ -137,3 +137,10 @@ La politique de tarification et de capacité **cible** est décrite par [Docs/89
 - Le plafond commercial MAX_USERS est retiré des **plans payants** uniquement après migration ; les 5 utilisateurs CONNECT restent garde-fou du gratuit. Aucun supplément par employé payant.
 - Capacités de référence : 1/1/3/10 établissements, souscripteur peut acquérir une capacité d'établissement additionnelle via paiement et consentement ; quota effectif côté serveur, jamais décision frontend.
 - La Phase 9.5 implémente catalogue et quotas ; la Phase 9.6 implémente l'encaissement et la gestion d'abonnement. Les versions historiques ne sont jamais réécrites pour leur faire dire qu'elles ont toujours eu ces propriétés.
+
+
+## Projet ZAMUREK — complément planifié, non implémenté
+
+La convergence ([ADR-039](104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md), [phase 10A.5](105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md)) introduira des **produits commercialisés distincts**, sans refaire les plans FairScale. `ZAMUREK_BASIC` à **7 USD/mois/organisation** est une proposition commerciale validée en principe, mais pas encore un plan seedé, facturé ou juridiquement approuvé. Les souscriptions `MONARQUE_CONNECT` et `ZAMUREK` pourront coexister sur une même organisation. Les droits seront calculés par `productCode` + plan versionné + permissions + établissement, jamais par frontend. La seule souscription ZAMUREK devra autoriser ses fonctions nécessaires (POS, vente publique, verticales) mais **pas** le CRM/achats/projets ni les modules Enterprise de Monarque Connect.
+
+**Conflit économique à arbitrer avant vente réelle :** les quotas FairScale actuels 1/1/3/10 établissements ne deviennent pas implicitement illimités dans l'offre ZAMUREK à 7 USD. Définir une capacité incluse et les coûts supplémentaires réels dans un contrat et des entitlements à tester. Aucun tarif supplémentaire n'est inventé dans ce cadrage.
