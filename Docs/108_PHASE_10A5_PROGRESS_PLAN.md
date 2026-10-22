@@ -1,6 +1,6 @@
 # Phase 10A.5 — suivi et progression (modèle)
 
-**Statut initial = PLANNED, progression technique vérifiée = 0 %.**
+**Statut initial = PLANNED, progression technique vérifiée = 0 %.** Tous les domaines C0–C8 et les critères G-01–G-14 restent soumis à [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md) ; un blocage légal ou de paiement ne se transforme pas en réussite technique fictive.
 
 | Lot | Poids | Dépendances |
 |---|---:|---|
@@ -15,6 +15,6 @@
 | C8 intégration/CI/compatibilité | 8 | toutes |
 | **Total** | **100** | |
 
-Chaque lot a tâches atomiques `id, owner, state, criterion, tests, evidence`; progression `sum(weight × verified_tests / total_tests)`, avec zéro crédit pour `PLANNED, IMPLEMENTED_NOT_TESTED, NOT_RUN, BLOCKED`. Un échec P0 bloque la clôture malgré % élevé. Écrire `Docs/10A5_EXECUTION_REPORT.md` et un manifest `Docs/10A5_PROGRESS.json` **seulement au démarrage Codex**, ne pas déclarer accomplis ces travaux de planification.
+Chaque lot a tâches atomiques `id, owner, state, criterion, tests, evidence`; progression `sum(weight × accepted_acceptance_criteria / total_acceptance_criteria)` : les tests prouvent les critères, leur quantité n'augmente pas artificiellement l'avancement. Zéro crédit pour `PLANNED, IMPLEMENTED_NOT_TESTED, NOT_RUN, BLOCKED` ; documenter les `EXTERNAL_PENDING` indépendamment du pourcentage technique. Un échec P0 bloque la clôture malgré % élevé. Écrire `Docs/10A5_EXECUTION_REPORT.md` et un manifest `Docs/10A5_PROGRESS.json` **seulement au démarrage Codex**, ne pas déclarer accomplis ces travaux de planification.
 
 **Protection du projet :** modifications par branche/PR, CI exigées, migrations additives, rollback testé, pas d'altération silencieuse des ADR et contrats pré-10A ; ne pas toucher aux secrets, DNS, production, PSP ni compte commerçant réel sans autorisation.
