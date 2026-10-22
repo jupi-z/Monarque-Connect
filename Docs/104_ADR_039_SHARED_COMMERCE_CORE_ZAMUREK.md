@@ -2,8 +2,10 @@
 
 **Statut : PROPOSÉ POUR VALIDATION / source de planification — 22/10/2026.** Décision métier acceptée par le propriétaire ; implémentation et migration non commencées. Cette ADR ne modifie pas les états de clôture des phases 0–10A.
 
+**Arbitrage de sûreté complétant ADR-039 :** [Docs/114 — invariants des frontières](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), décisions B-00→B-09, est **normatif avant migration**. En particulier : authentification future Monarque Auth/OIDC sans perte d'identité métier, souscriptions par produit, permissions POS distinctes, Invoice canonique pour le règlement V1, transactions atomiques, stockage réel et gates commerciaux séparés.
+
 ## Décision principale
-- **Monarque Connect** reste le **backend transactionnel canonique et propriétaire** : identité, organisations, établissements, memberships, RBAC, entitlements, catalogue de référence, ventes, factures, PaymentRecords, CashAccounts/CashMovements, Event Fabric/Outbox, AI Gateway, Agent Runtime partagé et Control Plane.
+- **Monarque Connect** reste le **backend transactionnel canonique et propriétaire** : identité métier et rattachement OIDC futur, organisations, établissements, memberships, RBAC, entitlements, catalogue de référence, ventes, factures, PaymentRecords, CashAccounts/CashMovements, Event Fabric/Outbox, AI Gateway, Agent Runtime partagé et Control Plane.
 - **ZAMUREK** est un **produit commercial autonome** (marque, tarifs, canaux installables, métiers, UX) qui utilise **ces capacités communes** ; il possède l'extension métier omnicanale/venue, les parcours restaurant, réservation, vente au poids, mobilier, réparation et les clients installables. Ces extensions peuvent prendre la forme de modules NestJS distincts **dans le backend Monarque Connect** pour préserver transactions et autorisations ; le dépôt ZAMUREK détient les clients, les contrats d'intégration, les spécifications métier et les composants compatibles.
 - **Aucun second backend de gestion commerciale** ne recalcule ou persiste séparément SalesOrder, Invoice, PaymentRecord, CashMovement, catalog items ni droits. ZAMUREK n'implémente ni fork de Monarque Connect ni moteur Mercur/Medusa/Saleor.
 - **Déploiement** : un seul *data plane* commun possible pour les deux produits, API REST versionnée. Les applications restent installables (Android/Windows) ; pas de frontend web hébergé en production ZAMUREK. Monarque Connect peut garder ses propres canaux si autorisés par sa roadmap.
@@ -27,6 +29,9 @@
 | Factures SaaS | Monarque Connect Billing | Offre produit ZAMUREK spécifique |
 
 ## Migration et sécurité
+
+**Migration interdite avant C0 et décision de compatibilité :** préserver le chemin historique `resolveEffective(organizationId)` et la contrainte d'abonnement existante jusqu'à bascule product-scoped prouvée ; les nouveaux droits partagés sont **par commande**, jamais par ouverture générale du module. V1 POS utilise Invoice canonique obligatoire pour chaque PaymentRecord : aucun `invoiceId` nullable improvisé. Privilégier les ports et les migrations additives en conservant le comportement des clients actuels. Voir B-02/B-03/B-05 de Docs/114.
+
 Migrations **additives, expand/contract, compatibilité API**, sans retirer les champs ni casser les phases clôturées. Exiger tests multi-org, multi-establishment, cross-product, idempotence et rétrocompatibilité. Les flux financiers exigent commandes transactionnelles atomiques ; aucune double écriture par synchronisation webhooks.
 
 ## Alternatives explicitement rejetées
