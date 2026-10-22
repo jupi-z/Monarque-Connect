@@ -1,8 +1,8 @@
 # Phase 10A — preuve de clôture technique
 
-Date de vérification : 21 octobre 2026  
-Dépôt : [`jupi-z/Monarque-Connect`](https://github.com/jupi-z/Monarque-Connect)  
-Commit vérifié sur `main` : [`0909e745ba462784080922fa5e8274bb4ac4a061`](https://github.com/jupi-z/Monarque-Connect/commit/0909e745ba462784080922fa5e8274bb4ac4a061)
+Date de vérification initiale : 21 octobre 2026 ; vérification documentaire finale : 22 octobre 2026
+Dépôt : [`jupi-z/Monarque-Connect`](https://github.com/jupi-z/Monarque-Connect)
+Commit de livraison fonctionnelle vérifié : [`0909e745ba462784080922fa5e8274bb4ac4a061`](https://github.com/jupi-z/Monarque-Connect/commit/0909e745ba462784080922fa5e8274bb4ac4a061). La consolidation documentaire a été fusionnée par PR #149 au commit [`545b9044ff3cafcb6e78d9e668521cdcd629769a`](https://github.com/jupi-z/Monarque-Connect/commit/545b9044ff3cafcb6e78d9e668521cdcd629769a) ; sa CI post-fusion #39641976389 est verte.
 
 ## Décision
 
@@ -41,6 +41,10 @@ Résultats visibles dans les journaux de cette exécution :
 
 La première tentative post-merge (#39618954323, tentative 1) a échoué avant de rendre ses résultats, avec l’annotation GitHub « self-hosted runner lost communication ». Le runner principal a ensuite été réenregistré sous le même nom et les mêmes labels ; la tentative 2 ci-dessus constitue la preuve valide. Aucun échec de test applicatif n’a été signalé par cette tentative interrompue.
 
+### Consolidation documentaire
+
+La PR [#149](https://github.com/jupi-z/Monarque-Connect/pull/149) a mis à jour le statut et la roadmap, puis a été fusionnée au commit `545b9044ff3cafcb6e78d9e668521cdcd629769a`. Sa CI PR [#39639390414](https://github.com/jupi-z/Monarque-Connect/actions/runs/39639390414) a réussi ; la CI post-fusion `main` [#39641976389](https://github.com/jupi-z/Monarque-Connect/actions/runs/39641976389) a également réussi sur ce SHA. L’issue Phase 10A [#141](https://github.com/jupi-z/Monarque-Connect/issues/141) est fermée avec ses gates cochés ; le tracker global [#11](https://github.com/jupi-z/Monarque-Connect/issues/11) a été synchronisé.
+
 ## Contrôles exécutés par le workflow
 
 Le workflow CI a exécuté les contrôles correspondants à :
@@ -75,4 +79,4 @@ Les libellés exacts des gates de migration sont conservés dans les journaux de
 
 La Phase 10A fournit des projections déterministes et des alertes explicables, pas un modèle IA. La Phase 10B reste à cadrer et à autoriser séparément. Les paiements réels, le rapprochement, les sauvegardes/restaurations et la conformité FairScale restent des gates opérationnels externes suivis dans [l’issue #123](https://github.com/jupi-z/Monarque-Connect/issues/123) et [Docs/99](99_PHASE_9_6_OPERATIONAL_CLOSURE_PLAN.md). Aucune disponibilité de production ou conformité réglementaire n’est déduite des résultats CI.
 
-L’issue de suivi Phase 10A est [#141](https://github.com/jupi-z/Monarque-Connect/issues/141) ; elle doit être clôturée après fusion de cette preuve documentaire et réussite de la CI associée.
+L’issue de suivi Phase 10A est [#141](https://github.com/jupi-z/Monarque-Connect/issues/141), clôturée après fusion de la preuve documentaire et réussite de la CI PR et post-fusion.
