@@ -1,5 +1,7 @@
 # 42 — AI-Native Foundation
 
+> **Complément 22/10/2026 :** les principes ci-dessous appartiennent au socle **unique partagé** avec ZAMUREK ([ADR-039](104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md)). Event Fabric + 10A sont livrées ; Gateway/model registry et agents complets restent planifiés en 10B/11.5. Aucun runtime supplémentaire dans ZAMUREK.
+
 ## Décision
 
 Monarque Connect est **AI-native dès ses fondations, mais jamais AI-dependent pour sa vérité transactionnelle**.
