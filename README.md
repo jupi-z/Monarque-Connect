@@ -291,7 +291,7 @@ Monarque Connect ne repose ni sur ERPNext ni sur Frappe.
 4. **Phase 4 — CRM + Network entry — terminée**
    Leads, opportunités, profils publics, confiance, découverte, connexions et `NetworkInquiry → CRM` sont livrés et prouvés. Voir `Docs/70_PHASE_4_CLOSURE_EVIDENCE.md`.
 
-Les phases ventes, achats, opérations, messaging et intelligence viennent ensuite selon la roadmap normative.
+Les phases ventes, achats, opérations, messagerie, FairScale et **10A Intelligence déterministe** sont aujourd'hui techniquement clôturées sur leur périmètre documenté. Les validations externes de commercialisation FairScale 9.6 restent ouvertes. **La phase intermédiaire 10A.5 est planifiée avant 10B**, afin que Monarque Connect devienne le socle commercial transactionnel partagé avec ZAMUREK, sans duplications ; les phases 10B, 11, 11.5 et 12 sont révisées mais non implémentées. Lire [ADR-039](Docs/104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md), [phase 10A.5](Docs/105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md), [roadmap](Docs/21_EXECUTION_ROADMAP.md).
 
 ## Démarrage local
 
@@ -368,6 +368,9 @@ Quelques points d’entrée :
 - [AI-Native Foundation](Docs/42_AI_NATIVE_FOUNDATION.md)
 - [Contrat des Domain Events](Docs/43_DOMAIN_EVENT_CONTRACT.md)
 - [Spécification Event Fabric](Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md)
+- [ADR-039 — Core partagé avec ZAMUREK](Docs/104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md)
+- [Phase intermédiaire 10A.5](Docs/105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md)
+- [Contrats inter-produits](Docs/106_SHARED_PRODUCT_CONTRACTS.md)
 
 Pour toute décision normative, les documents de [Docs/](Docs/) font autorité sur ce README de présentation.
 
