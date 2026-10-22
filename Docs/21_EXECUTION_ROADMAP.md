@@ -150,7 +150,7 @@ Implémenter cycle souscription payante, échéances, promotion welcome à usage
 
 ### 10A.5 — Convergence architecturale et Core omnicanal Monarque Connect × ZAMUREK
 
-**État : PLANIFIÉE / NON IMPLÉMENTÉE** au 22 octobre 2026. Décision proposée par [ADR-039](104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md), [spécification](105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md), [contrats](106_SHARED_PRODUCT_CONTRACTS.md), [recette](107_PHASE_10A5_ACCEPTANCE_GATES.md) et [progression](108_PHASE_10A5_PROGRESS_PLAN.md).
+**État : PLANIFIÉE / NON IMPLÉMENTÉE** au 22 octobre 2026. **Frontières techniques opposables avant toute migration** : [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md) B-00→B-09 ; résolution de la compatibilité des souscriptions, des permissions POS et de l'Invoice canonique, tests C0 et CI sur SHA exact avant C1–C5. Décision proposée par [ADR-039](104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md), [spécification](105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md), [contrats](106_SHARED_PRODUCT_CONTRACTS.md), [recette](107_PHASE_10A5_ACCEPTANCE_GATES.md) et [progression](108_PHASE_10A5_PROGRESS_PLAN.md).
 
 Insérée immédiatement après la clôture technique de 10A, **avant d'implémenter 10B**. Créer une seule architecture transactionnelle pour les deux produits, sans reprise des phases closes : vente omnicanale, commande canonique, POS cash transactionnel, paiements/mouvements cohérents, documents imprimables/fiscalité sous gate, tarification canaux, identité publique/walk-in, entitlements produits, scopes tenants/établissements, contrats events/outils IA et APIs versions.
 
