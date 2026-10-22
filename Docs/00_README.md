@@ -97,6 +97,7 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `111_PHASE_11_5_SHARED_AGENT_READINESS_PLAN.md` | Phase 11.5 Agent Runtime unique |
 | `112_PHASE_12_DUAL_PRODUCT_HARDENING_PLAN.md` | Phase 12 gates Core/produits distincts |
 | `113_CODEX_PHASE_10A5_FIRST_PROMPT.md` | Premier prompt Codex Core 10A.5, sous revue préalable |
+| `114_PHASE_10A5_BOUNDARY_INVARIANTS.md` | Arbitrages de sécurité / compatibilité : Auth, abonnements multi-produits, POS/Invoice/Cash, RBAC, FX, fiscalité, stockage, CI et release gates |
 
 ## Gel documentaire
 
