@@ -1,6 +1,6 @@
 # 102 — Statut Phase 10A : Intelligence déterministe
 
-**État : clôturée techniquement**, sur `main@0909e745ba462784080922fa5e8274bb4ac4a061` (21/10/2026). La clôture couvre le périmètre déterministe de la Phase 10A et ses gates de code/CI ; elle ne constitue ni une validation de production commerciale FairScale ni l’ouverture de la Phase 10B.
+**État : clôturée techniquement.** Le dernier commit de livraison fonctionnelle est `0909e745ba462784080922fa5e8274bb4ac4a061` ; la consolidation documentaire a été fusionnée par PR #149 au commit `545b9044ff3cafcb6e78d9e668521cdcd629769a` (21/10/2026). La CI post-fusion sur ce dernier commit a réussi (run [#39641976389](https://github.com/jupi-z/Monarque-Connect/actions/runs/39641976389)). La clôture couvre le périmètre déterministe de la Phase 10A et ses gates de code/CI ; elle ne constitue ni une validation de production commerciale FairScale ni l’ouverture de la Phase 10B.
 
 **Spécification :** [Docs/101](101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md).
 
@@ -36,4 +36,4 @@ La Phase 10B (IA/probabiliste), le frontend et tout agrégat inter-tenant sont h
 
 ## Gouvernance
 
-Les livraisons ont suivi branche dédiée → PR → CI requise → fusion. Aucun push direct sur `main` n’a été effectué pour la Phase 10A. La fermeture de l’issue #141 doit accompagner la fusion de Docs/103 et la vérification de sa CI post-fusion.
+Les livraisons ont suivi branche dédiée → PR → CI requise → fusion. Aucun push direct sur `main` n’a été effectué pour la Phase 10A. L’issue #141 a été clôturée après fusion de Docs/103 dans la PR #149 et vérification de la CI post-fusion sur le commit `545b9044ff3cafcb6e78d9e668521cdcd629769a`.

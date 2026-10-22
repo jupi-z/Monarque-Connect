@@ -4,8 +4,8 @@ Monarque Connect est un **Business Operating Network** conçu pour aider les ent
 
 Le produit combine dans un même écosystème un **réseau économique entre entreprises**, un **Business OS opérationnel**, une **couche d’intelligence** et un **Control Plane SaaS**. Le backend est autonome et **100 % API-first** : les interfaces Web, mobile ou administrateur sont des clients séparés et remplaçables.
 
-> **État du projet au 20 octobre 2026**
-> Les Phases **0 à 9 et 9.5 sont clôturées**. La Phase 9.6 est techniquement stabilisée sur `main@26cf9c5` avec CI post-fusion #39397452560 verte ; les gates de paiement réel et conformité restent ouverts et bloquent la commercialisation, pas le travail backend de Phase 10A. La Phase **10A — Intelligence déterministe est ouverte** selon [Docs/101](Docs/101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md) et [Docs/102](Docs/102_PHASE_10A_STATUS.md). Les Phases 10B, 11, 11.5 et 12 restent à faire. Les modules décrits ci-dessous peuvent représenter la cible, pas une garantie de disponibilité complète.
+> **État du projet au 22 octobre 2026**
+> Les Phases **0 à 9, 9.5 et 10A sont clôturées techniquement**. La Phase 9.6 est techniquement stabilisée sur `main@26cf9c5` avec CI post-fusion #39397452560 verte ; les gates de paiement réel et conformité restent ouverts et bloquent la commercialisation, pas le développement backend. La Phase **10A — Intelligence déterministe** est clôturée selon [Docs/102](Docs/102_PHASE_10A_STATUS.md) et les preuves CI de [Docs/103](Docs/103_PHASE_10A_CLOSURE_EVIDENCE.md). La Phase 10B reste à cadrer ; les Phases 11, 11.5 et 12 restent à faire. Les modules décrits ci-dessous peuvent représenter la cible, pas une garantie de disponibilité complète.
 
 ## Pourquoi Monarque Connect ?
 
