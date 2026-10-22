@@ -1,6 +1,6 @@
 # Phase 12 — Hardening / release à deux produits
 
-**PLANNED.** Une seule infrastructure Core et deux offres indépendantes. Monarque Connect ne doit pas dépendre du fait que ZAMUREK soit activé pour continuer ses flux Business OS.
+**PLANNED.** Une seule infrastructure Core et deux offres indépendantes. Monarque Connect ne doit pas dépendre du fait que ZAMUREK soit activé pour continuer ses flux Business OS. **Invariants de compatibilité et de disponibilité** : [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md) B-00–B-09.
 
 ## Couverture obligatoire
 - **Rétrocompatibilité** : ancien parcours quote→order→invoice→payment, achats, inventaire, cash, réseau et FairScale ; compatibilité des applications clients installées.
@@ -14,4 +14,7 @@
 - LaJoie Mall : **partenariat non conclu**, aucune publication de marque/accord fictif ; tests seulement venues synthétiques.
 
 ## Clôture
+
+**Gates de release séparés et vérifiables** : `CORE_TECHNICAL_ACCEPTED` après CI+tests de charge/soak, sécurité, migrations et restore ; `MONARQUE_CONNECT_COMMERCIAL_GO` seulement après ses preuves opérationnelles et FairScale #123 ; `ZAMUREK_COMMERCIAL_GO` seulement après contrats clients, POS sur matériel réel, stockage documentaire de production, juridique/fiscalité et payment provider si applicable. Fournisseur IA hors service n'arrête pas les ventes. Une preuve de simulation ne peut pas être comptée comme homologation.
+
 P0/P1 pass sur tests réels, CI, build, environnement, legal releases et rapports horodatés. Les gates externes FairScale 9.6 restent ouverts sans preuve ; ne jamais forcer leur clôture depuis la Phase 12.
