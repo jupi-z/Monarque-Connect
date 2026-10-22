@@ -3,6 +3,7 @@ import { join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import pg from 'pg';
+import { assertMigrationSet } from './migration-proof-utils.mjs';
 
 const { Pool } = pg;
 const sourceMigrationsPath = join(process.cwd(), 'prisma', 'migrations');
@@ -72,7 +73,7 @@ async function seed(databaseUrl) {
 async function appliedNames(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   try {
-    return (await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name'))
+    return (await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name'))
       .rows.map((row) => row.migration_name);
   } finally { await pool.end(); }
 }
@@ -157,25 +158,13 @@ try {
   await seed(databaseUrls.empty);
   await seed(databaseUrls.empty);
   const emptyApplied = await appliedNames(databaseUrls.empty);
-  if (emptyApplied.length !== migrationDirectories.length || emptyApplied.at(-1) !== migrationDirectories.at(-1)) {
-    const appliedSet = new Set(emptyApplied);
-    const sourceSet = new Set(migrationDirectories);
-    const missing = migrationDirectories.filter((name) => !appliedSet.has(name));
-    const unexpected = emptyApplied.filter((name) => !sourceSet.has(name));
-    throw new Error(
-      `Phase 10A empty-database migration set mismatch: expected ${migrationDirectories.length} migrations ending with ` +
-      `${migrationDirectories.at(-1)}, found ${emptyApplied.length} ending with ${emptyApplied.at(-1)}; ` +
-      `missing=[${missing.join(', ')}], unexpected=[${unexpected.join(', ')}]`,
-    );
-  }
+  assertMigrationSet(emptyApplied, migrationDirectories, 'Phase 10A empty database');
 
   await writeMigrationSet(baselineMigrationDirectories);
   await migrate(databaseUrls.upgrade);
   await seed(databaseUrls.upgrade);
   const upgradeBefore = await appliedNames(databaseUrls.upgrade);
-  if (upgradeBefore.length !== baselineMigrationDirectories.length || upgradeBefore.at(-1) !== baselineMigrationDirectories.at(-1)) {
-    throw new Error('Phase 9.6 upgrade baseline mismatch');
-  }
+  assertMigrationSet(upgradeBefore, baselineMigrationDirectories, 'Phase 9.6 upgrade baseline');
   const beforeCounts = await sourceCounts(databaseUrls.upgrade);
 
   await writeMigrationSet(migrationDirectories);
@@ -184,9 +173,7 @@ try {
   await seed(databaseUrls.upgrade);
   await seed(databaseUrls.upgrade);
   const upgradeAfter = await appliedNames(databaseUrls.upgrade);
-  if (upgradeAfter.length !== migrationDirectories.length || upgradeAfter.at(-1) !== migrationDirectories.at(-1)) {
-    throw new Error('Phase 10A upgrade migration set mismatch');
-  }
+  assertMigrationSet(upgradeAfter, migrationDirectories, 'Phase 10A upgrade');
   const afterCounts = await sourceCounts(databaseUrls.upgrade);
   if (JSON.stringify(beforeCounts) !== JSON.stringify(afterCounts)) throw new Error('Projection migration changed Phase 9.6 source-table row counts');
 

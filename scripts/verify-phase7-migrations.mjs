@@ -3,6 +3,7 @@ import { join, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import pg from 'pg';
+import { assertMigrationSet } from './migration-proof-utils.mjs';
 
 const { Pool } = pg;
 const sourceMigrationsPath = join(process.cwd(), 'prisma', 'migrations');
@@ -48,7 +49,7 @@ async function runSeed(databaseUrl) {
 async function databaseExists(pool, name) { return (await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [name])).rowCount === 1; }
 async function createDatabase(pool, name) { if (!await databaseExists(pool, name)) await pool.query(`CREATE DATABASE "${name}"`); }
 async function dropDatabase(pool, name) { if (await databaseExists(pool, name)) await pool.query(`DROP DATABASE "${name}" WITH (FORCE)`); }
-async function appliedNames(databaseUrl) { const pool = new Pool({ connectionString: databaseUrl }); try { const result = await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY finished_at, migration_name'); return result.rows.map((row) => row.migration_name); } finally { await pool.end(); } }
+async function appliedNames(databaseUrl) { const pool = new Pool({ connectionString: databaseUrl }); try { const result = await pool.query('SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY migration_name'); return result.rows.map((row) => row.migration_name); } finally { await pool.end(); } }
 
 async function structuralProof(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
@@ -95,7 +96,7 @@ try {
   await createDatabase(adminPool, databaseNames.empty); await createDatabase(adminPool, databaseNames.upgrade);
   await writeMigrationSet(migrationDirectories); await runMigrateDeploy(databaseUrls.empty);
   const emptyNames = await appliedNames(databaseUrls.empty);
-  if (emptyNames.length !== migrationDirectories.length || emptyNames.at(-1) !== migrationDirectories.at(-1)) throw new Error(`Phase 7 empty baseline mismatch: expected ${migrationDirectories.length} migrations ending at ${migrationDirectories.at(-1)}, got ${emptyNames.length} ending at ${emptyNames.at(-1)}`);
+  assertMigrationSet(emptyNames, migrationDirectories, 'Phase 7 empty baseline');
   await structuralProof(databaseUrls.empty);
   await runSeed(databaseUrls.empty); await runSeed(databaseUrls.empty);
   const emptyPool = new Pool({ connectionString: databaseUrls.empty });
@@ -107,10 +108,10 @@ try {
   } finally { await emptyPool.end(); }
   await writeMigrationSet(phase6MigrationDirectories); await runMigrateDeploy(databaseUrls.upgrade);
   const phase6Names = await appliedNames(databaseUrls.upgrade);
-  if (phase6Names.length !== phase6MigrationDirectories.length || phase6Names.at(-1) !== phase6MigrationDirectories.at(-1)) throw new Error(`Phase 6 upgrade baseline mismatch: expected ${phase6MigrationDirectories.length} migrations ending at ${phase6MigrationDirectories.at(-1)}, got ${phase6Names.length} ending at ${phase6Names.at(-1)}`);
+  assertMigrationSet(phase6Names, phase6MigrationDirectories, 'Phase 6 upgrade baseline');
   await writeMigrationSet(migrationDirectories); await runMigrateDeploy(databaseUrls.upgrade);
   const finalNames = await appliedNames(databaseUrls.upgrade);
-  if (finalNames.length !== migrationDirectories.length || finalNames.at(-1) !== migrationDirectories.at(-1)) throw new Error(`Phase 7 upgrade mismatch: expected ${migrationDirectories.length} migrations ending at ${migrationDirectories.at(-1)}, got ${finalNames.length} ending at ${finalNames.at(-1)}`);
+  assertMigrationSet(finalNames, migrationDirectories, 'Phase 7 upgrade');
   await structuralProof(databaseUrls.upgrade);
   await runSeed(databaseUrls.upgrade); await runSeed(databaseUrls.upgrade);
   console.log(`Phase 7 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 6 upgrade (${phase6MigrationDirectories.length} + ${phase7MigrationDirectories.length} migrations), idempotent reference seed, and no operational fixtures.`);
