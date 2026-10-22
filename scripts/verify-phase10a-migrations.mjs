@@ -158,7 +158,15 @@ try {
   await seed(databaseUrls.empty);
   const emptyApplied = await appliedNames(databaseUrls.empty);
   if (emptyApplied.length !== migrationDirectories.length || emptyApplied.at(-1) !== migrationDirectories.at(-1)) {
-    throw new Error('Phase 10A empty-database migration set mismatch');
+    const appliedSet = new Set(emptyApplied);
+    const sourceSet = new Set(migrationDirectories);
+    const missing = migrationDirectories.filter((name) => !appliedSet.has(name));
+    const unexpected = emptyApplied.filter((name) => !sourceSet.has(name));
+    throw new Error(
+      `Phase 10A empty-database migration set mismatch: expected ${migrationDirectories.length} migrations ending with ` +
+      `${migrationDirectories.at(-1)}, found ${emptyApplied.length} ending with ${emptyApplied.at(-1)}; ` +
+      `missing=[${missing.join(', ')}], unexpected=[${unexpected.join(', ')}]`,
+    );
   }
 
   await writeMigrationSet(baselineMigrationDirectories);
