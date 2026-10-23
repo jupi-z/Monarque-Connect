@@ -10,7 +10,8 @@
 | G-04 Entitlements | P0 | subscription par produit, resolver legacy MC préservé, suspension ZAMUREK sans suspendre MC, BASIC n'ouvre pas CRM/PURCHASES/Enterprise |
 | G-05 Orders/claims | P0 | Sale POS/online partage SalesOrder + Invoice canoniques, PaymentRecord.invoiceId obligatoire, walk-in sans compte public, double retry retourne même résultat |
 | G-06 Cash atomicity | P0 | un tender validé = Invoice + PaymentRecord + CashMovement net si espèces, stock/sessions/RBAC, zéro doublon, rendu monnaie exact, clôture caisse |
-| G-07 Documents | P0 | A4/thermique local depuis document versionné en stockage durable réel ; séparation reçu / facture légale ; fiscalisation fausse impossible ; dossier légal RDC |
+| G-07T Documents techniques | P0 | Rendu A4/thermique à partir d'un document versionné, stockage durable réel, checksum/récupération, séparation `RECEIPT` / `TAX_INVOICE`, aucune fausse déclaration de fiscalisation ; tests techniques prouvés |
+| G-07E Fiscalité et autorisations externes | EXTERNAL | Règles fiscales RDC confirmées, homologation/autorisation du circuit concerné et dossier légal vérifié par les responsables compétents ; bloque `COMMERCIAL_GO`, mais ne transforme pas les tests techniques en `NOT_RUN` |
 | G-08 FX | P0 | 125g à 20 USD/kg × 2360 = 5900 CDF, decimal exact ; taux changé ne modifie pas ordre émis |
 | G-09 Event Fabric & AI | P0 | EventEnvelope commun, agent cross-tenant refusé, action financière exige confirmation et audit |
 | G-10 Venue/vertical adapter | P1 | Deux marchands opt-in; listing public seulement; séparation réelle des commandes et fonds |
@@ -28,7 +29,7 @@ Le statut des phases closes reste clos. Pas de « 100% » sans logs/test/commit 
 ## Statuts de fermeture distincts — complément normatif
 
 - **TECH_PASS** : critères techniques G-01–G-14 réellement prouvés (commit, migrations, PostgreSQL, tests de sécurité/E2E et CI). `NOT_RUN` ou `BLOCKED` ne devient pas `PASS` par une simple documentation.
-- **EXTERNAL_PENDING** : homologation fiscale, PSP réel, mandats, conformité ou impression matérielle non prouvés. Ces faits restent explicitement ouverts et interdisent le **COMMERCIAL_GO** du flux concerné, sans empêcher de reconnaître les critères techniques effectivement passés.
+- **EXTERNAL_PENDING** : règles/homologation fiscales RDC, PSP réel, mandats, conformité ou validation matérielle non prouvés. Ces faits restent explicitement ouverts et interdisent le **COMMERCIAL_GO** du flux concerné, sans empêcher de reconnaître les critères techniques effectivement passés. Le dossier légal RDC et l'homologation sont suivis comme G-07E externe, pas comme réussite technique G-07T.
 - **RELEASE_GO** : décisions distinctes Core, Monarque Connect et ZAMUREK, après prérequis techniques **et** externes applicables. Aucun critère légal n'est réputé rempli faute de preuve.
 
-Avant G-05/06, prouver que `PaymentRecord.invoiceId` demeure non-null, que chaque vente POS réussie a une Invoice canonique, et que les anciens KPI 10A demeurent exacts (Docs/114 B-03). Toute alternative nécessite une nouvelle ADR avant migration.
+Avant G-05/06, prouver que `PaymentRecord.invoiceId` demeure non-null, que chaque vente POS réussie a une Invoice canonique, et que les anciens KPI 10A demeurent exacts (Docs/114 B-03). Toute alternative nécessite une nouvelle ADR avant migration. Le contrat public est `ConfirmPosSale` pour finaliser le POS local ; `CapturePosTender` n'est qu'un port interne. Les PSP utilisent une intention durable et une finalisation déclenchée par preuve webhook vérifiée, jamais une capture client.

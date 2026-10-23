@@ -1,5 +1,7 @@
 # Phase 10A.5 — suivi et progression (modèle)
 
+Le rapport [d'audit C0 de la baseline](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente les constats initiaux ; il ne transforme pas C0 en accepté et n'ajoute aucun crédit à la progression. Garder tous les lots à `PLANNED`/`NOT_RUN` tant que leurs gates et leurs preuves ne sont pas effectivement validés.
+
 **Statut initial = PLANNED, progression technique vérifiée = 0 %.** Tous les domaines C0–C8 et les critères G-01–G-14 restent soumis à [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md) ; un blocage légal ou de paiement ne se transforme pas en réussite technique fictive.
 
 | Lot | Poids | Dépendances |
