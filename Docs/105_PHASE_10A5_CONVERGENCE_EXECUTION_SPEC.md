@@ -3,7 +3,7 @@
 **Statut au 22/10/2026 : PLANIFICATION / NON IMPLÉMENTÉ.** Entre **10A clôturée** et **10B**. La présente phase ne se substitue ni aux gates externes FairScale 9.6 ni à 11/11.5/12.
 
 ## Objectif / résultat
-Obtenir **un seul Core transactionnel** intégrable par ZAMUREK, sans rupture des modules en production potentielle, avec APIs/contracts/policies partagés, mécanisme POS et pricing intégrables. La phase s'exécute dans le dépôt **privé** `jupi-z/Monarque-Connect`. Les clients et spécifications verticales restent dans `jupi-z/ZAMUREK` (**public** jusqu'à changement autorisé).
+Obtenir **un seul Core transactionnel** intégrable par ZAMUREK, sans rupture des modules en production potentielle, avec APIs/contracts/policies partagés, mécanisme POS et pricing intégrables. La phase s'exécute dans le dépôt **privé** `jupi-z/Monarque-Connect`. Pendant les phases techniques Monarque Connect 10A.5, 10B, 11, 11.5 et 12, le dépôt `jupi-z/ZAMUREK` reste limité au cadrage documentaire et à la revue de contrats inter-dépôts. Le code des clients, SDK, intégrations runtime et verticales ZAMUREK ne commence qu'après clôture technique de ces phases et CI post-fusion verte pour chacune; les gates externes commerciaux ou juridiques restent distincts.
 
 **Frontières gelées avant toute migration :** [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), B-00→B-09. [L'audit C0 de la baseline](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) confirme que le gate reste `IN_PROGRESS` et identifie les preuves manquantes. C0 doit démontrer l'absence de conflits non résolus avec les modèles et APIs déjà livrés ; en cas de divergence, corriger l'ADR ou le plan avant C1–C5. L'ajout d'un produit ne change ni les API historiques Monarque Connect, ni son `defaultCurrency`, ni ses souscriptions existantes.
 
@@ -20,7 +20,7 @@ Obtenir **un seul Core transactionnel** intégrable par ZAMUREK, sans rupture de
 | C7 Public/merchant API façade | Contrats REST/OpenAPI versionnés, API public catalogue/menu/slot scope limité, API staff POS, tests e2e avec doubles clients et entitlements | Aucun accès factures/clients d'un merchant voisin ni données personnelles venue |
 | C8 Release/proof | Migration empty DB + upgrade 10A / 9.6, tests unit/e2e/perf ciblés, documentation et modèle de preuves, DI/compatibilité | CI PR et `main` vertes, aucune régression phases 1–10A, rapport traçable |
 
-**C4 et C5** peuvent être livrés dans une sous-phase de hardening POS *à la suite* de C0–C3, mais la **clôture finale de 10A.5** exige tous les critères C0–C8. ZAMUREK peut commencer ses **clients/verticales** après gel de C0–C3/C6/C7 et contrat en place, sans attendre tous les tickets de caisse, mais ne peut pas déclarer ses flux financiers terminés avant C4–C5.
+**C4 et C5** peuvent être livrés dans une sous-phase de hardening POS *à la suite* de C0–C3, mais la **clôture finale de 10A.5** exige tous les critères C0–C8. Le développement des **clients/verticales ZAMUREK** est reporté jusqu'à la clôture technique de Monarque Connect 10A.5, 10B, 11, 11.5 et 12, avec CI post-fusion verte sur chaque phase. Le gel des contrats C0–C3/C6/C7 est un prérequis d'intégration, pas une autorisation anticipée; aucune vente ZAMUREK ne peut être considérée prête avant les preuves C4–C5 et les gates applicables.
 
 ## Principes d'intégration
 
