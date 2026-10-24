@@ -19,6 +19,7 @@ This change is limited to CI orchestration, test execution boundaries, determini
 | [#439](https://github.com/jupi-z/Monarque-Connect/actions/runs/40092635128), attempt 2 | Same PR/head | Success after rerun | GitHub run attempt and job conclusion |
 | [#443](https://github.com/jupi-z/Monarque-Connect/actions/runs/40109257225), attempt 2 | PR #152, `3da05fd41aca61ac8bdc04d970803fe0b873577e` | `npm test` passed 373 tests; a subsequent standalone E2E step repeated E2E and failed 2 of 23 | Downloaded complete job log |
 | [#446](https://github.com/jupi-z/Monarque-Connect/actions/runs/40116083980) | PR #156, `65f151bcd4eb9ea5add5764f23615679a9faddce` | Five failures: four CRM 403 responses and one Phase 1 organization-create 409 | Downloaded complete job log |
+| [#40127474647](https://github.com/jupi-z/Monarque-Connect/actions/runs/40127474647) | Workflow dispatch, initial stabilization SHA `bb9d9953688b4667dea6c9c0ea45dd482c723218` | Failed before checkout: `actions/setup-node@v4` archive download from `codeload.github.com` timed out three times (100 seconds each) | Complete runner setup log |
 
 The full logs do not include the CRM problem response bodies, the authorization decision projection, the SQL state at failure, or the Prisma constraint metadata for the 409. Those facts cannot be reconstructed from a later successful execution.
 
@@ -52,7 +53,7 @@ The integration and E2E configurations now serialize files and tests within thei
 
 The reusable workflow now creates `monarque-ci-postgres-${{ github.run_id }}-${{ github.run_attempt }}` for every job, asks Docker to allocate a free host port, derives the connection URL from that port, and removes that exact container under `if: always()`. The E2E database is created and migrated separately within that per-run container. The prior externally supplied database URL/host/port path was removed because it allowed jobs and the repeated E2E step to share state and bypassed the local-test database guard.
 
-The self-hosted runner skips both the npm cache and `setup-node`: its previous large cache restore timed out, and run #40127474647 failed before checkout of the project because downloading `actions/setup-node@v4` from `codeload.github.com` timed out three times. The runner already has Node.js 24.22.0/npm 11.19.1; CI now verifies the self-hosted Node major version locally and fails immediately if it drifts. GitHub-hosted runners retain `setup-node` and npm caching. Runner labels preserve the isolated PR runner for same-repository PR code and the primary runner for trusted dispatch/main validation. No persistent database or shared container is used by the workflow.
+The self-hosted runner skips both the npm cache and `setup-node`: its previous large cache restore timed out, and run [#40127474647](https://github.com/jupi-z/Monarque-Connect/actions/runs/40127474647) failed before checkout because downloading `actions/setup-node@v4` from `codeload.github.com` timed out three times (100 seconds each). A step-level `if` does not prevent the Actions runner from downloading an action archive during job preparation. Therefore CI now has separate self-hosted and GitHub-hosted reusable workflow wrappers. The self-hosted workflow does not reference `setup-node` at all and verifies the installed Node.js major version locally; the hosted fork workflow retains `setup-node` and npm caching. The runners currently have Node.js 24.22.0/npm 11.19.1. Runner labels preserve the isolated PR runner for same-repository PR code and the primary runner for trusted dispatch/main validation. No persistent database or shared container is used by the workflow.
 
 The local mirror `scripts/ci-local.ps1` was also changed to launch a uniquely named disposable PostgreSQL container on an OS-assigned port and remove only that container in `finally`. It no longer uses `docker compose down`, drops a fixed-name test database, or stops the developer's shared Compose PostgreSQL service. Its `npm test` step is the sole test invocation; E2E is not repeated.
 
@@ -117,3 +118,5 @@ The final review should verify the PR diff, CI run SHA for each execution, compl
 - [Incident run #446](https://github.com/jupi-z/Monarque-Connect/actions/runs/40116083980)
 - [Backend CI workflow](../.github/workflows/backend-ci.yml)
 - [Reusable backend CI workflow](../.github/workflows/backend-ci-reusable.yml)
+- [Hosted runner workflow](../.github/workflows/backend-ci-hosted-reusable.yml)
+- [Shared validation action](../.github/actions/backend-ci-validation/action.yml)
