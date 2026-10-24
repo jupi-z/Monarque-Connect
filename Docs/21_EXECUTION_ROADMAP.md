@@ -154,7 +154,7 @@ Implémenter cycle souscription payante, échéances, promotion welcome à usage
 
 Insérée immédiatement après la clôture technique de 10A, **avant d'implémenter 10B**. Créer une seule architecture transactionnelle pour les deux produits, sans reprise des phases closes : vente omnicanale, commande canonique, POS cash transactionnel, paiements/mouvements cohérents, documents imprimables/fiscalité sous gate, tarification canaux, identité publique/walk-in, entitlements produits, scopes tenants/établissements, contrats events/outils IA et APIs versions.
 
-**Gate de départ des clients ZAMUREK** : contrats d'intégration Core (C0–C3/C6/C7) gelés et testables ; les interfaces peuvent progresser ensuite en parallèle, mais pas déclarer de ventes prêtes avant C4–C5. **Gate de clôture 10A.5** : tous les critères G-01→G-14 réellement prouvés. Aucun déploiement production implicite ni fermeture des dépendances externes de FairScale 9.6.
+**Séquence inter-dépôts obligatoire** : le dépôt ZAMUREK reste en cadrage documentaire et revue de contrats uniquement pendant les travaux Monarque Connect. Aucun code de client, SDK, intégration runtime ou verticale ZAMUREK ne commence avant la clôture technique des phases Monarque Connect 10A.5, 10B, 11, 11.5 et 12, chacune accompagnée de ses gates prouvés et d'une CI post-fusion verte. Le gel des contrats C0–C3/C6/C7 demeure un prérequis d'intégration, mais ne réduit pas cette séquence. Les gates externes FairScale 9.6, juridiques et commerciaux restent suivis séparément et ne sont pas déclarés satisfaits par la clôture technique.
 
 ### 10B — probabiliste gouverné, commun aux deux produits
 
