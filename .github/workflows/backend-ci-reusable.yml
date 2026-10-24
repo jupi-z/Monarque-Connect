@@ -36,6 +36,8 @@ jobs:
     env:
       NODE_ENV: test
       PORT: 3000
+      CI_RESOURCE_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
+      DATABASE_HOST: ${{ inputs.database-host }}
       DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || format('postgresql://postgres:postgres@{0}:{1}/monarque_connect_test', inputs.database-host, inputs.database-port) }}
 
     steps:
@@ -49,26 +51,31 @@ jobs:
       - name: Start isolated PostgreSQL when no external database is supplied
         if: ${{ inputs.database-url == '' }}
         run: |
-          docker rm -f monarque-ci-postgres >/dev/null 2>&1 || true
-          docker network create monarque-ci-net >/dev/null 2>&1 || true
-          docker run -d --name monarque-ci-postgres \
-            --network monarque-ci-net \
+          CONTAINER_NAME="monarque-ci-postgres-${CI_RESOURCE_SUFFIX}"
+          docker run -d --name "$CONTAINER_NAME" \
             -e POSTGRES_USER=postgres \
             -e POSTGRES_PASSWORD=postgres \
             -e POSTGRES_DB=monarque_connect_test \
-            -p 55432:5432 \
+            -p 127.0.0.1::5432 \
             --health-cmd='pg_isready -U postgres' \
             --health-interval=10s \
             --health-timeout=5s \
             --health-retries=5 \
             postgres:17
+          HOST_PORT="$(docker port "$CONTAINER_NAME" 5432/tcp | head -n 1 | sed -E 's/.*:([0-9]+)$/\1/')"
+          if [[ ! "$HOST_PORT" =~ ^[0-9]+$ ]]; then
+            docker logs "$CONTAINER_NAME"
+            echo "Could not determine the isolated PostgreSQL host port" >&2
+            exit 1
+          fi
+          echo "DATABASE_URL=postgresql://postgres:postgres@${DATABASE_HOST}:${HOST_PORT}/monarque_connect_test" >> "$GITHUB_ENV"
           for i in $(seq 1 30); do
-            if docker inspect --format '{{.State.Health.Status}}' monarque-ci-postgres | grep -q healthy; then
+            if docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_NAME" | grep -q healthy; then
               exit 0
             fi
             sleep 2
           done
-          docker logs monarque-ci-postgres
+          docker logs "$CONTAINER_NAME"
           exit 1
       - name: Install dependencies
         run: npm ci
@@ -115,6 +122,8 @@ jobs:
       - run: npm run build
       - name: Smoke HTTP health endpoints
         run: |
+          APP_PORT="$(node -e "const net=require('node:net'); const server=net.createServer(); server.listen(0, '127.0.0.1', () => { process.stdout.write(String(server.address().port)); server.close(); });")"
+          export PORT="$APP_PORT"
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/monarque-jwt-private.pem
           openssl rsa -pubout -in /tmp/monarque-jwt-private.pem -out /tmp/monarque-jwt-public.pem
           export JWT_ISSUER=monarque-connect-ci
@@ -126,13 +135,13 @@ jobs:
           APP_PID=$!
           trap 'kill $APP_PID 2>/dev/null || true' EXIT
           for i in $(seq 1 20); do
-            if curl -fsS http://127.0.0.1:3000/api/v1/health/live > /dev/null; then
+            if curl -fsS "http://127.0.0.1:${APP_PORT}/api/v1/health/live" > /dev/null; then
               break
             fi
             sleep 1
           done
-          curl -fsS http://127.0.0.1:3000/api/v1/health/live
-          curl -fsS http://127.0.0.1:3000/api/v1/health/ready
+          curl -fsS "http://127.0.0.1:${APP_PORT}/api/v1/health/live"
+          curl -fsS "http://127.0.0.1:${APP_PORT}/api/v1/health/ready"
       - name: Cleanup isolated PostgreSQL
         if: ${{ always() && inputs.database-url == '' }}
-        run: docker rm -f monarque-ci-postgres >/dev/null 2>&1 || true
+        run: docker rm -f "monarque-ci-postgres-${CI_RESOURCE_SUFFIX}" >/dev/null 2>&1 || true
