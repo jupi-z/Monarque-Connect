@@ -25,7 +25,6 @@ describe('Phase 6 Purchases E2E', () => {
   let secondaryEstablishmentId = '';
   let otherOrganizationId = '';
   let supplierPartyId = '';
-  let primaryOrderId = '';
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await generateKeyPairAsync('rsa', { modulusLength: 2048 });
@@ -92,7 +91,6 @@ describe('Phase 6 Purchases E2E', () => {
     const order = bodyOf<{ id: string; lines: Array<{ id: string }>; status: string }>(await request(server()).post(`/api/v1/organizations/${buyerOrganizationId}/purchase-orders`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'phase6-e2e-order-create').send({ establishmentId: buyerEstablishmentId, sourceSupplierRfqId: rfq.id, sourceRecipientId: recipient.id, currency: 'EUR', lines: [{ sourceRfqLineId: rfqLine.id, descriptionSnapshot: 'ignored', unitSnapshot: 'ignored', quantity: '5', unitPrice: '10', taxMode: 'EXCLUSIVE', taxRate: '0' }] }).expect(201));
     const orderLine = order.lines[0];
     if (!orderLine) throw new Error('Purchase Order response is incomplete');
-    primaryOrderId = order.id;
     expect(order.status).toBe('DRAFT');
 
     await request(server()).post(`/api/v1/organizations/${buyerOrganizationId}/purchase-orders/${order.id}/send`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'phase6-e2e-order-send').expect(200);
@@ -116,8 +114,9 @@ describe('Phase 6 Purchases E2E', () => {
   });
 
   it('enforces tenant and selected-establishment isolation for Purchases', async () => {
+    const primaryOrder = bodyOf<{ id: string }>(await request(server()).post(`/api/v1/organizations/${buyerOrganizationId}/purchase-orders`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'phase6-e2e-isolation-primary-order').send({ establishmentId: buyerEstablishmentId, supplierPartyId, currency: 'EUR', lines: [{ descriptionSnapshot: 'Primary steel', unitSnapshot: 'KG', quantity: '1', unitPrice: '10', taxMode: 'EXCLUSIVE', taxRate: '0' }] }).expect(201));
     await request(server()).get(`/api/v1/organizations/${buyerOrganizationId}/purchase-orders`).set('Authorization', `Bearer ${otherToken}`).expect(403);
-    await request(server()).get(`/api/v1/organizations/${buyerOrganizationId}/purchase-orders/${primaryOrderId}`).set('Authorization', `Bearer ${scopedToken}`).expect(403);
+    await request(server()).get(`/api/v1/organizations/${buyerOrganizationId}/purchase-orders/${primaryOrder.id}`).set('Authorization', `Bearer ${scopedToken}`).expect(403);
 
     const secondaryOrder = bodyOf<{ id: string }>(await request(server()).post(`/api/v1/organizations/${buyerOrganizationId}/purchase-orders`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'phase6-e2e-secondary-order').send({ establishmentId: secondaryEstablishmentId, supplierPartyId, currency: 'EUR', lines: [{ descriptionSnapshot: 'Secondary steel', unitSnapshot: 'KG', quantity: '1', unitPrice: '10', taxMode: 'EXCLUSIVE', taxRate: '0' }] }).expect(201));
     await request(server()).get(`/api/v1/organizations/${buyerOrganizationId}/purchase-orders/${secondaryOrder.id}`).set('Authorization', `Bearer ${scopedToken}`).expect(200);

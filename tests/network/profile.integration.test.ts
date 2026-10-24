@@ -89,11 +89,14 @@ describe('Network organization profiles', () => {
   });
 
   it('does not reveal a private profile and records one audit and one event per effective mutation', async () => {
+    await request(serverOf(app)).patch(`/api/v1/organizations/${organizationId}/network-profile`).set('Authorization', `Bearer ${ownerToken}`).send({ isPublic: true, displayName: 'Temporary public profile', categories: ['consulting'], publishedItemIds: [] }).expect(200);
+    const auditCountBefore = await prisma.auditEvent.count({ where: { targetType: 'OrganizationNetworkProfile', organizationId } });
+    const outboxCountBefore = await prisma.outboxEvent.count({ where: { aggregateType: 'OrganizationNetworkProfile', organizationId, eventType: 'network.profile.updated' } });
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationId}/network-profile`).set('Authorization', `Bearer ${ownerToken}`).send({ isPublic: false }).expect(200);
     await request(serverOf(app)).get(`/api/v1/network/organizations/${organizationId}`).expect(404);
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationId}/network-profile`).set('Authorization', `Bearer ${ownerToken}`).send({ isPublic: false }).expect(200);
-    await expect(prisma.auditEvent.count({ where: { targetType: 'OrganizationNetworkProfile', organizationId } })).resolves.toBe(2);
-    await expect(prisma.outboxEvent.count({ where: { aggregateType: 'OrganizationNetworkProfile', organizationId, eventType: 'network.profile.updated' } })).resolves.toBe(2);
+    await expect(prisma.auditEvent.count({ where: { targetType: 'OrganizationNetworkProfile', organizationId } })).resolves.toBe(auditCountBefore + 1);
+    await expect(prisma.outboxEvent.count({ where: { aggregateType: 'OrganizationNetworkProfile', organizationId, eventType: 'network.profile.updated' } })).resolves.toBe(outboxCountBefore + 1);
   });
 
   it('blocks profile access when the Network profile module is disabled', async () => {

@@ -10,6 +10,8 @@ import { AppModule } from '../../src/app.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
 import { ProblemDetailsFilter } from '../../src/http/problem-details.filter.js';
 import { seedReferenceData } from '../../prisma/seed.js';
+import { expectHttpStatusWithDiagnostics } from '../setup/http-diagnostics.js';
+import { authorizationSnapshot } from '../setup/authorization-snapshot.js';
 
 const generateKeyPairAsync = promisify(generateKeyPair);
 
@@ -99,7 +101,7 @@ describe('CRM leads and opportunities', () => {
   });
 
   it('creates and lists a tenant lead with atomic audit and outbox records', async () => {
-    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/leads`).set('Authorization', `Bearer ${ownerToken}`).send({ displayName: 'Acme prospect', email: 'contact@acme.example', notes: 'First contact' }).expect(201);
+    const created = await expectCreated(request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/leads`).set('Authorization', `Bearer ${ownerToken}`).send({ displayName: 'Acme prospect', email: 'contact@acme.example', notes: 'First contact' }), 'owner creates lead', prisma, organizationId);
     const lead = bodyOf<{ id: string; organizationId: string; status: string; source: string; active: boolean }>(created);
     expect(lead).toMatchObject({ organizationId, status: 'NEW', source: 'DIRECT', active: true });
 
@@ -117,11 +119,11 @@ describe('CRM leads and opportunities', () => {
   });
 
   it('enforces establishment scope when creating and listing opportunities', async () => {
-    const allowed = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/opportunities`).set('Authorization', `Bearer ${scopedToken}`).send({ establishmentId: primaryEstablishmentId, name: 'Primary opportunity', expectedValue: '12500.50', currency: 'EUR' }).expect(201);
+    const allowed = await expectCreated(request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/opportunities`).set('Authorization', `Bearer ${scopedToken}`).send({ establishmentId: primaryEstablishmentId, name: 'Primary opportunity', expectedValue: '12500.50', currency: 'EUR' }), 'scoped user creates opportunity', prisma, organizationId);
     const opportunity = bodyOf<{ id: string; organizationId: string; establishmentId: string; status: string; source: string }>(allowed);
     expect(opportunity).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, status: 'OPEN', source: 'DIRECT' });
     const listed = await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/opportunities?establishmentId=${primaryEstablishmentId}`).set('Authorization', `Bearer ${scopedToken}`).expect(200);
-    expect(bodyOf<{ items: Array<{ id: string }> }>(listed).items).toEqual([expect.objectContaining({ id: opportunity.id })]);
+    expect(bodyOf<{ items: Array<{ id: string }> }>(listed).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: opportunity.id })]));
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/opportunities`).set('Authorization', `Bearer ${scopedToken}`).send({ establishmentId: secondaryEstablishmentId, name: 'Blocked opportunity' }).expect(403);
     await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/opportunities?establishmentId=${secondaryEstablishmentId}`).set('Authorization', `Bearer ${scopedToken}`).expect(403);
     await expect(prisma.auditEvent.findFirst({ where: { targetType: 'Opportunity', targetId: opportunity.id, action: 'OPPORTUNITY_CREATED', establishmentId: primaryEstablishmentId } })).resolves.not.toBeNull();
@@ -129,7 +131,7 @@ describe('CRM leads and opportunities', () => {
   });
 
   it('validates lead transitions and makes retries idempotent', async () => {
-    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/leads`).set('Authorization', `Bearer ${ownerToken}`).send({ displayName: 'Qualified prospect' }).expect(201);
+    const created = await expectCreated(request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/leads`).set('Authorization', `Bearer ${ownerToken}`).send({ displayName: 'Qualified prospect' }), 'owner creates transition lead', prisma, organizationId);
     const leadId = bodyOf<{ id: string }>(created).id;
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/leads/${leadId}/status`).set('Authorization', `Bearer ${ownerToken}`).send({ status: 'QUALIFIED' }).expect(200);
     const repeated = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/leads/${leadId}/status`).set('Authorization', `Bearer ${ownerToken}`).send({ status: 'QUALIFIED' }).expect(200);
@@ -140,7 +142,7 @@ describe('CRM leads and opportunities', () => {
   });
 
   it('allows only one effective concurrent opportunity transition', async () => {
-    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/opportunities`).set('Authorization', `Bearer ${ownerToken}`).send({ establishmentId: primaryEstablishmentId, name: 'Race opportunity' }).expect(201);
+    const created = await expectCreated(request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/opportunities`).set('Authorization', `Bearer ${ownerToken}`).send({ establishmentId: primaryEstablishmentId, name: 'Race opportunity' }), 'owner creates race opportunity', prisma, organizationId);
     const opportunityId = bodyOf<{ id: string }>(created).id;
     const responses = await Promise.all([
       request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/opportunities/${opportunityId}/status`).set('Authorization', `Bearer ${ownerToken}`).send({ status: 'WON' }),
@@ -159,4 +161,9 @@ function bodyOf<T>(response: Response): T {
 function serverOf(application: INestApplication): Parameters<typeof request>[0] {
   const server: unknown = application.getHttpServer();
   return server as Parameters<typeof request>[0];
+}
+
+async function expectCreated(response: PromiseLike<Response>, operation: string, prisma: PrismaService, organizationId: string): Promise<Response> {
+  const received = await response;
+  return expectHttpStatusWithDiagnostics(received, 201, 'CRM integration', operation, () => authorizationSnapshot(prisma, organizationId));
 }

@@ -13,24 +13,38 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker daemon is unavailable. Start Docker Des
 $env:NODE_ENV = 'test'
 $env:PORT = '3000'
 $databaseName = 'monarque_connect_test'
-$env:DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:5432/$databaseName"
+$containerName = "monarque-local-ci-postgres-$PID-$([guid]::NewGuid().ToString('N').Substring(0, 10))"
+$containerStarted = $false
 $env:MESSAGING_ABUSE_HMAC_KEY = 'local-ci-messaging-abuse-key'
 
-$compose = Join-Path (Get-Location) 'docker-compose.dev.yml'
-Invoke-Step 'Start PostgreSQL service' { docker compose -f $compose up -d postgres }
 try {
+Invoke-Step 'Start disposable PostgreSQL container' {
+  docker run -d --name $containerName `
+    -e POSTGRES_USER=postgres `
+    -e POSTGRES_PASSWORD=postgres `
+    -e "POSTGRES_DB=$databaseName" `
+    -p 127.0.0.1::5432 `
+    --health-cmd 'pg_isready -U postgres' `
+    --health-interval 2s `
+    --health-timeout 5s `
+    --health-retries 30 `
+    postgres:17
+  if ($LASTEXITCODE -ne 0) { throw 'Could not start the disposable PostgreSQL container.' }
+  $containerStarted = $true
+  $portMapping = docker port $containerName '5432/tcp'
+  if ($LASTEXITCODE -ne 0) { throw 'Could not read the disposable PostgreSQL port.' }
+  $portMatch = [regex]::Match(($portMapping | Select-Object -First 1), ':(\d+)$')
+  if (-not $portMatch.Success) { throw 'Could not determine the disposable PostgreSQL host port.' }
+  $databasePort = $portMatch.Groups[1].Value
+  $env:DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:$databasePort/$databaseName"
+  $env:TEST_DATABASE_URL = $env:DATABASE_URL
+}
   for ($i = 0; $i -lt 30; $i++) {
-    docker compose -f $compose exec -T postgres pg_isready -U postgres *> $null
-    if ($LASTEXITCODE -eq 0) { break }
+    $health = docker inspect --format '{{.State.Health.Status}}' $containerName 2>$null
+    if ($LASTEXITCODE -eq 0 -and $health -eq 'healthy') { break }
     Start-Sleep -Seconds 1
   }
-  docker compose -f $compose exec -T postgres pg_isready -U postgres *> $null
-  if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL did not become ready within 30 seconds.' }
-
-  Invoke-Step 'Create disposable CI database' {
-    docker compose -f $compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS $databaseName WITH (FORCE)"
-    docker compose -f $compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "CREATE DATABASE $databaseName"
-  }
+  if ($health -ne 'healthy') { docker logs $containerName; throw 'Disposable PostgreSQL did not become ready within 30 seconds.' }
 
   Invoke-Step 'Install locked dependencies' { npm ci }
   Invoke-Step 'Generate Prisma client' { npm run prisma:generate }
@@ -61,11 +75,11 @@ try {
   Invoke-Step 'OpenAPI validation' { npm run openapi:validate }
   Invoke-Step 'Contract validation' { npm run contracts:validate }
   Invoke-Step 'Billing operational preflight' { npm run billing:preflight }
-  Invoke-Step 'Unit and integration test suite' { npm test }
-  Invoke-Step 'HTTP E2E suite' { npm run test:e2e }
+  Invoke-Step 'Unit, PostgreSQL integration, and isolated HTTP E2E suites' { npm test }
   Invoke-Step 'Production build' { npm run build }
   Write-Host "`nLocal CI mirror passed all available checks." -ForegroundColor Green
 } finally {
-  try { docker compose -f $compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c "DROP DATABASE IF EXISTS $databaseName WITH (FORCE)" 1> $null 2> $null } catch { }
-  try { docker compose -f $compose down 1> $null 2> $null } catch { }
+  if ($containerStarted) { try { docker rm -f $containerName 1> $null 2> $null } catch { } }
+  Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+  Remove-Item Env:TEST_DATABASE_URL -ErrorAction SilentlyContinue
 }

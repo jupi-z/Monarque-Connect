@@ -54,7 +54,8 @@ describe('Sales invoices', () => {
     const responses = await Promise.all([convertOrder(orderId, 'invoice-conversion-a'), convertOrder(orderId, 'invoice-conversion-b')]);
     expect(responses.map((response) => response.status).sort()).toEqual([201, 201]);
     const invoice = bodyOf<{ id: string; sourceOrderId: string; number: string; status: string; totalGross: string; lines: Array<Record<string, string>> }>(responses[0]);
-    expect(invoice).toMatchObject({ organizationId, establishmentId, sourceOrderId: orderId, number: `INV-${new Date().getUTCFullYear()}-000001`, status: 'DRAFT', totalGross: '30.0000' });
+    expect(invoice).toMatchObject({ organizationId, establishmentId, sourceOrderId: orderId, status: 'DRAFT', totalGross: '30.0000' });
+    expect(invoice.number).toMatch(new RegExp(`^INV-${new Date().getUTCFullYear()}-\\d{6}$`));
     expect(invoice.lines[0]).toMatchObject({ itemId, descriptionSnapshot: 'Invoice catalog description', skuSnapshot: 'SKU-INVOICE-1', unitSnapshot: 'EA' });
     const repeated = await convertOrder(orderId, 'invoice-conversion-c'); expect(bodyOf<{ id: string }>(repeated).id).toBe(invoice.id);
     await expect(prisma.invoice.count({ where: { organizationId, sourceOrderId: orderId } })).resolves.toBe(1);

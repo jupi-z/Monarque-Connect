@@ -63,6 +63,15 @@ export class OrganizationService {
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2002' || error.code === 'P2003')) {
+        if (process.env.NODE_ENV === 'test') {
+          console.error(`[organization-create-test-diagnostic] ${JSON.stringify({
+            prismaCode: error.code,
+            modelName: error.meta?.modelName ?? null,
+            target: error.meta?.target ?? null,
+            fieldName: error.meta?.field_name ?? null,
+            constraint: error.meta?.constraint ?? null,
+          })}`);
+        }
         throw new ConflictException('Organization data conflicts with an existing record');
       }
       throw error;

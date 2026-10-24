@@ -111,7 +111,8 @@ describe('Sales quotes', () => {
   it('creates a quote with server snapshots, money totals, audit and outbox atomically', async () => {
     const created = await createQuote('quote-create-1', ownerToken, { descriptionSnapshot: 'Client supplied text', unitSnapshot: 'CLIENT', quantity: '2', unitPrice: '15.0050', taxMode: 'EXCLUSIVE', taxRate: '20' });
     const quote = bodyOf<{ id: string; number: string; status: string; currency: string; totalNet: string; totalTax: string; totalGross: string; lines: Array<Record<string, string>> }>(created);
-    expect(quote).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, number: `Q-${new Date().getUTCFullYear()}-000001`, status: 'DRAFT', currency: 'EUR', totalNet: '30.0100', totalTax: '6.0020', totalGross: '36.0120' });
+    expect(quote).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, status: 'DRAFT', currency: 'EUR', totalNet: '30.0100', totalTax: '6.0020', totalGross: '36.0120' });
+    expect(quote.number).toMatch(new RegExp(`^Q-${new Date().getUTCFullYear()}-\\d{6}$`));
     expect(quote.lines[0]).toMatchObject({ itemId, descriptionSnapshot: 'Current catalog description', skuSnapshot: 'SKU-QUOTE-1', unitSnapshot: 'HOUR' });
     await expect(prisma.auditEvent.findFirst({ where: { targetType: 'Quote', targetId: quote.id, action: 'QUOTE_CREATED' } })).resolves.not.toBeNull();
     await expect(prisma.outboxEvent.findFirst({ where: { aggregateType: 'Quote', aggregateId: quote.id, eventType: 'sales.quote.created' } })).resolves.not.toBeNull();

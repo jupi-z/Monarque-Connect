@@ -10,6 +10,8 @@ import { AppModule } from '../../src/app.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
 import { ProblemDetailsFilter } from '../../src/http/problem-details.filter.js';
 import { seedReferenceData } from '../../prisma/seed.js';
+import { expectHttpStatusWithDiagnostics } from '../setup/http-diagnostics.js';
+import { authorizationSnapshot } from '../setup/authorization-snapshot.js';
 
 const generateKeyPairAsync = promisify(generateKeyPair);
 const password = 'correct horse battery staple';
@@ -40,7 +42,11 @@ describe('Phase 6 Goods Receipts', () => {
 
   it('reaches RECEIVED exactly and refuses over-receipt', async () => {
     const partialOrder = await confirmedOrder('gr-over', '5'); const first = body<{ id: string }>(await createReceipt(partialOrder.id, '2', 'gr-over-create-1')); await confirmReceipt(partialOrder.id, first.id, 'gr-over-confirm-1'); const excess = body<{ id: string }>(await createReceipt(partialOrder.id, '4', 'gr-over-create-2')); await request(server()).post(`/api/v1/organizations/${organizationId}/purchase-orders/${partialOrder.id}/receipts/${excess.id}/confirm`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'gr-over-confirm-2').expect(409);
-    const exactOrder = await confirmedOrder('gr-exact', '5'); const exact = body<{ id: string }>(await createReceipt(exactOrder.id, '5', 'gr-exact-create')); const completed = body<{ status: string }>(await confirmReceipt(exactOrder.id, exact.id, 'gr-exact-confirm')); expect(completed.status).toBe('CONFIRMED'); expect(body<{ status: string }>(await request(server()).get(`/api/v1/organizations/${organizationId}/purchase-orders/${exactOrder.id}`).set('Authorization', `Bearer ${token}`)).status).toBe('RECEIVED'); await request(server()).post(`/api/v1/organizations/${organizationId}/purchase-orders/${exactOrder.id}/receipts`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'gr-exact-create-2').send({ receivedAt: new Date().toISOString(), lines: [{ purchaseOrderLineId: exactOrder.lineId, quantity: '1' }] }).expect(409);
+    const exactOrder = await confirmedOrder('gr-exact', '5'); const exact = body<{ id: string }>(await createReceipt(exactOrder.id, '5', 'gr-exact-create')); const completed = body<{ status: string }>(await confirmReceipt(exactOrder.id, exact.id, 'gr-exact-confirm')); expect(completed.status).toBe('CONFIRMED');
+    const orderResponse = await request(server()).get(`/api/v1/organizations/${organizationId}/purchase-orders/${exactOrder.id}`).set('Authorization', `Bearer ${token}`);
+    await expectHttpStatusWithDiagnostics(orderResponse, 200, 'Goods Receipts integration', 'read purchase order after exact receipt', () => authorizationSnapshot(prisma, organizationId));
+    expect(body<{ status: string }>(orderResponse).status).toBe('RECEIVED');
+    await request(server()).post(`/api/v1/organizations/${organizationId}/purchase-orders/${exactOrder.id}/receipts`).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'gr-exact-create-2').send({ receivedAt: new Date().toISOString(), lines: [{ purchaseOrderLineId: exactOrder.lineId, quantity: '1' }] }).expect(409);
   });
 
   it('supports cancellation of drafts and keeps confirmed receipts immutable', async () => {

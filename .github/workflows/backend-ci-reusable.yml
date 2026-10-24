@@ -11,21 +11,6 @@ on:
         description: Git ref to validate
         required: true
         type: string
-      database-url:
-        description: External test database URL; empty starts an isolated local PostgreSQL container
-        required: false
-        default: ''
-        type: string
-      database-host:
-        description: Hostname used to reach the isolated PostgreSQL container from the runner
-        required: false
-        default: '127.0.0.1'
-        type: string
-      database-port:
-        description: Port used to reach the isolated PostgreSQL container from the runner
-        required: false
-        default: '55432'
-        type: string
 
 permissions:
   contents: read
@@ -37,8 +22,7 @@ jobs:
       NODE_ENV: test
       PORT: 3000
       CI_RESOURCE_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
-      DATABASE_HOST: ${{ inputs.database-host }}
-      DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || format('postgresql://postgres:postgres@{0}:{1}/monarque_connect_test', inputs.database-host, inputs.database-port) }}
+      DATABASE_HOST: 127.0.0.1
 
     steps:
       - uses: actions/checkout@v4
@@ -49,8 +33,7 @@ jobs:
           node-version: 24
           # GitHub-hosted runners use the hosted cache; self-hosted restores are too large and time out.
           cache: ${{ contains(fromJSON(inputs.runner), 'ubuntu-latest') && 'npm' || '' }}
-      - name: Start isolated PostgreSQL when no external database is supplied
-        if: ${{ inputs.database-url == '' }}
+      - name: Start per-run isolated PostgreSQL
         run: |
           CONTAINER_NAME="monarque-ci-postgres-${CI_RESOURCE_SUFFIX}"
           docker run -d --name "$CONTAINER_NAME" \
@@ -80,10 +63,6 @@ jobs:
           exit 1
       - name: Install dependencies
         run: npm ci
-      - name: Verify external PostgreSQL when supplied
-        if: ${{ inputs.database-url != '' }}
-        run: |
-          node -e "const {Client}=require('pg'); const c=new Client({connectionString:process.env.DATABASE_URL}); c.connect().then(()=>c.query('select 1')).then(()=>c.end()).catch(e=>{console.error(e); process.exit(1)})"
       - run: npm run prisma:generate
       - name: Audit runtime dependency graph
         run: |
@@ -117,19 +96,20 @@ jobs:
       - run: npm run prisma:deploy
       - run: npm run openapi:validate
       - run: npm run contracts:validate
-      - run: npm test -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+      - name: Run database-free unit tests
+        run: npm run test:unit -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+      - name: Run PostgreSQL integration tests
+        run: npm run test:integration -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
       - name: Prepare isolated HTTP E2E database
-        if: ${{ inputs.database-url == '' }}
         run: |
           CONTAINER_NAME="monarque-ci-postgres-${CI_RESOURCE_SUFFIX}"
           docker exec "$CONTAINER_NAME" createdb -U postgres monarque_connect_test_e2e
           E2E_DATABASE_URL="$(node -e 'const url = new URL(process.env.DATABASE_URL); url.pathname = "/monarque_connect_test_e2e"; process.stdout.write(url.toString())')"
           DATABASE_URL="$E2E_DATABASE_URL" npm run prisma:deploy
+          echo "DATABASE_URL=$E2E_DATABASE_URL" >> "$GITHUB_ENV"
           echo "TEST_DATABASE_URL=$E2E_DATABASE_URL" >> "$GITHUB_ENV"
-      - name: Run HTTP E2E suite on an isolated database
-        if: ${{ inputs.database-url == '' }}
+      - name: Run HTTP E2E suite once on its isolated database
         run: npm run test:e2e -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000
-      # E2E files are also included in npm test. With an external database they run once there; do not replay them against the same state.
       - run: npm run build
       - name: Smoke HTTP health endpoints
         run: |
@@ -154,5 +134,5 @@ jobs:
           curl -fsS "http://127.0.0.1:${APP_PORT}/api/v1/health/live"
           curl -fsS "http://127.0.0.1:${APP_PORT}/api/v1/health/ready"
       - name: Cleanup isolated PostgreSQL
-        if: ${{ always() && inputs.database-url == '' }}
+        if: always()
         run: docker rm -f "monarque-ci-postgres-${CI_RESOURCE_SUFFIX}" >/dev/null 2>&1 || true

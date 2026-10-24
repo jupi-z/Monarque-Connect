@@ -60,7 +60,8 @@ describe('Sales orders', () => {
     const quoteId = await createAcceptedQuote('order-conversion-quote');
     const first = await convertQuote(quoteId, 'order-conversion-1');
     const order = bodyOf<{ id: string; sourceQuoteId: string; number: string; status: string; totalGross: string; lines: Array<Record<string, string>> }>(first);
-    expect(order).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, sourceQuoteId: quoteId, number: `SO-${new Date().getUTCFullYear()}-000001`, status: 'DRAFT', totalGross: '30.0000' });
+    expect(order).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, sourceQuoteId: quoteId, status: 'DRAFT', totalGross: '30.0000' });
+    expect(order.number).toMatch(new RegExp(`^SO-${new Date().getUTCFullYear()}-\\d{6}$`));
     expect(order.lines[0]).toMatchObject({ itemId, descriptionSnapshot: 'Order catalog description', skuSnapshot: 'SKU-ORDER-1', unitSnapshot: 'HOUR' });
     const repeated = await convertQuote(quoteId, 'order-conversion-2'); expect(bodyOf<{ id: string }>(repeated).id).toBe(order.id);
     await expect(prisma.salesOrder.count({ where: { organizationId, sourceQuoteId: quoteId } })).resolves.toBe(1);

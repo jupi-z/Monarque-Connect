@@ -51,16 +51,19 @@ describe('Network inquiries and CRM conversion', () => {
   it('requires an accepted connection and records a tenant-scoped inquiry', async () => {
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationA}/network/organizations/${organizationC}/inquiries`).set('Authorization', `Bearer ${ownerAToken}`).send({ subject: 'No relationship', message: 'Should be rejected.' }).expect(409);
     const response = await request(serverOf(app)).post(`/api/v1/organizations/${organizationA}/network/organizations/${organizationB}/inquiries`).set('Authorization', `Bearer ${ownerAToken}`).send({ subject: 'Supply partnership', message: 'We would like to discuss supply.', requestedPartyType: 'SUPPLIER' }).expect(201);
-    expect(response.body).toEqual(expect.objectContaining({ sourceOrganizationId: organizationA, targetOrganizationId: organizationB, status: 'NEW', requestedPartyType: 'SUPPLIER' }));
-    await expect(prisma.auditEvent.count({ where: { action: 'NETWORK_INQUIRY_CREATED' } })).resolves.toBe(1);
-    await expect(prisma.outboxEvent.count({ where: { eventType: 'network.inquiry.created' } })).resolves.toBe(1);
+    const inquiryId = bodyOf<{ id: string }>(response).id;
+    expect(response.body).toEqual(expect.objectContaining({ id: inquiryId, sourceOrganizationId: organizationA, targetOrganizationId: organizationB, status: 'NEW', requestedPartyType: 'SUPPLIER' }));
+    await expect(prisma.auditEvent.count({ where: { action: 'NETWORK_INQUIRY_CREATED', targetId: inquiryId } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { eventType: 'network.inquiry.created', aggregateId: inquiryId } })).resolves.toBe(1);
   });
 
   it('lists both sides, enforces membership, and transitions inquiry status safely', async () => {
+    const created = await createInquiry(app, ownerAToken, organizationA, organizationB, 'Scoped list inquiry');
     const source = bodyOf<{ items: Array<{ id: string }> }>(await request(serverOf(app)).get(`/api/v1/organizations/${organizationA}/network-inquiries`).set('Authorization', `Bearer ${ownerAToken}`).expect(200));
     const target = bodyOf<{ items: Array<{ id: string }> }>(await request(serverOf(app)).get(`/api/v1/organizations/${organizationB}/network-inquiries?status=NEW`).set('Authorization', `Bearer ${ownerBToken}`).expect(200));
-    expect(source.items).toHaveLength(1); expect(target.items).toHaveLength(1);
-    const inquiryId = source.items[0]!.id;
+    expect(source.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: created.id })]));
+    expect(target.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: created.id })]));
+    const inquiryId = created.id;
     await request(serverOf(app)).get(`/api/v1/organizations/${organizationB}/network-inquiries`).set('Authorization', `Bearer ${ownerCToken}`).expect(403);
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationB}/network-inquiries/${inquiryId}`).set('Authorization', `Bearer ${ownerBToken}`).send({ status: 'QUALIFIED' }).expect(200);
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationB}/network-inquiries/${inquiryId}`).set('Authorization', `Bearer ${ownerBToken}`).send({ status: 'DISMISSED' }).expect(200);

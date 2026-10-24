@@ -74,8 +74,9 @@ describe('Phase 9.5 FairScale HTTP flow', () => {
 
     const concurrentQuotes = await Promise.all(Array.from({ length: 4 }, (_, index) => request(server).post(`/api/v1/organizations/${organizationId}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `phase95-concurrent-${index}`).send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 3 })));
     expect(concurrentQuotes.every((response) => response.status === 201)).toBe(true);
-    await expect(prisma.billingPromotionRedemption.count({ where: { promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', status: { in: ['RESERVED', 'CONSUMED'] } } })).resolves.toBe(3);
-    await expect(prisma.billingPromotionRedemption.count({ where: { promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', quoteId: { not: null } } })).resolves.toBe(3);
+    const organizationScope = { billingCustomer: { organizations: { some: { organizationId } } } };
+    await expect(prisma.billingPromotionRedemption.count({ where: { ...organizationScope, promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', status: { in: ['RESERVED', 'CONSUMED'] } } })).resolves.toBe(3);
+    await expect(prisma.billingPromotionRedemption.count({ where: { ...organizationScope, promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', quoteId: { not: null } } })).resolves.toBe(3);
   });
 
   it('serializes first-quote billing identity creation for a new organization', async () => {
