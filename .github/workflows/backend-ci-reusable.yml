@@ -29,10 +29,16 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
+        if: ${{ contains(fromJSON(inputs.runner), 'ubuntu-latest') }}
         with:
           node-version: 24
-          # GitHub-hosted runners use the hosted cache; self-hosted restores are too large and time out.
-          cache: ${{ contains(fromJSON(inputs.runner), 'ubuntu-latest') && 'npm' || '' }}
+          cache: npm
+      - name: Verify preinstalled self-hosted Node.js runtime
+        if: ${{ !contains(fromJSON(inputs.runner), 'ubuntu-latest') }}
+        run: |
+          node --version
+          node -e "if (process.versions.node.split('.')[0] !== '24') throw new Error('Self-hosted CI runner requires Node.js 24');"
+          npm --version
       - name: Start per-run isolated PostgreSQL
         run: |
           CONTAINER_NAME="monarque-ci-postgres-${CI_RESOURCE_SUFFIX}"
