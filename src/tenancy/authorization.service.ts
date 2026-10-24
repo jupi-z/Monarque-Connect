@@ -46,10 +46,12 @@ export class AuthorizationService {
     const projection = await this.entitlements.resolve(organizationId);
     const module = projection.modules.find((candidate) => candidate.code === moduleCode);
     if (!module?.allowed) {
+      const databaseState = process.env.NODE_ENV === 'test' ? await this.moduleDenialSnapshot(organizationId) : null;
       this.logTestDenial({
         branch: 'module', role: context.role, permission, moduleCode,
         decision: module ? { allowed: module.allowed, reason: module.reason, entitled: module.entitled, active: module.active, source: module.source } : null,
         plan: projection.plan, subscription: projection.subscription,
+        databaseState,
       });
       throw new ForbiddenException('Module access denied');
     }
@@ -128,6 +130,30 @@ export class AuthorizationService {
       });
     } catch {
       this.logTestDenial({ branch: 'membership', snapshotAvailable: false });
+    }
+  }
+
+  private async moduleDenialSnapshot(organizationId: string): Promise<unknown> {
+    try {
+      const organization = await this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: {
+          status: true,
+          subscriptions: {
+            orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+            take: 3,
+            select: {
+              status: true,
+              startsAt: true,
+              endsAt: true,
+              planVersion: { select: { planCode: true, version: true, status: true } },
+            },
+          },
+        },
+      });
+      return organization ?? { organization: null };
+    } catch {
+      return { available: false };
     }
   }
 

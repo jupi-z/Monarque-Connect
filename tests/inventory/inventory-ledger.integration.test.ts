@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { generateKeyPair } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -62,6 +62,19 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     await prisma.user.create({ data: { id: actor.userId, email, normalizedEmail: email, passwordHash: 'not-used', firstName: 'Inventory', lastName: 'Tester' } });
     await prisma.membership.create({ data: { id: randomUUID(), organizationId, userId: actor.userId, role: 'OWNER', scopeMode: 'ALL_ESTABLISHMENTS' } });
   }, 60000);
+
+  afterEach(async () => {
+    if (!prisma || !organizationId) return;
+    const [organization, subscriptions] = await Promise.all([
+      prisma.organization.findUnique({ where: { id: organizationId }, select: { status: true } }),
+      prisma.subscription.findMany({
+        where: { organizationId },
+        orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+        select: { status: true, startsAt: true, endsAt: true, planVersion: { select: { planCode: true, version: true, status: true } } },
+      }),
+    ]);
+    console.error('[inventory-fixture-state]', JSON.stringify({ organizationStatus: organization?.status ?? null, subscriptions }));
+  });
 
   afterAll(async () => {
     if (!prisma) return;
