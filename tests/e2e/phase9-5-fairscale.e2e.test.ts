@@ -30,7 +30,7 @@ describe('Phase 9.5 FairScale HTTP flow', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication(); app.setGlobalPrefix('api/v1'); app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })); app.useGlobalFilters(new ProblemDetailsFilter()); await app.init();
     prisma = app.get(PrismaService);
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE billing_promotion_redemptions, billing_promotion_eligibilities, billing_quote_lines, billing_quotes, billing_customer_organizations, billing_customers, outbox_events, event_consumer_receipts, refresh_sessions, login_rate_limit_buckets, organization_module_activations, organization_entitlements, organization_quota_usages, quota_reservations, quota_ledgers, memberships, establishments, subscriptions, audit_events, organizations, users RESTART IDENTITY CASCADE`);
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE price_components, price_versions, billing_promotion_redemptions, billing_promotion_eligibilities, billing_quote_lines, billing_quotes, billing_customer_organizations, billing_customers, outbox_events, event_consumer_receipts, refresh_sessions, login_rate_limit_buckets, organization_module_activations, organization_entitlements, organization_quota_usages, quota_reservations, quota_ledgers, memberships, establishments, subscriptions, audit_events, organizations, users RESTART IDENTITY CASCADE`);
     await seedReferenceData(prisma);
     const server = serverOf(app);
     const owner = await registerAndLogin(server, 'phase95-owner@example.test'); ownerToken = owner.token;
