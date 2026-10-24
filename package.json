@@ -67,5 +67,9 @@
     "typescript-eslint": "^8.71.1",
     "vitest": "^5.0.1",
     "yaml": "^2.8.1"
+  },
+  "overrides": {
+    "body-parser": "^2.4.0",
+    "multer": "^2.5.0"
   }
 }
