@@ -2,7 +2,7 @@
 
 ## Position
 
-Les agents sont une extension future de Monarque Intelligence. L'architecture est préparée dès maintenant afin d'éviter un accès privilégié non gouverné plus tard.
+Les agents seront le **runtime propriétaire commun aux produits Monarque Connect et ZAMUREK**, réalisé dans la phase 11.5 après convergence 10A.5 et IA gouvernée 10B. Les règles et classes A0–A4 ci-dessous en définissent déjà le contrat. L'architecture est préparée dès maintenant afin d'éviter un accès privilégié non gouverné plus tard.
 
 ## Identité d'un agent
 
