@@ -1,16 +1,16 @@
 # Phase 10A.5 — C0 audit du Core et préparation inter-dépôts
 
-**Date de vérification : 23/10/2026**
+**Date de vérification : 24/10/2026**
 **Dépôt audité :** `jupi-z/Monarque-Connect`
-**Baseline de code :** `main@da0da7277587a5506636fe3633180a3febf5c8ec`
+**Baseline de code :** `main@2658eb4a9ed971c3e6d7cd05672a036bb8d34e5f`
 **État :** audit documentaire/code effectué ; **C0 reste IN_PROGRESS, non accepté**. Ce rapport n'autorise ni migration métier, ni implémentation C1–C8, ni démarrage du code ZAMUREK.
 
 ## 1. Preuves de baseline
 
-- `git ls-remote origin refs/heads/main` et `origin/main` concordent exactement sur `da0da7277587a5506636fe3633180a3febf5c8ec` lors de cette vérification.
-- La CI du commit de référence est verte : [Backend CI #39787356963](https://github.com/jupi-z/Monarque-Connect/actions/runs/39787356963). L'inspection des jobs/logs confirme le job `validate-main / validate` en `success`, les preuves migrations base vide et upgrade des phases 1, 2, 4, 5, 6, 7, 9/9.5, 9.6 et 10A, `npm test`, la suite HTTP E2E, OpenAPI, contrats, lint, typecheck, build et smoke HTTP tous réussis sur cette baseline.
+- La référence `refs/heads/main` lue via l'API GitHub pointe sur `2658eb4a9ed971c3e6d7cd05672a036bb8d34e5f`; cette même valeur est le SHA `head_sha` de l'exécution post-fusion.
+- La CI post-fusion sur ce commit est verte : [Backend CI #40105775095, tentative 2](https://github.com/jupi-z/Monarque-Connect/actions/runs/40105775095). Le job `validate-main / validate` s'est terminé avec `success` : migrations base vide et upgrades de phases 1, 2, 4, 5, 6, 7, 9/9.5, 9.6 et 10A; lint, typecheck, Prisma validate/deploy, OpenAPI, contrats, `npm test` (95 fichiers / 373 tests), HTTP E2E (10 fichiers / 23 tests), build et smoke HTTP réussis. OpenAPI annonce 200 opérations valides.
 - Le schéma de cette baseline contient 54 fichiers `migration.sql` sous `prisma/migrations`. Ce comptage ne remplace pas l'exécution de preuve PostgreSQL/upgrade prévue dans les gates.
-- La PR de cadrage [#152](https://github.com/jupi-z/Monarque-Connect/pull/152) est en brouillon ; l'issue [#153](https://github.com/jupi-z/Monarque-Connect/issues/153) conserve le gate C0 ouvert. La CI PR observée avant cette mise à jour documentaire est [run #39847069095](https://github.com/jupi-z/Monarque-Connect/actions/runs/39847069095) ; son résultat ne s'applique pas au présent commit tant que celui-ci n'a pas été poussé et contrôlé.
+- La PR de cadrage [#152](https://github.com/jupi-z/Monarque-Connect/pull/152) est en brouillon ; l'issue [#153](https://github.com/jupi-z/Monarque-Connect/issues/153) conserve le gate C0 ouvert. Le check actuellement observé pour la tête PR `5a7193f3c0ba5a9c5c9b6dc86d793374656b3996` est rouge : [run #40091280250](https://github.com/jupi-z/Monarque-Connect/actions/runs/40091280250), 8 tests/3 fichiers échoués avec des refus `403 Module access denied` dans Cash, Operations et Warehouses. Cette exécution précède l'intégration de l'isolation CI #155; le nouveau commit documentaire doit déclencher une exécution PR sur la configuration courante. Aucune CI PR verte n'est revendiquée pour cette tête.
 - ZAMUREK est audité séparément : `jupi-z/ZAMUREK` main à `0ac6bbc2c00048335b4de88cc686e88247da783a`, CI main verte [run #39840078492](https://github.com/jupi-z/ZAMUREK/actions/runs/39840078492). Sa PR de cadrage #2 reste en brouillon ; CI du commit observé verte [run #39847468670](https://github.com/jupi-z/ZAMUREK/actions/runs/39847468670). Aucun changement n'est apporté à ce dépôt par ce rapport.
 
 ## 2. Cartographie des invariants et écarts confirmés
