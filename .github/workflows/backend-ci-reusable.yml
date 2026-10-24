@@ -122,8 +122,8 @@ jobs:
         if: ${{ inputs.database-url == '' }}
         run: |
           CONTAINER_NAME="monarque-ci-postgres-${CI_RESOURCE_SUFFIX}"
-          docker exec "$CONTAINER_NAME" createdb -U postgres monarque_connect_e2e
-          E2E_DATABASE_URL="$(node -e 'const url = new URL(process.env.DATABASE_URL); url.pathname = "/monarque_connect_e2e"; process.stdout.write(url.toString())')"
+          docker exec "$CONTAINER_NAME" createdb -U postgres monarque_connect_test_e2e
+          E2E_DATABASE_URL="$(node -e 'const url = new URL(process.env.DATABASE_URL); url.pathname = "/monarque_connect_test_e2e"; process.stdout.write(url.toString())')"
           DATABASE_URL="$E2E_DATABASE_URL" npm run prisma:deploy
           echo "TEST_DATABASE_URL=$E2E_DATABASE_URL" >> "$GITHUB_ENV"
       - name: Run HTTP E2E suite on an isolated database
