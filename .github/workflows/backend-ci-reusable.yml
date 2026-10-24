@@ -47,7 +47,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
+          # GitHub-hosted runners use the hosted cache; self-hosted restores are too large and time out.
+          cache: ${{ contains(fromJSON(inputs.runner), 'ubuntu-latest') && 'npm' || '' }}
       - name: Start isolated PostgreSQL when no external database is supplied
         if: ${{ inputs.database-url == '' }}
         run: |
@@ -117,8 +118,18 @@ jobs:
       - run: npm run openapi:validate
       - run: npm run contracts:validate
       - run: npm test -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
-      - name: Run HTTP E2E suite
+      - name: Prepare isolated HTTP E2E database
+        if: ${{ inputs.database-url == '' }}
+        run: |
+          CONTAINER_NAME="monarque-ci-postgres-${CI_RESOURCE_SUFFIX}"
+          docker exec "$CONTAINER_NAME" createdb -U postgres monarque_connect_e2e
+          E2E_DATABASE_URL="$(node -e 'const url = new URL(process.env.DATABASE_URL); url.pathname = "/monarque_connect_e2e"; process.stdout.write(url.toString())')"
+          DATABASE_URL="$E2E_DATABASE_URL" npm run prisma:deploy
+          echo "TEST_DATABASE_URL=$E2E_DATABASE_URL" >> "$GITHUB_ENV"
+      - name: Run HTTP E2E suite on an isolated database
+        if: ${{ inputs.database-url == '' }}
         run: npm run test:e2e -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000
+      # E2E files are also included in npm test. With an external database they run once there; do not replay them against the same state.
       - run: npm run build
       - name: Smoke HTTP health endpoints
         run: |
