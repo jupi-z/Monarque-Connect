@@ -72,7 +72,22 @@ describe('Warehouses referential', () => {
     const registration = await request(serverOf(app)).post('/api/v1/auth/register').send({ email: 'phase3-warehouse-owner@example.com', password: 'correct horse battery staple', firstName: 'Phase', lastName: 'Owner' }).expect(201);
     const login = await request(serverOf(app)).post('/api/v1/auth/login').send({ identifier: bodyOf<{ email: string }>(registration).email, password: 'correct horse battery staple' }).expect(200);
     ownerToken = bodyOf<{ accessToken: string }>(login).accessToken;
-    const organization = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Phase 3 Inventory Tenant', handle: `phase3-warehouses-${Date.now()}`, defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
+    const organizationHandle = `phase3-warehouses-${Date.now()}`;
+    const organizationResponse = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Phase 3 Inventory Tenant', handle: organizationHandle, defaultCurrency: 'EUR', establishmentName: 'Main office' });
+    await expectHttpStatusWithDiagnostics(
+      organizationResponse,
+      201,
+      'Warehouses referential',
+      'create setup organization',
+      async () => ({
+        organizationWithHandle: await prisma.organization.findUnique({ where: { handle: organizationHandle }, select: { id: true, status: true } }),
+        connectPlan: await prisma.planVersion.findUnique({
+          where: { planCode_version: { planCode: 'CONNECT', version: 1 } },
+          select: { id: true, status: true, quotas: { select: { quotaCode: true, mode: true, limitValue: true } } },
+        }),
+      }),
+    );
+    const organization = organizationResponse;
     const createdOrganization = bodyOf<{ id: string; establishment: { id: string } }>(organization);
     organizationId = createdOrganization.id;
     primaryEstablishmentId = createdOrganization.establishment.id;
