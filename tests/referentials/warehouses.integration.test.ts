@@ -77,7 +77,7 @@ describe('Warehouses referential', () => {
     organizationId = createdOrganization.id;
     primaryEstablishmentId = createdOrganization.establishment.id;
     const businessVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: businessVersion.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: businessVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     const secondary = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'SECOND', name: 'Secondary office', type: 'BRANCH' }).expect(201);
     secondaryEstablishmentId = bodyOf<{ id: string }>(secondary).id;
 
