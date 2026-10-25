@@ -14,7 +14,7 @@ $env:NODE_ENV = 'test'
 $env:PORT = '3000'
 $databaseName = 'monarque_connect_test'
 $containerName = "monarque-local-ci-postgres-$PID-$([guid]::NewGuid().ToString('N').Substring(0, 10))"
-$containerStarted = $false
+$script:containerStarted = $false
 $env:MESSAGING_ABUSE_HMAC_KEY = 'local-ci-messaging-abuse-key'
 
 try {
@@ -30,7 +30,7 @@ Invoke-Step 'Start disposable PostgreSQL container' {
     --health-retries 30 `
     postgres:17
   if ($LASTEXITCODE -ne 0) { throw 'Could not start the disposable PostgreSQL container.' }
-  $containerStarted = $true
+  $script:containerStarted = $true
   $portMapping = docker port $containerName '5432/tcp'
   if ($LASTEXITCODE -ne 0) { throw 'Could not read the disposable PostgreSQL port.' }
   $portMatch = [regex]::Match(($portMapping | Select-Object -First 1), ':(\d+)$')
@@ -95,7 +95,12 @@ Invoke-Step 'Start disposable PostgreSQL container' {
   Invoke-Step 'Production build' { npm run build }
   Write-Host "`nLocal CI mirror passed all available checks." -ForegroundColor Green
 } finally {
-  if ($containerStarted) { try { docker rm -f $containerName 1> $null 2> $null } catch { } }
+  if ($script:containerStarted) {
+    docker rm -f $containerName 1> $null 2> $null
+    $remainingContainers = docker ps -a --filter "name=^/$containerName$" --format '{{.Names}}'
+    if ($LASTEXITCODE -ne 0) { throw 'Could not verify disposable PostgreSQL cleanup.' }
+    if ($remainingContainers) { throw "Disposable PostgreSQL cleanup failed: $remainingContainers" }
+  }
   Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
   Remove-Item Env:TEST_DATABASE_URL -ErrorAction SilentlyContinue
 }
