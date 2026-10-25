@@ -72,7 +72,7 @@ describe('Catalog items referential', () => {
     const organization = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'SERVICE_PROVIDER', name: 'Phase 3 Catalog Tenant', handle: `phase3-items-${Date.now()}`, defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
     organizationId = bodyOf<{ id: string }>(organization).id;
     const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     const viewerRegistration = await request(serverOf(app)).post('/api/v1/auth/register').send({ email: 'phase3-items-viewer@example.com', password: 'correct horse battery staple', firstName: 'Catalog', lastName: 'Viewer' }).expect(201);
     const viewerLogin = await request(serverOf(app)).post('/api/v1/auth/login').send({ identifier: bodyOf<{ email: string }>(viewerRegistration).email, password: 'correct horse battery staple' }).expect(200);
     viewerToken = bodyOf<{ accessToken: string }>(viewerLogin).accessToken;

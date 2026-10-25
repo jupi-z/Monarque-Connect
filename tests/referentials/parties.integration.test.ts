@@ -74,7 +74,7 @@ describe('Business parties referential', () => {
     const organization = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'SERVICE_PROVIDER', name: 'Phase 3 Party Tenant', handle: organizationHandle, defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
     organizationId = bodyOf<{ id: string }>(organization).id;
     const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
 
     const otherRegistration = await request(serverOf(app)).post('/api/v1/auth/register').send({ email: 'phase3-party-other@example.com', password: 'correct horse battery staple', firstName: 'Other', lastName: 'Owner' }).expect(201);
     const otherLogin = await request(serverOf(app)).post('/api/v1/auth/login').send({ identifier: bodyOf<{ email: string }>(otherRegistration).email, password: 'correct horse battery staple' }).expect(200);

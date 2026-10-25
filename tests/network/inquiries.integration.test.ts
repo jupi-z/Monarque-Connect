@@ -41,7 +41,7 @@ describe('Network inquiries and CRM conversion', () => {
     organizationA = await createOrganization(app, ownerAToken, 'inquiries-a'); organizationB = await createOrganization(app, ownerBToken, 'inquiries-b'); organizationC = await createOrganization(app, ownerCToken, 'inquiries-c');
     establishmentB = (await prisma.establishment.findFirstOrThrow({ where: { organizationId: organizationB }, select: { id: true } })).id;
     const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } }, select: { id: true } });
-    await prisma.subscription.updateMany({ where: { organizationId: organizationB }, data: { planVersionId: operationsVersion.id } });
+    await prisma.subscription.updateMany({ where: { organizationId: organizationB }, data: { planVersionId: operationsVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     await makePublic(app, ownerBToken, organizationB, 'Inquiries B'); await makePublic(app, ownerCToken, organizationC, 'Inquiries C');
     await connect(app, ownerAToken, organizationA, organizationB, ownerBToken);
   }, 60000);

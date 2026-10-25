@@ -49,7 +49,7 @@ describe('Phase 8 Projects & Documents HTTP E2E', () => {
     organizationId = organization.id;
     establishmentId = organization.establishment.id;
     const plan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, select: { id: true } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: plan.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: plan.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     otherToken = await registerAndLogin(`phase8-other-${suffix}@example.com`, 'Phase8 Other');
     salesToken = await registerAndLogin(`phase8-sales-${suffix}@example.com`, 'Phase8 Sales');
     const salesUser = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: `phase8-sales-${suffix}@example.com` }, select: { id: true } });

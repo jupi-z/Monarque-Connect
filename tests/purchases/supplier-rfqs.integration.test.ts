@@ -90,7 +90,7 @@ describe('Phase 6 Supplier RFQs', () => {
     const supplierOrganization = await createOrganization(app, supplierToken, 'phase6-rfq-supplier', 'MINING_SUPPLIER_B2B');
     supplierOrganizationId = supplierOrganization.id;
     const businessVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, select: { id: true } });
-    await prisma.subscription.updateMany({ where: { organizationId: { in: [buyerOrganizationId, supplierOrganizationId] } }, data: { planVersionId: businessVersion.id } });
+    await prisma.subscription.updateMany({ where: { organizationId: { in: [buyerOrganizationId, supplierOrganizationId] } }, data: { planVersionId: businessVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     await request(serverOf(app)).patch(`/api/v1/organizations/${supplierOrganizationId}/network-profile`).set('Authorization', `Bearer ${supplierToken}`).send({ isPublic: true, displayName: 'Public supplier', categories: ['supplier'], publishedItemIds: [] }).expect(200);
     const connection = await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/connection-requests`).set('Authorization', `Bearer ${buyerToken}`).send({ targetOrganizationId: supplierOrganizationId }).expect(201);
     await request(serverOf(app)).patch(`/api/v1/organizations/${supplierOrganizationId}/connection-requests/${bodyOf<{ id: string }>(connection).id}`).set('Authorization', `Bearer ${supplierToken}`).send({ status: 'ACCEPTED' }).expect(200);

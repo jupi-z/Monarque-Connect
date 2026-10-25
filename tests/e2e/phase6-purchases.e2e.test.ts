@@ -138,7 +138,7 @@ describe('Phase 6 Purchases E2E', () => {
 
   async function upgradeToBusiness(organizationId: string): Promise<void> {
     const business = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, select: { id: true } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: business.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: business.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
   }
 
   async function cleanPurchasesData(): Promise<void> {
