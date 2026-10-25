@@ -25,6 +25,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
   let reconciliations: InventoryReconciliationService;
   const actor = { userId: randomUUID(), sessionId: randomUUID() };
   const restrictedActor = { userId: randomUUID(), sessionId: randomUUID() };
+  const fixtureSubscriptionStart = new Date('2020-01-01T00:00:00.000Z');
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await promisify(generateKeyPair)('rsa', { modulusLength: 2048 });
@@ -51,7 +52,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     itemId = randomUUID();
     await prisma.organization.create({ data: { id: organizationId, businessTypeCode: businessType.code, name: 'Inventory ledger test', handle: `inventory-ledger-${Date.now()}`, defaultCurrency: 'EUR' } });
     const business = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, include: { modules: true } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: fixtureSubscriptionStart } });
     await prisma.organizationModuleActivation.createMany({ data: business.modules.map((module) => ({ id: randomUUID(), organizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.create({ data: { id: establishmentId, organizationId, code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' } });
     await prisma.warehouse.create({ data: { id: warehouseId, organizationId, establishmentId, code: 'MAIN', name: 'Main warehouse' } });

@@ -23,15 +23,16 @@ if (connectionString) {
   beforeAll(async () => {
     await pool.query(`
       DO $$
-      DECLARE table_name text;
+      DECLARE table_names text;
       BEGIN
-        FOR table_name IN
-          SELECT tablename
-          FROM pg_tables
-          WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'
-        LOOP
-          EXECUTE format('TRUNCATE TABLE %I RESTART IDENTITY CASCADE', table_name);
-        END LOOP;
+        SELECT string_agg(format('%I', tablename), ', ' ORDER BY tablename)
+        INTO table_names
+        FROM pg_tables
+        WHERE schemaname = 'public' AND tablename <> '_prisma_migrations';
+
+        IF table_names IS NOT NULL THEN
+          EXECUTE format('TRUNCATE TABLE %s RESTART IDENTITY CASCADE', table_names);
+        END IF;
       END
       $$;
     `);

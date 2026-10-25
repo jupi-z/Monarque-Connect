@@ -51,6 +51,7 @@ export class AuthorizationService {
         branch: 'module', role: context.role, permission, moduleCode,
         decision: module ? { allowed: module.allowed, reason: module.reason, entitled: module.entitled, active: module.active, source: module.source } : null,
         plan: projection.plan, subscription: projection.subscription,
+        evaluatedAt: projection.evaluatedAt,
         databaseState,
       });
       throw new ForbiddenException('Module access denied');

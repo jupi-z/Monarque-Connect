@@ -75,7 +75,23 @@ Invoke-Step 'Start disposable PostgreSQL container' {
   Invoke-Step 'OpenAPI validation' { npm run openapi:validate }
   Invoke-Step 'Contract validation' { npm run contracts:validate }
   Invoke-Step 'Billing operational preflight' { npm run billing:preflight }
-  Invoke-Step 'Unit, PostgreSQL integration, and isolated HTTP E2E suites' { npm test }
+  Invoke-Step 'Database-free unit tests' {
+    npm run test:unit -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+  }
+  Invoke-Step 'PostgreSQL integration tests' {
+    npm run test:integration -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+  }
+  Invoke-Step 'Prepare isolated HTTP E2E database' {
+    docker exec $containerName createdb -U postgres monarque_connect_test_e2e
+    if ($LASTEXITCODE -ne 0) { throw 'Could not create the isolated E2E database.' }
+    $e2eDatabaseUrl = $env:DATABASE_URL -replace '/monarque_connect_test$', '/monarque_connect_test_e2e'
+    $env:DATABASE_URL = $e2eDatabaseUrl
+    $env:TEST_DATABASE_URL = $e2eDatabaseUrl
+  }
+  Invoke-Step 'Migrate isolated HTTP E2E database' { npm run prisma:deploy }
+  Invoke-Step 'HTTP E2E suite' {
+    npm run test:e2e -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000
+  }
   Invoke-Step 'Production build' { npm run build }
   Write-Host "`nLocal CI mirror passed all available checks." -ForegroundColor Green
 } finally {

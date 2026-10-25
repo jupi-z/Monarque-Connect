@@ -21,6 +21,7 @@ describe('GoodsReceipt to Inventory integration', () => {
   let receiptLineId: string;
   let purchaseOrderId: string;
   const actor = { userId: randomUUID(), sessionId: randomUUID() };
+  const fixtureSubscriptionStart = new Date('2020-01-01T00:00:00.000Z');
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await promisify(generateKeyPair)('rsa', { modulusLength: 2048 });
@@ -38,7 +39,7 @@ describe('GoodsReceipt to Inventory integration', () => {
     organizationId = randomUUID(); establishmentId = randomUUID(); warehouseId = randomUUID(); importWarehouseId = randomUUID(); itemId = randomUUID();
     await prisma.organization.create({ data: { id: organizationId, businessTypeCode: businessType.code, name: 'Goods receipt inventory test', handle: `goods-receipt-inventory-${Date.now()}`, defaultCurrency: 'EUR' } });
     const plan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, include: { modules: true } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: plan.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: plan.id, status: 'ACTIVE', startsAt: fixtureSubscriptionStart } });
     await prisma.organizationModuleActivation.createMany({ data: plan.modules.map((module) => ({ id: randomUUID(), organizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.create({ data: { id: establishmentId, organizationId, code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' } });
     await prisma.warehouse.createMany({ data: [

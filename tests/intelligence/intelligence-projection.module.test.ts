@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { describe, expect, it } from 'vitest';
 import { DatabaseModule } from '../../src/database/database.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
+import { EventDatabase } from '../../src/events/event-database.js';
 import { EventModule } from '../../src/events/event.module.js';
 import { OutboxWriterModule } from '../../src/events/outbox-writer.module.js';
 import { PrismaOutboxWriter } from '../../src/events/prisma-outbox.writer.js';
@@ -15,6 +16,8 @@ describe('IntelligenceProjectionModule runtime injection', () => {
     const moduleRef = await Test.createTestingModule({ imports: [DatabaseModule, EventModule, IntelligenceProjectionModule] })
       .overrideProvider(PrismaService)
       .useValue({})
+      .overrideProvider(EventDatabase)
+      .useValue({ pool: {} })
       .compile();
 
     expect(moduleRef.get(MetricCalculatorService)).toBeInstanceOf(MetricCalculatorService);

@@ -26,6 +26,7 @@ describe('Phase 7 Cash ledger', () => {
   let fixtureKey: string;
   const actor = { userId: randomUUID(), sessionId: randomUUID() };
   const restrictedActor = { userId: randomUUID(), sessionId: randomUUID() };
+  const fixtureSubscriptionStart = new Date('2020-01-01T00:00:00.000Z');
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await promisify(generateKeyPair)('rsa', { modulusLength: 2048 });
@@ -50,7 +51,7 @@ describe('Phase 7 Cash ledger', () => {
     establishmentId = randomUUID();
     secondEstablishmentId = randomUUID();
     await prisma.organization.create({ data: { id: organizationId, businessTypeCode: businessType.code, name: 'Cash tenant', handle: `cash-${Date.now()}`, defaultCurrency: 'EUR' } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: fixtureSubscriptionStart } });
     await prisma.organizationModuleActivation.createMany({ data: business.modules.map((module) => ({ id: randomUUID(), organizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.createMany({ data: [
       { id: establishmentId, organizationId, code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' },
@@ -67,7 +68,7 @@ describe('Phase 7 Cash ledger', () => {
 
     otherOrganizationId = randomUUID();
     await prisma.organization.create({ data: { id: otherOrganizationId, businessTypeCode: businessType.code, name: 'Other cash tenant', handle: `cash-other-${Date.now()}`, defaultCurrency: 'EUR' } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: fixtureSubscriptionStart } });
     await prisma.organizationModuleActivation.createMany({ data: business.modules.map((module) => ({ id: randomUUID(), organizationId: otherOrganizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, code: 'OTHER', name: 'Other', type: 'HEAD_OFFICE' } });
 
