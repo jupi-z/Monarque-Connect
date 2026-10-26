@@ -307,4 +307,20 @@ The run logs verify Prisma generation and schema validation, lint, typecheck, ru
 
 The test-first failure on run [#40296973016](https://github.com/jupi-z/Monarque-Connect/actions/runs/40296973016) and cancelled runs on superseded SHAs remain disclosed above and are excluded from successful validation counts. No local heavy process was run after the workstation cooling issue was reported. No business migrations or C1–C8 implementation were started.
 
-This evidence amendment changes the documentation commit and therefore creates a new PR head SHA. The same three-run gate must be repeated on that resulting exact head before PR #156 is marked ready or merged. Post-merge `main` CI is still mandatory and will be reported separately.
+This was the gate at the time of this report amendment. It was subsequently repeated on the resulting exact PR head and the PR was merged; see the closure evidence in the appended section below.
+
+## 15. Superseding closure update — merge and post-merge proof
+
+The three-run gate was repeated on the resulting exact PR head `992a357937dc64c3c879e2cee1c1d39abf1bc181`. All three applicable complete hosted jobs passed:
+
+- PR validation [#40299723645](https://github.com/jupi-z/Monarque-Connect/actions/runs/40299723645), job `121494347388`.
+- Hosted dispatch [#40299729009](https://github.com/jupi-z/Monarque-Connect/actions/runs/40299729009), job `121494371016`.
+- Hosted dispatch [#40299735519](https://github.com/jupi-z/Monarque-Connect/actions/runs/40299735519), job `121494392358`.
+
+Each completed the same full validation and cleanup steps on `ubuntu-latest`; all three overlapped and used distinct run-scoped PostgreSQL resources. The PR-event `validate-main` and dispatch-event `validate-pr` jobs were skipped by their event conditions. These are the three final-SHA passes; the earlier run IDs on SHA `05fbcafe…` are historical and are not needed to satisfy this gate.
+
+PR #156 was marked ready only after these checks passed, then squash-merged at 2026-10-26 09:35 UTC. GitHub returned merge commit `87a8832facf4ca43010fb9e5baf3143d5336117e`; the remote `main` ref was verified at that exact SHA. Post-merge Backend CI [#40300739158](https://github.com/jupi-z/Monarque-Connect/actions/runs/40300739158), job `121497697441`, completed `success` on that merge commit. Its shared validation and post-job cleanup succeeded; `validate-pr` was skipped by the push-event condition.
+
+The merged PR branch `monarque/ci-runner-e2e-isolation` was deleted after confirming its head had been merged. Other remote branches containing separate work were preserved. No local heavy validation was run; all final code and post-merge checks used GitHub-hosted runners.
+
+**Final verdict for this mission: GO — CI stabilization is merged and the post-merge CI is green.** Historical incident attributions remain `ROOT_CAUSE_NOT_PROVEN` where source evidence was not retained, as disclosed above and accepted as residual risk. This verdict closes only the CI stabilization scope; it does not authorize the Phase 10A.5 migrations C1–C8 or assert payment-provider, production, or regulatory readiness.
