@@ -154,4 +154,10 @@ runs:
     - name: Cleanup isolated PostgreSQL
       if: always()
       shell: bash
-      run: docker rm -f "monarque-ci-postgres-${{ inputs.ci-resource-suffix }}" >/dev/null 2>&1 || true
+      run: |
+        CONTAINER_NAME="monarque-ci-postgres-${{ inputs.ci-resource-suffix }}"
+        docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+        if docker ps -a --filter "name=^/$CONTAINER_NAME$" --format '{{.Names}}' | grep -Fxq "$CONTAINER_NAME"; then
+          echo "Isolated PostgreSQL container remains after cleanup: $CONTAINER_NAME" >&2
+          exit 1
+        fi
