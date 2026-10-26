@@ -14,7 +14,10 @@ export class AuthorizationService {
       where: { organizationId, userId: principal.userId, status: 'ACTIVE', user: { status: 'ACTIVE' }, organization: { status: 'ACTIVE' } },
       include: { scopeLinks: { select: { establishmentId: true } } },
     });
-    if (!membership) throw new ForbiddenException('Organization access denied');
+    if (!membership) {
+      await this.logMembershipDenial(principal, organizationId);
+      throw new ForbiddenException('Organization access denied');
+    }
     return {
       userId: principal.userId,
       sessionId: principal.sessionId,
@@ -31,27 +34,54 @@ export class AuthorizationService {
   }
 
   assertPermission(context: AuthorizationContext, permission: Permission): void {
-    if (!this.can(context, permission)) throw new ForbiddenException('Permission denied');
+    if (!this.can(context, permission)) {
+      this.logTestDenial({ branch: 'permission', role: context.role, permission, scopeMode: context.scopeMode });
+      throw new ForbiddenException('Permission denied');
+    }
   }
 
   async requireModule(principal: AuthPrincipal, organizationId: string, moduleCode: string, permission: Permission): Promise<AuthorizationContext> {
     const context = await this.requireMembership(principal, organizationId);
     this.assertPermission(context, permission);
-    const module = (await this.entitlements.resolve(organizationId)).modules.find((candidate) => candidate.code === moduleCode);
-    if (!module?.allowed) throw new ForbiddenException('Module access denied');
+    const projection = await this.entitlements.resolve(organizationId);
+    const module = projection.modules.find((candidate) => candidate.code === moduleCode);
+    if (!module?.allowed) {
+      const databaseState = process.env.NODE_ENV === 'test' ? await this.moduleDenialSnapshot(organizationId) : null;
+      this.logTestDenial({
+        branch: 'module', role: context.role, permission, moduleCode,
+        decision: module ? { allowed: module.allowed, reason: module.reason, entitled: module.entitled, active: module.active, source: module.source } : null,
+        plan: projection.plan, subscription: projection.subscription,
+        evaluatedAt: projection.evaluatedAt,
+        databaseState,
+      });
+      throw new ForbiddenException('Module access denied');
+    }
     return context;
   }
 
   async requireModuleInTransaction(tx: Prisma.TransactionClient, principal: AuthPrincipal, organizationId: string, moduleCode: string, permission: Permission): Promise<AuthorizationContext> {
     const candidate = await tx.membership.findUnique({ where: { organizationId_userId: { organizationId, userId: principal.userId } }, select: { id: true } });
-    if (!candidate) throw new ForbiddenException('Organization access denied');
+    if (!candidate) {
+      this.logTestDenial({ branch: 'transaction-membership-missing' });
+      throw new ForbiddenException('Organization access denied');
+    }
     const locked = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT id FROM "memberships" WHERE id = ${candidate.id}::uuid FOR UPDATE`);
-    if (locked.length !== 1) throw new ForbiddenException('Organization access denied');
+    if (locked.length !== 1) {
+      this.logTestDenial({ branch: 'transaction-membership-lock-missing' });
+      throw new ForbiddenException('Organization access denied');
+    }
     const membership = await tx.membership.findUnique({
       where: { id: candidate.id },
       include: { scopeLinks: { select: { establishmentId: true } }, user: { select: { status: true } }, organization: { select: { status: true } } },
     });
-    if (!membership || membership.status !== 'ACTIVE' || membership.user.status !== 'ACTIVE' || membership.organization.status !== 'ACTIVE') throw new ForbiddenException('Organization access denied');
+    if (!membership || membership.status !== 'ACTIVE' || membership.user.status !== 'ACTIVE' || membership.organization.status !== 'ACTIVE') {
+      this.logTestDenial({
+        branch: 'transaction-membership-inactive', role: membership?.role ?? null,
+        membershipStatus: membership?.status ?? null, userStatus: membership?.user.status ?? null,
+        organizationStatus: membership?.organization.status ?? null,
+      });
+      throw new ForbiddenException('Organization access denied');
+    }
     const context: AuthorizationContext = {
       userId: principal.userId,
       sessionId: principal.sessionId,
@@ -62,16 +92,74 @@ export class AuthorizationService {
       establishmentIds: membership.scopeLinks.map((scope) => scope.establishmentId),
     };
     this.assertPermission(context, permission);
-    const module = (await this.entitlements.resolve(organizationId, new Date(), tx)).modules.find((candidateModule) => candidateModule.code === moduleCode);
-    if (!module?.allowed) throw new ForbiddenException('Module access denied');
+    const projection = await this.entitlements.resolve(organizationId, new Date(), tx);
+    const module = projection.modules.find((candidateModule) => candidateModule.code === moduleCode);
+    if (!module?.allowed) {
+      this.logTestDenial({
+        branch: 'transaction-module', role: context.role, permission, moduleCode,
+        decision: module ? { allowed: module.allowed, reason: module.reason, entitled: module.entitled, active: module.active, source: module.source } : null,
+        plan: projection.plan, subscription: projection.subscription,
+      });
+      throw new ForbiddenException('Module access denied');
+    }
     return context;
   }
 
   async assertEstablishment(context: AuthorizationContext, establishmentId: string): Promise<void> {
     const establishment = await this.prisma.establishment.findFirst({ where: { id: establishmentId, organizationId: context.organizationId, status: 'ACTIVE' }, select: { id: true } });
     if (!establishment || (context.scopeMode === 'SELECTED_ESTABLISHMENTS' && !context.establishmentIds.includes(establishmentId))) {
+      this.logTestDenial({ branch: 'establishment-scope', role: context.role, scopeMode: context.scopeMode, establishmentActiveInOrganization: Boolean(establishment), scopeIncludesEstablishment: context.scopeMode === 'ALL_ESTABLISHMENTS' || context.establishmentIds.includes(establishmentId) });
       throw new ForbiddenException('Establishment access denied');
     }
+  }
+
+  private async logMembershipDenial(principal: AuthPrincipal, organizationId: string): Promise<void> {
+    if (process.env.NODE_ENV !== 'test') return;
+    try {
+      const [organization, user, membership] = await Promise.all([
+        this.prisma.organization.findUnique({ where: { id: organizationId }, select: { status: true } }),
+        this.prisma.user.findUnique({ where: { id: principal.userId }, select: { status: true } }),
+        this.prisma.membership.findUnique({
+          where: { organizationId_userId: { organizationId, userId: principal.userId } },
+          select: { status: true, role: true, scopeMode: true, organization: { select: { status: true } }, user: { select: { status: true } } },
+        }),
+      ]);
+      this.logTestDenial({
+        branch: 'membership', organizationStatus: organization?.status ?? null,
+        userStatus: user?.status ?? null,
+        membership: membership ? { status: membership.status, role: membership.role, scopeMode: membership.scopeMode, linkedOrganizationStatus: membership.organization.status, linkedUserStatus: membership.user.status } : null,
+      });
+    } catch {
+      this.logTestDenial({ branch: 'membership', snapshotAvailable: false });
+    }
+  }
+
+  private async moduleDenialSnapshot(organizationId: string): Promise<unknown> {
+    try {
+      const organization = await this.prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: {
+          status: true,
+          subscriptions: {
+            orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+            take: 3,
+            select: {
+              status: true,
+              startsAt: true,
+              endsAt: true,
+              planVersion: { select: { planCode: true, version: true, status: true } },
+            },
+          },
+        },
+      });
+      return organization ?? { organization: null };
+    } catch {
+      return { available: false };
+    }
+  }
+
+  private logTestDenial(details: Record<string, unknown>): void {
+    if (process.env.NODE_ENV === 'test') console.error(`[authorization-test-diagnostic] ${JSON.stringify(details)}`);
   }
 }
 

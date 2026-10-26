@@ -115,7 +115,7 @@ describe('Phase 9.6 Billing HTTP flow', () => {
 
   it('publishes a versioned price only through the platform admin surface', async () => {
     const server = serverOf(app);
-    const input = { planCode: 'BUSINESS', billingPeriod: 'MONTHLY', currency: 'USD', baseAmountMinor: 4600, welcomeAmountMinor: 3910, annualDiscountAmountMinor: 0, includedEstablishments: 3, addonAmountMinor: 1100, addonCapacityUnits: 1 };
+    const input = { planCode: 'BUSINESS', billingPeriod: 'YEARLY', currency: 'USD', baseAmountMinor: 4600, welcomeAmountMinor: 3910, annualDiscountAmountMinor: 0, includedEstablishments: 3, addonAmountMinor: 1100, addonCapacityUnits: 1 };
     const published = bodyOf<{ version: number; baseAmountMinor: number }>(await request(server).post('/api/v1/platform/billing/prices').set('Authorization', `Bearer ${platformAdminToken}`).set('Idempotency-Key', 'phase96-admin-price-1').send(input).expect(201));
     expect(published).toMatchObject({ version: 2, baseAmountMinor: 4600 });
     await request(server).post('/api/v1/platform/billing/prices').set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase96-admin-price-2').send(input).expect(403);

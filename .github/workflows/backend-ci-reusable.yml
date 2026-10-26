@@ -1,4 +1,4 @@
-name: Backend CI reusable
+name: Backend CI self-hosted reusable
 
 on:
   workflow_call:
@@ -11,21 +11,6 @@ on:
         description: Git ref to validate
         required: true
         type: string
-      database-url:
-        description: External test database URL; empty starts an isolated local PostgreSQL container
-        required: false
-        default: ''
-        type: string
-      database-host:
-        description: Hostname used to reach the isolated PostgreSQL container from the runner
-        required: false
-        default: '127.0.0.1'
-        type: string
-      database-port:
-        description: Port used to reach the isolated PostgreSQL container from the runner
-        required: false
-        default: '55432'
-        type: string
 
 permissions:
   contents: read
@@ -37,111 +22,18 @@ jobs:
       NODE_ENV: test
       PORT: 3000
       CI_RESOURCE_SUFFIX: ${{ github.run_id }}-${{ github.run_attempt }}
-      DATABASE_HOST: ${{ inputs.database-host }}
-      DATABASE_URL: ${{ inputs.database-url != '' && inputs.database-url || format('postgresql://postgres:postgres@{0}:{1}/monarque_connect_test', inputs.database-host, inputs.database-port) }}
+      DATABASE_HOST: 127.0.0.1
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-      - uses: actions/setup-node@v4
+      - name: Verify preinstalled self-hosted Node.js runtime
+        run: |
+          node --version
+          node -e "if (process.versions.node.split('.')[0] !== '24') throw new Error('Self-hosted CI runner requires Node.js 24');"
+          npm --version
+      - name: Run shared CI validation
+        uses: ./.github/actions/backend-ci-validation
         with:
-          node-version: 24
-          cache: npm
-      - name: Start isolated PostgreSQL when no external database is supplied
-        if: ${{ inputs.database-url == '' }}
-        run: |
-          CONTAINER_NAME="monarque-ci-postgres-${CI_RESOURCE_SUFFIX}"
-          docker run -d --name "$CONTAINER_NAME" \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD=postgres \
-            -e POSTGRES_DB=monarque_connect_test \
-            -p 127.0.0.1::5432 \
-            --health-cmd='pg_isready -U postgres' \
-            --health-interval=10s \
-            --health-timeout=5s \
-            --health-retries=5 \
-            postgres:17
-          HOST_PORT="$(docker port "$CONTAINER_NAME" 5432/tcp | head -n 1 | sed -E 's/.*:([0-9]+)$/\1/')"
-          if [[ ! "$HOST_PORT" =~ ^[0-9]+$ ]]; then
-            docker logs "$CONTAINER_NAME"
-            echo "Could not determine the isolated PostgreSQL host port" >&2
-            exit 1
-          fi
-          echo "DATABASE_URL=postgresql://postgres:postgres@${DATABASE_HOST}:${HOST_PORT}/monarque_connect_test" >> "$GITHUB_ENV"
-          for i in $(seq 1 30); do
-            if docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_NAME" | grep -q healthy; then
-              exit 0
-            fi
-            sleep 2
-          done
-          docker logs "$CONTAINER_NAME"
-          exit 1
-      - name: Install dependencies
-        run: npm ci
-      - name: Verify external PostgreSQL when supplied
-        if: ${{ inputs.database-url != '' }}
-        run: |
-          node -e "const {Client}=require('pg'); const c=new Client({connectionString:process.env.DATABASE_URL}); c.connect().then(()=>c.query('select 1')).then(()=>c.end()).catch(e=>{console.error(e); process.exit(1)})"
-      - run: npm run prisma:generate
-      - name: Audit runtime dependency graph
-        run: |
-          npm audit --json > /tmp/npm-audit.json || true
-          node scripts/check-runtime-audit.mjs /tmp/npm-audit.json
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run prisma:validate
-      - name: Verify empty-database and Phase 1 upgrade migrations
-        run: npm run prisma:phase2:migration-proof
-      - name: Verify empty-database and Phase 2 upgrade migrations
-        run: npm run prisma:phase3:migration-proof
-      - name: Verify empty-database and Phase 4 upgrade migrations
-        run: npm run prisma:phase5:migration-proof
-      - name: Verify empty-database and Phase 5 upgrade migrations
-        run: npm run prisma:phase6:migration-proof
-      - name: Verify empty-database and Phase 6 upgrade migrations
-        run: npm run prisma:phase7:migration-proof
-      - name: Verify empty-database and Phase 7 upgrade migrations
-        run: npm run prisma:phase8:migration-proof
-      - name: Verify empty-database and Phase 9 / Phase 9.5 upgrade migrations
-        if: ${{ hashFiles('scripts/verify-phase9-migrations.mjs') != '' }}
-        run: npm run prisma:phase9:migration-proof
-      - name: Verify empty-database and Phase 9.6 upgrade migrations
-        if: ${{ hashFiles('scripts/verify-phase96-migrations.mjs') != '' }}
-        run: npm run prisma:phase96:migration-proof
-
-      - name: Verify empty-database and Phase 9.6 upgrade migrations for Phase 10A
-        if: ${{ hashFiles('scripts/verify-phase10a-migrations.mjs') != '' }}
-        run: npm run prisma:phase10a:migration-proof
-      - run: npm run prisma:deploy
-      - run: npm run openapi:validate
-      - run: npm run contracts:validate
-      - run: npm test -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
-      - name: Run HTTP E2E suite
-        run: npm run test:e2e -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000
-      - run: npm run build
-      - name: Smoke HTTP health endpoints
-        run: |
-          APP_PORT="$(node -e "const net=require('node:net'); const server=net.createServer(); server.listen(0, '127.0.0.1', () => { process.stdout.write(String(server.address().port)); server.close(); });")"
-          export PORT="$APP_PORT"
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/monarque-jwt-private.pem
-          openssl rsa -pubout -in /tmp/monarque-jwt-private.pem -out /tmp/monarque-jwt-public.pem
-          export JWT_ISSUER=monarque-connect-ci
-          export JWT_AUDIENCE=monarque-connect-api-ci
-          export JWT_KEY_ID=ci-ephemeral-key-1
-          export JWT_PRIVATE_KEY_PEM="$(cat /tmp/monarque-jwt-private.pem)"
-          export JWT_PUBLIC_KEY_PEM="$(cat /tmp/monarque-jwt-public.pem)"
-          npm run start > /tmp/monarque-connect.log 2>&1 &
-          APP_PID=$!
-          trap 'kill $APP_PID 2>/dev/null || true' EXIT
-          for i in $(seq 1 20); do
-            if curl -fsS "http://127.0.0.1:${APP_PORT}/api/v1/health/live" > /dev/null; then
-              break
-            fi
-            sleep 1
-          done
-          curl -fsS "http://127.0.0.1:${APP_PORT}/api/v1/health/live"
-          curl -fsS "http://127.0.0.1:${APP_PORT}/api/v1/health/ready"
-      - name: Cleanup isolated PostgreSQL
-        if: ${{ always() && inputs.database-url == '' }}
-        run: docker rm -f "monarque-ci-postgres-${CI_RESOURCE_SUFFIX}" >/dev/null 2>&1 || true
+          ci-resource-suffix: ${{ env.CI_RESOURCE_SUFFIX }}

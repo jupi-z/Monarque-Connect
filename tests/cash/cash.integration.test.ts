@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { generateKeyPair } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -22,8 +22,11 @@ describe('Phase 7 Cash ledger', () => {
   let secondEstablishmentId: string;
   let accountId: string;
   let destinationAccountId: string;
+  let accountCode: string;
+  let fixtureKey: string;
   const actor = { userId: randomUUID(), sessionId: randomUUID() };
   const restrictedActor = { userId: randomUUID(), sessionId: randomUUID() };
+  const fixtureSubscriptionStart = new Date('2020-01-01T00:00:00.000Z');
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await promisify(generateKeyPair)('rsa', { modulusLength: 2048 });
@@ -48,7 +51,7 @@ describe('Phase 7 Cash ledger', () => {
     establishmentId = randomUUID();
     secondEstablishmentId = randomUUID();
     await prisma.organization.create({ data: { id: organizationId, businessTypeCode: businessType.code, name: 'Cash tenant', handle: `cash-${Date.now()}`, defaultCurrency: 'EUR' } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: fixtureSubscriptionStart } });
     await prisma.organizationModuleActivation.createMany({ data: business.modules.map((module) => ({ id: randomUUID(), organizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.createMany({ data: [
       { id: establishmentId, organizationId, code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' },
@@ -65,15 +68,20 @@ describe('Phase 7 Cash ledger', () => {
 
     otherOrganizationId = randomUUID();
     await prisma.organization.create({ data: { id: otherOrganizationId, businessTypeCode: businessType.code, name: 'Other cash tenant', handle: `cash-other-${Date.now()}`, defaultCurrency: 'EUR' } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: fixtureSubscriptionStart } });
     await prisma.organizationModuleActivation.createMany({ data: business.modules.map((module) => ({ id: randomUUID(), organizationId: otherOrganizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.create({ data: { id: randomUUID(), organizationId: otherOrganizationId, code: 'OTHER', name: 'Other', type: 'HEAD_OFFICE' } });
 
-    const account = await accounts.create(actor, organizationId, { establishmentId, code: 'MAIN-CASH', name: 'Main cash', currency: 'EUR' }, 'cash-account-main');
-    accountId = (account as { id: string }).id;
-    const destination = await accounts.create(actor, organizationId, { establishmentId, code: 'BANK', name: 'Bank', currency: 'EUR' }, 'cash-account-bank');
-    destinationAccountId = (destination as { id: string }).id;
   }, 60000);
+
+  beforeEach(async () => {
+    fixtureKey = randomUUID();
+    accountCode = `MAIN-${fixtureKey.slice(0, 8).toUpperCase()}`;
+    const account = await accounts.create(actor, organizationId, { establishmentId, code: accountCode, name: 'Main cash', currency: 'EUR' }, `cash-account-main-${fixtureKey}`);
+    accountId = (account as { id: string }).id;
+    const destination = await accounts.create(actor, organizationId, { establishmentId, code: `BANK-${fixtureKey.slice(0, 8).toUpperCase()}`, name: 'Bank', currency: 'EUR' }, `cash-account-bank-${fixtureKey}`);
+    destinationAccountId = (destination as { id: string }).id;
+  });
 
   afterAll(async () => {
     if (!prisma) return;
@@ -85,61 +93,63 @@ describe('Phase 7 Cash ledger', () => {
 
   it('creates an active account with a derived zero balance and atomic audit/outbox', async () => {
     const account = await accounts.get(actor, organizationId, accountId);
-    expect(account).toMatchObject({ id: accountId, organizationId, establishmentId, code: 'MAIN-CASH', currency: 'EUR', status: 'ACTIVE', balance: '0.0000' });
+    expect(account).toMatchObject({ id: accountId, organizationId, establishmentId, code: accountCode, currency: 'EUR', status: 'ACTIVE', balance: '0.0000' });
     await expect(prisma.auditEvent.count({ where: { organizationId, targetType: 'CashAccount', targetId: accountId, action: 'CASH_ACCOUNT_CREATED' } })).resolves.toBe(1);
     await expect(prisma.outboxEvent.count({ where: { organizationId, aggregateType: 'CashAccount', aggregateId: accountId, eventType: 'cash.account.created' } })).resolves.toBe(1);
   });
 
   it('records a movement idempotently and derives the account balance', async () => {
     const input = { establishmentId, cashAccountId: accountId, direction: 'IN' as const, amount: '100.0000', occurredAt: '2026-10-14T10:00:00.000Z', reason: 'Opening cash' };
-    const first = await movements.create(actor, organizationId, input, 'cash-opening');
-    await expect(movements.create(actor, organizationId, input, 'cash-opening')).resolves.toEqual(first);
-    await expect(movements.create(actor, organizationId, { ...input, amount: '101.0000' }, 'cash-opening')).rejects.toThrow(/idempotency/i);
+    const first = await movements.create(actor, organizationId, input, `cash-opening-${fixtureKey}`);
+    await expect(movements.create(actor, organizationId, input, `cash-opening-${fixtureKey}`)).resolves.toEqual(first);
+    await expect(movements.create(actor, organizationId, { ...input, amount: '101.0000' }, `cash-opening-${fixtureKey}`)).rejects.toThrow(/idempotency/i);
     await expect(accounts.get(actor, organizationId, accountId)).resolves.toMatchObject({ balance: '100.0000' });
     await expect(prisma.cashMovement.count({ where: { organizationId, cashAccountId: accountId } })).resolves.toBe(1);
   });
 
   it('rejects insufficient outputs and compensates an immutable movement', async () => {
+    await movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'IN', amount: '100.0000', occurredAt: '2026-10-14T10:01:00.000Z', reason: 'Correction scenario funding' }, `cash-correction-funding-${fixtureKey}`);
     await expect(movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'OUT', amount: '101.0000', occurredAt: '2026-10-14T10:01:00.000Z', reason: 'Too much' }, 'cash-too-much')).rejects.toThrow(/insufficient|balance/i);
     const original = await prisma.cashMovement.findFirstOrThrow({ where: { organizationId, cashAccountId: accountId } });
-    const correction = await movements.correct(actor, organizationId, original.id, { reason: 'Opening cash correction' }, 'cash-correction');
+    const correction = await movements.correct(actor, organizationId, original.id, { reason: 'Opening cash correction' }, `cash-correction-${fixtureKey}`);
     expect(correction).toMatchObject({ correctedMovementId: original.id, direction: 'OUT', amount: '100.0000' });
     await expect(accounts.get(actor, organizationId, accountId)).resolves.toMatchObject({ balance: '0.0000' });
     await expect(prisma.cashMovement.update({ where: { id: original.id }, data: { reason: 'tampered' } })).rejects.toThrow();
   });
 
   it('transfers same-currency cash atomically and replays the pair', async () => {
-    await movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'IN', amount: '100.0000', occurredAt: '2026-10-14T10:01:30.000Z', reason: 'Transfer funding' }, 'cash-transfer-funding');
-    const result = await movements.transfer(actor, organizationId, { establishmentId, sourceCashAccountId: accountId, destinationCashAccountId: destinationAccountId, amount: '25.0000', occurredAt: '2026-10-14T10:02:00.000Z', reason: 'Bank deposit' }, 'cash-transfer');
+    await movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'IN', amount: '100.0000', occurredAt: '2026-10-14T10:01:30.000Z', reason: 'Transfer funding' }, `cash-transfer-funding-${fixtureKey}`);
+    const transferInput = { establishmentId, sourceCashAccountId: accountId, destinationCashAccountId: destinationAccountId, amount: '25.0000', occurredAt: '2026-10-14T10:02:00.000Z', reason: 'Bank deposit' };
+    const result = await movements.transfer(actor, organizationId, transferInput, `cash-transfer-${fixtureKey}`);
     expect(result).toMatchObject({ sourceCashAccountId: accountId, destinationCashAccountId: destinationAccountId, amount: '25.0000', currency: 'EUR' });
-    await expect(movements.transfer(actor, organizationId, { establishmentId, sourceCashAccountId: accountId, destinationCashAccountId: destinationAccountId, amount: '25.0000', occurredAt: '2026-10-14T10:02:00.000Z', reason: 'Bank deposit' }, 'cash-transfer')).resolves.toEqual(result);
+    await expect(movements.transfer(actor, organizationId, transferInput, `cash-transfer-${fixtureKey}`)).resolves.toEqual(result);
     await expect(prisma.cashMovement.count({ where: { organizationId, transferId: (result as { id: string }).id } })).resolves.toBe(2);
   });
 
   it('enforces tenant and selected-establishment isolation', async () => {
     await expect(accounts.get(actor, otherOrganizationId, accountId)).rejects.toThrow(/access denied|forbidden/i);
     await expect(movements.create(restrictedActor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'IN', amount: '1.0000', occurredAt: '2026-10-14T10:03:00.000Z', reason: 'Out of scope' }, 'cash-out-of-scope')).rejects.toThrow(/establishment|scope|access/i);
-    await expect(accounts.deactivate(actor, organizationId, accountId, { reason: 'Temporarily closed' }, 'cash-deactivate')).resolves.toMatchObject({ status: 'INACTIVE' });
-    await expect(movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'IN', amount: '1.0000', occurredAt: '2026-10-14T10:04:00.000Z', reason: 'Inactive account' }, 'cash-inactive')).rejects.toThrow(/inactive|active/i);
+    await expect(accounts.deactivate(actor, organizationId, accountId, { reason: 'Temporarily closed' }, `cash-deactivate-${fixtureKey}`)).resolves.toMatchObject({ status: 'INACTIVE' });
+    await expect(movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'IN', amount: '1.0000', occurredAt: '2026-10-14T10:04:00.000Z', reason: 'Inactive account' }, `cash-inactive-${fixtureKey}`)).rejects.toThrow(/inactive|active/i);
   });
 
   it('serializes concurrent outputs so only one can consume the balance', async () => {
-    await accounts.reactivate(actor, organizationId, accountId, { reason: 'Reopened' }, 'cash-reactivate');
+    await movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'IN', amount: '100.0000', occurredAt: '2026-10-14T10:04:30.000Z', reason: 'Concurrency scenario funding' }, `cash-race-funding-${fixtureKey}`);
     const results = await Promise.allSettled([
-      movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'OUT', amount: '60.0000', occurredAt: '2026-10-14T10:05:00.000Z', reason: 'Concurrent withdrawal' }, 'cash-race-1'),
-      movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'OUT', amount: '60.0000', occurredAt: '2026-10-14T10:05:00.000Z', reason: 'Concurrent withdrawal' }, 'cash-race-2'),
+      movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'OUT', amount: '60.0000', occurredAt: '2026-10-14T10:05:00.000Z', reason: 'Concurrent withdrawal' }, `cash-race-1-${fixtureKey}`),
+      movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'OUT', amount: '60.0000', occurredAt: '2026-10-14T10:05:00.000Z', reason: 'Concurrent withdrawal' }, `cash-race-2-${fixtureKey}`),
     ]);
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
-    await expect(accounts.get(actor, organizationId, accountId)).resolves.toMatchObject({ balance: '15.0000' });
+    await expect(accounts.get(actor, organizationId, accountId)).resolves.toMatchObject({ balance: '40.0000' });
   });
 
   it('rolls back the movement when the outbox cannot be written', async () => {
     const enqueue = vi.spyOn(outbox, 'enqueue').mockRejectedValueOnce(new Error('outbox unavailable'));
-    const key = 'cash-rollback';
+    const key = `cash-rollback-${fixtureKey}`;
     await expect(movements.create(actor, organizationId, { establishmentId, cashAccountId: accountId, direction: 'IN', amount: '7.0000', occurredAt: '2026-10-14T10:06:00.000Z', reason: 'Rollback' }, key)).rejects.toThrow('outbox unavailable');
     enqueue.mockRestore();
     await expect(prisma.cashMovement.count({ where: { organizationId, idempotencyKey: key } })).resolves.toBe(0);
-    await expect(accounts.get(actor, organizationId, accountId)).resolves.toMatchObject({ balance: '15.0000' });
+    await expect(accounts.get(actor, organizationId, accountId)).resolves.toMatchObject({ balance: '0.0000' });
   });
 });

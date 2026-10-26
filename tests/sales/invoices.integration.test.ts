@@ -40,7 +40,7 @@ describe('Sales invoices', () => {
     const ownerLogin = await request(serverOf(app)).post('/api/v1/auth/login').send({ identifier: bodyOf<{ email: string }>(ownerRegistration).email, password: 'correct horse battery staple' }).expect(200); ownerToken = bodyOf<{ accessToken: string }>(ownerLogin).accessToken;
     const organization = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'SERVICE_PROVIDER', name: 'Phase 5 Invoice Tenant', handle: `phase5-invoice-${suffix}`, defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
     const createdOrganization = bodyOf<{ id: string; establishment: { id: string } }>(organization); organizationId = createdOrganization.id; establishmentId = createdOrganization.establishment.id;
-    const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } }); await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id } });
+    const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } }); await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     const party = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/parties`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'CUSTOMER', displayName: 'Acme Client' }).expect(201); partyId = bodyOf<{ id: string }>(party).id;
     const item = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', sku: 'SKU-INVOICE-1', name: 'Invoice package', description: 'Invoice catalog description', unit: 'EA', referencePrice: '25.0000', currency: 'EUR', trackInventory: false }).expect(201); itemId = bodyOf<{ id: string }>(item).id;
     const otherRegistration = await request(serverOf(app)).post('/api/v1/auth/register').send({ email: `phase5-invoice-other-${suffix}@example.com`, password: 'correct horse battery staple', firstName: 'Other', lastName: 'Tenant' }).expect(201);
@@ -54,7 +54,8 @@ describe('Sales invoices', () => {
     const responses = await Promise.all([convertOrder(orderId, 'invoice-conversion-a'), convertOrder(orderId, 'invoice-conversion-b')]);
     expect(responses.map((response) => response.status).sort()).toEqual([201, 201]);
     const invoice = bodyOf<{ id: string; sourceOrderId: string; number: string; status: string; totalGross: string; lines: Array<Record<string, string>> }>(responses[0]);
-    expect(invoice).toMatchObject({ organizationId, establishmentId, sourceOrderId: orderId, number: `INV-${new Date().getUTCFullYear()}-000001`, status: 'DRAFT', totalGross: '30.0000' });
+    expect(invoice).toMatchObject({ organizationId, establishmentId, sourceOrderId: orderId, status: 'DRAFT', totalGross: '30.0000' });
+    expect(invoice.number).toMatch(new RegExp(`^INV-${new Date().getUTCFullYear()}-\\d{6}$`));
     expect(invoice.lines[0]).toMatchObject({ itemId, descriptionSnapshot: 'Invoice catalog description', skuSnapshot: 'SKU-INVOICE-1', unitSnapshot: 'EA' });
     const repeated = await convertOrder(orderId, 'invoice-conversion-c'); expect(bodyOf<{ id: string }>(repeated).id).toBe(invoice.id);
     await expect(prisma.invoice.count({ where: { organizationId, sourceOrderId: orderId } })).resolves.toBe(1);

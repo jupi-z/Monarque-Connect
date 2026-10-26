@@ -10,6 +10,8 @@ import { AppModule } from '../../src/app.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
 import { ProblemDetailsFilter } from '../../src/http/problem-details.filter.js';
 import { seedReferenceData } from '../../prisma/seed.js';
+import { expectHttpStatusWithDiagnostics } from '../setup/http-diagnostics.js';
+import { authorizationSnapshot } from '../setup/authorization-snapshot.js';
 
 const generateKeyPairAsync = promisify(generateKeyPair);
 
@@ -77,7 +79,15 @@ describe('Identity, tenancy and Phase 2 HTTP flows', () => {
     const me = await request(server).get('/api/v1/auth/me').set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<{ email: string }>(me).email).toBe('http-owner@example.com');
     await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Enterprise attempt', handle: 'enterprise-attempt', defaultCurrency: 'EUR', establishmentName: 'Main office', planCode: 'ENTERPRISE' }).expect(400);
-    const organization = await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'HTTP Tenant', handle: 'http-tenant', defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
+    const organizationResponse = await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'HTTP Tenant', handle: 'http-tenant', defaultCurrency: 'EUR', establishmentName: 'Main office' });
+    const organization = await expectHttpStatusWithDiagnostics(organizationResponse, 201, 'Phase 1 HTTP E2E', 'create organization', async () => {
+      const [existing, owner, connectPlan] = await Promise.all([
+        prisma.organization.findMany({ where: { handle: 'http-tenant' }, select: { status: true, businessTypeCode: true } }),
+        prisma.user.findUnique({ where: { normalizedEmail: 'http-owner@example.com' }, select: { status: true, memberships: { select: { status: true, role: true } } } }),
+        prisma.planVersion.findUnique({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } }, select: { status: true, planCode: true, version: true, modules: { select: { moduleCode: true, defaultEnabled: true } }, quotas: { select: { quotaCode: true, mode: true, limitValue: true } } } }),
+      ]);
+      return { existingOrganizationsWithHandle: existing, ownerAccount: owner, connectPlan };
+    });
     const organizationBody = bodyOf<{ id: string; establishment: { isPrimary: boolean } }>(organization);
     organizationId = organizationBody.id;
     expect(organizationBody.establishment.isPrimary).toBe(true);
@@ -97,8 +107,13 @@ describe('Identity, tenancy and Phase 2 HTTP flows', () => {
     expect(bodyOf<Array<{ code: string; entitled: boolean; active: boolean }>>(modules).find((module) => module.code === 'CATALOG')).toMatchObject({ entitled: true, active: true });
     await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: false, reason: 'HTTP E2E deactivation proof' }).expect(200);
     const deactivatedCapabilities = await request(server).get(`/api/v1/organizations/${organizationId}/capabilities`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
-    expect(bodyOf<{ modules: Array<{ code: string; allowed: boolean; reason: string }> }>(deactivatedCapabilities).modules.find((module) => module.code === 'CATALOG')).toMatchObject({ allowed: false, reason: 'MODULE_DEACTIVATED' });
-    await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: true, reason: 'HTTP E2E reactivation proof' }).expect(200);
+    const catalogDecision = bodyOf<{ modules: Array<{ code: string; allowed: boolean; reason: string }> }>(deactivatedCapabilities).modules.find((module) => module.code === 'CATALOG');
+    if (catalogDecision?.reason !== 'MODULE_DEACTIVATED') {
+      console.error(`[phase1-entitlement-test-diagnostic] ${JSON.stringify({ decision: catalogDecision, sqlSnapshot: await authorizationSnapshot(prisma, organizationId) })}`);
+    }
+    expect(catalogDecision).toMatchObject({ allowed: false, reason: 'MODULE_DEACTIVATED' });
+    const reactivationResponse = await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: true, reason: 'HTTP E2E reactivation proof' });
+    await expectHttpStatusWithDiagnostics(reactivationResponse, 200, 'Phase 1 HTTP E2E', 'reactivate CATALOG', () => authorizationSnapshot(prisma, organizationId));
     const quotas = await request(server).get(`/api/v1/organizations/${organizationId}/quotas`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<Array<{ quotaCode: string; mode: string; limit: string; used: string; reserved: string }>>(quotas)).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', mode: 'CAPACITY', limit: '5', used: '1', reserved: '0' })]));
     const otherRegistration = await request(server).post('/api/v1/auth/register').send({ email: 'http-other@example.com', password: 'correct horse battery staple', firstName: 'HTTP', lastName: 'Other' }).expect(201);

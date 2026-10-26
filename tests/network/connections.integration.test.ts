@@ -88,24 +88,28 @@ describe('Network connection requests', () => {
   afterAll(async () => { if (app) await app.close(); });
 
   it('creates a request only for an eligible public target and records one audit plus one event', async () => {
-    const response = await request(serverOf(app)).post(`/api/v1/organizations/${organizationA}/connection-requests`).set('Authorization', `Bearer ${ownerAToken}`).send({ targetOrganizationId: organizationB, message: 'Let us connect.' }).expect(201);
-    expect(response.body).toEqual(expect.objectContaining({ sourceOrganizationId: organizationA, targetOrganizationId: organizationB, status: 'PENDING', message: 'Let us connect.' }));
-    await request(serverOf(app)).post(`/api/v1/organizations/${organizationA}/connection-requests`).set('Authorization', `Bearer ${ownerAToken}`).send({ targetOrganizationId: organizationB }).expect(409);
+    const target = await createPublicTarget(app, 'connections-create-target');
+    const response = await request(serverOf(app)).post(`/api/v1/organizations/${organizationA}/connection-requests`).set('Authorization', `Bearer ${ownerAToken}`).send({ targetOrganizationId: target.organizationId, message: 'Let us connect.' }).expect(201);
+    const requestId = bodyOf<{ id: string }>(response).id;
+    expect(response.body).toEqual(expect.objectContaining({ id: requestId, sourceOrganizationId: organizationA, targetOrganizationId: target.organizationId, status: 'PENDING', message: 'Let us connect.' }));
+    await request(serverOf(app)).post(`/api/v1/organizations/${organizationA}/connection-requests`).set('Authorization', `Bearer ${ownerAToken}`).send({ targetOrganizationId: target.organizationId }).expect(409);
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationA}/connection-requests`).set('Authorization', `Bearer ${ownerAToken}`).send({ targetOrganizationId: organizationA }).expect(409);
-    await expect(prisma.auditEvent.count({ where: { action: 'CONNECTION_REQUEST_CREATED', organizationId: organizationA } })).resolves.toBe(1);
-    await expect(prisma.outboxEvent.count({ where: { eventType: 'network.connection.requested', organizationId: organizationA } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { action: 'CONNECTION_REQUEST_CREATED', targetId: requestId } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { eventType: 'network.connection.requested', aggregateId: requestId } })).resolves.toBe(1);
   });
 
   it('lists requests for either participating organization and enforces actor and side authority', async () => {
+    const target = await createPublicTarget(app, 'connections-list-target');
+    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationA}/connection-requests`).set('Authorization', `Bearer ${ownerAToken}`).send({ targetOrganizationId: target.organizationId, message: 'List scenario.' }).expect(201);
+    const id = bodyOf<{ id: string }>(created).id;
     const sourceList = bodyOf<{ items: Array<{ id: string }> }>(await request(serverOf(app)).get(`/api/v1/organizations/${organizationA}/connection-requests`).set('Authorization', `Bearer ${ownerAToken}`).expect(200));
-    const targetList = bodyOf<{ items: Array<{ id: string }> }>(await request(serverOf(app)).get(`/api/v1/organizations/${organizationB}/connection-requests`).set('Authorization', `Bearer ${ownerBToken}`).expect(200));
-    expect(sourceList.items).toHaveLength(1);
-    expect(targetList.items).toHaveLength(1);
-    const id = sourceList.items[0]!.id;
+    const targetList = bodyOf<{ items: Array<{ id: string }> }>(await request(serverOf(app)).get(`/api/v1/organizations/${target.organizationId}/connection-requests`).set('Authorization', `Bearer ${target.token}`).expect(200));
+    expect(sourceList.items).toEqual(expect.arrayContaining([expect.objectContaining({ id })]));
+    expect(targetList.items).toEqual(expect.arrayContaining([expect.objectContaining({ id })]));
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationA}/connection-requests/${id}`).set('Authorization', `Bearer ${ownerAToken}`).send({ status: 'ACCEPTED' }).expect(403);
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationA}/connection-requests/${id}`).set('Authorization', `Bearer ${ownerCToken}`).send({ status: 'CANCELLED' }).expect(403);
-    await request(serverOf(app)).patch(`/api/v1/organizations/${organizationB}/connection-requests/${id}`).set('Authorization', `Bearer ${ownerBToken}`).send({ status: 'ACCEPTED' }).expect(200);
-    await request(serverOf(app)).patch(`/api/v1/organizations/${organizationB}/connection-requests/${id}`).set('Authorization', `Bearer ${ownerBToken}`).send({ status: 'DECLINED' }).expect(409);
+    await request(serverOf(app)).patch(`/api/v1/organizations/${target.organizationId}/connection-requests/${id}`).set('Authorization', `Bearer ${target.token}`).send({ status: 'ACCEPTED' }).expect(200);
+    await request(serverOf(app)).patch(`/api/v1/organizations/${target.organizationId}/connection-requests/${id}`).set('Authorization', `Bearer ${target.token}`).send({ status: 'DECLINED' }).expect(409);
     await expect(prisma.auditEvent.count({ where: { action: 'CONNECTION_REQUEST_STATUS_CHANGED', targetId: id } })).resolves.toBe(1);
     await expect(prisma.outboxEvent.count({ where: { eventType: 'network.connection.status_changed', aggregateId: id } })).resolves.toBe(1);
   });
@@ -144,6 +148,13 @@ async function createOrganization(app: INestApplication, token: string, slug: st
 
 async function makePublic(app: INestApplication, token: string, organizationId: string, displayName: string): Promise<void> {
   await request(serverOf(app)).patch(`/api/v1/organizations/${organizationId}/network-profile`).set('Authorization', `Bearer ${token}`).send({ isPublic: true, displayName, categories: ['network'], publishedItemIds: [] }).expect(200);
+}
+
+async function createPublicTarget(app: INestApplication, slug: string): Promise<{ token: string; organizationId: string }> {
+  const user = await createUser(app, slug);
+  const targetOrganizationId = await createOrganization(app, user.token, slug);
+  await makePublic(app, user.token, targetOrganizationId, slug);
+  return { token: user.token, organizationId: targetOrganizationId };
 }
 
 function bodyOf<T>(response: Response): T { return response.body as T; }

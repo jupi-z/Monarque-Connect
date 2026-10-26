@@ -133,7 +133,7 @@ describe('Phase 7 Operations HTTP E2E', () => {
 
   async function upgradeToBusiness(): Promise<void> {
     const plan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, select: { id: true } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: plan.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: plan.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
   }
 
   async function expectBalance(cashAccountId: string, expected: string): Promise<void> {

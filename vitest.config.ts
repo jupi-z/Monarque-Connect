@@ -1,13 +1,3 @@
-import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  test: {
-    environment: 'node',
-    include: ['tests/**/*.test.ts'],
-    setupFiles: ['tests/setup/reset-test-database.ts'],
-    hookTimeout: 60000,
-    fileParallelism: false,
-    minWorkers: 1,
-    maxWorkers: 1,
-  },
-});
+// Safe default: a bare `vitest run` executes only database-free unit tests.
+// Integration and HTTP E2E suites require their explicit configs and guarded test URLs.
+export { default } from './vitest.unit.config.ts';
