@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
+    globalSetup: ['tests/setup/lock-test-database.ts'],
     include: [
       'tests/**/*.integration.test.ts',
       'tests/events/outbox-repository.test.ts',
