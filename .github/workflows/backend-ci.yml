@@ -18,7 +18,6 @@ jobs:
 
   validate-main:
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
-    uses: ./.github/workflows/backend-ci-reusable.yml
+    uses: ./.github/workflows/backend-ci-hosted-reusable.yml
     with:
-      runner: '["self-hosted","monarque-ci"]'
       ref: ${{ github.sha }}
