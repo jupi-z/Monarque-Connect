@@ -4,6 +4,10 @@ inputs:
   ci-resource-suffix:
     description: Unique suffix derived from GitHub run ID and attempt
     required: true
+  repeat-targeted-stability:
+    description: Repeat CRM and Phase 1 regression suites on hosted CI
+    required: false
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -106,6 +110,21 @@ runs:
     - name: Run HTTP E2E suite once on its isolated database
       shell: bash
       run: npm run test:e2e -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000
+    - name: Repeat CRM and Phase 1 regressions ten times in both orders
+      if: ${{ inputs.repeat-targeted-stability == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        for iteration in $(seq 1 10); do
+          echo "=== isolated regression iteration ${iteration}/10 ==="
+          if (( iteration % 2 == 1 )); then
+            npm run test:integration -- tests/crm/leads-opportunities.integration.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+            npm run test:e2e -- tests/e2e/phase1-http.e2e.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000
+          else
+            npm run test:e2e -- tests/e2e/phase1-http.e2e.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000
+            npm run test:integration -- tests/crm/leads-opportunities.integration.test.ts --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+          fi
+        done
     - shell: bash
       run: npm run build
     - name: Smoke HTTP health endpoints

@@ -32,3 +32,4 @@ jobs:
         uses: ./.github/actions/backend-ci-validation
         with:
           ci-resource-suffix: ${{ env.CI_RESOURCE_SUFFIX }}
+          repeat-targeted-stability: 'true'
