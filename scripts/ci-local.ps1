@@ -76,7 +76,17 @@ Invoke-Step 'Start disposable PostgreSQL container' {
   Invoke-Step 'Contract validation' { npm run contracts:validate }
   Invoke-Step 'Billing operational preflight' { npm run billing:preflight }
   Invoke-Step 'Database-free unit tests' {
-    npm run test:unit -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+    $unitDatabaseUrl = $env:DATABASE_URL
+    $unitTestDatabaseUrl = $env:TEST_DATABASE_URL
+    Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:TEST_DATABASE_URL -ErrorAction SilentlyContinue
+    try {
+      npm run test:unit -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+      if ($LASTEXITCODE -ne 0) { throw "Database-free unit tests failed with exit code $LASTEXITCODE" }
+    } finally {
+      $env:DATABASE_URL = $unitDatabaseUrl
+      $env:TEST_DATABASE_URL = $unitTestDatabaseUrl
+    }
   }
   Invoke-Step 'PostgreSQL integration tests' {
     npm run test:integration -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000

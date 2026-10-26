@@ -32,6 +32,7 @@ runs:
           exit 1
         fi
         echo "DATABASE_URL=postgresql://postgres:postgres@${DATABASE_HOST}:${HOST_PORT}/monarque_connect_test" >> "$GITHUB_ENV"
+        echo "TEST_DATABASE_URL=postgresql://postgres:postgres@${DATABASE_HOST}:${HOST_PORT}/monarque_connect_test" >> "$GITHUB_ENV"
         for i in $(seq 1 30); do
           if docker inspect --format '{{.State.Health.Status}}' "$CONTAINER_NAME" | grep -q healthy; then
             exit 0
@@ -94,7 +95,7 @@ runs:
       run: npm run contracts:validate
     - name: Run database-free unit tests
       shell: bash
-      run: npm run test:unit -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
+      run: env -u DATABASE_URL -u TEST_DATABASE_URL npm run test:unit -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000
     - name: Run PostgreSQL integration tests
       shell: bash
       run: npm run test:integration -- --pool=forks --maxWorkers=1 --no-file-parallelism --testTimeout=30000 --hookTimeout=60000

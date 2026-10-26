@@ -14,11 +14,16 @@ export async function expectHttpStatusWithDiagnostics(
   if (response.status !== expectedStatus) {
     const body = response.body as Record<string, unknown> | undefined;
     const problem = body && typeof body === 'object'
-      ? Object.fromEntries(['type', 'title', 'status', 'detail', 'code', 'requestId']
+      ? Object.fromEntries(['type', 'status', 'code', 'requestId']
           .filter((key) => key in body)
           .map((key) => [key, redact(body[key])]))
       : undefined;
-    const state = snapshot ? await snapshot() : undefined;
+    let state: unknown;
+    try {
+      state = snapshot ? await snapshot() : undefined;
+    } catch {
+      state = { available: false };
+    }
     console.error(`[test-http-diagnostic] ${JSON.stringify({
       suite,
       operation,
