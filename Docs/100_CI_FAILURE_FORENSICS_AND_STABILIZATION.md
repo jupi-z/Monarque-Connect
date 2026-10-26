@@ -282,3 +282,29 @@ The test-first run [#40296973016](https://github.com/jupi-z/Monarque-Connect/act
 - `CI_STABLE`: not yet assigned. The three consecutive complete validations must run on the final commit after this report amendment, all on the same exact SHA. The current `52f22cb` pass predates this report amendment and does not satisfy that gate.
 
 Keep PR #156 draft and unmerged until the report is committed, three complete GitHub-hosted validations succeed consecutively on the resulting exact head SHA, concurrent run/container isolation and cleanup are confirmed from their logs, and the PR check itself is green. No C1–C8 migration or Phase 10A.5 feature work is included. Post-merge CI on `main` remains a separate required proof.
+
+## 14. Final hosted validation update — 2026-10-26
+
+### Exact validated implementation SHA
+
+The implementation, workflow and evidence report state before this update were validated together at SHA `05fbcafeab65363c0512aa039a0cce8e58732fdc`. The following three independent GitHub-hosted executions all checked out that exact SHA and completed successfully:
+
+| Sequence | Event / job | Run | Result |
+|---|---|---|---|
+| 1 | PR / `validate-pr / validate` | [#40298915934](https://github.com/jupi-z/Monarque-Connect/actions/runs/40298915934) | success |
+| 2 | workflow_dispatch / `validate-main / validate` | [#40298931495](https://github.com/jupi-z/Monarque-Connect/actions/runs/40298931495) | success |
+| 3 | workflow_dispatch / `validate-main / validate` | [#40298936467](https://github.com/jupi-z/Monarque-Connect/actions/runs/40298936467) | success |
+
+All three jobs ran concurrently on GitHub-hosted `ubuntu-latest` between 09:21 and 09:26 UTC. Their distinct run IDs produce separately named PostgreSQL containers and isolated integration/E2E databases. Each job's full shared validation step and post-job cleanup succeeded. The final cleanup step checks that the run's container is absent; no two runs share a runner, port, container, or database. PR-event `validate-main` and dispatch-event `validate-pr` jobs were skipped by their documented event conditions; the applicable full validation job ran in each execution.
+
+The run logs verify Prisma generation and schema validation, lint, typecheck, runtime dependency audit, empty-database and supported historical migration/upgrade proofs (54 migration files), OpenAPI validation (200 operations), contract validation, production build, HTTP smoke, all unit tests (43 files / 173 tests), PostgreSQL integration tests (44 files / 184 tests), and HTTP E2E (10 files / 23 tests). Each run also completed ten CRM repetitions and ten Phase 1 HTTP E2E repetitions, alternating their order; all invocations passed. The advisory-lock regression, competing-session check, and isolated database reset are included in the integration run.
+
+**CI_STABLE / REGRESSION_VERIFIED:** the CI and database-isolation changes are stable on the exact implementation SHA above, with three consecutive full hosted validations, repeated CRM/Phase 1 scenarios, overlapping isolated workflows, and successful resource cleanup. This designation does not claim that missing historical incident evidence has been recovered.
+
+### Historical evidence limitation and mission boundary
+
+**ROOT_CAUSE_NOT_PROVEN (retrospective only):** the precise decision branches for the historical CRM HTTP 403s and Phase 1 HTTP 409, and the exact two historical E2E failures, cannot be attributed from retained incident artifacts. The current reproduced organization/subscription timestamp boundary is separately **CAUSE_PROVEN / REGRESSION_VERIFIED** and the correction passed the repeated E2E runs. No active unexplained failure was observed in the three final-SHA validations. The user explicitly accepted the irrecoverable retrospective gaps under those conditions.
+
+The test-first failure on run [#40296973016](https://github.com/jupi-z/Monarque-Connect/actions/runs/40296973016) and cancelled runs on superseded SHAs remain disclosed above and are excluded from successful validation counts. No local heavy process was run after the workstation cooling issue was reported. No business migrations or C1–C8 implementation were started.
+
+This evidence amendment changes the documentation commit and therefore creates a new PR head SHA. The same three-run gate must be repeated on that resulting exact head before PR #156 is marked ready or merged. Post-merge `main` CI is still mandatory and will be reported separately.
