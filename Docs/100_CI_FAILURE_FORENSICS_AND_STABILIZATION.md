@@ -203,3 +203,37 @@ The current draft PR branch is at `78522f8f642021c95bcfe06fccbcd5977ae8c106` bef
 During the interrupted investigation, the Phase 1 organization-create path returned a redacted `application/problem+json` response with HTTP 409 and detail `Organization has no active subscription`. The relevant code path is `OrganizationService.create()` creating an ACTIVE CONNECT subscription and immediately consuming initial `MAX_ESTABLISHMENTS` and `MAX_USERS` capacity in the same transaction. The subscription and quota check had independently sampled time (`new Date()`), while PostgreSQL assigns `Organization.createdAt`; the effective-subscription predicate rejects a subscription whose `startsAt` is later than its evaluation instant. The targeted correction now uses the persisted `organization.createdAt` for the subscription start and both initial quota consumptions, so all three checks share one authoritative instant. A regression assertion verifies equality of the persisted organization and subscription timestamps, and the E2E request emits redacted response/authorization snapshots on unexpected status.
 
 This reproduction identifies the causal timing mechanism for the current 409 scenario. It does **not** establish the historical PostgreSQL constraint metadata for run #446, nor does it retroactively identify the four historical CRM 403 decision branches. Those remain `ROOT_CAUSE_NOT_PROVEN` unless a retained contemporaneous diagnostic proves them. The post-fix ten-run E2E gate, full hosted CI, repeated complete same-SHA runs, and concurrent workflow/resource-cleanup checks remain pending.
+
+## 12. Update 2026-10-26 — hosted validation and hardware constraint
+
+The user reported that the workstation fan is faulty and asked that no local worker be used. All verification after that instruction ran on GitHub-hosted `ubuntu-latest`; no local test process was started. The local WSL test command from the earlier interrupted attempt had already been stopped, its disposable container removed, and Docker Desktop/WSL shut down. The two registered self-hosted runners (`monarque-connect-ci` and `monarque-phase9-pr-isolated`) were observed `offline` and `busy=false`. The repository workflow `.github/workflows/backend-ci.yml` now routes PR, `push` to `main`, and `workflow_dispatch` validation through `.github/workflows/backend-ci-hosted-reusable.yml`, whose job declares `runs-on: ubuntu-latest`; the self-hosted wrappers are no longer selected by this entrypoint.
+
+### Three complete hosted validations on one exact SHA
+
+PR #156 remains open, draft, and unmerged. Its head and the checked merge ref both resolve to `5ca7ee1958e9ce02f4f0c23386e44dc3d283e35c`. Three complete attempts of hosted PR run [#40290165904](https://github.com/jupi-z/Monarque-Connect/actions/runs/40290165904) passed consecutively on that exact head SHA:
+
+| Attempt | Job | Hosted execution | Result |
+|---|---|---|---|
+| 1 | `validate-pr / validate`, job `121463077561` | 2026-10-26 08:08:04–08:14:15 UTC, `ubuntu-latest` | success |
+| 2 | `validate-pr / validate`, job `121465567413` | 2026-10-26 08:14:58–08:21:25 UTC, `ubuntu-latest` | success |
+| 3 | `validate-pr / validate`, job `121468216985` | 2026-10-26 08:22:02–08:28:14 UTC, `ubuntu-latest` | success |
+
+Each attempt completed the shared CI validation, including unit (42 files / 167 tests), integration (43 files / 183 tests), E2E (10 files / 23 tests), OpenAPI (200 operations), migration/upgrade proofs, build and HTTP smoke. The dedicated targeted-repeat step ran ten alternating CRM integration and Phase 1 E2E invocations in each attempt; the ten CRM invocations passed 5/5 tests each, and the ten Phase 1 invocations passed 2/2 each. This is 30 successful independent invocations per target suite on the final code SHA. The `validate-main` job was skipped in each PR-event attempt as designed; it is not counted as a failed or executed job. The shared validation step and post-job cleanup completed successfully.
+
+The hosted log for attempt 3 records its uniquely scoped PostgreSQL container as `monarque-ci-postgres-40290165904-1` and the unconditional cleanup command removes that exact container. Earlier complete hosted validation [#40289970641](https://github.com/jupi-z/Monarque-Connect/actions/runs/40289970641) overlapped attempt 1 of #40290165904 for approximately 2m25s. They ran on distinct GitHub-hosted runner instances and used distinct resources `monarque-ci-postgres-40289970641-1` and `monarque-ci-postgres-40290165904-1`; both logs show cleanup of their own container. This demonstrates overlapping hosted jobs without shared runner or PostgreSQL resource collision. This overlap used SHA `73950e697b2ae7ffe030ae573b061fd09ec98098` for the earlier run and `5ca7ee1958e9ce02f4f0c23386e44dc3d283e35c` for attempt 1; it is resource-isolation evidence, not a same-SHA concurrency test.
+
+### Current 409 fix and remaining forensic limit
+
+On the current code, the Phase 1 organization-creation time-boundary failure is addressed by deriving subscription start and initial capacity consumption timestamps from the persisted organization creation timestamp. The regression assertion and ten hosted Phase 1 repetitions pass. The earlier locally observed current-code failure returned HTTP 409 with the redacted detail `Organization has no active subscription`; the relevant effective-subscription predicate rejects a start timestamp later than its evaluation time. This proves the timing mechanism for that reproduced scenario and the hosted regression now passes.
+
+This does not reconstruct missing evidence from historical run #446. The exact decision branch for its four CRM 403 responses, the database/constraint cause of its organization-creation 409, and the exact branches of the two #443 E2E failures were not captured in those old logs. They remain explicitly `ROOT_CAUSE_NOT_PROVEN` as retrospective attributions. Present-day repeated passes and a current fix do not retroactively prove the old request's precise state. The later warehouse setup 409 on run #40187145289 likewise remains unproven from its retained output, though subsequent current Phase 1 and full integration validations pass.
+
+### Decision
+
+The CI infrastructure and current targeted regression gates are stable in three consecutive complete hosted validations on SHA `5ca7ee1958e9ce02f4f0c23386e44dc3d283e35c`, with 10/10 repeats per target suite per attempt, separate overlapping runner/database resources, and cleanup evidence. No local workers were used after the hardware warning. However, the mission's strict forensic criterion requires an exact cause for each historical HTTP failure; several original failures have no retained response, decision snapshot, constraint metadata, or SQL state. Those causes cannot honestly be claimed proven retroactively. **Final verdict remains NO-GO for declaring the forensic mission fully closed or merging PR #156 until those `ROOT_CAUSE_NOT_PROVEN` historical attributions are either proven by retained evidence or the acceptance criterion is explicitly revised by the user.** No Phase 10A.5 migrations or functional work were added.
+
+PR #156: https://github.com/jupi-z/Monarque-Connect/pull/156
+
+Hosted CI attempts 1–3, exact head SHA `5ca7ee1958e9ce02f4f0c23386e44dc3d283e35c`: https://github.com/jupi-z/Monarque-Connect/actions/runs/40290165904
+
+Overlapping hosted run: https://github.com/jupi-z/Monarque-Connect/actions/runs/40289970641
