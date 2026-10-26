@@ -237,3 +237,48 @@ PR #156: https://github.com/jupi-z/Monarque-Connect/pull/156
 Hosted CI attempts 1–3, exact head SHA `5ca7ee1958e9ce02f4f0c23386e44dc3d283e35c`: https://github.com/jupi-z/Monarque-Connect/actions/runs/40290165904
 
 Overlapping hosted run: https://github.com/jupi-z/Monarque-Connect/actions/runs/40289970641
+
+## 13. Superseding update 2026-10-26 — Vitest entry points and database exclusion
+
+This section supersedes the earlier draft verdicts above where they said the PR must remain blocked solely because historical HTTP branches could not be reconstructed. The user explicitly accepted those retrospective evidence gaps provided current mechanisms are corrected and verified, security invariants remain intact, and no active unexplained failure remains.
+
+### Verified code and workflow head before this report amendment
+
+- PR #156 remained open and draft, based on `main@2658eb4a9ed971c3e6d7cd05672a036bb8d34e5f`.
+- Code/workflow head at the time of the validation: `52f22cb4582cb4b69081870ba6e38cdd9bf6b823`.
+- GitHub-hosted PR run [#40298092277](https://github.com/jupi-z/Monarque-Connect/actions/runs/40298092277), job `121488990700`, completed `success` on that exact SHA using `ubuntu-latest`; the `validate-main` job was skipped as designed for a PR event.
+- The run passed Prisma generation and validation, lint, typecheck, runtime dependency audit, all configured migration/upgrade proofs (54 migrations on the full history, including supported phase boundaries), OpenAPI (200 operations), contracts, production build, HTTP health smoke, and the unconditional PostgreSQL cleanup verification.
+- Vitest summaries in the run: unit 43 files / 173 tests passed; PostgreSQL integration 44 files / 184 tests passed (including the new advisory-lock regression); HTTP E2E 10 files / 23 tests passed.
+- The hosted repeat step ran CRM (5 tests) and Phase 1 HTTP E2E (2 tests) ten times each, alternating which suite ran first. All 20 invocations passed; the container cleanup step completed successfully.
+
+### Corrected execution boundaries
+
+`vitest.config.ts` now re-exports the unit-only configuration. Bare `vitest run` therefore does not load the destructive PostgreSQL reset. Unit, integration and E2E npm commands select their respective configurations; CI unsets both database variables for unit tests.
+
+The shared reset hook now fails closed unless `NODE_ENV=test`, `DATABASE_URL` and `TEST_DATABASE_URL` are both explicitly set to the same URL, the URL uses PostgreSQL, and its host and database name match the local test allowlist. It truncates the test schema in one statement while preserving `_prisma_migrations`.
+
+Integration and E2E runs acquire a session-level PostgreSQL advisory lock in global setup and hold it until Vitest teardown. A second Vitest execution against the same database fails before setup files can run the global truncate. The new integration regression test opens a competing session and confirms that it cannot acquire the lock. This is an exclusion guard, not a retry or a bypass of test concurrency inside an individual business test.
+
+Each GitHub Actions attempt still receives a unique PostgreSQL container name derived from run ID and attempt, a dynamically allocated loopback port, and distinct integration/E2E databases. The cleanup step removes that exact container and fails if it remains. Concurrent workflows therefore do not share mutable database state. The active workflow routes through the GitHub-hosted reusable job; the self-hosted reusable workflow is not called by the active entrypoint.
+
+### Organization creation temporal result
+
+**CAUSE_PROVEN / REGRESSION_VERIFIED:** the reproduced current-code HTTP 409 was `Organization has no active subscription`. The subscription and initial quota checks could evaluate immediately before the database-persisted organization timestamp even though the transaction had just created the organization. `OrganizationService.create()` now uses the persisted `organization.createdAt` for the initial CONNECT subscription and both initial capacity consumptions. The tenancy integration regression asserts that the persisted timestamps agree; repeated Phase 1 HTTP E2E passed on the hosted run above. No authorization rule or entitlement predicate was relaxed.
+
+### Retrospective limits and explicit residual-risk acceptance
+
+**ROOT_CAUSE_NOT_PROVEN:** the old #446 CRM 403 decisions, its organization-creation 409 constraint metadata, both #443 E2E decisions, and the later warehouse setup 409 do not have retained response bodies, branch diagnostics, transaction metadata, or contemporaneous SQL snapshots sufficient to identify each historical branch exactly. No report here attributes those old responses to a specific branch.
+
+The later reproducible subscription-time boundary was fixed and regression-tested. CRM and Phase 1 now pass ten independent hosted invocations each on the verified code head. The user has explicitly accepted the irrecoverable retrospective gaps under those conditions. They remain visible residual evidence limitations; they are not being represented as historically proven causes.
+
+The test-first run [#40296973016](https://github.com/jupi-z/Monarque-Connect/actions/runs/40296973016) on test-only commit `b28da44e156baf37f25fa83f25d551069b5d0c24` failed before the guard implementation, as expected for the staged red test. It is disclosed and excluded from passing CI evidence. Runs on superseded intermediate SHAs were cancelled after a newer revision was pushed; they do not count toward final validation.
+
+### Current decision and remaining gates
+
+- `CAUSE_PROVEN`: current organization/subscription timestamp boundary; global destructive reset can collide when concurrent executions share a database.
+- `REGRESSION_VERIFIED`: timestamp alignment, explicit test-database URL guard, safe bare Vitest entrypoint, concurrent database lock, isolated integration/E2E execution, ten CRM and ten Phase 1 repetitions on run #40298092277.
+- `ROOT_CAUSE_NOT_PROVEN`: exact branches of the historical HTTP incidents listed above; accepted by the user as retrospective residual risk, not silently relabeled as proven.
+- `EXTERNAL_OR_ENVIRONMENTAL_LIMITATION`: no local workers, Docker, build, or test process were used after the user reported a failed cooling fan. The required heavy checks ran on GitHub-hosted Actions.
+- `CI_STABLE`: not yet assigned. The three consecutive complete validations must run on the final commit after this report amendment, all on the same exact SHA. The current `52f22cb` pass predates this report amendment and does not satisfy that gate.
+
+Keep PR #156 draft and unmerged until the report is committed, three complete GitHub-hosted validations succeed consecutively on the resulting exact head SHA, concurrent run/container isolation and cleanup are confirmed from their logs, and the PR check itself is green. No C1–C8 migration or Phase 10A.5 feature work is included. Post-merge CI on `main` remains a separate required proof.
