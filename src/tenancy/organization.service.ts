@@ -39,14 +39,14 @@ export class OrganizationService {
         const planCode = 'CONNECT';
         const planVersion = await tx.planVersion.findUnique({ where: { planCode_version: { planCode, version: 1 } }, select: { id: true } });
         if (!planVersion) throw new ConflictException('Requested plan is not available');
-        await this.subscriptions.createInTransaction(tx, { organizationId, planVersionId: planVersion.id, startsAt: new Date(), status: 'ACTIVE' }, context);
+        await this.subscriptions.createInTransaction(tx, { organizationId, planVersionId: planVersion.id, startsAt: organization.createdAt, status: 'ACTIVE' }, context);
         const establishment = await tx.establishment.create({ data: {
           id: establishmentId, organizationId, code: input.establishmentCode ?? 'HEAD-OFFICE',
           name: input.establishmentName.trim(), type: input.establishmentType ?? 'HEAD_OFFICE', isPrimary: true,
         } });
         await tx.membership.create({ data: { id: membershipId, organizationId, userId: principal.userId, role: 'OWNER', scopeMode: 'ALL_ESTABLISHMENTS' } });
-        await this.quotasService.consume(tx, { organizationId, quotaCode: 'MAX_ESTABLISHMENTS', amount: 1n, idempotencyKey: `organization:${organizationId}:establishment:${establishmentId}`, resourceType: 'Establishment', resourceId: establishmentId });
-        await this.quotasService.consume(tx, { organizationId, quotaCode: 'MAX_USERS', amount: 1n, idempotencyKey: `organization:${organizationId}:membership:${membershipId}`, resourceType: 'Membership', resourceId: membershipId });
+        await this.quotasService.consume(tx, { organizationId, quotaCode: 'MAX_ESTABLISHMENTS', amount: 1n, idempotencyKey: `organization:${organizationId}:establishment:${establishmentId}`, resourceType: 'Establishment', resourceId: establishmentId, at: organization.createdAt });
+        await this.quotasService.consume(tx, { organizationId, quotaCode: 'MAX_USERS', amount: 1n, idempotencyKey: `organization:${organizationId}:membership:${membershipId}`, resourceType: 'Membership', resourceId: membershipId, at: organization.createdAt });
         await tx.auditEvent.create({ data: {
           id: randomUUID(), action: 'ORGANIZATION_CREATED', actorUserId: principal.userId, organizationId,
           targetType: 'Organization', targetId: organizationId, requestId: context.requestId ?? null,

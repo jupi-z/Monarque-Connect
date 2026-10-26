@@ -112,7 +112,8 @@ describe('Identity, tenancy and Phase 2 HTTP flows', () => {
       console.error(`[phase1-entitlement-test-diagnostic] ${JSON.stringify({ decision: catalogDecision, sqlSnapshot: await authorizationSnapshot(prisma, organizationId) })}`);
     }
     expect(catalogDecision).toMatchObject({ allowed: false, reason: 'MODULE_DEACTIVATED' });
-    await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: true, reason: 'HTTP E2E reactivation proof' }).expect(200);
+    const reactivationResponse = await request(server).patch(`/api/v1/organizations/${organizationId}/modules/CATALOG`).set('Authorization', `Bearer ${ownerToken}`).send({ enabled: true, reason: 'HTTP E2E reactivation proof' });
+    await expectHttpStatusWithDiagnostics(reactivationResponse, 200, 'Phase 1 HTTP E2E', 'reactivate CATALOG', () => authorizationSnapshot(prisma, organizationId));
     const quotas = await request(server).get(`/api/v1/organizations/${organizationId}/quotas`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<Array<{ quotaCode: string; mode: string; limit: string; used: string; reserved: string }>>(quotas)).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', mode: 'CAPACITY', limit: '5', used: '1', reserved: '0' })]));
     const otherRegistration = await request(server).post('/api/v1/auth/register').send({ email: 'http-other@example.com', password: 'correct horse battery staple', firstName: 'HTTP', lastName: 'Other' }).expect(201);
