@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { generateKeyPair } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { exportPKCS8, exportSPKI } from 'jose';
 import { Test } from '@nestjs/testing';
@@ -71,7 +72,7 @@ describe('Catalog items referential', () => {
     const organization = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'SERVICE_PROVIDER', name: 'Phase 3 Catalog Tenant', handle: `phase3-items-${Date.now()}`, defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
     organizationId = bodyOf<{ id: string }>(organization).id;
     const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     const viewerRegistration = await request(serverOf(app)).post('/api/v1/auth/register').send({ email: 'phase3-items-viewer@example.com', password: 'correct horse battery staple', firstName: 'Catalog', lastName: 'Viewer' }).expect(201);
     const viewerLogin = await request(serverOf(app)).post('/api/v1/auth/login').send({ identifier: bodyOf<{ email: string }>(viewerRegistration).email, password: 'correct horse battery staple' }).expect(200);
     viewerToken = bodyOf<{ accessToken: string }>(viewerLogin).accessToken;
@@ -84,7 +85,8 @@ describe('Catalog items referential', () => {
   });
 
   it('creates and lists a product with decimal price serialization and atomic events', async () => {
-    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', sku: 'SKU-001', name: 'Widget', unit: 'piece', referencePrice: '12.3400', currency: 'EUR', trackInventory: true }).expect(201);
+    const sku = `SKU-${randomUUID()}`;
+    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', sku, name: 'Widget', unit: 'piece', referencePrice: '12.3400', currency: 'EUR', trackInventory: true }).expect(201);
     const item = bodyOf<{ id: string; organizationId: string; type: string; referencePrice: string; currency: string; trackInventory: boolean }>(created);
     expect(item).toMatchObject({ organizationId, type: 'PRODUCT', referencePrice: '12.3400', currency: 'EUR', trackInventory: true });
 
@@ -95,8 +97,9 @@ describe('Catalog items referential', () => {
   });
 
   it('enforces SKU uniqueness and soft status transitions', async () => {
-    await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', sku: 'SKU-001', name: 'Duplicate', unit: 'hour', referencePrice: '20', currency: 'EUR' }).expect(409);
-    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', name: 'Consulting', unit: 'hour', referencePrice: '20', currency: 'EUR' }).expect(201);
+    const sku = `SKU-${randomUUID()}`;
+    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', sku, name: 'Consulting', unit: 'hour', referencePrice: '20', currency: 'EUR' }).expect(201);
+    await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', sku, name: 'Duplicate', unit: 'hour', referencePrice: '20', currency: 'EUR' }).expect(409);
     const item = bodyOf<{ id: string; active: boolean }>(created);
     const deactivated = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items/${item.id}/deactivate`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<{ active: boolean }>(deactivated).active).toBe(false);

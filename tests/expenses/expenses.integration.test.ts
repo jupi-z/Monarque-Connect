@@ -21,6 +21,7 @@ describe('Phase 7 Expenses', () => {
   let partyId: string;
   let otherPartyId: string;
   const actor = { userId: randomUUID(), sessionId: randomUUID() };
+  const fixtureSubscriptionStart = new Date('2020-01-01T00:00:00.000Z');
   const restrictedActor = { userId: randomUUID(), sessionId: randomUUID() };
 
   beforeAll(async () => {
@@ -45,7 +46,7 @@ describe('Phase 7 Expenses', () => {
     establishmentId = randomUUID();
     restrictedEstablishmentId = randomUUID();
     await prisma.organization.create({ data: { id: organizationId, businessTypeCode: businessType.code, name: 'Expenses tenant', handle: `expenses-${Date.now()}`, defaultCurrency: 'EUR' } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: operations.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: operations.id, status: 'ACTIVE', startsAt: fixtureSubscriptionStart } });
     await prisma.organizationModuleActivation.createMany({ data: operations.modules.map((module) => ({ id: randomUUID(), organizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.createMany({ data: [
       { id: establishmentId, organizationId, code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' },

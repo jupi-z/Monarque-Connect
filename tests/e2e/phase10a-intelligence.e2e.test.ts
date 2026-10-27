@@ -257,7 +257,7 @@ describe('Phase 10A Intelligence dashboard and metric HTTP E2E', () => {
 
   async function activateBusinessPlan(tenantId: string): Promise<void> {
     const plan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, select: { id: true } });
-    await prisma.subscription.updateMany({ where: { organizationId: tenantId }, data: { planVersionId: plan.id } });
+    await prisma.subscription.updateMany({ where: { organizationId: tenantId }, data: { planVersionId: plan.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
   }
 
   async function registerAndLogin(email: string, name: string): Promise<string> {

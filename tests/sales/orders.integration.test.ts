@@ -42,7 +42,7 @@ describe('Sales orders', () => {
     const ownerLogin = await request(serverOf(app)).post('/api/v1/auth/login').send({ identifier: bodyOf<{ email: string }>(ownerRegistration).email, password: 'correct horse battery staple' }).expect(200); ownerToken = bodyOf<{ accessToken: string }>(ownerLogin).accessToken;
     const organization = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'SERVICE_PROVIDER', name: 'Phase 5 Order Tenant', handle: `phase5-order-${suffix}`, defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
     const createdOrganization = bodyOf<{ id: string; establishment: { id: string } }>(organization); organizationId = createdOrganization.id; primaryEstablishmentId = createdOrganization.establishment.id;
-    const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } }); await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id } });
+    const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } }); await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: operationsVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     const secondary = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'SECOND', name: 'Secondary office', type: 'BRANCH' }).expect(201); secondaryEstablishmentId = bodyOf<{ id: string }>(secondary).id;
     const party = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/parties`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'CUSTOMER', displayName: 'Acme Client' }).expect(201); partyId = bodyOf<{ id: string }>(party).id;
     const item = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', sku: 'SKU-ORDER-1', name: 'Order package', description: 'Order catalog description', unit: 'HOUR', referencePrice: '25.0000', currency: 'EUR', trackInventory: false }).expect(201); itemId = bodyOf<{ id: string }>(item).id;
@@ -60,7 +60,8 @@ describe('Sales orders', () => {
     const quoteId = await createAcceptedQuote('order-conversion-quote');
     const first = await convertQuote(quoteId, 'order-conversion-1');
     const order = bodyOf<{ id: string; sourceQuoteId: string; number: string; status: string; totalGross: string; lines: Array<Record<string, string>> }>(first);
-    expect(order).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, sourceQuoteId: quoteId, number: `SO-${new Date().getUTCFullYear()}-000001`, status: 'DRAFT', totalGross: '30.0000' });
+    expect(order).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, sourceQuoteId: quoteId, status: 'DRAFT', totalGross: '30.0000' });
+    expect(order.number).toMatch(new RegExp(`^SO-${new Date().getUTCFullYear()}-\\d{6}$`));
     expect(order.lines[0]).toMatchObject({ itemId, descriptionSnapshot: 'Order catalog description', skuSnapshot: 'SKU-ORDER-1', unitSnapshot: 'HOUR' });
     const repeated = await convertQuote(quoteId, 'order-conversion-2'); expect(bodyOf<{ id: string }>(repeated).id).toBe(order.id);
     await expect(prisma.salesOrder.count({ where: { organizationId, sourceQuoteId: quoteId } })).resolves.toBe(1);

@@ -80,6 +80,11 @@ describe('Identity and tenancy integration', () => {
       businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Tenant A', handle: 'tenant-a', defaultCurrency: 'EUR', establishmentName: 'Head office',
     }) as { id: string; establishment: { isPrimary: boolean } };
     expect(created.establishment.isPrimary).toBe(true);
+    const [organization, subscription] = await Promise.all([
+      prisma.organization.findUniqueOrThrow({ where: { id: created.id }, select: { createdAt: true } }),
+      prisma.subscription.findFirstOrThrow({ where: { organizationId: created.id }, select: { startsAt: true } }),
+    ]);
+    expect(subscription.startsAt).toEqual(organization.createdAt);
     await expect(organizations.list({ userId: secondUserId, sessionId: '00000000-0000-0000-0000-000000000002' })).resolves.toHaveLength(0);
     await expect(organizations.get({ userId: secondUserId, sessionId: '00000000-0000-0000-0000-000000000002' }, created.id)).rejects.toThrow();
     await expect(prisma.establishment.count({ where: { organizationId: created.id, isPrimary: true } })).resolves.toBe(1);

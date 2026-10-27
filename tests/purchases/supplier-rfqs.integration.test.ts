@@ -90,7 +90,7 @@ describe('Phase 6 Supplier RFQs', () => {
     const supplierOrganization = await createOrganization(app, supplierToken, 'phase6-rfq-supplier', 'MINING_SUPPLIER_B2B');
     supplierOrganizationId = supplierOrganization.id;
     const businessVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, select: { id: true } });
-    await prisma.subscription.updateMany({ where: { organizationId: { in: [buyerOrganizationId, supplierOrganizationId] } }, data: { planVersionId: businessVersion.id } });
+    await prisma.subscription.updateMany({ where: { organizationId: { in: [buyerOrganizationId, supplierOrganizationId] } }, data: { planVersionId: businessVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     await request(serverOf(app)).patch(`/api/v1/organizations/${supplierOrganizationId}/network-profile`).set('Authorization', `Bearer ${supplierToken}`).send({ isPublic: true, displayName: 'Public supplier', categories: ['supplier'], publishedItemIds: [] }).expect(200);
     const connection = await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/connection-requests`).set('Authorization', `Bearer ${buyerToken}`).send({ targetOrganizationId: supplierOrganizationId }).expect(201);
     await request(serverOf(app)).patch(`/api/v1/organizations/${supplierOrganizationId}/connection-requests/${bodyOf<{ id: string }>(connection).id}`).set('Authorization', `Bearer ${supplierToken}`).send({ status: 'ACCEPTED' }).expect(200);
@@ -115,22 +115,25 @@ describe('Phase 6 Supplier RFQs', () => {
   it('creates a tenant-scoped RFQ with isolated local and Network recipient snapshots', async () => {
     const response = await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-create-1').send({ title: 'Steel sourcing', establishmentId: buyerEstablishmentId, neededBy: '2026-11-30', currency: 'EUR', lines: [{ descriptionSnapshot: 'Steel coil', unitSnapshot: 'KG', quantity: '100.500000' }], recipients: [{ localPartyId }, { networkOrganizationId: supplierOrganizationId }] }).expect(201);
     const responseBody = bodyOf<{ organizationId: string; establishmentId: string; number: string; status: string; title: string; recipients: Array<Record<string, unknown>>; lines: Array<Record<string, unknown>> }>(response);
+    const rfqId = bodyOf<{ id: string }>(response).id;
     expect(responseBody).toMatchObject({ organizationId: buyerOrganizationId, establishmentId: buyerEstablishmentId, status: 'DRAFT', title: 'Steel sourcing' });
     expect(responseBody.number).toMatch(/^RFQ-/);
     expect(responseBody.recipients).toEqual(expect.arrayContaining([expect.objectContaining({ localPartyId, supplierKind: 'LOCAL_PARTY', status: 'PENDING' }), expect.objectContaining({ networkOrganizationId: supplierOrganizationId, supplierKind: 'NETWORK_ORGANIZATION', status: 'PENDING' })]));
     expect(responseBody.recipients[0]).not.toHaveProperty('email');
     expect(responseBody.recipients[0]).not.toHaveProperty('phone');
     expect(responseBody.lines[0]).toMatchObject({ quantity: '100.500000', descriptionSnapshot: 'Steel coil' });
-    await expect(prisma.auditEvent.count({ where: { action: 'SUPPLIER_RFQ_CREATED', organizationId: buyerOrganizationId } })).resolves.toBe(1);
-    await expect(prisma.outboxEvent.count({ where: { eventType: 'purchases.supplier_rfq.created.v1', organizationId: buyerOrganizationId } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { action: 'SUPPLIER_RFQ_CREATED', targetId: rfqId } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { eventType: 'purchases.supplier_rfq.created.v1', aggregateId: rfqId } })).resolves.toBe(1);
     await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-create-1').send({ title: 'Different payload', establishmentId: buyerEstablishmentId, currency: 'EUR', lines: [{ descriptionSnapshot: 'Steel coil', unitSnapshot: 'KG', quantity: '101' }], recipients: [{ localPartyId }] }).expect(409);
   });
 
   it('enforces recipient validation, buyer scope and cross-tenant isolation', async () => {
+    const ownRequest = await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-scope-list').send({ title: 'Scope list', establishmentId: buyerEstablishmentId, currency: 'EUR', lines: [{ descriptionSnapshot: 'Steel', unitSnapshot: 'KG', quantity: '1' }], recipients: [{ localPartyId }] }).expect(201);
+    const ownRfqId = bodyOf<{ id: string }>(ownRequest).id;
     await request(serverOf(app)).post(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs`).set('Authorization', `Bearer ${buyerToken}`).set('Idempotency-Key', 'rfq-self').send({ title: 'Invalid', establishmentId: buyerEstablishmentId, currency: 'EUR', lines: [{ descriptionSnapshot: 'x', unitSnapshot: 'EA', quantity: '1' }], recipients: [{ networkOrganizationId: buyerOrganizationId }] }).expect(409);
     await request(serverOf(app)).get(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs`).set('Authorization', `Bearer ${supplierToken}`).expect(403);
     const listed = await request(serverOf(app)).get(`/api/v1/organizations/${buyerOrganizationId}/supplier-rfqs`).set('Authorization', `Bearer ${buyerToken}`).expect(200);
-    expect(bodyOf<{ items: unknown[] }>(listed).items).toHaveLength(1);
+    expect(bodyOf<{ items: Array<{ id: string }> }>(listed).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: ownRfqId })]));
   });
 
   it('sends recipients exactly once, supports draft update, and enforces terminal transitions', async () => {

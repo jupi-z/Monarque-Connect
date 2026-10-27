@@ -98,7 +98,7 @@ describe('Organization quota reservations', () => {
       },
     });
     const paidPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: paidPlan.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: paidPlan.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
 
     await expect(prisma.$transaction((tx) => quotas.consume(tx, { organizationId, quotaCode: 'MAX_USERS', amount: 1000n, idempotencyKey: 'paid-user-capacity', resourceType: 'Membership', resourceId: crypto.randomUUID() }))).resolves.toMatchObject({ amount: 1000n, status: 'COMMITTED' });
     await expect(prisma.organizationQuotaUsage.findFirst({ where: { organizationId, quotaCode: 'MAX_USERS' } })).resolves.toBeNull();
@@ -116,7 +116,7 @@ describe('Organization quota reservations', () => {
       },
     });
     const paidPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: paidPlan.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: paidPlan.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
 
     await expect(prisma.$transaction((tx) => quotas.consume(tx, { organizationId, quotaCode: 'MAX_ESTABLISHMENTS', amount: 3n, idempotencyKey: 'paid-establishments-3', resourceType: 'Establishment', resourceId: crypto.randomUUID() }))).resolves.toMatchObject({ amount: 3n, limit: 3n, status: 'COMMITTED' });
     await expect(prisma.$transaction((tx) => quotas.consume(tx, { organizationId, quotaCode: 'MAX_ESTABLISHMENTS', amount: 1n, idempotencyKey: 'paid-establishments-over', resourceType: 'Establishment', resourceId: crypto.randomUUID() }))).rejects.toThrow('Quota capacity exceeded');

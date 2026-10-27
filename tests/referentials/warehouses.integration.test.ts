@@ -10,6 +10,8 @@ import { AppModule } from '../../src/app.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
 import { ProblemDetailsFilter } from '../../src/http/problem-details.filter.js';
 import { seedReferenceData } from '../../prisma/seed.js';
+import { expectHttpStatusWithDiagnostics } from '../setup/http-diagnostics.js';
+import { authorizationSnapshot } from '../setup/authorization-snapshot.js';
 
 const generateKeyPairAsync = promisify(generateKeyPair);
 
@@ -21,7 +23,6 @@ describe('Warehouses referential', () => {
   let organizationId = '';
   let primaryEstablishmentId = '';
   let secondaryEstablishmentId = '';
-  let mainWarehouseId = '';
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await generateKeyPairAsync('rsa', { modulusLength: 2048 });
@@ -71,12 +72,27 @@ describe('Warehouses referential', () => {
     const registration = await request(serverOf(app)).post('/api/v1/auth/register').send({ email: 'phase3-warehouse-owner@example.com', password: 'correct horse battery staple', firstName: 'Phase', lastName: 'Owner' }).expect(201);
     const login = await request(serverOf(app)).post('/api/v1/auth/login').send({ identifier: bodyOf<{ email: string }>(registration).email, password: 'correct horse battery staple' }).expect(200);
     ownerToken = bodyOf<{ accessToken: string }>(login).accessToken;
-    const organization = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Phase 3 Inventory Tenant', handle: `phase3-warehouses-${Date.now()}`, defaultCurrency: 'EUR', establishmentName: 'Main office' }).expect(201);
+    const organizationHandle = `phase3-warehouses-${Date.now()}`;
+    const organizationResponse = await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Phase 3 Inventory Tenant', handle: organizationHandle, defaultCurrency: 'EUR', establishmentName: 'Main office' });
+    await expectHttpStatusWithDiagnostics(
+      organizationResponse,
+      201,
+      'Warehouses referential',
+      'create setup organization',
+      async () => ({
+        organizationWithHandle: await prisma.organization.findUnique({ where: { handle: organizationHandle }, select: { id: true, status: true } }),
+        connectPlan: await prisma.planVersion.findUnique({
+          where: { planCode_version: { planCode: 'CONNECT', version: 1 } },
+          select: { id: true, status: true, quotas: { select: { quotaCode: true, mode: true, limitValue: true } } },
+        }),
+      }),
+    );
+    const organization = organizationResponse;
     const createdOrganization = bodyOf<{ id: string; establishment: { id: string } }>(organization);
     organizationId = createdOrganization.id;
     primaryEstablishmentId = createdOrganization.establishment.id;
     const businessVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: businessVersion.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: businessVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     const secondary = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'SECOND', name: 'Secondary office', type: 'BRANCH' }).expect(201);
     secondaryEstablishmentId = bodyOf<{ id: string }>(secondary).id;
 
@@ -96,7 +112,6 @@ describe('Warehouses referential', () => {
   it('creates and lists a warehouse under the same tenant establishment with atomic events', async () => {
     const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'MAIN', name: 'Main warehouse' }).expect(201);
     const warehouse = bodyOf<{ id: string; organizationId: string; establishmentId: string; code: string; active: boolean }>(created);
-    mainWarehouseId = warehouse.id;
     expect(warehouse).toMatchObject({ organizationId, establishmentId: primaryEstablishmentId, code: 'MAIN', active: true });
     const listed = await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses?active=true`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     expect(bodyOf<{ items: Array<{ id: string }> }>(listed).items).toEqual(expect.arrayContaining([expect.objectContaining({ id: warehouse.id })]));
@@ -105,13 +120,15 @@ describe('Warehouses referential', () => {
   });
 
   it('enforces selected establishment scope and organization-wide code uniqueness', async () => {
-    await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses/${mainWarehouseId}`).set('Authorization', `Bearer ${scopedToken}`).expect(200);
+    const primaryWarehouse = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'SCOPE-MAIN', name: 'Scope test warehouse' }).expect(201);
+    const primaryWarehouseId = bodyOf<{ id: string }>(primaryWarehouse).id;
+    await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses/${primaryWarehouseId}`).set('Authorization', `Bearer ${scopedToken}`).expect(200);
     await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${scopedToken}`).expect(403);
-    await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses/${mainWarehouseId}`).set('Authorization', `Bearer ${scopedToken}`).expect(403);
+    await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses/${primaryWarehouseId}`).set('Authorization', `Bearer ${scopedToken}`).expect(403);
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${scopedToken}`).send({ code: 'SECOND', name: 'Blocked warehouse' }).expect(403);
     const allowed = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${scopedToken}`).send({ code: 'SCOPED', name: 'Scoped warehouse' }).expect(201);
     expect(bodyOf<{ establishmentId: string }>(allowed).establishmentId).toBe(primaryEstablishmentId);
-    await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'MAIN', name: 'Duplicate code' }).expect(409);
+    await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${secondaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'SCOPE-MAIN', name: 'Duplicate code' }).expect(409);
   });
 
   it('lets PostgreSQL decide one winner for concurrent duplicate warehouse codes', async () => {
@@ -145,7 +162,13 @@ describe('Warehouses referential', () => {
   });
 
   it('emits one status event for concurrent warehouse deactivation requests', async () => {
-    const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'CONCURRENT', name: 'Concurrent warehouse' }).expect(201);
+    const created = await expectHttpStatusWithDiagnostics(
+      await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'CONCURRENT', name: 'Concurrent warehouse' }),
+      201,
+      'Warehouses integration',
+      'create warehouse before concurrent deactivation',
+      () => authorizationSnapshot(prisma, organizationId),
+    );
     const warehouseId = bodyOf<{ id: string }>(created).id;
     const responses = await Promise.all([
       request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses/${warehouseId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`),

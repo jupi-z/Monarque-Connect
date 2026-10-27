@@ -30,7 +30,7 @@ describe('Phase 9.5 FairScale HTTP flow', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication(); app.setGlobalPrefix('api/v1'); app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })); app.useGlobalFilters(new ProblemDetailsFilter()); await app.init();
     prisma = app.get(PrismaService);
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE billing_promotion_redemptions, billing_promotion_eligibilities, billing_quote_lines, billing_quotes, billing_customer_organizations, billing_customers, outbox_events, event_consumer_receipts, refresh_sessions, login_rate_limit_buckets, organization_module_activations, organization_entitlements, organization_quota_usages, quota_reservations, quota_ledgers, memberships, establishments, subscriptions, audit_events, organizations, users RESTART IDENTITY CASCADE`);
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE price_components, price_versions, billing_promotion_redemptions, billing_promotion_eligibilities, billing_quote_lines, billing_quotes, billing_customer_organizations, billing_customers, outbox_events, event_consumer_receipts, refresh_sessions, login_rate_limit_buckets, organization_module_activations, organization_entitlements, organization_quota_usages, quota_reservations, quota_ledgers, memberships, establishments, subscriptions, audit_events, organizations, users RESTART IDENTITY CASCADE`);
     await seedReferenceData(prisma);
     const server = serverOf(app);
     const owner = await registerAndLogin(server, 'phase95-owner@example.test'); ownerToken = owner.token;
@@ -66,7 +66,7 @@ describe('Phase 9.5 FairScale HTTP flow', () => {
     const customer = await prisma.billingCustomer.findFirstOrThrow({ where: { organizations: { some: { organizationId } } } });
     await prisma.billingCustomer.update({ where: { id: customer.id }, data: { status: 'VERIFIED', verifiedAt: new Date() } });
     const businessPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } } });
-    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: businessPlan.id } });
+    await prisma.subscription.updateMany({ where: { organizationId }, data: { planVersionId: businessPlan.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
     const businessTerm = await prisma.billingSubscriptionTerm.create({ data: { id: randomUUID(), billingCustomerId: customer.id, organizationId, subscriptionId: (await prisma.subscription.findFirstOrThrow({ where: { organizationId } })).id, status: 'ACTIVE', planCode: 'BUSINESS', billingPeriod: 'MONTHLY', currency: 'USD', catalogVersion: 1, baseAmountMinor: 4500n, discountAmountMinor: 0n, addonAmountMinor: 2000n, totalAmountMinor: 6500n, startsAt: new Date('2026-01-01T00:00:00.000Z'), currentPeriodStart: new Date('2026-01-01T00:00:00.000Z'), currentPeriodEnd: new Date('2026-11-01T00:00:00.000Z'), nextRenewalAt: new Date('2026-11-01T00:00:00.000Z') } });
     await prisma.billingSubscriptionAddon.create({ data: { id: randomUUID(), subscriptionTermId: businessTerm.id, organizationId, code: 'ESTABLISHMENT', status: 'ACTIVE', quantity: 2, billingPeriod: 'MONTHLY', currency: 'USD', unitAmountMinor: 1000n, startsAt: new Date('2026-01-01T00:00:00.000Z') } });
     const verifiedCapacity = bodyOf<{ planCode: string; includedEstablishments: number; currency: string }>(await request(server).get(`/api/v1/organizations/${organizationId}/billing/capacity`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
@@ -74,8 +74,9 @@ describe('Phase 9.5 FairScale HTTP flow', () => {
 
     const concurrentQuotes = await Promise.all(Array.from({ length: 4 }, (_, index) => request(server).post(`/api/v1/organizations/${organizationId}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `phase95-concurrent-${index}`).send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 3 })));
     expect(concurrentQuotes.every((response) => response.status === 201)).toBe(true);
-    await expect(prisma.billingPromotionRedemption.count({ where: { promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', status: { in: ['RESERVED', 'CONSUMED'] } } })).resolves.toBe(3);
-    await expect(prisma.billingPromotionRedemption.count({ where: { promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', quoteId: { not: null } } })).resolves.toBe(3);
+    const organizationScope = { billingCustomer: { organizations: { some: { organizationId } } } };
+    await expect(prisma.billingPromotionRedemption.count({ where: { ...organizationScope, promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', status: { in: ['RESERVED', 'CONSUMED'] } } })).resolves.toBe(3);
+    await expect(prisma.billingPromotionRedemption.count({ where: { ...organizationScope, promotionCode: 'WELCOME_MONTHLY15', billingPeriod: 'MONTHLY', quoteId: { not: null } } })).resolves.toBe(3);
   });
 
   it('serializes first-quote billing identity creation for a new organization', async () => {

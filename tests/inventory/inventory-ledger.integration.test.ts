@@ -1,9 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { generateKeyPair } from 'node:crypto';
 import { promisify } from 'node:util';
 import { exportPKCS8, exportSPKI } from 'jose';
-import { Prisma } from '@prisma/client';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../../src/app.module.js';
 import { PrismaService } from '../../src/database/prisma.service.js';
@@ -26,6 +25,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
   let reconciliations: InventoryReconciliationService;
   const actor = { userId: randomUUID(), sessionId: randomUUID() };
   const restrictedActor = { userId: randomUUID(), sessionId: randomUUID() };
+  const fixtureSubscriptionStart = new Date('2020-01-01T00:00:00.000Z');
 
   beforeAll(async () => {
     const { privateKey, publicKey } = await promisify(generateKeyPair)('rsa', { modulusLength: 2048 });
@@ -52,7 +52,7 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     itemId = randomUUID();
     await prisma.organization.create({ data: { id: organizationId, businessTypeCode: businessType.code, name: 'Inventory ledger test', handle: `inventory-ledger-${Date.now()}`, defaultCurrency: 'EUR' } });
     const business = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'BUSINESS', version: 1 } }, include: { modules: true } });
-    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: new Date() } });
+    await prisma.subscription.create({ data: { id: randomUUID(), organizationId, planVersionId: business.id, status: 'ACTIVE', startsAt: fixtureSubscriptionStart } });
     await prisma.organizationModuleActivation.createMany({ data: business.modules.map((module) => ({ id: randomUUID(), organizationId, moduleCode: module.moduleCode, enabled: true })) });
     await prisma.establishment.create({ data: { id: establishmentId, organizationId, code: 'MAIN', name: 'Main', type: 'HEAD_OFFICE' } });
     await prisma.warehouse.create({ data: { id: warehouseId, organizationId, establishmentId, code: 'MAIN', name: 'Main warehouse' } });
@@ -64,6 +64,19 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     await prisma.membership.create({ data: { id: randomUUID(), organizationId, userId: actor.userId, role: 'OWNER', scopeMode: 'ALL_ESTABLISHMENTS' } });
   }, 60000);
 
+  afterEach(async () => {
+    if (!prisma || !organizationId) return;
+    const [organization, subscriptions] = await Promise.all([
+      prisma.organization.findUnique({ where: { id: organizationId }, select: { status: true } }),
+      prisma.subscription.findMany({
+        where: { organizationId },
+        orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+        select: { status: true, startsAt: true, endsAt: true, planVersion: { select: { planCode: true, version: true, status: true } } },
+      }),
+    ]);
+    console.error('[inventory-fixture-state]', JSON.stringify({ organizationStatus: organization?.status ?? null, subscriptions }));
+  });
+
   afterAll(async () => {
     if (!prisma) return;
     await prisma.organization.deleteMany({ where: { id: organizationId } });
@@ -73,47 +86,54 @@ describe('Phase 7 authoritative Inventory ledger', () => {
   });
 
   it('records a positive movement and reconstructs the tenant-scoped balance', async () => {
+    const stock = await createStockFixture('positive');
     const created = await movements.create(actor, organizationId, {
       establishmentId,
-      warehouseId,
-      itemId,
+      ...stock,
       movementType: 'RECEIPT_IN',
       sourceType: 'MANUAL',
       quantity: '5',
       reason: 'Opening balance',
     }, 'inventory-opening-1');
 
-    expect(created).toMatchObject({ organizationId, warehouseId, itemId, quantityDelta: '5.000000' });
-    await expect(prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId, itemId } } })).resolves.toMatchObject({ quantity: new Prisma.Decimal('5.000000') });
-    await expect(prisma.inventoryMovement.count({ where: { organizationId, warehouseId, itemId } })).resolves.toBe(1);
-    await expect(prisma.auditEvent.count({ where: { organizationId, targetType: 'InventoryMovement' } })).resolves.toBe(1);
-    await expect(prisma.outboxEvent.count({ where: { organizationId, aggregateType: 'InventoryMovement' } })).resolves.toBe(1);
+    const createdId = (created as { id: string }).id;
+    expect(created).toMatchObject({ organizationId, ...stock, quantityDelta: '5.000000' });
+    await expect(prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, ...stock } } }).then((balance) => balance.quantity.toFixed(6))).resolves.toBe('5.000000');
+    await expect(prisma.inventoryMovement.count({ where: { organizationId, id: createdId } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { organizationId, targetType: 'InventoryMovement', targetId: createdId } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId, aggregateType: 'InventoryMovement', aggregateId: createdId } })).resolves.toBe(1);
   });
 
   it('is idempotent and refuses an output that would make the balance negative', async () => {
-    const replay = await movements.create(actor, organizationId, {
+    const stock = await createStockFixture('idempotency');
+    const input = {
       establishmentId,
-      warehouseId,
-      itemId,
+      warehouseId: stock.warehouseId,
+      itemId: stock.itemId,
       movementType: 'RECEIPT_IN',
       sourceType: 'MANUAL',
       quantity: '5',
       reason: 'Opening balance',
-    }, 'inventory-opening-1');
+    } as const;
+    const first = await movements.create(actor, organizationId, input, 'inventory-idempotency-seed');
+    const replay = await movements.create(actor, organizationId, input, 'inventory-idempotency-seed');
+    expect(replay).toEqual(first);
     expect(replay).toMatchObject({ quantityDelta: '5.000000' });
-    await expect(movements.create(actor, organizationId, { establishmentId, warehouseId, itemId, movementType: 'RECEIPT_IN', sourceType: 'MANUAL', quantity: '6', reason: 'Opening balance' }, 'inventory-opening-1')).rejects.toThrow(/different inventory movement payload/i);
-    await expect(movements.create(actor, organizationId, { establishmentId, warehouseId, itemId, movementType: 'SALE_OUT', sourceType: 'SALE', quantity: '6' }, 'inventory-sale-too-large')).rejects.toThrow('Insufficient inventory');
-    await expect(prisma.inventoryMovement.count({ where: { organizationId, warehouseId, itemId } })).resolves.toBe(1);
+    await expect(movements.create(actor, organizationId, { ...input, quantity: '6' }, 'inventory-idempotency-seed')).rejects.toThrow(/different inventory movement payload/i);
+    await expect(movements.create(actor, organizationId, { establishmentId, ...stock, movementType: 'SALE_OUT', sourceType: 'SALE', quantity: '6' }, 'inventory-sale-too-large')).rejects.toThrow('Insufficient inventory');
+    await expect(prisma.inventoryMovement.count({ where: { organizationId, warehouseId: stock.warehouseId, itemId: stock.itemId } })).resolves.toBe(1);
   });
 
   it('serializes concurrent outputs on one warehouse and item', async () => {
+    const stock = await createStockFixture('concurrency');
+    await movements.create(actor, organizationId, { establishmentId, ...stock, movementType: 'RECEIPT_IN', sourceType: 'MANUAL', quantity: '5' }, 'inventory-race-funding');
     const responses = await Promise.allSettled([
-      movements.create(actor, organizationId, { establishmentId, warehouseId, itemId, movementType: 'SALE_OUT', sourceType: 'SALE', quantity: '3' }, 'inventory-sale-race-1'),
-      movements.create(actor, organizationId, { establishmentId, warehouseId, itemId, movementType: 'SALE_OUT', sourceType: 'SALE', quantity: '3' }, 'inventory-sale-race-2'),
+      movements.create(actor, organizationId, { establishmentId, ...stock, movementType: 'SALE_OUT', sourceType: 'SALE', quantity: '3' }, 'inventory-sale-race-1'),
+      movements.create(actor, organizationId, { establishmentId, ...stock, movementType: 'SALE_OUT', sourceType: 'SALE', quantity: '3' }, 'inventory-sale-race-2'),
     ]);
     expect(responses.filter((response) => response.status === 'fulfilled')).toHaveLength(1);
     expect(responses.filter((response) => response.status === 'rejected')).toHaveLength(1);
-    await expect(prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId, itemId } } })).resolves.toMatchObject({ quantity: new Prisma.Decimal('2.000000') });
+    await expect(prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId: stock.warehouseId, itemId: stock.itemId } } }).then((balance) => balance.quantity.toFixed(6))).resolves.toBe('2.000000');
   });
 
   it('rejects cross-tenant references before writing a ledger row', async () => {
@@ -139,22 +159,27 @@ describe('Phase 7 authoritative Inventory ledger', () => {
   });
 
   it('moves stock atomically with two linked append-only movements and idempotent replay', async () => {
-    const result = await transfers.create(actor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1');
-    expect(result).toMatchObject({ outgoing: { warehouseId, quantityDelta: '-1.000000' }, incoming: { warehouseId: destinationWarehouseId, quantityDelta: '1.000000' } });
+    const source = await createStockFixture('transfer-source');
+    const destination = await createStockFixture('transfer-destination');
+    await movements.create(actor, organizationId, { establishmentId, ...source, movementType: 'RECEIPT_IN', sourceType: 'MANUAL', quantity: '5' }, 'inventory-transfer-funding');
+    const transferInput = { fromWarehouseId: source.warehouseId, toWarehouseId: destination.warehouseId, itemId: source.itemId, quantity: '1', reason: 'Rebalancing' };
+    const result = await transfers.create(actor, organizationId, transferInput, 'inventory-transfer-1');
+    expect(result).toMatchObject({ outgoing: { warehouseId: source.warehouseId, quantityDelta: '-1.000000' }, incoming: { warehouseId: destination.warehouseId, quantityDelta: '1.000000' } });
     await expect(prisma.inventoryMovement.count({ where: { organizationId, transferId: (result as { transferId: string }).transferId } })).resolves.toBe(2);
-    const sourceBalance = await prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId, itemId } } });
-    const destinationBalance = await prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId: destinationWarehouseId, itemId } } });
-    expect(sourceBalance.quantity.toFixed(6)).toBe('3.000000');
+    const sourceBalance = await prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId: source.warehouseId, itemId: source.itemId } } });
+    const destinationBalance = await prisma.inventoryBalance.findUniqueOrThrow({ where: { organizationId_warehouseId_itemId: { organizationId, warehouseId: destination.warehouseId, itemId: source.itemId } } });
+    expect(sourceBalance.quantity.toFixed(6)).toBe('4.000000');
     expect(destinationBalance.quantity.toFixed(6)).toBe('1.000000');
-    await expect(balances.reconstruct(actor, organizationId, establishmentId, warehouseId, itemId)).resolves.toMatchObject({ items: [{ warehouseId, itemId, quantity: '3.000000' }] });
-    await expect(balances.reconstruct(actor, organizationId, establishmentId, destinationWarehouseId, itemId)).resolves.toMatchObject({ items: [{ warehouseId: destinationWarehouseId, itemId, quantity: '1.000000' }] });
-    await expect(transfers.create(actor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1')).resolves.toEqual(result);
-    await expect(transfers.create(actor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '2', reason: 'Rebalancing' }, 'inventory-transfer-1')).rejects.toThrow(/different inventory transfer payload/i);
-    await expect(transfers.create(actor, organizationId, { fromWarehouseId: destinationWarehouseId, toWarehouseId: warehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1')).rejects.toThrow(/different inventory transfer payload/i);
-    const reconciliation = await reconciliations.reconcile(actor, organizationId, { establishmentId, warehouseId, itemId, observedQuantity: '3' }, 'inventory-reconciliation-1');
-    expect(reconciliation).toMatchObject({ organizationId, establishmentId, warehouseId, itemId, ledgerQuantity: '3.000000', observedQuantity: '3.000000', delta: '0.000000', matched: true });
-    await expect(reconciliations.reconcile(actor, organizationId, { establishmentId, warehouseId, itemId, observedQuantity: '3' }, 'inventory-reconciliation-1')).resolves.toEqual(reconciliation);
-    await expect(reconciliations.reconcile(actor, organizationId, { establishmentId, warehouseId, itemId, observedQuantity: '4' }, 'inventory-reconciliation-1')).rejects.toThrow(/different inventory reconciliation payload/i);
+    await expect(balances.reconstruct(actor, organizationId, establishmentId, source.warehouseId, source.itemId)).resolves.toMatchObject({ items: [{ warehouseId: source.warehouseId, itemId: source.itemId, quantity: '4.000000' }] });
+    await expect(balances.reconstruct(actor, organizationId, establishmentId, destination.warehouseId, source.itemId)).resolves.toMatchObject({ items: [{ warehouseId: destination.warehouseId, itemId: source.itemId, quantity: '1.000000' }] });
+    await expect(transfers.create(actor, organizationId, transferInput, 'inventory-transfer-1')).resolves.toEqual(result);
+    await expect(transfers.create(actor, organizationId, { ...transferInput, quantity: '2' }, 'inventory-transfer-1')).rejects.toThrow(/different inventory transfer payload/i);
+    await expect(transfers.create(actor, organizationId, { ...transferInput, fromWarehouseId: destination.warehouseId, toWarehouseId: source.warehouseId }, 'inventory-transfer-1')).rejects.toThrow(/different inventory transfer payload/i);
+    const reconciliationInput = { establishmentId, warehouseId: source.warehouseId, itemId: source.itemId, observedQuantity: '4' };
+    const reconciliation = await reconciliations.reconcile(actor, organizationId, reconciliationInput, 'inventory-reconciliation-1');
+    expect(reconciliation).toMatchObject({ organizationId, establishmentId, warehouseId: source.warehouseId, itemId: source.itemId, ledgerQuantity: '4.000000', observedQuantity: '4.000000', delta: '0.000000', matched: true });
+    await expect(reconciliations.reconcile(actor, organizationId, reconciliationInput, 'inventory-reconciliation-1')).resolves.toEqual(reconciliation);
+    await expect(reconciliations.reconcile(actor, organizationId, { ...reconciliationInput, observedQuantity: '5' }, 'inventory-reconciliation-1')).rejects.toThrow(/different inventory reconciliation payload/i);
 
     const restrictedEstablishmentId = randomUUID();
     const restrictedMembershipId = randomUUID();
@@ -162,12 +187,23 @@ describe('Phase 7 authoritative Inventory ledger', () => {
     await prisma.establishment.create({ data: { id: restrictedEstablishmentId, organizationId, code: 'REPLAY-SCOPE', name: 'Replay scope', type: 'BRANCH' } });
     await prisma.user.create({ data: { id: restrictedActor.userId, email: restrictedEmail, normalizedEmail: restrictedEmail, passwordHash: 'not-used', firstName: 'Restricted', lastName: 'Replay' } });
     await prisma.membership.create({ data: { id: restrictedMembershipId, organizationId, userId: restrictedActor.userId, role: 'OPERATIONS', scopeMode: 'SELECTED_ESTABLISHMENTS', scopeLinks: { create: [{ establishmentId: restrictedEstablishmentId }] } } });
-    await expect(transfers.create(restrictedActor, organizationId, { fromWarehouseId: warehouseId, toWarehouseId: destinationWarehouseId, itemId, quantity: '1', reason: 'Rebalancing' }, 'inventory-transfer-1')).rejects.toThrow(/establishment|access/i);
+    await expect(transfers.create(restrictedActor, organizationId, transferInput, 'inventory-transfer-1')).rejects.toThrow(/establishment|access/i);
   });
 
   it('does not allow application updates or deletes on the append-only movement ledger', async () => {
-    const row = await prisma.inventoryMovement.findFirstOrThrow({ where: { organizationId, warehouseId, itemId } });
+    const stock = await createStockFixture('immutable');
+    const created = await movements.create(actor, organizationId, { establishmentId, ...stock, movementType: 'RECEIPT_IN', sourceType: 'MANUAL', quantity: '1' }, 'inventory-immutable-movement');
+    const row = await prisma.inventoryMovement.findUniqueOrThrow({ where: { id: (created as { id: string }).id } });
     await expect(prisma.inventoryMovement.update({ where: { id: row.id }, data: { reason: 'tampered' } })).rejects.toThrow();
     await expect(prisma.inventoryMovement.delete({ where: { id: row.id } })).rejects.toThrow();
   });
+
+  async function createStockFixture(label: string): Promise<{ warehouseId: string; itemId: string }> {
+    const fixtureWarehouseId = randomUUID();
+    const fixtureItemId = randomUUID();
+    const suffix = randomUUID().slice(0, 8);
+    await prisma.warehouse.create({ data: { id: fixtureWarehouseId, organizationId, establishmentId, code: `${label}-${suffix}`, name: `${label} warehouse` } });
+    await prisma.item.create({ data: { id: fixtureItemId, organizationId, type: 'PRODUCT', name: `${label} item ${suffix}`, unit: 'piece', referencePrice: '1', currency: 'EUR', trackInventory: true } });
+    return { warehouseId: fixtureWarehouseId, itemId: fixtureItemId };
+  }
 });
