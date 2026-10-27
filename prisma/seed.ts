@@ -137,6 +137,24 @@ const fairScalePriceVersions = [
 const fairScaleCatalogPublishedAt = new Date("2026-10-19T00:00:00.000Z");
 
 async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
+  // Migration proof scripts also seed historical schemas that predate C1.2.
+  // Detect the additive table before using its generated Prisma model.
+  const productCatalog = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+    SELECT to_regclass('public.product_catalog') IS NOT NULL AS exists
+  `;
+  if (productCatalog[0]?.exists) {
+    for (const [code, displayName] of [
+      ['MONARQUE_CONNECT', 'Monarque Connect'],
+      ['ZAMUREK', 'ZAMUREK'],
+    ] as const) {
+      await prisma.productCatalog.upsert({
+        where: { code },
+        update: { displayName },
+        create: { code, displayName },
+        select: { code: true },
+      });
+    }
+  }
   for (const businessType of businessTypes) {
     await prisma.businessType.upsert({
       where: { code: businessType.code },
@@ -186,6 +204,7 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
         name: plan.name,
         description: plan.description,
       },
+      select: { code: true },
     });
     const planVersion = await prisma.planVersion.upsert({
       where: { planCode_version: { planCode: plan.code, version: 1 } },
@@ -199,6 +218,7 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
         billingPeriod: "MONTHLY",
         publishedAt: new Date("2026-10-11T00:00:00.000Z"),
       },
+      select: { id: true },
     });
     for (const moduleCode of plan.modules) {
       await prisma.planVersionModule.upsert({
@@ -249,6 +269,7 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
           billingPeriod,
           publishedAt: fairScaleCatalogPublishedAt,
         },
+        select: { id: true },
       });
       for (const moduleCode of plan.modules) {
         await prisma.planVersionModule.upsert({
@@ -293,6 +314,7 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
           startsAt: fairScaleCatalogPublishedAt,
           publishedAt: fairScaleCatalogPublishedAt,
         },
+        select: { id: true },
       });
 
       if (price.planCode !== "CONNECT") {

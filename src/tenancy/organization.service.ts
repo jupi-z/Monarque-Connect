@@ -239,13 +239,14 @@ export class OrganizationService {
     }
     const eventContext = currentEventContext() ?? createRequestContext();
     return this.prisma.$transaction(async (tx) => {
-      const current = await tx.organizationModuleActivation.findUnique({ where: { organizationId_moduleCode: { organizationId, moduleCode } }, select: { enabled: true } });
+      const productCode = 'MONARQUE_CONNECT' as const;
+      const current = await tx.organizationModuleActivation.findUnique({ where: { organizationId_productCode_moduleCode: { organizationId, productCode, moduleCode } }, select: { enabled: true } });
       const previousEnabled = current?.enabled ?? target.active;
       if (previousEnabled === enabled) return { moduleCode, enabled, changed: false };
       const activation = await tx.organizationModuleActivation.upsert({
-        where: { organizationId_moduleCode: { organizationId, moduleCode } },
+        where: { organizationId_productCode_moduleCode: { organizationId, productCode, moduleCode } },
         update: { enabled },
-        create: { id: randomUUID(), organizationId, moduleCode, enabled },
+        create: { id: randomUUID(), organizationId, productCode, moduleCode, enabled },
         select: { id: true },
       });
       await tx.auditEvent.create({ data: { id: randomUUID(), action: 'MODULE_ACTIVATION_CHANGED', actorUserId: principal.userId, organizationId, targetType: 'OrganizationModuleActivation', targetId: activation.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { moduleCode, previousEnabled, enabled, reason } } });

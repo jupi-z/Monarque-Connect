@@ -113,9 +113,9 @@ describe('CRM leads and opportunities', () => {
 
   it('keeps leads tenant isolated and blocks CRM when the module is disabled', async () => {
     await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/leads`).set('Authorization', `Bearer ${otherToken}`).expect(403);
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CRM' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CRM', enabled: false } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'CRM' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CRM', enabled: false } });
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/leads`).set('Authorization', `Bearer ${ownerToken}`).send({ displayName: 'Blocked lead' }).expect(403);
-    await prisma.organizationModuleActivation.update({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CRM' } }, data: { enabled: true } });
+    await prisma.organizationModuleActivation.update({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'CRM' } }, data: { enabled: true } });
   });
 
   it('enforces establishment scope when creating and listing opportunities', async () => {

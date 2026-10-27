@@ -8,6 +8,8 @@ import { createRequestContext, currentEventContext } from '../events/event-conte
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import type { LinkBillingCustomerOrganizationDto, PublishBillingPriceDto, SetBillingCustomerVerificationDto } from './billing.dto.js';
 
+const LEGACY_PRODUCT_CODE = 'MONARQUE_CONNECT' as const;
+
 @Injectable()
 export class BillingAdminService {
   constructor(private readonly prisma: PrismaService, private readonly outbox: PrismaOutboxWriter) {}
@@ -45,12 +47,12 @@ export class BillingAdminService {
       await tx.$queryRaw(Prisma.sql`SELECT code FROM plans WHERE code = ${input.planCode} FOR UPDATE`);
       const plan = await tx.plan.findUnique({ where: { code: input.planCode }, select: { code: true } });
       if (!plan) throw new NotFoundException('Billing plan not found');
-      const latest = await tx.priceVersion.findFirst({ where: { planCode: input.planCode, billingPeriod: input.billingPeriod }, orderBy: { version: 'desc' }, select: { version: true } });
+      const latest = await tx.priceVersion.findFirst({ where: { productCode: LEGACY_PRODUCT_CODE, planCode: input.planCode, billingPeriod: input.billingPeriod }, orderBy: { version: 'desc' }, select: { version: true } });
       const version = (latest?.version ?? 0) + 1;
-      await tx.priceVersion.updateMany({ where: { planCode: input.planCode, billingPeriod: input.billingPeriod, status: 'ACTIVE', retiredAt: null }, data: { retiredAt: startsAt } });
+      await tx.priceVersion.updateMany({ where: { productCode: LEGACY_PRODUCT_CODE, planCode: input.planCode, billingPeriod: input.billingPeriod, status: 'ACTIVE', retiredAt: null }, data: { retiredAt: startsAt } });
       const price = await tx.priceVersion.create({
         data: {
-          id: randomUUID(), planCode: input.planCode, version, billingPeriod: input.billingPeriod, currency, status: 'ACTIVE',
+          id: randomUUID(), productCode: LEGACY_PRODUCT_CODE, planCode: input.planCode, version, billingPeriod: input.billingPeriod, currency, status: 'ACTIVE',
           baseAmountMinor: BigInt(input.baseAmountMinor), welcomeAmountMinor: BigInt(input.welcomeAmountMinor), annualDiscountAmountMinor: BigInt(input.annualDiscountAmountMinor), includedEstablishments: input.includedEstablishments,
           startsAt, publishedAt: new Date(), idempotencyKey,
           components: { create: { id: randomUUID(), code: 'ESTABLISHMENT', kind: 'ESTABLISHMENT_ADDON', currency, amountMinor: BigInt(input.addonAmountMinor), capacityUnits: input.addonCapacityUnits } },

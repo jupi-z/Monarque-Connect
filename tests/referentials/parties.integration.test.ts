@@ -122,9 +122,9 @@ describe('Business parties referential', () => {
   });
 
   it('rejects party creation when CRM is disabled', async () => {
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CRM' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CRM', enabled: false } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'CRM' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CRM', enabled: false } });
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/parties`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SUPPLIER', displayName: 'Blocked Supplier' }).expect(403);
-    await prisma.organizationModuleActivation.update({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CRM' } }, data: { enabled: true } });
+    await prisma.organizationModuleActivation.update({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'CRM' } }, data: { enabled: true } });
   });
 
   it('does not reveal parties across tenants', async () => {

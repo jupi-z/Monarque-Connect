@@ -128,9 +128,9 @@ describe('Network connection requests', () => {
   it('allows the source to cancel a pending request and blocks the module when disabled', async () => {
     const created = await request(serverOf(app)).post(`/api/v1/organizations/${organizationB}/connection-requests`).set('Authorization', `Bearer ${ownerBToken}`).send({ targetOrganizationId: organizationC }).expect(201);
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationB}/connection-requests/${bodyOf<{ id: string }>(created).id}`).set('Authorization', `Bearer ${ownerBToken}`).send({ status: 'CANCELLED' }).expect(200);
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId: organizationA, moduleCode: 'NETWORK_CONNECTIONS' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId: organizationA, moduleCode: 'NETWORK_CONNECTIONS', enabled: false } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId: organizationA, moduleCode: 'NETWORK_CONNECTIONS' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId: organizationA, moduleCode: 'NETWORK_CONNECTIONS', enabled: false } });
     await request(serverOf(app)).get(`/api/v1/organizations/${organizationA}/connection-requests`).set('Authorization', `Bearer ${ownerAToken}`).expect(403);
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId: organizationA, moduleCode: 'NETWORK_CONNECTIONS' } }, update: { enabled: true }, create: { id: crypto.randomUUID(), organizationId: organizationA, moduleCode: 'NETWORK_CONNECTIONS', enabled: true } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId: organizationA, moduleCode: 'NETWORK_CONNECTIONS' } }, update: { enabled: true }, create: { id: crypto.randomUUID(), organizationId: organizationA, moduleCode: 'NETWORK_CONNECTIONS', enabled: true } });
   });
 });
 

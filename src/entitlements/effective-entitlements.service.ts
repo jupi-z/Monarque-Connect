@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
 import { SubscriptionService } from './subscription.service.js';
 
+const LEGACY_PRODUCT_CODE = 'MONARQUE_CONNECT' as const;
+
 export type EntitlementDecisionReason =
   | 'CORE_MODULE'
   | 'PLAN_INCLUDED'
@@ -57,12 +59,12 @@ export class EffectiveEntitlementsService {
     const organization = await db.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { status: true, businessTypeCode: true } });
     const [catalog, activations, presets, overrides] = await Promise.all([
       db.moduleCatalog.findMany({ orderBy: { code: 'asc' } }),
-      db.organizationModuleActivation.findMany({ where: { organizationId }, select: { moduleCode: true, enabled: true } }),
+      db.organizationModuleActivation.findMany({ where: { organizationId, productCode: LEGACY_PRODUCT_CODE }, select: { moduleCode: true, enabled: true } }),
       db.moduleBusinessTypePreset.findMany({ where: { businessTypeCode: organization.businessTypeCode }, select: { moduleCode: true, recommended: true } }),
-      db.organizationEntitlement.findMany({ where: { organizationId, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ createdAt: 'desc' }, { startsAt: 'desc' }], select: { moduleCode: true, effect: true, limitsJson: true, reason: true } }),
+      db.organizationEntitlement.findMany({ where: { organizationId, productCode: LEGACY_PRODUCT_CODE, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ createdAt: 'desc' }, { startsAt: 'desc' }], select: { moduleCode: true, effect: true, limitsJson: true, reason: true } }),
     ]);
     const effectiveSubscription = organization.status === 'ACTIVE' ? await this.subscriptions.resolveEffective(organizationId, at, db) : null;
-    const latestSubscription = effectiveSubscription ?? await db.subscription.findFirst({ where: { organizationId }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { status: true } });
+    const latestSubscription = effectiveSubscription ?? await db.subscription.findFirst({ where: { organizationId, productCode: LEGACY_PRODUCT_CODE }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { status: true } });
     const planVersion = effectiveSubscription
       ? await db.planVersion.findUniqueOrThrow({ where: { id: effectiveSubscription.planVersionId }, select: { planCode: true, version: true, modules: { select: { moduleCode: true, defaultEnabled: true } } } })
       : null;
