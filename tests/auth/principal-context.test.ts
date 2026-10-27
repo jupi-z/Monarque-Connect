@@ -79,7 +79,7 @@ describe('C2 product-scoped staff authorization', () => {
     const tx = {
       membership: {
         findUnique: vi.fn().mockResolvedValueOnce({ id: 'membership-1' }).mockResolvedValueOnce({
-          id: 'membership-1', role: 'OWNER', scopeMode: 'SELECTED_ESTABLISHMENTS',
+          id: 'membership-1', status: 'ACTIVE', role: 'OWNER', scopeMode: 'SELECTED_ESTABLISHMENTS',
           scopeLinks: [{ establishmentId: 'est-1' }], user: { status: 'ACTIVE' }, organization: { status: 'ACTIVE' },
         }),
       },
