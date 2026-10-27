@@ -86,7 +86,7 @@ Possède l'identité interne, tenancy, autorisations, catalogue partagé, transa
 
 ### ZAMUREK
 
-Doit contenir ses interfaces client et expérience métier verticale, configuration de canaux, presentation/UX mall, adaptateurs strictement nécessaires et code spécifique au marché. Il ne doit posséder ni deuxième moteur de facturation, ledger, catalogue maître, stock maître ou identité staff parallèle. Aucun code privé du Core ne doit être copié vers ZAMUREK. Le contrat d'intégration futur doit être publié comme artefact minimal/versionné; la visibilité publique de ZAMUREK impose que seuls les contrats explicitement approuvés y figurent.
+Doit contenir ses interfaces client et expérience métier verticale, configuration de canaux, presentation/UX mall, adaptateurs strictement nécessaires et code spécifique au marché. Il ne doit posséder ni deuxième moteur de facturation, ledger, catalogue maître, stock maître ou identité staff parallèle. Le code source propriétaire du Core et ses schémas internes ne doivent pas être copiés vers ZAMUREK. Le contrat d'intégration futur doit être publié comme artefact minimal/versionné; la visibilité publique de ZAMUREK impose que seuls les contrats explicitement approuvés y figurent.
 
 ### Monarque Auth
 
@@ -165,7 +165,7 @@ Chaque lot est une ou plusieurs PR courtes avec contrats avant migrations, tests
 | D-06 | Tarification serveur versionnée, Decimal/entiers et snapshots FX immuables. | **DECIDED / ACCEPTED pour architecture.** Fournisseur, fraîcheur et marge FX à valider avant conversion commerciale réelle. |
 | D-07 | Port de stockage fournisseur-indépendant compatible S3, exigences sécurité et restauration. | **DECIDED / ACCEPTED pour architecture.** Choix prestataire/résidence avant C5/release; Memory adapter ne vaut pas stockage de production. |
 | D-08 | Objectifs d'ingénierie RPO ≤15 min et RTO ≤4 h; stratégie de backup/restore. | **DECIDED / ACCEPTED comme objectifs, non comme preuves.** Exercices de restauration, charge et mesures relèvent de C8/release; `NOT_RUN` dans C0 n'est pas bloquant. |
-| D-09 | Contrat Core public/partenaire minimal, versionné, allowlisté; progression ZAMUREK par dépendances réelles. | **DECIDED / ACCEPTED.** PR ZAMUREK #2 reste draft jusqu'au gel des contrats; aucune copie de schéma privé ou code Core. |
+| D-09 | Contrat Core public/partenaire minimal, versionné, allowlisté; progression ZAMUREK par dépendances réelles. | **DECIDED / ACCEPTED.** PR ZAMUREK #2 reste draft jusqu'au gel des contrats; aucun code source propriétaire ni schéma interne du Core n'est copié. |
 | D-10 | Agents derrière interfaces, droits produit/tenant et approbation humaine des opérations sensibles. | **DECIDED / ACCEPTED pour architecture.** Runtime/agents hors C1; préparation détaillée avant C6/10B. |
 
 ## 12. Écarts documentaires et compatibilité inter-dépôts
