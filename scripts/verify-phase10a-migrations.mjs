@@ -14,7 +14,7 @@ const c1Start = '20261027160000_c1_product_scoped_entitlements';
 const phase10aMigrationDirectories = migrationDirectories.filter((name) => name >= phase10aStart && name < c1Start);
 const c1MigrationDirectories = migrationDirectories.filter((name) => name >= c1Start);
 const baselineMigrationDirectories = migrationDirectories.filter((name) => name < phase10aStart);
-if (!migrationDirectories.includes(phase10aStart) || phase10aMigrationDirectories.length !== 1 || !migrationDirectories.includes(c1Start) || c1MigrationDirectories.length !== 1) {
+if (!migrationDirectories.includes(phase10aStart) || phase10aMigrationDirectories.length !== 1 || !migrationDirectories.includes(c1Start) || c1MigrationDirectories.length < 1) {
   throw new Error('Unexpected Phase 10A migration set');
 }
 
@@ -141,6 +141,23 @@ async function structuralProof(databaseUrl) {
     const billingConstraint = await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'billing_subscription_terms'::regclass AND conname = 'billing_subscription_terms_no_overlap'");
     if (!billingConstraint.rows[0]?.definition.includes('product_code')) throw new Error('Billing term overlap constraint is not product scoped');
 
+    const productModules = await pool.query("SELECT to_regclass('public.product_modules') IS NOT NULL AS exists");
+    if (!productModules.rows[0]?.exists) throw new Error('Missing product_modules registry table');
+    for (const [table, constraint] of [
+      ['plan_version_modules', 'plan_version_modules_product_module_fkey'],
+      ['organization_module_activations', 'organization_module_activations_product_module_fkey'],
+      ['organization_entitlements', 'organization_entitlements_product_module_fkey'],
+    ]) {
+      const scopedFk = await pool.query(
+        'SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = $1::regclass AND conname = $2 AND contype = \'f\' AND confrelid = \'product_modules\'::regclass',
+        [table, constraint],
+      );
+      const definition = scopedFk.rows[0]?.definition ?? '';
+      if (!definition.includes('(product_code, module_code)') || !definition.includes('product_modules(product_code, module_code)')) {
+        throw new Error(`Missing product/module scoped foreign key ${table}.${constraint}`);
+      }
+    }
+
     const indexes = await pool.query(
       `SELECT c.relname AS name, i.indisunique AS is_unique, pg_get_expr(i.indpred, i.indrelid) AS predicate, pg_get_indexdef(i.indexrelid) AS definition
        FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
@@ -214,7 +231,7 @@ try {
   const c1AfterCounts = await sourceCounts(databaseUrls.c1Upgrade);
   if (JSON.stringify(c1BeforeCounts) !== JSON.stringify(c1AfterCounts)) throw new Error('C1 migration changed historical source-table row counts');
 
-  console.log(`Phase 10A/C1.2 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade (${baselineMigrationDirectories.length} + ${phase10aMigrationDirectories.length + c1MigrationDirectories.length}), and current-main upgrade (${preC1MigrationDirectories.length} + ${c1MigrationDirectories.length}); product catalog, Connect backfill, product FKs and temporal exclusions, tenant FKs, partial uniqueness, idempotent seed, and source-row preservation verified.`);
+  console.log(`Phase 10A/C1 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade (${baselineMigrationDirectories.length} + ${phase10aMigrationDirectories.length + c1MigrationDirectories.length}), and current-main upgrade (${preC1MigrationDirectories.length} + ${c1MigrationDirectories.length}); product catalog, Connect backfill, product FKs and temporal exclusions, tenant FKs, product/module scoped FKs, partial uniqueness, idempotent seed, and source-row preservation verified.`);
 } finally {
   await dropDatabase(adminPool, databaseNames.empty);
   await dropDatabase(adminPool, databaseNames.upgrade);
