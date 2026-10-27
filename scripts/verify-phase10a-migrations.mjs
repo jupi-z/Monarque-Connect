@@ -136,6 +136,8 @@ async function structuralProof(databaseUrl) {
     }
     const subscriptionConstraint = await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'subscriptions'::regclass AND conname = 'subscriptions_no_overlapping_effective_periods'");
     if (!subscriptionConstraint.rows[0]?.definition.includes('product_code')) throw new Error('Subscription overlap constraint is not product scoped');
+    const subscriptionLifecycleIndex = await pool.query("SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'subscriptions_one_open_org_product_key'");
+    if (!subscriptionLifecycleIndex.rows[0]?.indexdef.includes('(organization_id, product_code)')) throw new Error('Open subscription lifecycle uniqueness is not product scoped');
     const billingConstraint = await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'billing_subscription_terms'::regclass AND conname = 'billing_subscription_terms_no_overlap'");
     if (!billingConstraint.rows[0]?.definition.includes('product_code')) throw new Error('Billing term overlap constraint is not product scoped');
 

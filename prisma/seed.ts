@@ -136,7 +136,7 @@ const fairScalePriceVersions = [
 
 const fairScaleCatalogPublishedAt = new Date("2026-10-19T00:00:00.000Z");
 
-async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
+async function seedReferenceDataOnce(prisma: Prisma.TransactionClient): Promise<void> {
   // Migration proof scripts also seed historical schemas that predate C1.2.
   // Detect the additive table before using its generated Prisma model.
   const productCatalog = await prisma.$queryRaw<Array<{ exists: boolean }>>`
@@ -343,14 +343,10 @@ async function seedReferenceDataOnce(prisma: PrismaClient): Promise<void> {
 }
 
 export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      await seedReferenceDataOnce(prisma);
-      return;
-    } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002" || attempt === 3) throw error;
-    }
-  }
+  await prisma.$transaction(async (transaction) => {
+    await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('monarque-connect-reference-seed'))`;
+    await seedReferenceDataOnce(transaction);
+  });
 }
 
 export async function main(): Promise<void> {

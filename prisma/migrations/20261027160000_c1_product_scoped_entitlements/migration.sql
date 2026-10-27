@@ -43,6 +43,10 @@ ALTER TABLE "price_versions" ADD CONSTRAINT "price_versions_product_code_plan_co
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_product_code_fkey" FOREIGN KEY ("product_code") REFERENCES "product_catalog"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "subscriptions" DROP CONSTRAINT "subscriptions_plan_version_id_fkey";
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_product_code_plan_version_id_fkey" FOREIGN KEY ("product_code", "plan_version_id") REFERENCES "plan_versions"("product_code", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DROP INDEX "subscriptions_one_open_lifecycle_per_organization_key";
+CREATE UNIQUE INDEX "subscriptions_one_open_org_product_key"
+  ON "subscriptions"("organization_id", "product_code")
+  WHERE "ends_at" IS NULL AND "status" IN ('TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED');
 ALTER TABLE "billing_subscription_terms" ADD CONSTRAINT "billing_subscription_terms_product_code_fkey" FOREIGN KEY ("product_code") REFERENCES "product_catalog"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "billing_subscription_terms" DROP CONSTRAINT "billing_subscription_terms_subscription_id_fkey";
 ALTER TABLE "billing_subscription_terms" ADD CONSTRAINT "billing_subscription_terms_subscription_id_product_code_fkey" FOREIGN KEY ("subscription_id", "product_code") REFERENCES "subscriptions"("id", "product_code") ON DELETE RESTRICT ON UPDATE CASCADE;
