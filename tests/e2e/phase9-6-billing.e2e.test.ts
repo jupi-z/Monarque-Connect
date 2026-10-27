@@ -113,6 +113,35 @@ describe('Phase 9.6 Billing HTTP flow', () => {
     expect(renewalInvoice.lines).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'ADDON', totalMinor: 2000n })]));
   });
 
+  it('allows a Connect checkout when the organization already has a Billing term for another product', async () => {
+    const server = serverOf(app);
+    const prisma = app.get(PrismaService);
+    const organization = bodyOf<{ id: string }>(await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Cross-product billing tenant', handle: `billing-products-${randomUUID().slice(0, 8)}`, defaultCurrency: 'EUR', establishmentName: 'Head office' }).expect(201));
+
+    const quote = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organization.id}/billing/quotes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase96-cross-product-quote').send({ planCode: 'BUSINESS', billingPeriod: 'MONTHLY', activeEstablishmentCount: 3 }).expect(201));
+    const quoteRecord = await prisma.billingQuote.findUniqueOrThrow({ where: { id: quote.id } });
+    const order = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organization.id}/billing/checkout-orders`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase96-cross-product-order').send({ quoteId: quote.id }).expect(201));
+    const attempt = bodyOf<{ providerPaymentId: string; amountMinor: number }>(await request(server).post(`/api/v1/organizations/${organization.id}/billing/checkout-orders/${order.id}/payment-attempts`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'phase96-cross-product-attempt').send({ provider: 'TEST' }).expect(201));
+
+    const zamurekPlanCode = `ZAMUREK_BILLING_${randomUUID().slice(0, 8).toUpperCase()}`;
+    await prisma.plan.create({ data: { code: zamurekPlanCode, name: 'ZAMUREK billing fixture', productCode: 'ZAMUREK' } });
+    const zamurekPlanVersion = await prisma.planVersion.create({ data: { id: randomUUID(), productCode: 'ZAMUREK', planCode: zamurekPlanCode, version: 1, status: 'ACTIVE', currency: 'USD', billingPeriod: 'MONTHLY' } });
+    const startsAt = new Date();
+    const endsAt = new Date(startsAt);
+    endsAt.setUTCMonth(endsAt.getUTCMonth() + 1);
+    const zamurekSubscription = await prisma.subscription.create({ data: { id: randomUUID(), organizationId: organization.id, productCode: 'ZAMUREK', planVersionId: zamurekPlanVersion.id, status: 'ACTIVE', startsAt, endsAt } });
+    await prisma.billingSubscriptionTerm.create({ data: { id: randomUUID(), billingCustomerId: quoteRecord.billingCustomerId, organizationId: organization.id, productCode: 'ZAMUREK', subscriptionId: zamurekSubscription.id, status: 'ACTIVE', planCode: zamurekPlanCode, billingPeriod: 'MONTHLY', currency: 'USD', catalogVersion: 1, baseAmountMinor: 700n, discountAmountMinor: 0n, addonAmountMinor: 0n, totalAmountMinor: 700n, startsAt, currentPeriodStart: startsAt, currentPeriodEnd: endsAt, nextRenewalAt: endsAt } });
+
+    const payload = { providerPaymentId: attempt.providerPaymentId, amountMinor: attempt.amountMinor, currency: 'USD', status: 'SUCCEEDED' };
+    const signature = createHmac('sha256', process.env.FAIRSCALE_BILLING_WEBHOOK_SECRET ?? 'test-fairscale-webhook-secret').update(JSON.stringify(payload)).digest('hex');
+    await request(server).post('/api/v1/billing/providers/TEST/webhook').set('x-provider-event-id', 'phase96-cross-product-connect-payment').set('x-provider-signature', signature).send(payload).expect(202);
+
+    await expect(prisma.billingSubscriptionTerm.findMany({ where: { organizationId: organization.id }, orderBy: { productCode: 'asc' }, select: { productCode: true, status: true } })).resolves.toEqual([
+      { productCode: 'MONARQUE_CONNECT', status: 'ACTIVE' },
+      { productCode: 'ZAMUREK', status: 'ACTIVE' },
+    ]);
+  });
+
   it('publishes a versioned price only through the platform admin surface', async () => {
     const server = serverOf(app);
     const input = { planCode: 'BUSINESS', billingPeriod: 'YEARLY', currency: 'USD', baseAmountMinor: 4600, welcomeAmountMinor: 3910, annualDiscountAmountMinor: 0, includedEstablishments: 3, addonAmountMinor: 1100, addonCapacityUnits: 1 };
