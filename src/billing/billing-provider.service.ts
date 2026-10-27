@@ -58,7 +58,7 @@ export class BillingProviderService {
       }
       if (!checkoutOrder) throw new ConflictException('Payment attempt is not linked to a checkout order');
       await tx.$queryRaw(Prisma.sql`SELECT id FROM organizations WHERE id = ${checkoutOrder.organizationId}::uuid FOR UPDATE`);
-      const existingTerm = await tx.billingSubscriptionTerm.findFirst({ where: { organizationId: checkoutOrder.organizationId, status: { in: ['PENDING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] } }, select: { id: true } });
+      const existingTerm = await tx.billingSubscriptionTerm.findFirst({ where: { organizationId: checkoutOrder.organizationId, productCode: LEGACY_PRODUCT_CODE, status: { in: ['PENDING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] } }, select: { id: true } });
       if (existingTerm) throw new ConflictException('Organization already has an effective FairScale billing term');
       const quote = await tx.billingQuote.findUniqueOrThrow({ where: { id: checkoutOrder.quoteId }, include: { lines: true } });
       const planVersion = await tx.planVersion.findFirst({ where: { productCode: LEGACY_PRODUCT_CODE, planCode: quote.planCode, billingPeriod: quote.billingPeriod, currency: 'USD', status: 'ACTIVE' }, orderBy: { version: 'desc' } });
