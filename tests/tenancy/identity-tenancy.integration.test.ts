@@ -161,14 +161,14 @@ describe('Identity and tenancy integration', () => {
     await prisma.organizationEntitlement.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', moduleCode, effect: 'ALLOW', startsAt: new Date(Date.now() - 1000), reason: 'Product isolation regression', createdByActor: 'PLATFORM:test' } });
 
     const principal = { userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000006' };
-    const capabilities = await organizations.capabilities(principal, created.id) as { plan: { code: string } | null; modules: Array<{ code: string }>; productCode?: string };
-    const modules = await organizations.modules(principal, created.id) as Array<{ code: string }>;
+    const capabilities = await organizations.capabilities(principal, created.id) as { plan: { code: string } | null; modules: Array<{ code: string; allowed: boolean; reason: string }>; productCode?: string };
+    const modules = await organizations.modules(principal, created.id) as Array<{ code: string; allowed: boolean; reason: string }>;
     const quotas = await organizations.quotas(principal, created.id) as Array<{ quotaCode: string; limit: string }>;
 
     expect(capabilities.plan?.code).toBe('CONNECT');
     expect(capabilities).not.toHaveProperty('productCode');
-    expect(capabilities.modules.some((module) => module.code === moduleCode)).toBe(false);
-    expect(modules.some((module) => module.code === moduleCode)).toBe(false);
+    expect(capabilities.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: moduleCode, allowed: false, reason: 'MODULE_NOT_INCLUDED' })]));
+    expect(modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: moduleCode, allowed: false, reason: 'MODULE_NOT_INCLUDED' })]));
     expect(quotas).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5' })]));
   });
 });

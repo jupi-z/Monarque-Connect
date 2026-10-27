@@ -58,9 +58,11 @@ export class EffectiveEntitlementsService {
 
   async resolve(organizationId: string, at: Date = new Date(), db: PrismaService | Prisma.TransactionClient = this.prisma): Promise<EffectiveEntitlementsProjection> {
     const organization = await db.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { status: true, businessTypeCode: true } });
-    const connectProductModules = await db.productModule.findMany({ where: { productCode: LEGACY_PRODUCT_CODE }, select: { moduleCode: true } });
     const [catalog, activations, presets, overrides] = await Promise.all([
-      db.moduleCatalog.findMany({ where: { code: { in: connectProductModules.map(({ moduleCode }) => moduleCode) } }, orderBy: { code: 'asc' } }),
+      // Keep the historical projection shape: modules from other products remain
+      // visible as explicitly unavailable, while entitlements and activations below
+      // stay scoped to MONARQUE_CONNECT.
+      db.moduleCatalog.findMany({ orderBy: { code: 'asc' } }),
       db.organizationModuleActivation.findMany({ where: { organizationId, productCode: LEGACY_PRODUCT_CODE }, select: { moduleCode: true, enabled: true } }),
       db.moduleBusinessTypePreset.findMany({ where: { businessTypeCode: organization.businessTypeCode }, select: { moduleCode: true, recommended: true } }),
       db.organizationEntitlement.findMany({ where: { organizationId, productCode: LEGACY_PRODUCT_CODE, startsAt: { lte: at }, OR: [{ endsAt: null }, { endsAt: { gt: at } }] }, orderBy: [{ createdAt: 'desc' }, { startsAt: 'desc' }], select: { moduleCode: true, effect: true, limitsJson: true, reason: true } }),
