@@ -218,7 +218,7 @@ export class ExternalIdentityService {
         targetId: identityId,
         requestId: context.requestId ?? null,
         correlationId: context.correlationId,
-        metadataJson: payload as Prisma.InputJsonValue,
+        metadataJson: payload,
         occurredAt: new Date(occurredAt),
       },
     });
@@ -250,10 +250,14 @@ export class ExternalIdentityService {
   }
 
   private assertIssuerSubject(issuer: string, subject: string): void {
+    const subjectIsAscii = typeof subject === 'string' && [...subject].every((character) => {
+      const codePoint = character.codePointAt(0);
+      return codePoint !== undefined && codePoint >= 1 && codePoint <= 0x7f;
+    });
     if (typeof issuer !== 'string' || issuer.length === 0 || issuer.length > 2048
       || Buffer.byteLength(issuer, 'utf8') > 2048 || !/^[\x21-\x7e]+$/.test(issuer)
       || typeof subject !== 'string' || subject.length === 0 || subject.length > 255
-      || Buffer.byteLength(subject, 'utf8') > 255 || !/^[\x01-\x7f]+$/.test(subject)) {
+      || Buffer.byteLength(subject, 'utf8') > 255 || !subjectIsAscii) {
       throw new BadRequestException('External identity issuer or subject is invalid');
     }
     let parsed: URL;
