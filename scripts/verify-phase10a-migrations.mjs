@@ -132,7 +132,12 @@ async function structuralProof(databaseUrl) {
         `SELECT count(*)::int AS count FROM pg_constraint WHERE conrelid = $1::regclass AND contype = 'f' AND confrelid = 'product_catalog'::regclass AND pg_get_constraintdef(oid) LIKE '%product_code%'`,
         [table],
       );
-      if (fk.rows[0].count !== 1) throw new Error(`Missing product catalog foreign key on ${table}`);
+      // C1.3 replaces direct product-code FKs on module-scoped records with a
+      // composite (product_code, module_code) FK to product_modules. That
+      // registry itself references product_catalog, so the product remains
+      // constrained through the server-owned product/module mapping.
+      const productModuleScoped = ['organization_module_activations', 'organization_entitlements'].includes(table);
+      if (!productModuleScoped && fk.rows[0].count !== 1) throw new Error(`Missing product catalog foreign key on ${table}`);
     }
     const subscriptionConstraint = await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'subscriptions'::regclass AND conname = 'subscriptions_no_overlapping_effective_periods'");
     if (!subscriptionConstraint.rows[0]?.definition.includes('product_code')) throw new Error('Subscription overlap constraint is not product scoped');
