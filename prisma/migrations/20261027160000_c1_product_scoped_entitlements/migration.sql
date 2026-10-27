@@ -53,13 +53,14 @@ ALTER TABLE "quota_reservations" ADD CONSTRAINT "quota_reservations_product_code
 ALTER TABLE "quota_ledgers" ADD CONSTRAINT "quota_ledgers_product_code_fkey" FOREIGN KEY ("product_code") REFERENCES "product_catalog"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- Enforce that subscription and quota records cannot cross product boundaries.
+-- Drop referencing foreign keys before replacing their legacy target key.
+ALTER TABLE "quota_reservations" DROP CONSTRAINT "quota_reservations_usage_fkey";
+ALTER TABLE "quota_ledgers" DROP CONSTRAINT "quota_ledgers_usage_fkey";
 DROP INDEX "organization_quota_usages_organization_id_quota_code_period_key_key";
 ALTER TABLE "organization_quota_usages" ADD CONSTRAINT "organization_quota_usages_org_product_quota_period_key" UNIQUE ("organization_id", "product_code", "quota_code", "period_key");
-ALTER TABLE "quota_reservations" DROP CONSTRAINT "quota_reservations_usage_fkey";
 ALTER TABLE "quota_reservations" ADD CONSTRAINT "quota_reservations_usage_fkey" FOREIGN KEY ("organization_id", "product_code", "quota_code", "period_key") REFERENCES "organization_quota_usages"("organization_id", "product_code", "quota_code", "period_key") ON DELETE CASCADE ON UPDATE CASCADE;
 DROP INDEX "quota_reservations_organization_id_idempotency_key_key";
 ALTER TABLE "quota_reservations" ADD CONSTRAINT "quota_reservations_organization_product_idempotency_key" UNIQUE ("organization_id", "product_code", "idempotency_key");
-ALTER TABLE "quota_ledgers" DROP CONSTRAINT "quota_ledgers_usage_fkey";
 ALTER TABLE "quota_ledgers" ADD CONSTRAINT "quota_ledgers_usage_fkey" FOREIGN KEY ("organization_id", "product_code", "quota_code", "period_key") REFERENCES "organization_quota_usages"("organization_id", "product_code", "quota_code", "period_key") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "quota_ledgers" DROP CONSTRAINT "quota_ledgers_reservation_id_fkey";
 ALTER TABLE "quota_ledgers" ADD CONSTRAINT "quota_ledgers_reservation_id_product_code_fkey" FOREIGN KEY ("reservation_id", "product_code") REFERENCES "quota_reservations"("id", "product_code") ON DELETE CASCADE ON UPDATE CASCADE;
