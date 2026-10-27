@@ -176,6 +176,18 @@ describe('Phase 9.6 Billing HTTP flow', () => {
     await expect(prisma.subscription.findUnique({ where: { id: subscription.id } })).resolves.toMatchObject({ status: 'ACTIVE' });
   });
 
+  it('does not let Connect cancel or replay another product scheduled change', async () => {
+    const { prisma, term } = await createZamurekBillingTerm();
+    const idempotencyKey = `zamurek-scheduled-${randomUUID()}`;
+    const change = await prisma.billingScheduledChange.create({ data: { id: randomUUID(), subscriptionTermId: term.id, organizationId, idempotencyKey, kind: 'CANCELLATION', status: 'PENDING', effectiveAt: term.currentPeriodEnd } });
+    const server = serverOf(app);
+
+    await request(server).post(`/api/v1/organizations/${organizationId}/billing/subscription/changes/${change.id}/cancel`).set('Authorization', `Bearer ${ownerToken}`).expect(404);
+    await request(server).post(`/api/v1/organizations/${organizationId}/billing/subscription/${term.id}/changes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', idempotencyKey).send({ kind: 'CANCELLATION' }).expect(409);
+
+    await expect(prisma.billingScheduledChange.findUnique({ where: { id: change.id } })).resolves.toMatchObject({ status: 'PENDING' });
+  });
+
   it('does not apply Connect dunning to another product invoice', async () => {
     const { prisma, term, subscription } = await createZamurekBillingTerm();
     const dueAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);

@@ -213,7 +213,7 @@ export class QuotaService {
   private async finish(id: string, nextStatus: 'COMMITTED' | 'RELEASED'): Promise<QuotaReservationResult> {
     const context = currentEventContext() ?? createRequestContext();
     return this.prisma.$transaction(async (tx) => {
-      const reservation = await tx.quotaReservation.findUnique({ where: { id } });
+      const reservation = await tx.quotaReservation.findFirst({ where: { id, productCode: LEGACY_PRODUCT_CODE } });
       if (!reservation) throw new NotFoundException();
       if (reservation.status === nextStatus) return this.result(reservation);
       if (reservation.status !== 'HELD') throw new ConflictException(`Quota reservation is already ${reservation.status.toLowerCase()}`);
@@ -221,7 +221,7 @@ export class QuotaService {
         ? await tx.$executeRaw(Prisma.sql`UPDATE "organization_quota_usages" SET "reserved_value" = "reserved_value" - ${reservation.amount}, "used_value" = "used_value" + ${reservation.amount}, "updated_at" = CURRENT_TIMESTAMP WHERE "organization_id" = ${reservation.organizationId}::uuid AND "product_code" = ${reservation.productCode} AND "quota_code" = ${reservation.quotaCode} AND "period_key" = ${reservation.periodKey} AND "reserved_value" >= ${reservation.amount}`)
         : await tx.$executeRaw(Prisma.sql`UPDATE "organization_quota_usages" SET "reserved_value" = "reserved_value" - ${reservation.amount}, "updated_at" = CURRENT_TIMESTAMP WHERE "organization_id" = ${reservation.organizationId}::uuid AND "product_code" = ${reservation.productCode} AND "quota_code" = ${reservation.quotaCode} AND "period_key" = ${reservation.periodKey} AND "reserved_value" >= ${reservation.amount}`);
       if (changed !== 1) throw new ConflictException('Quota reservation state is inconsistent');
-      const updated = await tx.quotaReservation.update({ where: { id }, data: { status: nextStatus } });
+      const updated = await tx.quotaReservation.update({ where: { id, productCode: LEGACY_PRODUCT_CODE }, data: { status: nextStatus } });
       const action = nextStatus === 'COMMITTED' ? 'QUOTA_COMMITTED' : 'QUOTA_RELEASED';
       const eventType = nextStatus === 'COMMITTED' ? 'quota.committed' : 'quota.released';
       await this.recordMutation(tx, action, eventType, updated, context, {});
