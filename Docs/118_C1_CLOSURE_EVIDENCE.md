@@ -39,7 +39,7 @@ La CI post-fusion [#40563823918](https://github.com/jupi-z/Monarque-Connect/acti
 
 ## 4. Migrations et retour arrière
 
-C1.2 et C1.3 ont introduit les changements de schéma additifs et leur backfill Connect. Les preuves de base vide et d'upgrade figurent dans les runs CI ci-dessus. C1.4 ne modifie ni schéma ni migration; elle ajoute des assertions d'intégration de compatibilité multi-produit. Les difficultés rencontrées pendant les anciennes tentatives de CI sont décrites dans les PR concernées; seuls les runs finaux verts sont considérés comme preuve de livraison.
+C1.2 et C1.3 ont introduit les changements de schéma additifs et leur backfill Connect. Les preuves de base vide et d'upgrade figurent dans les runs CI ci-dessus; elles valident les migrations et les états historiques synthétiques pris en charge, pas un jeu de données de production. Aucune base de production ni donnée client n'a été inspectée dans cette mission. C1.4 ne modifie ni schéma ni migration; elle ajoute des assertions d'intégration de compatibilité multi-produit. Les difficultés rencontrées pendant les anciennes tentatives de CI sont décrites dans les PR concernées; seuls les runs finaux verts sont considérés comme preuve de livraison.
 
 Les changements de catalogue et de scope produit ne doivent pas être annulés par suppression des données rétro-remplies. Un retour applicatif doit conserver les nouvelles structures et utiliser un forward-fix ou une restauration contrôlée selon Docs/116. Les exercices de restauration complets restent un gate opérationnel ultérieur.
 
