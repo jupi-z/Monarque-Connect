@@ -8,6 +8,8 @@ import { createRequestContext, currentEventContext, type EventContext } from '..
 import type { VerifiedBillingProviderEvent } from './billing-provider.port.js';
 import { addBillingPeriod } from './billing-period.js';
 
+const LEGACY_PRODUCT_CODE = 'MONARQUE_CONNECT' as const;
+
 @Injectable()
 export class BillingProviderService {
   constructor(private readonly prisma: PrismaService, private readonly outbox: PrismaOutboxWriter) {}
@@ -56,19 +58,19 @@ export class BillingProviderService {
       }
       if (!checkoutOrder) throw new ConflictException('Payment attempt is not linked to a checkout order');
       await tx.$queryRaw(Prisma.sql`SELECT id FROM organizations WHERE id = ${checkoutOrder.organizationId}::uuid FOR UPDATE`);
-      const existingTerm = await tx.billingSubscriptionTerm.findFirst({ where: { organizationId: checkoutOrder.organizationId, status: { in: ['PENDING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] } }, select: { id: true } });
+      const existingTerm = await tx.billingSubscriptionTerm.findFirst({ where: { organizationId: checkoutOrder.organizationId, productCode: LEGACY_PRODUCT_CODE, status: { in: ['PENDING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] } }, select: { id: true } });
       if (existingTerm) throw new ConflictException('Organization already has an effective FairScale billing term');
       const quote = await tx.billingQuote.findUniqueOrThrow({ where: { id: checkoutOrder.quoteId }, include: { lines: true } });
-      const planVersion = await tx.planVersion.findFirst({ where: { planCode: quote.planCode, billingPeriod: quote.billingPeriod, currency: 'USD', status: 'ACTIVE' }, orderBy: { version: 'desc' } });
+      const planVersion = await tx.planVersion.findFirst({ where: { productCode: LEGACY_PRODUCT_CODE, planCode: quote.planCode, billingPeriod: quote.billingPeriod, currency: 'USD', status: 'ACTIVE' }, orderBy: { version: 'desc' } });
       if (!planVersion) throw new ConflictException('No active plan version is available for the paid quote');
       const periodStart = new Date();
       const periodEnd = addBillingPeriod(periodStart, quote.billingPeriod);
-      const currentSubscription = await tx.subscription.findFirst({ where: { organizationId: quote.organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] }, startsAt: { lte: periodStart }, OR: [{ endsAt: null }, { endsAt: { gt: periodStart } }] }, include: { planVersion: true }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }] });
+      const currentSubscription = await tx.subscription.findFirst({ where: { organizationId: quote.organizationId, productCode: LEGACY_PRODUCT_CODE, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] }, startsAt: { lte: periodStart }, OR: [{ endsAt: null }, { endsAt: { gt: periodStart } }] }, include: { planVersion: true }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }] });
       if (currentSubscription && currentSubscription.planVersion.planCode !== 'CONNECT') throw new ConflictException('Organization already has a paid subscription; use a scheduled plan change');
       if (currentSubscription) await tx.subscription.update({ where: { id: currentSubscription.id }, data: { status: 'EXPIRED', endsAt: periodStart } });
-      const subscription = await tx.subscription.create({ data: { id: randomUUID(), organizationId: quote.organizationId, planVersionId: planVersion.id, status: 'ACTIVE', startsAt: periodStart, endsAt: periodEnd } });
+      const subscription = await tx.subscription.create({ data: { id: randomUUID(), organizationId: quote.organizationId, productCode: LEGACY_PRODUCT_CODE, planVersionId: planVersion.id, status: 'ACTIVE', startsAt: periodStart, endsAt: periodEnd } });
       const addonUnitAmountMinor = quote.addonEstablishments > 0 ? quote.addonAmountMinor / BigInt(quote.addonEstablishments) : 0n;
-      const term = await tx.billingSubscriptionTerm.create({ data: { id: randomUUID(), billingCustomerId: quote.billingCustomerId, organizationId: quote.organizationId, subscriptionId: subscription.id, sourceQuoteId: quote.id, status: 'ACTIVE', planCode: quote.planCode, billingPeriod: quote.billingPeriod, currency: quote.currency, catalogVersion: quote.catalogVersion, baseAmountMinor: quote.baseAmountMinor, discountAmountMinor: quote.discountAmountMinor, addonAmountMinor: quote.addonAmountMinor, totalAmountMinor: quote.totalAmountMinor, startsAt: periodStart, currentPeriodStart: periodStart, currentPeriodEnd: periodEnd, nextRenewalAt: periodEnd, ...(quote.addonEstablishments > 0 ? { addons: { create: { id: randomUUID(), organizationId: quote.organizationId, code: 'ESTABLISHMENT', status: 'ACTIVE', quantity: quote.addonEstablishments, billingPeriod: quote.billingPeriod, currency: quote.currency, unitAmountMinor: addonUnitAmountMinor, startsAt: periodStart } } } : {}) } });
+      const term = await tx.billingSubscriptionTerm.create({ data: { id: randomUUID(), billingCustomerId: quote.billingCustomerId, organizationId: quote.organizationId, productCode: LEGACY_PRODUCT_CODE, subscriptionId: subscription.id, sourceQuoteId: quote.id, status: 'ACTIVE', planCode: quote.planCode, billingPeriod: quote.billingPeriod, currency: quote.currency, catalogVersion: quote.catalogVersion, baseAmountMinor: quote.baseAmountMinor, discountAmountMinor: quote.discountAmountMinor, addonAmountMinor: quote.addonAmountMinor, totalAmountMinor: quote.totalAmountMinor, startsAt: periodStart, currentPeriodStart: periodStart, currentPeriodEnd: periodEnd, nextRenewalAt: periodEnd, ...(quote.addonEstablishments > 0 ? { addons: { create: { id: randomUUID(), organizationId: quote.organizationId, code: 'ESTABLISHMENT', status: 'ACTIVE', quantity: quote.addonEstablishments, billingPeriod: quote.billingPeriod, currency: quote.currency, unitAmountMinor: addonUnitAmountMinor, startsAt: periodStart } } } : {}) } });
       const sequenceRows = await tx.$queryRaw<Array<{ nextval: bigint }>>(Prisma.sql`SELECT nextval('billing_invoice_number_seq')`);
       const nextval = sequenceRows[0]?.nextval;
       if (nextval === undefined) throw new ConflictException('Billing invoice sequence is unavailable');

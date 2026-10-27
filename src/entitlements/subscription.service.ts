@@ -6,6 +6,8 @@ import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
 import { createDomainEvent } from '../events/domain-event.factory.js';
 import { createRequestContext, currentEventContext } from '../events/event-context.js';
 
+const LEGACY_PRODUCT_CODE = 'MONARQUE_CONNECT' as const;
+
 type LifecycleStatus = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'EXPIRED' | 'CANCELED';
 const effectiveStatuses: LifecycleStatus[] = ['TRIALING', 'ACTIVE', 'PAST_DUE'];
 const dunningGraceMs = 7 * 24 * 60 * 60 * 1000;
@@ -47,14 +49,15 @@ export class SubscriptionService {
     const id = randomUUID();
     const [organization, planVersion] = await Promise.all([
       tx.organization.findUnique({ where: { id: input.organizationId }, select: { id: true, status: true } }),
-      tx.planVersion.findUnique({ where: { id: input.planVersionId }, select: { id: true, status: true, planCode: true, version: true } }),
+      tx.planVersion.findUnique({ where: { id: input.planVersionId }, select: { id: true, productCode: true, status: true, planCode: true, version: true } }),
     ]);
     if (!organization || organization.status !== 'ACTIVE') throw new ConflictException('Organization is not active');
-    if (!planVersion || planVersion.status !== 'ACTIVE') throw new ConflictException('Plan version is not active');
+    if (!planVersion || planVersion.status !== 'ACTIVE' || planVersion.productCode !== LEGACY_PRODUCT_CODE) throw new ConflictException('Plan version is not active for Monarque Connect');
 
     const overlap = await tx.subscription.findFirst({
       where: {
         organizationId: input.organizationId,
+        productCode: LEGACY_PRODUCT_CODE,
         status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] },
         startsAt: { lt: input.endsAt ?? new Date('9999-12-31T23:59:59.999Z') },
         OR: [{ endsAt: null }, { endsAt: { gt: input.startsAt } }],
@@ -64,7 +67,7 @@ export class SubscriptionService {
     if (overlap) throw new ConflictException('Organization already has an overlapping effective subscription');
 
     const subscription = await tx.subscription.create({
-      data: { id, organizationId: input.organizationId, planVersionId: input.planVersionId, status, startsAt: input.startsAt, endsAt: input.endsAt ?? null },
+      data: { id, organizationId: input.organizationId, productCode: LEGACY_PRODUCT_CODE, planVersionId: input.planVersionId, status, startsAt: input.startsAt, endsAt: input.endsAt ?? null },
       select: { id: true, status: true, startsAt: true, endsAt: true },
     });
     await tx.auditEvent.create({
@@ -80,6 +83,7 @@ export class SubscriptionService {
     return db.subscription.findFirst({
       where: {
         organizationId,
+        productCode: LEGACY_PRODUCT_CODE,
         organization: { status: 'ACTIVE' },
         status: { in: effectiveStatuses },
         startsAt: { lte: at },
@@ -98,14 +102,15 @@ export class SubscriptionService {
     if (!reason.trim()) throw new BadRequestException('Transition reason is required');
     const context = currentEventContext() ?? createRequestContext();
     return this.prisma.$transaction(async (tx) => {
-      const current = await tx.subscription.findUnique({ where: { id }, select: { id: true, organizationId: true, status: true, endsAt: true, canceledAt: true } });
+      const current = await tx.subscription.findUnique({ where: { id }, select: { id: true, organizationId: true, productCode: true, status: true, endsAt: true, canceledAt: true } });
       if (!current) throw new NotFoundException();
+      if (current.productCode !== LEGACY_PRODUCT_CODE) throw new NotFoundException();
       if (current.status === nextStatus) return current;
       if (!transitions[current.status].includes(nextStatus)) throw new ConflictException(`Subscription cannot transition from ${current.status} to ${nextStatus}`);
 
       const nextEndsAt = nextStatus === 'EXPIRED' && !current.endsAt ? effectiveAt : current.endsAt;
       const nextCanceledAt = nextStatus === 'CANCELED' ? effectiveAt : current.canceledAt;
-      const updated = await tx.subscription.update({ where: { id }, data: { status: nextStatus, endsAt: nextEndsAt, canceledAt: nextCanceledAt }, select: { id: true, status: true, canceledAt: true, endsAt: true } });
+      const updated = await tx.subscription.update({ where: { id, productCode: LEGACY_PRODUCT_CODE }, data: { status: nextStatus, endsAt: nextEndsAt, canceledAt: nextCanceledAt }, select: { id: true, status: true, canceledAt: true, endsAt: true } });
       await tx.auditEvent.create({ data: { id: randomUUID(), action: 'SUBSCRIPTION_TRANSITIONED', organizationId: current.organizationId, targetType: 'Subscription', targetId: id, requestId: context.requestId ?? null, correlationId: context.correlationId, metadataJson: { from: current.status, to: nextStatus, effectiveAt: effectiveAt.toISOString(), reason } } });
       await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'subscription.transitioned', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'Subscription', id }, organizationId: current.organizationId, correlationId: context.correlationId, ...(context.requestId ? { requestId: context.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-lifecycle', payload: { from: current.status, to: nextStatus, effectiveAt: effectiveAt.toISOString(), reason } }));
       return updated;

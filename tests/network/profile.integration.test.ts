@@ -100,10 +100,10 @@ describe('Network organization profiles', () => {
   });
 
   it('blocks profile access when the Network profile module is disabled', async () => {
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'NETWORK_PROFILE' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'NETWORK_PROFILE', enabled: false } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'NETWORK_PROFILE' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'NETWORK_PROFILE', enabled: false } });
     await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/network-profile`).set('Authorization', `Bearer ${ownerToken}`).expect(403);
     await request(serverOf(app)).patch(`/api/v1/organizations/${organizationId}/network-profile`).set('Authorization', `Bearer ${ownerToken}`).send({ displayName: 'Blocked' }).expect(403);
-    await prisma.organizationModuleActivation.update({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'NETWORK_PROFILE' } }, data: { enabled: true } });
+    await prisma.organizationModuleActivation.update({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'NETWORK_PROFILE' } }, data: { enabled: true } });
   });
 });
 

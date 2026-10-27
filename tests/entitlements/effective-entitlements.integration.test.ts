@@ -54,6 +54,27 @@ describe('Effective organization entitlements', () => {
     ]));
   });
 
+  it('keeps the legacy resolver scoped to Monarque Connect when ZAMUREK has its own subscription and overrides', async () => {
+    const connectPlan = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
+    await subscriptions.create({ organizationId, planVersionId: connectPlan.id, startsAt: at });
+
+    const zamurekPlanCode = `ZAMUREK_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    await prisma.plan.create({ data: { code: zamurekPlanCode, name: 'ZAMUREK scoped test', productCode: 'ZAMUREK' } });
+    const zamurekVersion = await prisma.planVersion.create({ data: { id: crypto.randomUUID(), productCode: 'ZAMUREK', planCode: zamurekPlanCode, version: 1, status: 'ACTIVE', currency: 'USD', billingPeriod: 'MONTHLY' } });
+    await prisma.subscription.create({ data: { id: crypto.randomUUID(), organizationId, productCode: 'ZAMUREK', planVersionId: zamurekVersion.id, status: 'ACTIVE', startsAt: at } });
+    await prisma.organizationEntitlement.create({ data: { id: crypto.randomUUID(), organizationId, productCode: 'ZAMUREK', moduleCode: 'CRM', effect: 'ALLOW', startsAt: at, reason: 'Product isolation test', createdByActor: 'PLATFORM:test' } });
+    await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId, productCode: 'ZAMUREK', moduleCode: 'CATALOG', enabled: false } });
+
+    const result = await entitlements.resolve(organizationId, at);
+
+    expect(result.plan).toEqual({ code: 'CONNECT', version: 1 });
+    expect(result.subscription).toMatchObject({ status: 'ACTIVE' });
+    expect(result.modules).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'CRM', allowed: false, reason: 'MODULE_NOT_INCLUDED' }),
+      expect.objectContaining({ code: 'CATALOG', allowed: true, reason: 'PLAN_INCLUDED' }),
+    ]));
+  });
+
   it('reports inactive subscription state instead of treating it as an entitlement', async () => {
     const planVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'CONNECT', version: 1 } } });
     const created = await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt: at });

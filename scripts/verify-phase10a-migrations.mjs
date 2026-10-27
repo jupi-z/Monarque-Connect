@@ -10,9 +10,11 @@ const sourceMigrationsPath = join(process.cwd(), 'prisma', 'migrations');
 const migrationDirectories = (await readdir(sourceMigrationsPath, { withFileTypes: true }))
   .filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
 const phase10aStart = '20261020164848_phase10a_intelligence_projections';
-const phase10aMigrationDirectories = migrationDirectories.filter((name) => name >= phase10aStart);
+const c1Start = '20261027160000_c1_product_scoped_entitlements';
+const phase10aMigrationDirectories = migrationDirectories.filter((name) => name >= phase10aStart && name < c1Start);
+const c1MigrationDirectories = migrationDirectories.filter((name) => name >= c1Start);
 const baselineMigrationDirectories = migrationDirectories.filter((name) => name < phase10aStart);
-if (!migrationDirectories.includes(phase10aStart) || phase10aMigrationDirectories.length !== 1) {
+if (!migrationDirectories.includes(phase10aStart) || phase10aMigrationDirectories.length !== 1 || !migrationDirectories.includes(c1Start) || c1MigrationDirectories.length !== 1) {
   throw new Error('Unexpected Phase 10A migration set');
 }
 
@@ -20,7 +22,7 @@ const baseUrl = new URL(process.env.DATABASE_URL ?? 'postgresql://postgres:postg
 const adminUrl = new URL(baseUrl);
 adminUrl.pathname = '/postgres';
 const suffix = `${process.pid}_${randomUUID().replaceAll('-', '')}`;
-const databaseNames = { empty: `monarque_phase10a_empty_${suffix}`, upgrade: `monarque_phase10a_upgrade_${suffix}` };
+const databaseNames = { empty: `monarque_phase10a_empty_${suffix}`, upgrade: `monarque_phase10a_upgrade_${suffix}`, c1Upgrade: `monarque_c1_upgrade_${suffix}` };
 const databaseUrls = Object.fromEntries(Object.entries(databaseNames).map(([key, name]) => {
   const url = new URL(baseUrl);
   url.pathname = `/${name}`;
@@ -119,6 +121,26 @@ async function structuralProof(databaseUrl) {
       }
     }
 
+    const products = await pool.query('SELECT code FROM product_catalog ORDER BY code');
+    if (JSON.stringify(products.rows.map((row) => row.code)) !== JSON.stringify(['MONARQUE_CONNECT', 'ZAMUREK'])) {
+      throw new Error('Product catalog does not contain exactly the initial server-controlled product codes');
+    }
+    for (const table of ['plans', 'plan_versions', 'price_versions', 'subscriptions', 'billing_subscription_terms', 'organization_module_activations', 'organization_entitlements', 'organization_quota_usages', 'quota_reservations', 'quota_ledgers']) {
+      const result = await pool.query(`SELECT count(*)::int AS count FROM "${table}" WHERE product_code <> 'MONARQUE_CONNECT'`);
+      if (result.rows[0].count !== 0) throw new Error(`Historical ${table} rows were not backfilled to MONARQUE_CONNECT`);
+      const fk = await pool.query(
+        `SELECT count(*)::int AS count FROM pg_constraint WHERE conrelid = $1::regclass AND contype = 'f' AND confrelid = 'product_catalog'::regclass AND pg_get_constraintdef(oid) LIKE '%product_code%'`,
+        [table],
+      );
+      if (fk.rows[0].count !== 1) throw new Error(`Missing product catalog foreign key on ${table}`);
+    }
+    const subscriptionConstraint = await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'subscriptions'::regclass AND conname = 'subscriptions_no_overlapping_effective_periods'");
+    if (!subscriptionConstraint.rows[0]?.definition.includes('product_code')) throw new Error('Subscription overlap constraint is not product scoped');
+    const subscriptionLifecycleIndex = await pool.query("SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'subscriptions_one_open_org_product_key'");
+    if (!subscriptionLifecycleIndex.rows[0]?.indexdef.includes('(organization_id, product_code)')) throw new Error('Open subscription lifecycle uniqueness is not product scoped');
+    const billingConstraint = await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'billing_subscription_terms'::regclass AND conname = 'billing_subscription_terms_no_overlap'");
+    if (!billingConstraint.rows[0]?.definition.includes('product_code')) throw new Error('Billing term overlap constraint is not product scoped');
+
     const indexes = await pool.query(
       `SELECT c.relname AS name, i.indisunique AS is_unique, pg_get_expr(i.indpred, i.indrelid) AS predicate, pg_get_indexdef(i.indexrelid) AS definition
        FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
@@ -151,6 +173,7 @@ const adminPool = new Pool({ connectionString: adminUrl.toString() });
 try {
   await createDatabase(adminPool, databaseNames.empty);
   await createDatabase(adminPool, databaseNames.upgrade);
+  await createDatabase(adminPool, databaseNames.c1Upgrade);
 
   await writeMigrationSet(migrationDirectories);
   await migrate(databaseUrls.empty);
@@ -162,7 +185,6 @@ try {
 
   await writeMigrationSet(baselineMigrationDirectories);
   await migrate(databaseUrls.upgrade);
-  await seed(databaseUrls.upgrade);
   const upgradeBefore = await appliedNames(databaseUrls.upgrade);
   assertMigrationSet(upgradeBefore, baselineMigrationDirectories, 'Phase 9.6 upgrade baseline');
   const beforeCounts = await sourceCounts(databaseUrls.upgrade);
@@ -177,10 +199,26 @@ try {
   const afterCounts = await sourceCounts(databaseUrls.upgrade);
   if (JSON.stringify(beforeCounts) !== JSON.stringify(afterCounts)) throw new Error('Projection migration changed Phase 9.6 source-table row counts');
 
-  console.log(`Phase 10A migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade (${baselineMigrationDirectories.length} + ${phase10aMigrationDirectories.length} migrations), tenant FKs, temporal checks, partial uniqueness, idempotent seed, and source-row preservation verified.`);
+  const preC1MigrationDirectories = migrationDirectories.filter((name) => name < c1Start);
+  await writeMigrationSet(preC1MigrationDirectories);
+  await migrate(databaseUrls.c1Upgrade);
+  const c1Before = await appliedNames(databaseUrls.c1Upgrade);
+  assertMigrationSet(c1Before, preC1MigrationDirectories, 'C1 pre-migration main schema');
+  const c1BeforeCounts = await sourceCounts(databaseUrls.c1Upgrade);
+  await writeMigrationSet(migrationDirectories);
+  await migrate(databaseUrls.c1Upgrade);
+  await structuralProof(databaseUrls.c1Upgrade);
+  await seed(databaseUrls.c1Upgrade);
+  await seed(databaseUrls.c1Upgrade);
+  assertMigrationSet(await appliedNames(databaseUrls.c1Upgrade), migrationDirectories, 'C1 main upgrade');
+  const c1AfterCounts = await sourceCounts(databaseUrls.c1Upgrade);
+  if (JSON.stringify(c1BeforeCounts) !== JSON.stringify(c1AfterCounts)) throw new Error('C1 migration changed historical source-table row counts');
+
+  console.log(`Phase 10A/C1.2 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade (${baselineMigrationDirectories.length} + ${phase10aMigrationDirectories.length + c1MigrationDirectories.length}), and current-main upgrade (${preC1MigrationDirectories.length} + ${c1MigrationDirectories.length}); product catalog, Connect backfill, product FKs and temporal exclusions, tenant FKs, partial uniqueness, idempotent seed, and source-row preservation verified.`);
 } finally {
   await dropDatabase(adminPool, databaseNames.empty);
   await dropDatabase(adminPool, databaseNames.upgrade);
+  await dropDatabase(adminPool, databaseNames.c1Upgrade);
   await adminPool.end();
   await rm(tempRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
 }

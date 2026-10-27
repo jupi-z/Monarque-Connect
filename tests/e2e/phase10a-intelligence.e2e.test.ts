@@ -160,7 +160,7 @@ describe('Phase 10A Intelligence dashboard and metric HTTP E2E', () => {
     await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/metrics?metricCodes=SALES_ISSUED&from=${day1.toISOString()}&to=${periodEnd.toISOString()}`).set('Authorization', `Bearer ${salesToken}`).expect(403);
     await prisma.membership.update({ where: { id: salesMembershipId }, data: { status: 'ACTIVE' } });
 
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'SALES' } }, create: { id: randomUUID(), organizationId, moduleCode: 'SALES', enabled: false }, update: { enabled: false } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'SALES' } }, create: { id: randomUUID(), organizationId, moduleCode: 'SALES', enabled: false }, update: { enabled: false } });
     await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/metrics?metricCodes=SALES_ISSUED&from=${day1.toISOString()}&to=${periodEnd.toISOString()}`).set('Authorization', `Bearer ${ownerToken}`).expect(403);
     const salesDashboard = bodyOf<{ metrics: MetricResponse[] }>(await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/dashboard?from=${day1.toISOString()}&to=${periodEnd.toISOString()}`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
     expect(salesDashboard.metrics.some((metric) => metric.metricCode === 'SALES_ISSUED')).toBe(false);
@@ -209,7 +209,7 @@ describe('Phase 10A Intelligence dashboard and metric HTTP E2E', () => {
     expect(scoped.items.every((alert) => alert.establishmentId === establishmentId)).toBe(true);
     await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts/${projectAlertId}`).set('Authorization', `Bearer ${salesToken}`).expect(404);
 
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'PROJECTS' } }, create: { id: randomUUID(), organizationId, moduleCode: 'PROJECTS', enabled: false }, update: { enabled: false } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'PROJECTS' } }, create: { id: randomUUID(), organizationId, moduleCode: 'PROJECTS', enabled: false }, update: { enabled: false } });
     const withProjectsDisabled = bodyOf<{ items: AlertResponse[] }>(await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
     expect(withProjectsDisabled.items.some((alert) => alert.id === projectAlertId)).toBe(false);
     await request(server()).get(`/api/v1/organizations/${organizationId}/intelligence/alerts/${projectAlertId}`).set('Authorization', `Bearer ${ownerToken}`).expect(403);

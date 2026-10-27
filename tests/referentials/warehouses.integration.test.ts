@@ -146,9 +146,9 @@ describe('Warehouses referential', () => {
     expect(bodyOf<{ active: boolean }>(deactivated).active).toBe(false);
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses/${warehouseId}/deactivate`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
     await expect(prisma.auditEvent.count({ where: { targetType: 'Warehouse', targetId: warehouseId, action: 'WAREHOUSE_STATUS_CHANGED' } })).resolves.toBe(1);
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'INVENTORY' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'INVENTORY', enabled: false } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'INVENTORY' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'INVENTORY', enabled: false } });
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/establishments/${primaryEstablishmentId}/warehouses`).set('Authorization', `Bearer ${ownerToken}`).send({ code: 'BLOCKED', name: 'Blocked warehouse' }).expect(403);
-    await prisma.organizationModuleActivation.update({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'INVENTORY' } }, data: { enabled: true } });
+    await prisma.organizationModuleActivation.update({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'INVENTORY' } }, data: { enabled: true } });
   });
 
   it('excludes inactive warehouses by default while allowing an explicit inactive filter', async () => {

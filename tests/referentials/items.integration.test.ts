@@ -133,9 +133,9 @@ describe('Catalog items referential', () => {
   });
 
   it('rejects item creation when CATALOG is disabled', async () => {
-    await prisma.organizationModuleActivation.upsert({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CATALOG' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CATALOG', enabled: false } });
+    await prisma.organizationModuleActivation.upsert({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'CATALOG' } }, update: { enabled: false }, create: { id: crypto.randomUUID(), organizationId, moduleCode: 'CATALOG', enabled: false } });
     await request(serverOf(app)).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', name: 'Blocked', unit: 'piece', referencePrice: '1', currency: 'EUR' }).expect(403);
-    await prisma.organizationModuleActivation.update({ where: { organizationId_moduleCode: { organizationId, moduleCode: 'CATALOG' } }, data: { enabled: true } });
+    await prisma.organizationModuleActivation.update({ where: { organizationId_productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', organizationId, moduleCode: 'CATALOG' } }, data: { enabled: true } });
   });
 
   it('rejects a role without catalog write permission', async () => {

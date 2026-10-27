@@ -6,8 +6,8 @@
 
 | Lot | État | Limite et preuve de sortie |
 |---|---|---|
-| C1.1 — Contrats produit et compatibilité legacy | IN PROGRESS | Codes produit serveur initiaux et tests unitaires purs; golden tests du resolver legacy; aucun changement de schéma. CI GitHub-hosted verte avant fusion. |
-| C1.2 — Catalogue et migration additive | NOT STARTED | Après C1.1 fusionné et CI `main` verte; backfill vérifié, contraintes composées et preuves PostgreSQL depuis vide et états historiques. |
+| C1.1 — Contrats produit et compatibilité legacy | DONE | PR #158 fusionnée au commit `a9d3c45e23f97aec896da6a1613f3ca95c6f2bce`; CI PR #40532056291 et post-fusion #40533031232 vertes. Codes contrôlés et compatibilité golden du resolver legacy. |
+| C1.2 — Catalogue et migration additive | IN PROGRESS | Branche `monarque/c1-2-product-catalog-schema`; migration additive, backfill Connect, contraintes produit et tests PostgreSQL préparés. Validation CI PR et preuves depuis base vide, Phase 9.6 et main@C1.1 requises avant fusion. |
 | C1.3 — Resolver et services produit | NOT STARTED | Après C1.2; filtres produit explicites, Connect legacy inchangé, quotas, activations, overrides et suspensions isolés. |
 | C1.4 — Compatibilité et durcissement | NOT STARTED | Après C1.3; suite de régression inter-domaines et E2E, CI PR et post-fusion verte. |
 

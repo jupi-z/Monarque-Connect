@@ -50,6 +50,7 @@ export class EntitlementOverrideService {
           data: {
             id: randomUUID(),
             organizationId: input.organizationId,
+            productCode: 'MONARQUE_CONNECT',
             moduleCode: input.moduleCode,
             effect: input.effect,
             startsAt,
@@ -95,7 +96,7 @@ export class EntitlementOverrideService {
   }
 
   async list(organizationId: string): Promise<unknown[]> {
-    return this.prisma.organizationEntitlement.findMany({ where: { organizationId }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { id: true, organizationId: true, moduleCode: true, effect: true, startsAt: true, endsAt: true, reason: true, limitsJson: true, createdByActor: true, createdAt: true } });
+    return this.prisma.organizationEntitlement.findMany({ where: { organizationId, productCode: 'MONARQUE_CONNECT' }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { id: true, organizationId: true, moduleCode: true, effect: true, startsAt: true, endsAt: true, reason: true, limitsJson: true, createdByActor: true, createdAt: true } });
   }
 
   private assertWindow(startsAt: Date, endsAt?: Date): void {

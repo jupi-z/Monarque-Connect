@@ -35,7 +35,7 @@ describe('Organization quota reservations', () => {
     const retry = await quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 3n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'invite-batch-1' });
 
     expect(retry).toMatchObject({ id: first.id, status: 'HELD', amount: 3n, limit: 5n });
-    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 0n, reservedValue: 3n, limitValue: 5n });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_productCode_quotaCode_periodKey: { productCode: 'MONARQUE_CONNECT', organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 0n, reservedValue: 3n, limitValue: 5n });
     await expect(prisma.quotaLedger.count({ where: { organizationId, quotaCode: 'MAX_USERS' } })).resolves.toBe(1);
   });
 
@@ -48,7 +48,7 @@ describe('Organization quota reservations', () => {
 
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(2);
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
-    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 0n, reservedValue: 4n, limitValue: 5n });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_productCode_quotaCode_periodKey: { productCode: 'MONARQUE_CONNECT', organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 0n, reservedValue: 4n, limitValue: 5n });
   });
 
   it('commits and releases reservations exactly once with auditable events', async () => {
@@ -59,9 +59,20 @@ describe('Organization quota reservations', () => {
     await expect(quotas.release(released.id)).resolves.toMatchObject({ id: released.id, status: 'RELEASED' });
     await expect(quotas.release(released.id)).resolves.toMatchObject({ id: released.id, status: 'RELEASED' });
 
-    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 2n, reservedValue: 0n });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_productCode_quotaCode_periodKey: { productCode: 'MONARQUE_CONNECT', organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 2n, reservedValue: 0n });
     await expect(prisma.auditEvent.count({ where: { organizationId, action: { in: ['QUOTA_RESERVED', 'QUOTA_COMMITTED', 'QUOTA_RELEASED'] } } })).resolves.toBe(4);
     await expect(prisma.outboxEvent.count({ where: { organizationId, eventType: { in: ['quota.reserved', 'quota.committed', 'quota.released'] } } })).resolves.toBe(4);
+  });
+
+  it('does not let the Connect quota service finish a reservation owned by another product', async () => {
+    const reservationId = crypto.randomUUID();
+    await prisma.organizationQuotaUsage.create({ data: { id: crypto.randomUUID(), organizationId, productCode: 'ZAMUREK', quotaCode: 'MAX_USERS', periodKey: 'CURRENT', limitValue: 10n, reservedValue: 2n } });
+    await prisma.quotaReservation.create({ data: { id: reservationId, organizationId, productCode: 'ZAMUREK', quotaCode: 'MAX_USERS', periodKey: 'CURRENT', amount: 2n, limitValue: 10n, status: 'HELD', idempotencyKey: 'zamurek-held-reservation' } });
+
+    await expect(quotas.commit(reservationId)).rejects.toThrow();
+    await expect(prisma.quotaReservation.findUnique({ where: { id: reservationId } })).resolves.toMatchObject({ productCode: 'ZAMUREK', status: 'HELD' });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_productCode_quotaCode_periodKey: { organizationId, productCode: 'ZAMUREK', quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 0n, reservedValue: 2n });
+    await expect(prisma.quotaLedger.count({ where: { reservationId } })).resolves.toBe(0);
   });
 
   it('derives the period on the server and applies an entitlement limit override', async () => {
@@ -69,7 +80,7 @@ describe('Organization quota reservations', () => {
     await expect(quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 3n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'override-cap' })).rejects.toThrow('Quota capacity exceeded');
     await expect(quotas.list(organizationId, new Date('2026-10-15T00:00:00.000Z'))).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', mode: 'CAPACITY', limit: '2', periodKey: 'CURRENT' })]));
     await expect(quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 1n, at: new Date('2026-11-15T00:00:00.000Z'), idempotencyKey: 'canonical-november' })).resolves.toMatchObject({ periodKey: 'CURRENT' });
-    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ reservedValue: 1n });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_productCode_quotaCode_periodKey: { productCode: 'MONARQUE_CONNECT', organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ reservedValue: 1n });
   });
 
   it('ignores a limit override attached to an unrelated module', async () => {
@@ -84,7 +95,7 @@ describe('Organization quota reservations', () => {
     await quotas.commit(held.id);
 
     await expect(quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 1n, at: new Date('2026-11-15T00:00:00.000Z'), idempotencyKey: 'capacity-november' })).rejects.toThrow('Quota capacity exceeded');
-    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_quotaCode_periodKey: { organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 5n, reservedValue: 0n });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_productCode_quotaCode_periodKey: { productCode: 'MONARQUE_CONNECT', organizationId, quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 5n, reservedValue: 0n });
   });
 
   it('does not apply a commercial MAX_USERS limit to paid FairScale plans', async () => {

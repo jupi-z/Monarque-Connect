@@ -11,6 +11,7 @@ import { calculateFairScaleQuote, type FairScaleBillingPeriod, type FairScalePla
 import type { CreateBillingCheckoutOrderDto, CreateBillingPaymentAttemptDto, CreateBillingQuoteDto, EstimateBillingCapacityDto } from './billing.dto.js';
 
 const planCodes = new Set<FairScalePlanCode>(['CONNECT', 'OPERATIONS', 'BUSINESS', 'ENTERPRISE']);
+const LEGACY_PRODUCT_CODE = 'MONARQUE_CONNECT' as const;
 const billingPeriods = new Set<FairScaleBillingPeriod>(['MONTHLY', 'YEARLY']);
 const welcomePromotion = 'WELCOME_MONTHLY15';
 const annualPromotion = 'ANNUAL20';
@@ -25,7 +26,7 @@ export class BillingService {
   ) {}
 
   async catalog(): Promise<unknown> {
-    const prices = await this.prisma.priceVersion.findMany({ where: { currency: 'USD', status: 'ACTIVE', publishedAt: { not: null } }, orderBy: [{ planCode: 'asc' }, { billingPeriod: 'asc' }], include: { components: true } });
+    const prices = await this.prisma.priceVersion.findMany({ where: { productCode: LEGACY_PRODUCT_CODE, currency: 'USD', status: 'ACTIVE', publishedAt: { not: null } }, orderBy: [{ planCode: 'asc' }, { billingPeriod: 'asc' }], include: { components: true } });
     if (!prices.length) throw new NotFoundException('FairScale catalog is not published');
     const catalogVersion = Math.max(...prices.map((price) => price.version));
     return {
@@ -52,7 +53,7 @@ export class BillingService {
         if (existing.planCode !== input.planCode || existing.billingPeriod !== input.billingPeriod || existing.activeEstablishmentCount !== input.activeEstablishmentCount) throw new ConflictException('Idempotency-Key was already used with a different quote');
         return this.serializeQuote(existing);
       }
-      const price = await tx.priceVersion.findFirst({ where: { planCode: input.planCode, billingPeriod: input.billingPeriod, currency: 'USD', status: 'ACTIVE', startsAt: { lte: asOf }, OR: [{ retiredAt: null }, { retiredAt: { gt: asOf } }] }, orderBy: [{ version: 'desc' }, { startsAt: 'desc' }], include: { components: true } });
+      const price = await tx.priceVersion.findFirst({ where: { productCode: LEGACY_PRODUCT_CODE, planCode: input.planCode, billingPeriod: input.billingPeriod, currency: 'USD', status: 'ACTIVE', startsAt: { lte: asOf }, OR: [{ retiredAt: null }, { retiredAt: { gt: asOf } }] }, orderBy: [{ version: 'desc' }, { startsAt: 'desc' }], include: { components: true } });
       if (!price) throw new ConflictException('Requested FairScale price is not available');
       const addon = price.components.find((component) => component.code === 'ESTABLISHMENT');
       if (input.activeEstablishmentCount > price.includedEstablishments && !addon) throw new ConflictException('Requested establishment capacity is not available for this plan');
@@ -143,10 +144,10 @@ export class BillingService {
     const context = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(context, 'billing:read');
     const now = new Date();
-    const subscription = await this.prisma.subscription.findFirst({ where: { organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], include: { planVersion: true } });
+    const subscription = await this.prisma.subscription.findFirst({ where: { organizationId, productCode: LEGACY_PRODUCT_CODE, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] }, startsAt: { lte: now }, OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], include: { planVersion: true } });
     if (!subscription) throw new ConflictException('Organization has no effective subscription');
     const fairScale = subscription.planVersion.planCode !== 'CONNECT' && await this.hasVerifiedFairScaleCustomer(organizationId);
-    const price = fairScale ? await this.prisma.priceVersion.findFirst({ where: { planCode: subscription.planVersion.planCode, billingPeriod: 'MONTHLY', status: 'ACTIVE', currency: 'USD' }, orderBy: { version: 'desc' } }) : null;
+    const price = fairScale ? await this.prisma.priceVersion.findFirst({ where: { productCode: LEGACY_PRODUCT_CODE, planCode: subscription.planVersion.planCode, billingPeriod: 'MONTHLY', status: 'ACTIVE', currency: 'USD' }, orderBy: { version: 'desc' } }) : null;
     const legacyQuota = await this.prisma.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: subscription.planVersionId, quotaCode: 'MAX_ESTABLISHMENTS' } }, select: { limitValue: true } });
     if (!price && !legacyQuota) throw new ConflictException('Establishment capacity catalog is not available');
     const activeEstablishments = await this.prisma.establishment.count({ where: { organizationId, status: 'ACTIVE' } });
@@ -161,10 +162,10 @@ export class BillingService {
     const context = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(context, 'billing:read');
     if (!Number.isSafeInteger(input.activeEstablishmentCount) || input.activeEstablishmentCount < 1 || !Number.isSafeInteger(input.addonEstablishmentCount) || input.addonEstablishmentCount < 0) throw new BadRequestException('Capacity counts are invalid');
-    const subscription = await this.prisma.subscription.findFirst({ where: { organizationId, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] } }, orderBy: { startsAt: 'desc' }, include: { planVersion: true } });
+    const subscription = await this.prisma.subscription.findFirst({ where: { organizationId, productCode: LEGACY_PRODUCT_CODE, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE'] } }, orderBy: { startsAt: 'desc' }, include: { planVersion: true } });
     if (!subscription) throw new ConflictException('Organization has no effective subscription');
     const fairScale = subscription.planVersion.planCode !== 'CONNECT' && await this.hasVerifiedFairScaleCustomer(organizationId);
-    const price = fairScale ? await this.prisma.priceVersion.findFirst({ where: { planCode: subscription.planVersion.planCode, billingPeriod: 'MONTHLY', status: 'ACTIVE', currency: 'USD' }, orderBy: { version: 'desc' } }) : null;
+    const price = fairScale ? await this.prisma.priceVersion.findFirst({ where: { productCode: LEGACY_PRODUCT_CODE, planCode: subscription.planVersion.planCode, billingPeriod: 'MONTHLY', status: 'ACTIVE', currency: 'USD' }, orderBy: { version: 'desc' } }) : null;
     const legacyQuota = await this.prisma.planVersionQuota.findUnique({ where: { planVersionId_quotaCode: { planVersionId: subscription.planVersionId, quotaCode: 'MAX_ESTABLISHMENTS' } }, select: { limitValue: true } });
     if (!price && !legacyQuota) throw new ConflictException('Establishment capacity catalog is not available');
     const includedEstablishments = price?.includedEstablishments ?? Number(legacyQuota!.limitValue);
