@@ -71,6 +71,11 @@ async function addCurrentSeedCompatibilityColumns(databaseUrl) {
     for (const table of ['plans', 'plan_versions', 'price_versions']) {
       await pool.query(`ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS product_code VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT'`);
     }
+    // The repository seed is compiled against the current Prisma schema. This
+    // Phase 9.5 proof deliberately stops before C1, where product_code becomes
+    // a real PlanVersionModule column; provide only the compatibility column
+    // needed by the current seed without recording a later migration here.
+    await pool.query("ALTER TABLE plan_version_modules ADD COLUMN IF NOT EXISTS product_code VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT'");
     await pool.query('ALTER TABLE price_versions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(200)');
     await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS price_versions_idempotency_key_key ON price_versions(idempotency_key)');
   } finally { await pool.end(); }

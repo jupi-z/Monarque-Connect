@@ -3,6 +3,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
 import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
+import { isProductCode, type ProductCode } from '../products/product-code.js';
 import { createDomainEvent } from '../events/domain-event.factory.js';
 import { createRequestContext, currentEventContext } from '../events/event-context.js';
 
@@ -79,6 +80,87 @@ export class SubscriptionService {
     return subscription;
   }
 
+  async createForProduct(productCode: ProductCode, input: CreateSubscriptionInput): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null }> {
+    this.assertProductCode(productCode);
+    this.assertDateWindow(input.startsAt, input.endsAt);
+    if (productCode === LEGACY_PRODUCT_CODE) return this.create(input);
+
+    const context = currentEventContext() ?? createRequestContext();
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const [organization, product, planVersion] = await Promise.all([
+          tx.organization.findUnique({ where: { id: input.organizationId }, select: { id: true, status: true } }),
+          tx.productCatalog.findUnique({ where: { code: productCode }, select: { active: true } }),
+          tx.planVersion.findUnique({ where: { id: input.planVersionId }, select: { id: true, productCode: true, status: true, planCode: true, version: true } }),
+        ]);
+        if (!product?.active) throw new NotFoundException('Product not found or inactive');
+        if (!organization || organization.status !== 'ACTIVE') throw new ConflictException('Organization is not active');
+        if (!planVersion || planVersion.status !== 'ACTIVE' || planVersion.productCode !== productCode) throw new ConflictException(`Plan version is not active for ${productCode}`);
+
+        const overlap = await tx.subscription.findFirst({
+          where: { organizationId: input.organizationId, productCode, status: { in: ['TRIALING', 'ACTIVE', 'PAST_DUE', 'SUSPENDED'] }, startsAt: { lt: input.endsAt ?? new Date('9999-12-31T23:59:59.999Z') }, OR: [{ endsAt: null }, { endsAt: { gt: input.startsAt } }] },
+          select: { id: true },
+        });
+        if (overlap) throw new ConflictException(`Organization already has an overlapping ${productCode} subscription`);
+
+        const id = randomUUID();
+        const status = input.status ?? 'ACTIVE';
+        const subscription = await tx.subscription.create({ data: { id, organizationId: input.organizationId, productCode, planVersionId: input.planVersionId, status, startsAt: input.startsAt, endsAt: input.endsAt ?? null }, select: { id: true, status: true, startsAt: true, endsAt: true } });
+        await tx.auditEvent.create({ data: { id: randomUUID(), action: 'SUBSCRIPTION_CREATED', organizationId: input.organizationId, targetType: 'Subscription', targetId: id, requestId: context.requestId ?? null, correlationId: context.correlationId, metadataJson: { productCode, planCode: planVersion.planCode, planVersion: planVersion.version, status, startsAt: input.startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null } } });
+        await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'subscription.product_created', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'Subscription', id }, organizationId: input.organizationId, correlationId: context.correlationId, ...(context.requestId ? { requestId: context.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-lifecycle', payload: { productCode, planCode: planVersion.planCode, planVersion: planVersion.version, status, startsAt: input.startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null } }));
+        return subscription;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && ['P2002', 'P2004', 'P2010'].includes(error.code)) throw new ConflictException(`Organization already has an overlapping ${productCode} subscription`);
+      if (error instanceof Error && error.message.includes('subscriptions_no_overlapping_effective_periods')) throw new ConflictException(`Organization already has an overlapping ${productCode} subscription`);
+      throw error;
+    }
+  }
+
+  async resolveEffectiveForProduct(organizationId: string, productCode: ProductCode, at: Date, db: PrismaService | Prisma.TransactionClient = this.prisma): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null; planVersionId: string } | null> {
+    this.assertProductCode(productCode);
+    await this.assertProductActive(db, productCode);
+    if (productCode === LEGACY_PRODUCT_CODE) return this.resolveEffective(organizationId, at, db);
+
+    return db.subscription.findFirst({
+      where: {
+        organizationId,
+        productCode,
+        organization: { status: 'ACTIVE' },
+        status: { in: effectiveStatuses },
+        startsAt: { lte: at },
+        OR: [
+          { status: { not: 'PAST_DUE' }, endsAt: null },
+          { status: { not: 'PAST_DUE' }, endsAt: { gt: at } },
+          // New products have no implicit FairScale grace period.
+          { status: 'PAST_DUE', endsAt: { gt: at } },
+        ],
+      },
+      orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }],
+      select: { id: true, status: true, startsAt: true, endsAt: true, planVersionId: true },
+    });
+  }
+
+  async transitionForProduct(id: string, productCode: ProductCode, nextStatus: LifecycleStatus, effectiveAt: Date, reason: string): Promise<{ id: string; status: LifecycleStatus; canceledAt: Date | null; endsAt: Date | null }> {
+    this.assertProductCode(productCode);
+    await this.assertProductActive(this.prisma, productCode);
+    if (productCode === LEGACY_PRODUCT_CODE) return this.transition(id, nextStatus, effectiveAt, reason);
+    if (!reason.trim()) throw new BadRequestException('Transition reason is required');
+    const context = currentEventContext() ?? createRequestContext();
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.subscription.findFirst({ where: { id, productCode }, select: { id: true, organizationId: true, productCode: true, status: true, endsAt: true, canceledAt: true } });
+      if (!current) throw new NotFoundException();
+      if (current.status === nextStatus) return current;
+      if (!transitions[current.status].includes(nextStatus)) throw new ConflictException(`Subscription cannot transition from ${current.status} to ${nextStatus}`);
+      const nextEndsAt = nextStatus === 'EXPIRED' && !current.endsAt ? effectiveAt : current.endsAt;
+      const nextCanceledAt = nextStatus === 'CANCELED' ? effectiveAt : current.canceledAt;
+      const updated = await tx.subscription.update({ where: { id, productCode }, data: { status: nextStatus, endsAt: nextEndsAt, canceledAt: nextCanceledAt }, select: { id: true, status: true, canceledAt: true, endsAt: true } });
+      await tx.auditEvent.create({ data: { id: randomUUID(), action: 'SUBSCRIPTION_TRANSITIONED', organizationId: current.organizationId, targetType: 'Subscription', targetId: id, requestId: context.requestId ?? null, correlationId: context.correlationId, metadataJson: { productCode, from: current.status, to: nextStatus, effectiveAt: effectiveAt.toISOString(), reason } } });
+      await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'subscription.product_transitioned', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'Subscription', id }, organizationId: current.organizationId, correlationId: context.correlationId, ...(context.requestId ? { requestId: context.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-lifecycle', payload: { productCode, from: current.status, to: nextStatus, effectiveAt: effectiveAt.toISOString(), reason } }));
+      return updated;
+    });
+  }
+
   async resolveEffective(organizationId: string, at: Date, db: PrismaService | Prisma.TransactionClient = this.prisma): Promise<{ id: string; status: LifecycleStatus; startsAt: Date; endsAt: Date | null; planVersionId: string } | null> {
     return db.subscription.findFirst({
       where: {
@@ -115,6 +197,15 @@ export class SubscriptionService {
       await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'subscription.transitioned', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'SYSTEM' }, aggregate: { type: 'Subscription', id }, organizationId: current.organizationId, correlationId: context.correlationId, ...(context.requestId ? { requestId: context.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-lifecycle', payload: { from: current.status, to: nextStatus, effectiveAt: effectiveAt.toISOString(), reason } }));
       return updated;
     });
+  }
+
+  private assertProductCode(productCode: unknown): asserts productCode is ProductCode {
+    if (!isProductCode(productCode)) throw new BadRequestException('Product code is invalid');
+  }
+
+  private async assertProductActive(db: PrismaService | Prisma.TransactionClient, productCode: ProductCode): Promise<void> {
+    const product = await db.productCatalog.findUnique({ where: { code: productCode }, select: { active: true } });
+    if (!product?.active) throw new NotFoundException('Product not found or inactive');
   }
 
   private assertDateWindow(startsAt: Date, endsAt?: Date): void {

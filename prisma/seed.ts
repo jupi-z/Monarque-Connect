@@ -186,6 +186,29 @@ async function seedReferenceDataOnce(prisma: Prisma.TransactionClient): Promise<
       },
     });
   }
+  // Product/module applicability is server-controlled. ZAMUREK receives only
+  // the explicitly shared Core modules until its product capabilities are approved.
+  const productModules = await prisma.$queryRaw<Array<{ exists: boolean }>>`
+    SELECT to_regclass('public.product_modules') IS NOT NULL AS exists
+  `;
+  if (productModules[0]?.exists) {
+    const catalog = await prisma.moduleCatalog.findMany({ select: { code: true, isCore: true } });
+    for (const module of catalog) {
+      await prisma.productModule.upsert({
+        where: { productCode_moduleCode: { productCode: 'MONARQUE_CONNECT', moduleCode: module.code } },
+        update: {},
+        create: { productCode: 'MONARQUE_CONNECT', moduleCode: module.code },
+      });
+      if (module.isCore) {
+        await prisma.productModule.upsert({
+          where: { productCode_moduleCode: { productCode: 'ZAMUREK', moduleCode: module.code } },
+          update: {},
+          create: { productCode: 'ZAMUREK', moduleCode: module.code },
+        });
+      }
+    }
+  }
+
   for (const [businessTypeCode, moduleCodes] of Object.entries(businessTypePresets)) {
     for (const moduleCode of moduleCodes) {
       await prisma.moduleBusinessTypePreset.upsert({
@@ -231,6 +254,7 @@ async function seedReferenceDataOnce(prisma: Prisma.TransactionClient): Promise<
         update: {},
         create: {
           planVersionId: planVersion.id,
+          productCode: 'MONARQUE_CONNECT',
           moduleCode,
           defaultEnabled: true,
         },
@@ -275,7 +299,7 @@ async function seedReferenceDataOnce(prisma: Prisma.TransactionClient): Promise<
         await prisma.planVersionModule.upsert({
           where: { planVersionId_moduleCode: { planVersionId: fairScalePlanVersion.id, moduleCode } },
           update: {},
-          create: { planVersionId: fairScalePlanVersion.id, moduleCode, defaultEnabled: true },
+          create: { planVersionId: fairScalePlanVersion.id, productCode: 'MONARQUE_CONNECT', moduleCode, defaultEnabled: true },
         });
       }
       for (const [quotaCode, limitValue] of [

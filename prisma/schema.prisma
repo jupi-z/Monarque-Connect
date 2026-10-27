@@ -757,32 +757,44 @@ model ModuleCatalog {
   dependenciesJson         Json                           @default("[]") @map("dependencies_json")
   clientMetadataJson       Json                           @default("{}") @map("client_metadata_json")
   createdAt                DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
-  planModules              PlanVersionModule[]
-  organizationActivations  OrganizationModuleActivation[]
+  productModules           ProductModule[]
   businessTypePresets      ModuleBusinessTypePreset[]
-  organizationEntitlements OrganizationEntitlement[]
 
   @@index([availability, isCore])
   @@map("module_catalog")
 }
 
 model ProductCatalog {
-  code        String        @id @db.VarChar(64)
-  displayName String        @map("display_name") @db.VarChar(120)
-  active      Boolean       @default(true)
-  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  plans       Plan[]
-  planVersions PlanVersion[]
+  code          String                       @id @db.VarChar(64)
+  displayName   String                       @map("display_name") @db.VarChar(120)
+  active        Boolean                      @default(true)
+  createdAt     DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  plans         Plan[]
+  planVersions  PlanVersion[]
   priceVersions PriceVersion[]
   subscriptions Subscription[]
-  billingTerms BillingSubscriptionTerm[]
-  activations OrganizationModuleActivation[]
-  entitlements OrganizationEntitlement[]
-  quotaUsages OrganizationQuotaUsage[]
+  billingTerms  BillingSubscriptionTerm[]
+  productModules ProductModule[]
+  quotaUsages   OrganizationQuotaUsage[]
   quotaReservations QuotaReservation[]
-  quotaLedgers QuotaLedger[]
+  quotaLedgers  QuotaLedger[]
 
   @@map("product_catalog")
+}
+
+model ProductModule {
+  productCode  String                       @map("product_code") @db.VarChar(64)
+  moduleCode   String                       @map("module_code") @db.VarChar(64)
+  createdAt    DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  product      ProductCatalog               @relation(fields: [productCode], references: [code], onDelete: Cascade)
+  module       ModuleCatalog                @relation(fields: [moduleCode], references: [code], onDelete: Restrict)
+  planModules  PlanVersionModule[]
+  activations  OrganizationModuleActivation[]
+  entitlements OrganizationEntitlement[]
+
+  @@id([productCode, moduleCode])
+  @@index([moduleCode, productCode])
+  @@map("product_modules")
 }
 
 model Plan {
@@ -824,11 +836,12 @@ model PlanVersion {
 
 model PlanVersionModule {
   planVersionId         String        @map("plan_version_id") @db.Uuid
+  productCode           String        @map("product_code") @db.VarChar(64)
   moduleCode            String        @map("module_code") @db.VarChar(64)
   defaultEnabled        Boolean       @default(true) @map("default_enabled")
   entitlementConfigJson Json          @default("{}") @map("entitlement_config_json")
-  planVersion           PlanVersion   @relation(fields: [planVersionId], references: [id], onDelete: Cascade)
-  module                ModuleCatalog @relation(fields: [moduleCode], references: [code])
+  planVersion           PlanVersion   @relation(fields: [productCode, planVersionId], references: [productCode, id], onDelete: Cascade)
+  productModule         ProductModule @relation(fields: [productCode, moduleCode], references: [productCode, moduleCode], onDelete: Restrict)
 
   @@id([planVersionId, moduleCode])
   @@index([moduleCode])
@@ -1465,8 +1478,7 @@ model OrganizationModuleActivation {
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  product        ProductCatalog @relation(fields: [productCode], references: [code], onDelete: Restrict)
-  module         ModuleCatalog @relation(fields: [moduleCode], references: [code], onDelete: Restrict)
+  productModule  ProductModule @relation(fields: [productCode, moduleCode], references: [productCode, moduleCode], onDelete: Restrict)
 
   @@unique([organizationId, productCode, moduleCode], map: "organization_module_activations_organization_product_module_key")
   @@index([organizationId, productCode, enabled], map: "organization_module_activations_org_product_enabled_idx")
@@ -1499,8 +1511,7 @@ model OrganizationEntitlement {
   createdByActor String            @map("created_by_actor") @db.VarChar(160)
   createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  product        ProductCatalog    @relation(fields: [productCode], references: [code], onDelete: Restrict)
-  module         ModuleCatalog     @relation(fields: [moduleCode], references: [code], onDelete: Restrict)
+  productModule  ProductModule     @relation(fields: [productCode, moduleCode], references: [productCode, moduleCode], onDelete: Restrict)
 
   @@index([organizationId, productCode, moduleCode, startsAt, endsAt], map: "organization_entitlements_org_product_module_time_idx")
   @@index([organizationId, productCode, effect, startsAt, endsAt], map: "organization_entitlements_org_product_effect_time_idx")
