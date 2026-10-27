@@ -1,7 +1,7 @@
 # C2 — Identity, Tenancy & Tenant Principals
 
 **Statut :** contrat normatif C2.1 — prêt pour exécution incrémentale. C2.2–C2.4 restent à livrer et ne sont pas réputés implémentés par ce document.
-**Baseline vérifiée :** `main@e34e9fa0d7c92cd0ae69a82d1b39110906fbaec3`; CI post-fusion #540 verte.
+**Baseline C2.1 :** `main@e34e9fa0d7c92cd0ae69a82d1b39110906fbaec3`; CI post-fusion #540 verte. C2.1 est fusionné au commit `cf80f6d251d094b02587d64a842fbf4af8c8c7ef`; CI post-fusion #542 verte. Les détails SQL C2.2 ci-dessous précèdent toute migration.
 **Suivi :** issue [#163](https://github.com/jupi-z/Monarque-Connect/issues/163).
 **Compatibilité :** [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), [Docs/115](115_PHASE_10A5_C0_CODEBASE_AUDIT.md), [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md), [Docs/118](118_C1_CLOSURE_EVIDENCE.md).
 
@@ -27,7 +27,7 @@ Le modèle additif `ExternalIdentity` contient : `id`, `userId`, `issuer`, `subj
 
 ### 3.1 Sémantique des clés
 
-- `issuer` est l'identifiant exact de l'émetteur OIDC configuré et validé par le serveur; comparaison exacte, sensible à la casse, sans normalisation d'URL. Les émetteurs de production devront utiliser HTTPS.
+- `issuer` est l'identifiant exact de l'émetteur OIDC configuré et validé par le serveur; comparaison exacte, sensible à la casse, sans normalisation d'URL. Il doit être un URL HTTPS valide sans requête ni fragment, conformément au contrat OIDC.
 - `subject` est l'identifiant opaque exact vérifié pour cet issuer; comparaison exacte et sensible à la casse. Il n'est ni dérivé ni remplacé par l'email.
 - Un email, même vérifié, ne participe jamais à la résolution, fusion ou liaison automatique d'un `User`.
 
@@ -45,6 +45,7 @@ Le modèle additif `ExternalIdentity` contient : `id`, `userId`, `issuer`, `subj
 - Le service ne reçoit jamais issuer/subject directement depuis un DTO client et ne consomme jamais des claims simplement décodés. Il accepte seulement un résultat typé fourni par un adaptateur de vérification de confiance, lié au `linkRequestId` et à son expiration.
 - La première liaison est réservée au propriétaire du compte authentifié. Aucun rapprochement email ni recherche implicite d'un compte homonyme n'est effectué.
 - La demande de liaison persistante est un `ExternalIdentityLinkChallenge` séparé, lié à `userId` et au `sessionId` legacy, avec hashes de `state`/`nonce`, expiration après 10 minutes, création et consommation atomique. `state` et `nonce` sont issus chacun d'au moins 32 octets cryptographiquement aléatoires. Les valeurs brutes ne sont pas stockées; le challenge est utilisable une seule fois et seulement si la session demeure active.
+  - La création du challenge exige la vérification du mot de passe courant par `AuthService` dans la même opération applicative; la base confirme aussi que la session reste active au moment de la persistance. La preuve de réauthentification est éphémère, liée à `userId`/`sessionId` et à la version exacte du vérificateur de mot de passe observée; avant toute mutation, la transaction verrouille ou relit l'utilisateur et la session, puis refuse si le mot de passe a changé ou si la session est inactive/révoquée. Le mot de passe et son hash ne sont jamais persistés dans le challenge, l'audit ou l'Outbox. La révocation exige la même réauthentification. Une politique MFA déjà appliquée reste obligatoire, mais C2 ne déclare pas de MFA nouvelle.
 - En cas de perte d'accès, un autre utilisateur ne peut pas récupérer ni réattribuer l'identité en la revendiquant. La récupération s'appuie sur le parcours historique de compte ou une procédure de récupération explicitement autorisée, vérifiée et auditée; elle ne suppose pas Monarque Auth.
 - La révocation est demandée par le propriétaire authentifié et réauthentifié ou par une capacité plateforme explicite et auditée. La révocation ne coupe pas automatiquement les sessions legacy; la révocation de sessions reste une commande séparée.
 
@@ -76,9 +77,42 @@ Règle complète d'accès : `acteur + organisation + établissement + produit + 
 
 ## 7. Audit, Outbox et concurrence
 
-Toute liaison, réactivation ou révocation persistée doit écrire l'état, l'audit et l'Outbox dans la même transaction PostgreSQL. Les actions d'audit sont `EXTERNAL_IDENTITY_LINKED`, `EXTERNAL_IDENTITY_REACTIVATED` et `EXTERNAL_IDENTITY_REVOKED`; les événements version 1 sont `identity.external_identity.linked`, `identity.external_identity.reactivated` et `identity.external_identity.revoked`. Ils sont minimisés : ID de l'association, issuer et action; jamais de jeton, secret, email ni claim complet. Le subject et le userId ne sont pas copiés dans le payload Outbox générique; l'acteur utilisateur déjà porté par l'enveloppe fournit l'attribution. Le subject reste dans le registre protégé.
+Toute liaison, réactivation ou révocation persistée doit écrire l'état, l'audit et l'Outbox dans la même transaction PostgreSQL. Les actions d'audit sont `EXTERNAL_IDENTITY_LINKED`, `EXTERNAL_IDENTITY_REACTIVATED` et `EXTERNAL_IDENTITY_REVOKED`; les événements version 1 sont `identity.external_identity.linked`, `identity.external_identity.reactivated` et `identity.external_identity.revoked`. Audit et événements sont minimisés : ID de l'association, issuer et action; jamais de subject, jeton, secret, email ni claim complet. Le userId cible n'est pas copié dans `metadataJson` ni le payload Outbox générique; l'acteur utilisateur déjà porté par l'enveloppe fournit l'attribution. Le subject reste dans le registre protégé.
 
 Les requêtes concurrentes sur la même paire `(issuer, subject)` sont arbitrées par l'unicité SQL. Le challenge est consommé par compare-and-set dans la transaction de liaison; un rejeu ne peut jamais créer de seconde transition. Une liaison vers un autre utilisateur, une preuve expirée/non liée, ou une révocation déjà incompatible échoue sans mutation partielle. Les preuves et commandes doivent avoir une portée unique, expirable et liée à une session.
+
+### 7.1 Schéma SQL normatif C2.2
+
+`ExternalIdentity` est stockée dans `external_identities` :
+
+| Colonne | Type/contrainte |
+|---|---|
+| `id` | UUID, clé primaire |
+| `user_id` | UUID NOT NULL → `users.id`, `ON DELETE RESTRICT` |
+| `issuer` | VARCHAR(2048) NOT NULL, URL HTTPS ASCII sans query/fragment, `octet_length(issuer) <= 2048`, comparaison exacte |
+| `subject` | VARCHAR(255) NOT NULL, ASCII non vide, `octet_length(subject) <= 255`, comparaison exacte |
+| `status` | enum `ACTIVE` / `REVOKED`, NOT NULL |
+| `verified_at`, `created_at`, `updated_at` | TIMESTAMPTZ NOT NULL |
+| `revoked_at` | TIMESTAMPTZ NULL; cohérence imposée avec `status` par CHECK |
+| `created_by_user_id` | UUID NOT NULL → `users.id`, `ON DELETE RESTRICT` |
+| `revoked_by_user_id` | UUID NULL → `users.id`, `ON DELETE RESTRICT` |
+
+Une contrainte UNIQUE non partielle sur `(issuer, subject)` couvre aussi les lignes révoquées. Des CHECK imposent l'issuer HTTPS ASCII sans query/fragment, les limites en octets indiquées ci-dessus et `(status=ACTIVE, revoked_at=NULL, revoked_by_user_id=NULL)` ou `(status=REVOKED, revoked_at NOT NULL, revoked_by_user_id NOT NULL)`. L'ASCII rend la limite d'index exprimée en octets déterministe; aucune valeur n'est tronquée ou normalisée. Un trigger PostgreSQL interdit de modifier `id`, `user_id`, `issuer`, `subject`, `created_by_user_id` ou `created_at`; le service peut seulement faire les transitions prévues et mettre à jour `verified_at`, `status`, `revoked_at`, `revoked_by_user_id`, `updated_at`. Il n'y a ni cascade de suppression, ni transfert de propriétaire, ni backfill des lignes utilisateur.
+
+La limite de `subject` à 255 ASCII suit [OpenID Connect Core 1.0, section 2](https://openid.net/specs/openid-connect-core-1_0.html#IDToken); cette spécification définit aussi l'issuer comme un URL HTTPS sans query/fragment et impose une correspondance exacte. Le contrat exige une représentation URI ASCII valide de l'issuer, bornée à 2048 caractères et octets, pour que la taille maximale de l'index composé PostgreSQL soit déterministe. L'issuer et le subject ne sont jamais tronqués ou normalisés. Leur index unique est testé avec les tailles maximales admises.
+
+`ExternalIdentityLinkChallenge` est stockée dans `external_identity_link_challenges` : `id UUID PK`, `user_id UUID NOT NULL`, `session_id UUID NOT NULL`, `state_hash CHAR(64) UNIQUE NOT NULL`, `nonce_hash CHAR(64) UNIQUE NOT NULL`, `expires_at TIMESTAMPTZ NOT NULL`, `consumed_at TIMESTAMPTZ NULL`, `external_identity_id UUID NULL`, `created_at TIMESTAMPTZ NOT NULL`. `user_id` et `session_id` référencent `users` et `refresh_sessions` avec `ON DELETE CASCADE`, car le challenge éphémère ne survit pas au compte ou à la session; `external_identity_id` référence `external_identities` avec `ON DELETE RESTRICT`. Un CHECK exige `expires_at > created_at` et `consumed_at`/`external_identity_id` tous deux nuls ou tous deux non nuls. Le rejeu strictement identique reste idempotent durant les 24 heures qui suivent `expires_at`; les challenges sont supprimables ensuite. Les valeurs brutes state/nonce ne sont jamais conservées.
+
+Le verrouillage de challenge et le `consumed_at` compare-and-set, l'insertion/réactivation de l'identité, l'audit et l'Outbox sont dans la même transaction. Le rejeu strictement identique du même challenge retourne l'identité déjà liée sans nouvelle mutation, audit ou Outbox. Un challenge utilisé avec un autre issuer/subject, un autre propriétaire ou un contenu divergent est refusé. Une révocation répétée déjà appliquée est idempotente et ne produit pas de second événement.
+
+### 7.2 Contrat des commandes internes C2.2
+
+- `beginExternalIdentityLink(principal, currentPassword)` vérifie l'utilisateur et la session legacy actifs, effectue la réauthentification, crée l'intention à usage unique et retourne les valeurs brutes state/nonce une seule fois avec l'identifiant et l'expiration du challenge.
+- `completeExternalIdentityLink(verifiedProof)` n'accepte que la preuve typée créée par l'adaptateur de vérification interne; elle doit contenir le challenge, state, nonce, issuer et subject validés. Aucun contrôleur public ou endpoint OIDC n'est livré en C2.2.
+- `revokeExternalIdentity(principal, identityId, currentPassword)` ne révoque que l'identité appartenant à l'utilisateur courant; toute révocation plateforme ultérieure doit passer par `PlatformAuthorizationService`, une capacité explicite et un événement audité.
+- `resolveActiveExternalIdentity(issuer, subject)` ne retourne qu'un `User.id` interne pour une identité ACTIVE; l'appel n'accorde aucun rôle, membership, entitlement ou permission.
+
+Les événements Outbox omettent userId, subject, state, nonce, jetons et email. L'identifiant interne d'agrégat et l'acteur authentifié suffisent à la corrélation; l'issuer n'est inclus que dans le payload minimisé et classifié `CONFIDENTIAL`.
 
 ## 8. Contrats externes
 
