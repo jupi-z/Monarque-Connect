@@ -33,6 +33,11 @@ enum UserStatus {
   DELETED
 }
 
+enum ExternalIdentityStatus {
+  ACTIVE
+  REVOKED
+}
+
 enum OrganizationStatus {
   ACTIVE
   SUSPENDED
@@ -367,6 +372,9 @@ enum AuditAction {
   MESSAGING_BLOCK_CREATED
   MESSAGING_BLOCK_REVOKED
   MESSAGING_ABUSE_THRESHOLD_EXCEEDED
+  EXTERNAL_IDENTITY_LINKED
+  EXTERNAL_IDENTITY_REACTIVATED
+  EXTERNAL_IDENTITY_REVOKED
 }
 
 enum ConnectionRequestStatus {
@@ -690,6 +698,9 @@ model User {
   updatedAt                         DateTime                              @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships                       Membership[]
   refreshSessions                   RefreshSession[]
+  externalIdentities                ExternalIdentity[]                    @relation("ExternalIdentityOwner")
+  createdExternalIdentities         ExternalIdentity[]                    @relation("ExternalIdentityCreatedBy")
+  revokedExternalIdentities         ExternalIdentity[]                    @relation("ExternalIdentityRevokedBy")
   createdExpenses                   Expense[]
   createdCashAccounts               CashAccount[]
   createdCashMovements              CashMovement[]
@@ -718,10 +729,52 @@ model RefreshSession {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   lastUsedAt   DateTime? @map("last_used_at") @db.Timestamptz(6)
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalIdentityLinkChallenges ExternalIdentityLinkChallenge[]
 
   @@index([userId, revokedAt])
   @@index([familyId])
+  @@unique([id, userId], map: "refresh_sessions_id_user_id_key")
   @@map("refresh_sessions")
+}
+
+model ExternalIdentity {
+  id                 String                 @id @db.Uuid
+  userId             String                 @map("user_id") @db.Uuid
+  issuer             String                 @db.VarChar(2048)
+  subject            String                 @db.VarChar(255)
+  status             ExternalIdentityStatus @default(ACTIVE)
+  verifiedAt         DateTime               @map("verified_at") @db.Timestamptz(6)
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  revokedAt          DateTime?              @map("revoked_at") @db.Timestamptz(6)
+  createdByUserId    String                 @map("created_by_user_id") @db.Uuid
+  revokedByUserId    String?                @map("revoked_by_user_id") @db.Uuid
+  user               User                   @relation("ExternalIdentityOwner", fields: [userId], references: [id], onDelete: Restrict)
+  createdBy          User                   @relation("ExternalIdentityCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  revokedBy          User?                  @relation("ExternalIdentityRevokedBy", fields: [revokedByUserId], references: [id], onDelete: Restrict)
+  linkChallenges     ExternalIdentityLinkChallenge[]
+
+  @@unique([issuer, subject])
+  @@unique([id, userId], map: "external_identities_id_user_id_key")
+  @@index([userId, status])
+  @@map("external_identities")
+}
+
+model ExternalIdentityLinkChallenge {
+  id                 String            @id @db.Uuid
+  userId             String            @map("user_id") @db.Uuid
+  sessionId          String            @map("session_id") @db.Uuid
+  stateHash          String            @unique @map("state_hash") @db.Char(64)
+  nonceHash          String            @unique @map("nonce_hash") @db.Char(64)
+  expiresAt          DateTime          @map("expires_at") @db.Timestamptz(6)
+  consumedAt         DateTime?         @map("consumed_at") @db.Timestamptz(6)
+  externalIdentityId String?           @map("external_identity_id") @db.Uuid
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  session            RefreshSession    @relation(fields: [sessionId, userId], references: [id, userId], onDelete: Cascade, map: "external_identity_link_challenges_session_user_fkey")
+  externalIdentity   ExternalIdentity? @relation(fields: [externalIdentityId, userId], references: [id, userId], onDelete: Restrict, map: "external_identity_link_challenges_identity_user_fkey")
+
+  @@index([expiresAt, consumedAt])
+  @@map("external_identity_link_challenges")
 }
 
 model LoginRateLimitBucket {
