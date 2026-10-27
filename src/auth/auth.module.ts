@@ -6,11 +6,12 @@ import { AuthService } from './auth.service.js';
 import { PasswordService } from './password.service.js';
 import { TokenService } from './token.service.js';
 import { LoginRateLimiter } from './login-rate-limiter.service.js';
+import { ExternalIdentityService } from './external-identity.service.js';
 
 @Module({
   imports: [EventModule],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard, PasswordService, TokenService, LoginRateLimiter],
+  providers: [AuthService, AuthGuard, PasswordService, TokenService, LoginRateLimiter, ExternalIdentityService],
   exports: [AuthGuard, AuthService, TokenService],
 })
 export class AuthModule {}

@@ -93,16 +93,20 @@ async function sourceCounts(databaseUrl) {
 async function structuralProof(databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl });
   try {
-    const expectedTables = ['metric_snapshots', 'insight_alerts'];
+    const expectedTables = [
+      'metric_snapshots', 'insight_alerts', 'external_identities', 'external_identity_link_challenges',
+    ];
+    const projectionTables = ['metric_snapshots', 'insight_alerts'];
     const tables = await pool.query(
       "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1::text[])",
       [expectedTables],
     );
     const foundTables = new Set(tables.rows.map((row) => row.table_name));
-    for (const table of expectedTables) if (!foundTables.has(table)) throw new Error(`Missing projection table ${table}`);
+    for (const table of expectedTables) if (!foundTables.has(table)) throw new Error(`Missing required migration-proof table ${table}`);
 
     const checks = await pool.query(
-      "SELECT conname FROM pg_constraint WHERE conrelid IN ('metric_snapshots'::regclass, 'insight_alerts'::regclass) AND contype = 'c'",
+      'SELECT conname FROM pg_constraint WHERE conrelid = ANY($1::regclass[]) AND contype = \'c\'',
+      [projectionTables.map((table) => `public.${table}`)],
     );
     const checkNames = new Set(checks.rows.map((row) => row.conname));
     for (const required of [
@@ -112,9 +116,10 @@ async function structuralProof(databaseUrl) {
     ]) if (!checkNames.has(required)) throw new Error(`Missing projection check ${required}`);
 
     const foreignKeys = await pool.query(
-      "SELECT conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid IN ('metric_snapshots'::regclass, 'insight_alerts'::regclass) AND contype = 'f'",
+      'SELECT conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = ANY($1::regclass[]) AND contype = \'f\'',
+      [projectionTables.map((table) => `public.${table}`)],
     );
-    for (const table of expectedTables) {
+    for (const table of projectionTables) {
       const tenantFk = foreignKeys.rows.find((row) => row.conname === `${table}_establishment_id_organization_id_fkey`);
       if (!tenantFk || !tenantFk.definition.includes('(establishment_id, organization_id)') || !tenantFk.definition.includes('establishments(id, organization_id)')) {
         throw new Error(`Missing tenant-composite establishment FK on ${table}`);
@@ -166,7 +171,8 @@ async function structuralProof(databaseUrl) {
     const indexes = await pool.query(
       `SELECT c.relname AS name, i.indisunique AS is_unique, pg_get_expr(i.indpred, i.indrelid) AS predicate, pg_get_indexdef(i.indexrelid) AS definition
        FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
-       WHERE i.indrelid IN ('metric_snapshots'::regclass, 'insight_alerts'::regclass)`,
+       WHERE i.indrelid = ANY($1::regclass[])`,
+      [projectionTables.map((table) => `public.${table}`)],
     );
     const normalized = (value) => (value ?? '').replaceAll('"', '').replaceAll('(', '').replaceAll(')', '').replace(/::(?:text|character varying)/g, '').replace(/\s+/g, ' ').toLowerCase();
     const findPartialUnique = (name, columns, predicate) => {
@@ -177,6 +183,68 @@ async function structuralProof(databaseUrl) {
         !findPartialUnique('metric_snapshots_instant_key', 'organization_id, scope_key, metric_code, definition_version, dimension_key, currency_key, as_of', 'as_of is not null') ||
         !findPartialUnique('insight_alerts_open_dedupe_key', 'organization_id, dedupe_key', "status = 'open'")) {
       throw new Error('Missing one or more partial unique indexes for period, instant, or open-alert projection keys');
+    }
+
+    const identityIndexes = await pool.query(
+      `SELECT c.relname AS name, i.indisunique AS is_unique, pg_get_indexdef(i.indexrelid) AS definition
+       FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+       WHERE i.indrelid IN ('external_identities'::regclass, 'external_identity_link_challenges'::regclass, 'refresh_sessions'::regclass)`,
+    );
+    for (const required of [
+      ['external_identities_issuer_subject_key', 'issuer, subject'],
+      ['external_identities_id_user_id_key', 'id, user_id'],
+      ['refresh_sessions_id_user_id_key', 'id, user_id'],
+      ['external_identity_link_challenges_state_hash_key', 'state_hash'],
+      ['external_identity_link_challenges_nonce_hash_key', 'nonce_hash'],
+    ]) {
+      const index = identityIndexes.rows.find((row) => row.name === required[0]);
+      if (!index?.is_unique || !normalized(index.definition).includes(required[1])) {
+        throw new Error(`Missing C2 unique identity index ${required[0]}`);
+      }
+    }
+    const identityChecks = await pool.query(
+      `SELECT conname FROM pg_constraint
+       WHERE conrelid IN ('external_identities'::regclass, 'external_identity_link_challenges'::regclass) AND contype = 'c'`,
+    );
+    const identityCheckNames = new Set(identityChecks.rows.map((row) => row.conname));
+    for (const required of [
+      'external_identities_issuer_ascii_url_check', 'external_identities_issuer_octet_length_check',
+      'external_identities_subject_ascii_check', 'external_identities_subject_octet_length_check',
+      'external_identities_status_revocation_check', 'external_identity_link_challenges_state_hash_format_check',
+      'external_identity_link_challenges_nonce_hash_format_check', 'external_identity_link_challenges_expiry_check',
+      'external_identity_link_challenges_consumption_check',
+    ]) if (!identityCheckNames.has(required)) throw new Error(`Missing C2 identity constraint ${required}`);
+    const identityForeignKeys = await pool.query(
+      `SELECT conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint
+       WHERE conrelid IN ('external_identities'::regclass, 'external_identity_link_challenges'::regclass) AND contype = 'f'`,
+    );
+    for (const required of [
+      ['external_identities_user_id_fkey', 'users(id)', 'RESTRICT'],
+      ['external_identities_created_by_user_id_fkey', 'users(id)', 'RESTRICT'],
+      ['external_identities_revoked_by_user_id_fkey', 'users(id)', 'RESTRICT'],
+      ['external_identity_link_challenges_session_user_fkey', 'refresh_sessions(id, user_id)', 'CASCADE'],
+      ['external_identity_link_challenges_identity_user_fkey', 'external_identities(id, user_id)', 'RESTRICT'],
+    ]) {
+      const foreignKey = identityForeignKeys.rows.find((row) => row.conname === required[0]);
+      if (!foreignKey?.definition.toUpperCase().includes(required[1].toUpperCase())
+        || !foreignKey.definition.toUpperCase().includes(`ON DELETE ${required[2]}`)) {
+        throw new Error(`Missing C2 identity foreign-key policy ${required[0]}`);
+      }
+    }
+    const identityTriggers = await pool.query(
+      `SELECT tgname FROM pg_trigger
+       WHERE NOT tgisinternal AND tgrelid IN ('external_identities'::regclass, 'external_identity_link_challenges'::regclass)`,
+    );
+    const identityTriggerNames = new Set(identityTriggers.rows.map((row) => row.tgname));
+    for (const required of ['external_identities_ownership_immutable', 'external_identity_link_challenges_proof_immutable']) {
+      if (!identityTriggerNames.has(required)) throw new Error(`Missing C2 identity protection trigger ${required}`);
+    }
+    const identityAuditActions = await pool.query(
+      `SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'AuditAction'`,
+    );
+    const identityAuditActionNames = new Set(identityAuditActions.rows.map((row) => row.enumlabel));
+    for (const required of ['EXTERNAL_IDENTITY_LINKED', 'EXTERNAL_IDENTITY_REACTIVATED', 'EXTERNAL_IDENTITY_REVOKED']) {
+      if (!identityAuditActionNames.has(required)) throw new Error(`Missing C2 audit action ${required}`);
     }
   } finally { await pool.end(); }
 }
@@ -236,7 +304,7 @@ try {
   const c1AfterCounts = await sourceCounts(databaseUrls.c1Upgrade);
   if (JSON.stringify(c1BeforeCounts) !== JSON.stringify(c1AfterCounts)) throw new Error('C1 migration changed historical source-table row counts');
 
-  console.log(`Phase 10A/C1 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade (${baselineMigrationDirectories.length} + ${phase10aMigrationDirectories.length + c1MigrationDirectories.length}), and current-main upgrade (${preC1MigrationDirectories.length} + ${c1MigrationDirectories.length}); product catalog, Connect backfill, product FKs and temporal exclusions, tenant FKs, product/module scoped FKs, partial uniqueness, idempotent seed, and source-row preservation verified.`);
+  console.log(`Phase 10A.5 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade, and current-main upgrade; product catalog/backfill, scoped entitlements, identity registry/challenges, identity immutability, audit enum values, projection constraints, idempotent seed, and historical source-row preservation verified.`);
 } finally {
   await dropDatabase(adminPool, databaseNames.empty);
   await dropDatabase(adminPool, databaseNames.upgrade);
