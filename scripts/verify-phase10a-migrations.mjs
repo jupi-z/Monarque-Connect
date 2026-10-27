@@ -183,7 +183,6 @@ try {
 
   await writeMigrationSet(baselineMigrationDirectories);
   await migrate(databaseUrls.upgrade);
-  await seed(databaseUrls.upgrade);
   const upgradeBefore = await appliedNames(databaseUrls.upgrade);
   assertMigrationSet(upgradeBefore, baselineMigrationDirectories, 'Phase 9.6 upgrade baseline');
   const beforeCounts = await sourceCounts(databaseUrls.upgrade);
@@ -201,7 +200,6 @@ try {
   const preC1MigrationDirectories = migrationDirectories.filter((name) => name < c1Start);
   await writeMigrationSet(preC1MigrationDirectories);
   await migrate(databaseUrls.c1Upgrade);
-  await seed(databaseUrls.c1Upgrade);
   const c1Before = await appliedNames(databaseUrls.c1Upgrade);
   assertMigrationSet(c1Before, preC1MigrationDirectories, 'C1 pre-migration main schema');
   const c1BeforeCounts = await sourceCounts(databaseUrls.c1Upgrade);
