@@ -89,17 +89,17 @@ Les requêtes concurrentes sur la même paire `(issuer, subject)` sont arbitrée
 |---|---|
 | `id` | UUID, clé primaire |
 | `user_id` | UUID NOT NULL → `users.id`, `ON DELETE RESTRICT` |
-| `issuer` | VARCHAR(2048) NOT NULL, URL HTTPS sans query/fragment, comparaison exacte |
-| `subject` | VARCHAR(255) NOT NULL, ASCII non vide, comparaison exacte |
+| `issuer` | VARCHAR(2048) NOT NULL, URL HTTPS ASCII sans query/fragment, `octet_length(issuer) <= 2048`, comparaison exacte |
+| `subject` | VARCHAR(255) NOT NULL, ASCII non vide, `octet_length(subject) <= 255`, comparaison exacte |
 | `status` | enum `ACTIVE` / `REVOKED`, NOT NULL |
 | `verified_at`, `created_at`, `updated_at` | TIMESTAMPTZ NOT NULL |
 | `revoked_at` | TIMESTAMPTZ NULL; cohérence imposée avec `status` par CHECK |
 | `created_by_user_id` | UUID NOT NULL → `users.id`, `ON DELETE RESTRICT` |
 | `revoked_by_user_id` | UUID NULL → `users.id`, `ON DELETE RESTRICT` |
 
-Une contrainte UNIQUE non partielle sur `(issuer, subject)` couvre aussi les lignes révoquées. Un CHECK impose `(status=ACTIVE, revoked_at=NULL, revoked_by_user_id=NULL)` ou `(status=REVOKED, revoked_at NOT NULL, revoked_by_user_id NOT NULL)`. Un trigger PostgreSQL interdit de modifier `id`, `user_id`, `issuer`, `subject`, `created_by_user_id` ou `created_at`; le service peut seulement faire les transitions prévues et mettre à jour `verified_at`, `status`, `revoked_at`, `revoked_by_user_id`, `updated_at`. Il n'y a ni cascade de suppression, ni transfert de propriétaire, ni backfill des lignes utilisateur.
+Une contrainte UNIQUE non partielle sur `(issuer, subject)` couvre aussi les lignes révoquées. Des CHECK imposent l'issuer HTTPS ASCII sans query/fragment, les limites en octets indiquées ci-dessus et `(status=ACTIVE, revoked_at=NULL, revoked_by_user_id=NULL)` ou `(status=REVOKED, revoked_at NOT NULL, revoked_by_user_id NOT NULL)`. L'ASCII rend la limite d'index exprimée en octets déterministe; aucune valeur n'est tronquée ou normalisée. Un trigger PostgreSQL interdit de modifier `id`, `user_id`, `issuer`, `subject`, `created_by_user_id` ou `created_at`; le service peut seulement faire les transitions prévues et mettre à jour `verified_at`, `status`, `revoked_at`, `revoked_by_user_id`, `updated_at`. Il n'y a ni cascade de suppression, ni transfert de propriétaire, ni backfill des lignes utilisateur.
 
-La limite de `subject` à 255 ASCII suit [OpenID Connect Core 1.0, section 2](https://openid.net/specs/openid-connect-core-1_0.html#IDToken); cette spécification définit aussi l'issuer comme un URL HTTPS sans query/fragment et impose une correspondance exacte. L'issuer a une limite opérationnelle de 2048 caractères, explicitée ici pour borner l'index composé PostgreSQL. L'issuer et le subject ne sont jamais tronqués ou normalisés. Leur index unique est testé avec les tailles maximales admises.
+La limite de `subject` à 255 ASCII suit [OpenID Connect Core 1.0, section 2](https://openid.net/specs/openid-connect-core-1_0.html#IDToken); cette spécification définit aussi l'issuer comme un URL HTTPS sans query/fragment et impose une correspondance exacte. Le contrat exige une représentation URI ASCII valide de l'issuer, bornée à 2048 caractères et octets, pour que la taille maximale de l'index composé PostgreSQL soit déterministe. L'issuer et le subject ne sont jamais tronqués ou normalisés. Leur index unique est testé avec les tailles maximales admises.
 
 `ExternalIdentityLinkChallenge` est stockée dans `external_identity_link_challenges` : `id UUID PK`, `user_id UUID NOT NULL`, `session_id UUID NOT NULL`, `state_hash CHAR(64) UNIQUE NOT NULL`, `nonce_hash CHAR(64) UNIQUE NOT NULL`, `expires_at TIMESTAMPTZ NOT NULL`, `consumed_at TIMESTAMPTZ NULL`, `external_identity_id UUID NULL`, `created_at TIMESTAMPTZ NOT NULL`. `user_id` et `session_id` référencent `users` et `refresh_sessions` avec `ON DELETE CASCADE`, car le challenge éphémère ne survit pas au compte ou à la session; `external_identity_id` référence `external_identities` avec `ON DELETE RESTRICT`. Un CHECK exige `expires_at > created_at` et `consumed_at`/`external_identity_id` tous deux nuls ou tous deux non nuls. Le rejeu strictement identique reste idempotent durant les 24 heures qui suivent `expires_at`; les challenges sont supprimables ensuite. Les valeurs brutes state/nonce ne sont jamais conservées.
 
