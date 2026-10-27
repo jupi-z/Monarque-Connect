@@ -46,7 +46,13 @@ describe('Organization subscriptions', () => {
 
     const created = await subscriptions.create({ organizationId, planVersionId: planVersion.id, startsAt, endsAt });
 
-    await expect(subscriptions.resolveEffective(organizationId, startsAt)).resolves.toMatchObject({ id: created.id, status: 'ACTIVE' });
+    await expect(subscriptions.resolveEffective(organizationId, startsAt)).resolves.toEqual({
+      id: created.id,
+      status: 'ACTIVE',
+      startsAt,
+      endsAt,
+      planVersionId: planVersion.id,
+    });
     await expect(subscriptions.resolveEffective(organizationId, new Date('2026-11-30T23:59:59.999Z'))).resolves.toMatchObject({ id: created.id });
     await expect(subscriptions.resolveEffective(organizationId, endsAt)).resolves.toBeNull();
     await expect(prisma.auditEvent.count({ where: { organizationId, action: 'SUBSCRIPTION_CREATED' } })).resolves.toBe(1);
