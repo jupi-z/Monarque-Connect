@@ -46,15 +46,18 @@
 - [x] Synchronize phase documents and issue tracker; record `OIDC_RUNTIME = NOT_CONFIGURED / NOT_RUN`.
 - [x] Review document contradictions and verify the linked document diff without running local validation workloads.
 
-### Task 2: C2.2 Additive external identity registry
+### Task 2: C2.2 Contract first, then additive external identity registry
 
 **Files:**
 - Modify: `prisma/schema.prisma` (new `ExternalIdentity`, `ExternalIdentityLinkChallenge` models and status enum)
 - Create: `prisma/migrations/<timestamp>_c2_external_identity_registry/migration.sql`
 - Create: `src/auth/external-identity.repository.ts`, `src/auth/external-identity.service.ts`
 - Modify: `src/auth/auth.module.ts`
+- Modify: `src/auth/auth.service.ts` only to expose server-side current-password reauthentication used by identity operations
 - Create: `tests/auth/external-identity.service.test.ts`, `tests/auth/external-identity.integration.test.ts`
 - Modify: `Docs/120_C2_EXECUTION_STATUS.md`
+
+Before schema or migration changes, merge a short contract-only PR specifying exact SQL types, bounds, uniqueness, foreign-key deletion semantics, immutability, challenge replay, and transaction behavior. Then implement in a dedicated code PR, with PostgreSQL regression tests written first and CI run on GitHub-hosted runners.
 
 **Interfaces:**
 - Consumes: internal-only verified proof `{ linkRequestId, issuer, subject, verifiedAt }`, the authenticated `AuthPrincipal`, and a server-produced recent-reauthentication proof. Challenge state/nonce are random and stored only as hashes, expire quickly, and bind the legacy session.
