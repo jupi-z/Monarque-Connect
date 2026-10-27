@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, ForbiddenException } from '@nestjs/com
 import { Prisma } from '@prisma/client';
 import { type TenantRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
-import type { AuthPrincipal, AuthorizationContext, ProductAuthorizationContext } from '../auth/auth.types.js';
+import type { AuthPrincipal, AuthorizationContext, ProductAuthorizationContext, StaffAuthorizationContext } from '../auth/auth.types.js';
 import { EffectiveEntitlementsService } from '../entitlements/effective-entitlements.service.js';
 import { isProductCode, type ProductCode } from '../products/product-code.js';
 
@@ -84,7 +84,12 @@ export class AuthorizationService {
       });
       throw new ForbiddenException('Product module access denied');
     }
-    return { ...context, productCode };
+    return {
+      ...context,
+      productCode,
+      actorType: 'STAFF',
+      authorizationProvenance: { kind: 'ACTIVE_TENANT_MEMBERSHIP', membershipId: context.membershipId },
+    };
   }
 
   /** Re-checks product authorization inside an existing business transaction. */
@@ -111,7 +116,7 @@ export class AuthorizationService {
     if (!membership || membership.status !== 'ACTIVE' || membership.user.status !== 'ACTIVE' || membership.organization.status !== 'ACTIVE') {
       throw new ForbiddenException('Organization access denied');
     }
-    const context: ProductAuthorizationContext = {
+    const context: StaffAuthorizationContext = {
       userId: principal.userId,
       sessionId: principal.sessionId,
       organizationId,
@@ -119,7 +124,8 @@ export class AuthorizationService {
       role: membership.role,
       scopeMode: membership.scopeMode,
       establishmentIds: membership.scopeLinks.map((scope) => scope.establishmentId),
-      productCode,
+      actorType: 'STAFF',
+      authorizationProvenance: { kind: 'ACTIVE_TENANT_MEMBERSHIP', membershipId: membership.id },
     };
     this.assertPermission(context, permission);
     const projection = await this.entitlements.resolveForProduct(organizationId, productCode, new Date(), tx);
@@ -128,7 +134,7 @@ export class AuthorizationService {
     }
     const module = projection.modules.find((candidateModule) => candidateModule.code === moduleCode);
     if (!module?.allowed) throw new ForbiddenException('Product module access denied');
-    return context;
+    return { ...context, productCode };
   }
 
   async requireModuleInTransaction(tx: Prisma.TransactionClient, principal: AuthPrincipal, organizationId: string, moduleCode: string, permission: Permission): Promise<AuthorizationContext> {

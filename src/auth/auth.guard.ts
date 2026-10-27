@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { TokenService } from './token.service.js';
-import type { AuthPrincipal, StaffActorPrincipal } from './auth.types.js';
+import type { AuthPrincipal, VerifiedUserPrincipal } from './auth.types.js';
 import { PrismaService } from '../database/prisma.service.js';
 
 @Injectable()
@@ -9,7 +9,7 @@ export class AuthGuard implements CanActivate {
   constructor(private readonly tokens: TokenService, private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request & { user?: AuthPrincipal; actorPrincipal?: StaffActorPrincipal }>();
+    const request = context.switchToHttp().getRequest<Request & { user?: AuthPrincipal; authenticatedIdentity?: VerifiedUserPrincipal }>();
     const header = request.headers.authorization;
     if (!header?.startsWith('Bearer ')) throw new UnauthorizedException();
     try {
@@ -20,8 +20,8 @@ export class AuthGuard implements CanActivate {
       });
       if (!session) throw new Error('Session is not active');
       request.user = { userId: claims.sub, sessionId: claims.sid };
-      request.actorPrincipal = {
-        actorType: 'STAFF',
+      request.authenticatedIdentity = {
+        identityType: 'INTERNAL_USER',
         userId: claims.sub,
         sessionId: claims.sid,
         provenance: { kind: 'LEGACY_SESSION' },

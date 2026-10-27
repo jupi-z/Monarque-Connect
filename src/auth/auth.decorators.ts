@@ -1,6 +1,6 @@
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import type { AuthPrincipal, StaffActorPrincipal } from './auth.types.js';
+import type { AuthPrincipal, VerifiedUserPrincipal } from './auth.types.js';
 
 export const CurrentPrincipal = createParamDecorator(
   (_data: unknown, context: ExecutionContext): AuthPrincipal => {
@@ -10,11 +10,11 @@ export const CurrentPrincipal = createParamDecorator(
   },
 );
 
-/** Use only on routes protected by AuthGuard; legacy CurrentPrincipal stays unchanged. */
-export const CurrentActorPrincipal = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): StaffActorPrincipal => {
-    const request = context.switchToHttp().getRequest<Request & { actorPrincipal?: StaffActorPrincipal }>();
-    if (!request.actorPrincipal) throw new Error('Verified actor principal is missing');
-    return request.actorPrincipal;
+/** Authentication provenance only; authorization must still derive the actor and tenant from server state. */
+export const CurrentAuthenticatedIdentity = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): VerifiedUserPrincipal => {
+    const request = context.switchToHttp().getRequest<Request & { authenticatedIdentity?: VerifiedUserPrincipal }>();
+    if (!request.authenticatedIdentity) throw new Error('Verified internal identity is missing');
+    return request.authenticatedIdentity;
   },
 );

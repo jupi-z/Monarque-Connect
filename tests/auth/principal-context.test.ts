@@ -3,13 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '../../src/auth/auth.guard.js';
 import { AuthorizationService } from '../../src/tenancy/authorization.service.js';
+import { PlatformAuthorizationService } from '../../src/entitlements/platform-authorization.service.js';
 
 describe('C2 trusted actor provenance', () => {
-  it('derives STAFF provenance from the verified legacy session and overwrites request supplied actor data', async () => {
+  it('derives only an authenticated internal identity from the verified legacy session', async () => {
     const request = {
       headers: { authorization: 'Bearer signed-token' },
       user: { userId: 'attacker-user', sessionId: 'attacker-session' },
-      actorPrincipal: { actorType: 'PLATFORM', userId: 'attacker-user' },
+      authenticatedIdentity: { identityType: 'BUYER', userId: 'attacker-user', sessionId: 'attacker-session' },
     };
     const guard = new AuthGuard(
       { verifyAccessToken: vi.fn().mockResolvedValue({ sub: 'user-1', sid: 'session-1' }) } as never,
@@ -19,12 +20,24 @@ describe('C2 trusted actor provenance', () => {
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.user).toEqual({ userId: 'user-1', sessionId: 'session-1' });
-    expect(request.actorPrincipal).toEqual({
-      actorType: 'STAFF',
+    expect(request.authenticatedIdentity).toEqual({
+      identityType: 'INTERNAL_USER',
       userId: 'user-1',
       sessionId: 'session-1',
       provenance: { kind: 'LEGACY_SESSION' },
     });
+  });
+
+  it('assigns PLATFORM only after the server allowlist check', () => {
+    const platform = new PlatformAuthorizationService({
+      get: vi.fn().mockReturnValue(['platform-user']),
+    } as never);
+
+    expect(platform.assertPlatformAdmin({ userId: 'platform-user', sessionId: 'session-1' })).toMatchObject({
+      actorType: 'PLATFORM', authorizationProvenance: { kind: 'SERVER_CONFIGURED_PLATFORM_ADMIN' },
+    });
+    expect(() => platform.assertPlatformAdmin({ userId: 'tenant-user', sessionId: 'session-2' }))
+      .toThrow(ForbiddenException);
   });
 });
 
@@ -42,7 +55,7 @@ describe('C2 product-scoped staff authorization', () => {
     const authorization = new AuthorizationService(prisma as never, entitlements as never);
 
     await expect(authorization.requireModuleForProduct(principal, 'org-1', 'ZAMUREK', 'ZAMUREK_CORE', 'organization:read'))
-      .resolves.toMatchObject({ ...principal, organizationId: 'org-1', membershipId: 'membership-1', productCode: 'ZAMUREK' });
+      .resolves.toMatchObject({ ...principal, organizationId: 'org-1', membershipId: 'membership-1', productCode: 'ZAMUREK', actorType: 'STAFF', authorizationProvenance: { kind: 'ACTIVE_TENANT_MEMBERSHIP', membershipId: 'membership-1' } });
     expect(entitlements.resolveForProduct).toHaveBeenCalledWith('org-1', 'ZAMUREK');
   });
 
@@ -92,7 +105,7 @@ describe('C2 product-scoped staff authorization', () => {
 
     await expect(authorization.requireModuleForProductInTransaction(
       tx as never, principal, 'org-1', 'ZAMUREK', 'ZAMUREK_CORE', 'organization:read',
-    )).resolves.toMatchObject({ productCode: 'ZAMUREK', scopeMode: 'SELECTED_ESTABLISHMENTS', establishmentIds: ['est-1'] });
+    )).resolves.toMatchObject({ productCode: 'ZAMUREK', actorType: 'STAFF', authorizationProvenance: { kind: 'ACTIVE_TENANT_MEMBERSHIP', membershipId: 'membership-1' }, scopeMode: 'SELECTED_ESTABLISHMENTS', establishmentIds: ['est-1'] });
     expect(entitlements.resolveForProduct).toHaveBeenCalledWith('org-1', 'ZAMUREK', expect.any(Date), tx);
   });
 });

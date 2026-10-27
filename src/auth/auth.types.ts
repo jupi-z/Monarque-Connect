@@ -6,9 +6,9 @@ export interface AuthPrincipal {
   sessionId: string;
 }
 
-/** Server-derived actor identity; request DTO fields never produce this value. */
-export interface StaffActorPrincipal extends AuthPrincipal {
-  actorType: 'STAFF';
+/** Authentication proves an internal user session; it does not assign a business actor category. */
+export interface VerifiedUserPrincipal extends AuthPrincipal {
+  identityType: 'INTERNAL_USER';
   provenance: { kind: 'LEGACY_SESSION' };
 }
 
@@ -21,6 +21,17 @@ export interface AuthorizationContext extends AuthPrincipal {
 }
 
 /** Product is attached only after the server resolves membership and entitlement. */
-export interface ProductAuthorizationContext extends AuthorizationContext {
+/** STAFF is assigned only after active membership has been resolved server-side. */
+export interface StaffAuthorizationContext extends AuthorizationContext {
+  actorType: 'STAFF';
+  authorizationProvenance: { kind: 'ACTIVE_TENANT_MEMBERSHIP'; membershipId: string };
+}
+
+export interface PlatformActorPrincipal extends AuthPrincipal {
+  actorType: 'PLATFORM';
+  authorizationProvenance: { kind: 'SERVER_CONFIGURED_PLATFORM_ADMIN' };
+}
+
+export interface ProductAuthorizationContext extends StaffAuthorizationContext {
   productCode: ProductCode;
 }

@@ -10,7 +10,7 @@
 | C2.1 — Contrats d'identité, acteurs et provenance | DONE | PR [#164](https://github.com/jupi-z/Monarque-Connect/pull/164), head `8100c2429468a623708f1e9b08cc2c9147ed5e6f`, merge `cf80f6d251d094b02587d64a842fbf4af8c8c7ef`, CI PR [#541](https://github.com/jupi-z/Monarque-Connect/actions/runs/40594994400) et post-fusion #542 |
 | C2.2 — Contrat exact du registre et des challenges | DONE | PR [#165](https://github.com/jupi-z/Monarque-Connect/pull/165), merge `e52c57658af66a1b2f905dd84ebe81b08d4a7822`, CI PR [#545](https://github.com/jupi-z/Monarque-Connect/actions/runs/40597595319) et post-fusion #546 |
 | C2.2 — Registre ExternalIdentity et migration additive | DONE | PR [#166](https://github.com/jupi-z/Monarque-Connect/pull/166), head `99b27a135486edf492bb640066acda88cd9352a2`, merge `e57e5b4f36660f28234044f14d55ede9df59654f`; CI PR [#551](https://github.com/jupi-z/Monarque-Connect/actions/runs/40602789649), post-fusion #552 verte; 58 migrations depuis base vide et upgrades historiques, 13 tests PostgreSQL C2, concurrence et audit/Outbox validés |
-| C2.3 — Contexte principal et autorisation produit | IN_REVIEW | Principal STAFF dérivé côté serveur, port OIDC non configuré, résolveurs legacy/scopés explicitement; PR et CI de la branche courante à enregistrer après publication |
+| C2.3 — Provenance identité, acteurs et autorisation produit | IN_REVIEW | Identité legacy reste distincte des acteurs; STAFF après membership, PLATFORM après allowlist serveur; port OIDC non configuré; autorisation produit explicitement scoppée; PR/CI à enregistrer après publication |
 | C2.4 — Durcissement et preuves | PLANNED | E2E/sécurité, CI post-fusion, preuve et issue #163 |
 
 ## État réel à la baseline
