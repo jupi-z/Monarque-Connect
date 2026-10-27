@@ -1,6 +1,6 @@
 # C2 — Identity, Tenancy & Tenant Principals
 
-**Statut :** contrat normatif C2.1 — prêt pour exécution incrémentale. C2.2–C2.4 restent à livrer et ne sont pas réputés implémentés par ce document.
+**Statut :** contrat normatif C2.1–C2.3. C2.2 est livré sur `main@e57e5b4`; C2.3 est en implémentation sur une branche dédiée et reste soumis à sa PR et à ses CI. C2.4 n'est pas réputé livré.
 **Baseline C2.1 :** `main@e34e9fa0d7c92cd0ae69a82d1b39110906fbaec3`; CI post-fusion #540 verte. C2.1 est fusionné au commit `cf80f6d251d094b02587d64a842fbf4af8c8c7ef`; CI post-fusion #542 verte. Les détails SQL C2.2 ci-dessous précèdent toute migration.
 **Suivi :** issue [#163](https://github.com/jupi-z/Monarque-Connect/issues/163).
 **Compatibilité :** [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), [Docs/115](115_PHASE_10A5_C0_CODEBASE_AUDIT.md), [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md), [Docs/118](118_C1_CLOSURE_EVIDENCE.md).
@@ -113,6 +113,16 @@ Le verrouillage de challenge et le `consumed_at` compare-and-set, l'insertion/r�
 - `resolveActiveExternalIdentity(issuer, subject)` ne retourne qu'un `User.id` interne pour une identité ACTIVE; l'appel n'accorde aucun rôle, membership, entitlement ou permission.
 
 Les événements Outbox omettent userId, subject, state, nonce, jetons et email. L'identifiant interne d'agrégat et l'acteur authentifié suffisent à la corrélation; l'issuer n'est inclus que dans le payload minimisé et classifié `CONFIDENTIAL`.
+
+### 7.3 Provenance des principals et résolution produit C2.3
+
+- `AuthPrincipal` reste inchangé pour tous les contrôleurs et services existants. `AuthGuard` continue de valider le JWT legacy puis la session active en base avant de construire le principal. Il dérive en plus, côté serveur, `StaffActorPrincipal { actorType: STAFF, provenance: LEGACY_SESSION, userId, sessionId }`. La donnée fournie dans le body, query, headers ou paramètres ne peut pas définir ce principal; le guard remplace tout champ interne préexistant après validation.
+- `CurrentPrincipal` conserve exactement son type et son comportement. `CurrentActorPrincipal` n'expose que le principal STAFF dérivé d'une session legacy vérifiée et exige que ce contexte ait été posé par le guard. Aucun principal BUYER, AGENT ou PLATFORM n'est émis par l'authentification HTTP C2.3. Leur énumération normative ne vaut pas authenticator/runtime.
+- Le port interne `IdentityProviderPort` décrit la vérification d'un ID token OIDC et retourne seulement issuer, subject, audience, instants d'émission/expiration/vérification, algorithme retenu et preuve de nonce validée. L'adaptateur est absent du graphe Nest, n'est pas injecté et ne participe ni au démarrage ni aux routes legacy. Une future implémentation doit valider signature via clés publiées/rotation, algorithmes explicitement admis, issuer exact autorisé, audience, `exp`, `nbf`, `iat` et nonce; elle doit ensuite résoudre le couple exact issuer/subject par `ExternalIdentityService`. Claims métier et email sont hors du résultat minimal et n'accordent jamais de rôle.
+- `requireModuleForProduct(principal, organizationId, productCode, moduleCode, permission)` est le chemin explicite d'autorisation produit. Il valide le code contrôlé, résout un membership STAFF actif depuis PostgreSQL, vérifie la matrice de permissions puis utilise exclusivement `resolveForProduct`. Il refuse toute incohérence de tenant/produit ou module absent/interdit et ne retombe jamais sur l'entitlement Connect. `requireModule` reste l'API historique Connect.
+- `requireModuleForProductInTransaction(tx, ...)` refait membership, état d'organisation/utilisateur, rôle, portée et entitlement produit dans la transaction fournie, en verrouillant le membership comme les mutations métier existantes. Les consommateurs d'opérations transactionnelles utilisent cette variante; le contexte ne remplace pas les vérifications de propriété de ressource ni `assertEstablishment`.
+- L'organisation et l'établissement restent des sélecteurs de cible, non une preuve. L'établissement doit encore appartenir à l'organisation et satisfaire le scope serveur du membership. La suspension globale demeure prioritaire via l'entitlement effectif; une suspension ou absence d'abonnement produit ne modifie pas les droits d'un autre produit.
+- Le port OIDC et les catégories futures ne modifient pas la représentation JWT, la durée des sessions, les réponses API ou les données historiques. OIDC réel, BUYER, AGENT, commandes POS et liaison d'acteur à une ressource restent `NOT_CONFIGURED`/`PLANNED` jusqu'à leurs lots autorisés.
 
 ## 8. Contrats externes
 
