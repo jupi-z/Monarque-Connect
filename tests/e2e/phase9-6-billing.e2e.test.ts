@@ -159,7 +159,7 @@ describe('Phase 9.6 Billing HTTP flow', () => {
   it('keeps another product invoices out of Connect billing reads', async () => {
     const { prisma, term, organizationId: zamurekOrganizationId } = await createZamurekBillingTerm();
     const now = new Date();
-    const invoice = await prisma.billingInvoice.create({ data: { id: randomUUID(), billingCustomerId: term.billingCustomerId, organizationId, subscriptionTermId: term.id, number: `ZM-${randomUUID()}`, sequence: 1, status: 'OPEN', currency: 'USD', periodStart: term.currentPeriodStart, periodEnd: term.currentPeriodEnd, subtotalMinor: 700n, discountMinor: 0n, totalMinor: 700n, amountPaidMinor: 0n, dueAt: now } });
+    const invoice = await prisma.billingInvoice.create({ data: { id: randomUUID(), billingCustomerId: term.billingCustomerId, organizationId: zamurekOrganizationId, subscriptionTermId: term.id, number: `ZM-${randomUUID()}`, sequence: 1, status: 'OPEN', currency: 'USD', periodStart: term.currentPeriodStart, periodEnd: term.currentPeriodEnd, subtotalMinor: 700n, discountMinor: 0n, totalMinor: 700n, amountPaidMinor: 0n, dueAt: now } });
 
     const listed = bodyOf<Array<{ id: string }>>(await request(serverOf(app)).get(`/api/v1/organizations/${zamurekOrganizationId}/billing/invoices`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
     expect(listed.some((item) => item.id === invoice.id)).toBe(false);
@@ -167,8 +167,8 @@ describe('Phase 9.6 Billing HTTP flow', () => {
   });
 
   it('does not apply another product scheduled billing changes in the Connect lifecycle job', async () => {
-    const { prisma, term, subscription } = await createZamurekBillingTerm();
-    const change = await prisma.billingScheduledChange.create({ data: { id: randomUUID(), subscriptionTermId: term.id, organizationId, idempotencyKey: `zamurek-cancel-${randomUUID()}`, kind: 'CANCELLATION', status: 'PENDING', effectiveAt: new Date(Date.now() - 60_000) } });
+    const { prisma, term, subscription, organizationId: zamurekOrganizationId } = await createZamurekBillingTerm();
+    const change = await prisma.billingScheduledChange.create({ data: { id: randomUUID(), subscriptionTermId: term.id, organizationId: zamurekOrganizationId, idempotencyKey: `zamurek-cancel-${randomUUID()}`, kind: 'CANCELLATION', status: 'PENDING', effectiveAt: new Date(Date.now() - 60_000) } });
 
     await app.get(BillingLifecycleService).applyScheduledChanges(new Date(), 500);
 
@@ -180,7 +180,7 @@ describe('Phase 9.6 Billing HTTP flow', () => {
   it('does not let Connect cancel or replay another product scheduled change', async () => {
     const { prisma, term, organizationId: zamurekOrganizationId } = await createZamurekBillingTerm();
     const idempotencyKey = `zamurek-scheduled-${randomUUID()}`;
-    const change = await prisma.billingScheduledChange.create({ data: { id: randomUUID(), subscriptionTermId: term.id, organizationId, idempotencyKey, kind: 'CANCELLATION', status: 'PENDING', effectiveAt: term.currentPeriodEnd } });
+    const change = await prisma.billingScheduledChange.create({ data: { id: randomUUID(), subscriptionTermId: term.id, organizationId: zamurekOrganizationId, idempotencyKey, kind: 'CANCELLATION', status: 'PENDING', effectiveAt: term.currentPeriodEnd } });
     const server = serverOf(app);
 
     await request(server).post(`/api/v1/organizations/${zamurekOrganizationId}/billing/subscription/changes/${change.id}/cancel`).set('Authorization', `Bearer ${ownerToken}`).expect(404);
@@ -190,9 +190,9 @@ describe('Phase 9.6 Billing HTTP flow', () => {
   });
 
   it('does not apply Connect dunning to another product invoice', async () => {
-    const { prisma, term, subscription } = await createZamurekBillingTerm();
+    const { prisma, term, subscription, organizationId: zamurekOrganizationId } = await createZamurekBillingTerm();
     const dueAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
-    const invoice = await prisma.billingInvoice.create({ data: { id: randomUUID(), billingCustomerId: term.billingCustomerId, organizationId, subscriptionTermId: term.id, number: `ZM-${randomUUID()}`, sequence: 1, status: 'OPEN', currency: 'USD', periodStart: term.currentPeriodStart, periodEnd: term.currentPeriodEnd, subtotalMinor: 700n, discountMinor: 0n, totalMinor: 700n, amountPaidMinor: 0n, dueAt } });
+    const invoice = await prisma.billingInvoice.create({ data: { id: randomUUID(), billingCustomerId: term.billingCustomerId, organizationId: zamurekOrganizationId, subscriptionTermId: term.id, number: `ZM-${randomUUID()}`, sequence: 1, status: 'OPEN', currency: 'USD', periodStart: term.currentPeriodStart, periodEnd: term.currentPeriodEnd, subtotalMinor: 700n, discountMinor: 0n, totalMinor: 700n, amountPaidMinor: 0n, dueAt } });
 
     await app.get(BillingLifecycleService).runDunning(new Date(), 500);
 
