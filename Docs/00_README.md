@@ -1,6 +1,6 @@
 # Dossier documentaire normatif
 
-**Statut : FROZEN SPECIFICATION BASELINE v1.2 — AI-Native Foundation**
+**Statut : v1.2 clôtures techniques préservées ; amendement architectural 10A.5 proposé sur branche de planification.**
 
 Ce dossier constitue la source de vérité fonctionnelle, architecturale et opérationnelle de Monarque Connect.
 
@@ -86,6 +86,18 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `101_PHASE_10A_INTELLIGENCE_EXECUTION_SPEC.md` | Spécification normative Phase 10A |
 | `102_PHASE_10A_STATUS.md` | Statut et critères d'acceptation Phase 10A |
 | `superpowers/plans/2026-10-20-phase-10a-intelligence.md` | Plan d'exécution Phase 10A |
+
+| `104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md` | ADR-039 convergence Core canonique et ZAMUREK |
+| `105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md` | Nouvelle phase intermédiaire **10A.5**, non implémentée |
+| `106_SHARED_PRODUCT_CONTRACTS.md` | Identité, domaine, vente, caisse et API inter-produit |
+| `107_PHASE_10A5_ACCEPTANCE_GATES.md` | G-01→G-14, seuils de lancement et de clôture |
+| `108_PHASE_10A5_PROGRESS_PLAN.md` | Pondération et suivi probant |
+| `109_PHASE_10B_SHARED_AI_EXECUTION_PLAN.md` | Phase 10B commune aux deux produits |
+| `110_PHASE_11_MULTI_PRODUCT_CONTROL_PLANE_PLAN.md` | Phase 11 entitlements multi-produits |
+| `111_PHASE_11_5_SHARED_AGENT_READINESS_PLAN.md` | Phase 11.5 Agent Runtime unique |
+| `112_PHASE_12_DUAL_PRODUCT_HARDENING_PLAN.md` | Phase 12 gates Core/produits distincts |
+| `113_CODEX_PHASE_10A5_FIRST_PROMPT.md` | Premier prompt Codex Core 10A.5, sous revue préalable |
+| `114_PHASE_10A5_BOUNDARY_INVARIANTS.md` | Arbitrages de sécurité / compatibilité : Auth, abonnements multi-produits, POS/Invoice/Cash, RBAC, FX, fiscalité, stockage, CI et release gates |
 
 ## Gel documentaire
 

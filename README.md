@@ -4,8 +4,8 @@ Monarque Connect est un **Business Operating Network** conçu pour aider les ent
 
 Le produit combine dans un même écosystème un **réseau économique entre entreprises**, un **Business OS opérationnel**, une **couche d’intelligence** et un **Control Plane SaaS**. Le backend est autonome et **100 % API-first** : les interfaces Web, mobile ou administrateur sont des clients séparés et remplaçables.
 
-> **État du projet au 22 octobre 2026**
-> Les Phases **0 à 9, 9.5 et 10A sont clôturées techniquement**. La Phase 9.6 est techniquement stabilisée sur `main@26cf9c5` avec CI post-fusion #39397452560 verte ; les gates de paiement réel et conformité restent ouverts et bloquent la commercialisation, pas le développement backend. La Phase **10A — Intelligence déterministe** est clôturée selon [Docs/102](Docs/102_PHASE_10A_STATUS.md) et les preuves CI de [Docs/103](Docs/103_PHASE_10A_CLOSURE_EVIDENCE.md). La Phase 10B reste à cadrer ; les Phases 11, 11.5 et 12 restent à faire. Les modules décrits ci-dessous peuvent représenter la cible, pas une garantie de disponibilité complète.
+> **État du projet au 27 octobre 2026**
+> Les Phases **0 à 9, 9.5 et 10A sont clôturées techniquement**. La Phase 9.6 est techniquement stabilisée sur `main@26cf9c5` avec CI post-fusion #39397452560 verte ; les gates de paiement réel et conformité restent ouverts et bloquent la commercialisation, pas le développement backend. La Phase **10A — Intelligence déterministe** est clôturée selon [Docs/102](Docs/102_PHASE_10A_STATUS.md) et les preuves CI de [Docs/103](Docs/103_PHASE_10A_CLOSURE_EVIDENCE.md). C0 de la Phase 10A.5 est documenté; C1 est autorisé après fusion du cadrage et CI `main` post-fusion verte. C2–C8, 10B, 11, 11.5 et 12 restent à faire. La visibilité GitHub publique est intentionnelle et le Core reste propriétaire; la notice existante de `LICENSE` est en revue juridique. Les modules décrits ci-dessous peuvent représenter une cible, pas une garantie de disponibilité complète.
 
 ## Pourquoi Monarque Connect ?
 
@@ -291,7 +291,7 @@ Monarque Connect ne repose ni sur ERPNext ni sur Frappe.
 4. **Phase 4 — CRM + Network entry — terminée**
    Leads, opportunités, profils publics, confiance, découverte, connexions et `NetworkInquiry → CRM` sont livrés et prouvés. Voir `Docs/70_PHASE_4_CLOSURE_EVIDENCE.md`.
 
-Les phases ventes, achats, opérations, messaging et intelligence viennent ensuite selon la roadmap normative.
+Les phases ventes, achats, opérations, messagerie, FairScale et **10A Intelligence déterministe** sont clôturées sur leur périmètre documenté. Les validations externes de commercialisation FairScale 9.6 restent ouvertes. **La Phase 10A.5** prépare le Core multi-produits transactionnel partagé; son gate C0 attend fusion et CI post-fusion, puis seul C1 est autorisé dans la mission en cours. Les phases 10B, 11, 11.5 et 12 ne sont pas implémentées. Lire [ADR-039](Docs/104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md), [phase 10A.5](Docs/105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md), [roadmap](Docs/21_EXECUTION_ROADMAP.md).
 
 ## Démarrage local
 
@@ -368,6 +368,9 @@ Quelques points d’entrée :
 - [AI-Native Foundation](Docs/42_AI_NATIVE_FOUNDATION.md)
 - [Contrat des Domain Events](Docs/43_DOMAIN_EVENT_CONTRACT.md)
 - [Spécification Event Fabric](Docs/50_EVENT_FABRIC_IMPLEMENTATION_SPEC.md)
+- [ADR-039 — Core partagé avec ZAMUREK](Docs/104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md)
+- [Phase intermédiaire 10A.5](Docs/105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md)
+- [Contrats inter-produits](Docs/106_SHARED_PRODUCT_CONTRACTS.md)
 
 Pour toute décision normative, les documents de [Docs/](Docs/) font autorité sur ce README de présentation.
 

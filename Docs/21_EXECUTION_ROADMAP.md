@@ -148,25 +148,29 @@ Implémenter cycle souscription payante, échéances, promotion welcome à usage
 ### 10A — déterministe
 **État : clôturée techniquement sur `main@0909e745ba462784080922fa5e8274bb4ac4a061`.** Les 11 KPI déterministes, projections reconstruisibles, règles/alertes et lectures HTTP dashboard, métriques et alertes sont livrés ; les migrations et gates CI PR/post-fusion sont prouvés dans [Docs/103](103_PHASE_10A_CLOSURE_EVIDENCE.md). Le détail du statut figure dans [Docs/102](102_PHASE_10A_STATUS.md). Cette clôture technique n’ouvre pas automatiquement 10B et ne lève aucun gate externe de commercialisation FairScale (#123).
 
-### 10B — probabiliste gouverné
-Premières features IA ciblées seulement si les gates de `48_AI_SECURITY_AND_EVALUATION.md` sont satisfaites :
-- AI Gateway ;
-- model registry ;
-- tenant AI policy ;
-- Knowledge Layer minimale ;
-- feature d'assistance évaluée.
+### 10A.5 — Convergence architecturale et Core omnicanal Monarque Connect × ZAMUREK
 
-Pas d'agent généraliste au premier lancement.
+**État au 27 octobre 2026 : C0 documenté et soumis à fusion/CI post-fusion; C1 autorisé conditionnellement après ce gate; C2–C8 non implémentés.** **Frontières opposables** : [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), audit du code réel [Docs/115](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) et contrat C1 [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md). Baseline auditée `0df3c0934effa0fef42d7073b759f5758e8c831e`; les CI du head synchronisé et du merge `main` restent distinctes et obligatoires.
 
-## Phase 11 — Control Plane
-Platform tenant administration, plans, entitlements, quotas, tenant status, support-safe operations, audit.
+Insérée immédiatement après la clôture technique de 10A, **avant d'implémenter 10B**. Créer une seule architecture transactionnelle pour les deux produits, sans reprise des phases closes : vente omnicanale, commande canonique, POS cash transactionnel, paiements/mouvements cohérents, documents imprimables/fiscalité sous gate, tarification canaux, identité publique/walk-in, entitlements produits, scopes tenants/établissements, contrats events/outils IA et APIs versions.
 
-## Phase 11.5 — Agent readiness
+**Séquence inter-dépôts selon D-09** : cadrage UX/documentaire avant contrats stables; SDK et tests contractuels ZAMUREK après stabilisation des contrats Core nécessaires; intégration fonctionnelle après livraison et vérification des opérations transactionnelles concernées; commercialisation après les gates techniques, commerciaux et réglementaires applicables. Le périmètre V1 ZAMUREK et ses 43 capacités ne sont pas réduits. Aucun développement applicatif ZAMUREK n'est inclus dans la présente mission.
 
-Contrats de tool/action, classes A0-A4, confirmations, délégations et audit. Aucun agent high-impact autonome.
+### 10B — probabiliste gouverné, commun aux deux produits
 
-## Phase 12 — Hardening/release
-Security, concurrency, migration, entitlement downgrade tests, performance, backup/restore, tenant export/portability, staging, release.
+**Plan révisé** : [Docs/109](109_PHASE_10B_SHARED_AI_EXECUTION_PLAN.md). Démarrer après validation des interfaces partagées de 10A.5. Une AI Gateway et un Model Registry partagés, policy par tenant et produit, Knowledge Layer minimale, premier assistant réellement évalué, source KPI déterministe 10A ; pas de moteur IA parallèle ZAMUREK. Respecter [Docs/48](48_AI_SECURITY_AND_EVALUATION.md), confidentialité, sécurité des tools, contrôle coût, résilience. Aucun agent généraliste A3 autonome.
+
+## Phase 11 — Control Plane multi-produits
+
+**Plan révisé** : [Docs/110](110_PHASE_11_MULTI_PRODUCT_CONTROL_PLANE_PLAN.md). Étendre les fondations existantes de FairScale 9.5/9.6 (ne pas les dupliquer) afin de commercialiser indépendamment Monarque Connect et ZAMUREK et d'autoriser leur coexistence sur une même organisation. Le prix ZAMUREK de 7 USD/mois/org reste une hypothèse inactive, à valider avec coûts/quotas/fiscalité avant toute activation commerciale. Une souscription ZAMUREK ne donne pas automatiquement accès aux modules ERP avancés. Les gates paiements externes 9.6 restent ouverts.
+
+## Phase 11.5 — Agent readiness partagée
+
+**Plan révisé** : [Docs/111](111_PHASE_11_5_SHARED_AGENT_READINESS_PLAN.md). Un seul runtime propriétaire avec outils déclarés par chaque produit, délégation, policies A0–A4, validations humaines A3, budget/mémoire tenant, journal et replay idempotent. ZAMUREK ne duplique pas l'Agentic Fabric.
+
+## Phase 12 — Hardening/release à deux produits
+
+**Plan révisé** : [Docs/112](112_PHASE_12_DUAL_PRODUCT_HARDENING_PLAN.md). Test de non-régression complet Monarque Connect, vente physique/online ZAMUREK, isolations, migration, sauvegarde/restauration, FX, facturation et protection pharmaceutique ; **gates distincts** pour Core, offre Monarque Connect et ZAMUREK. Clôture technique et conformité juridique externe ne se confondent pas.
 
 ## Ordre parallèle frontend
 
