@@ -157,6 +157,8 @@ describe('Identity and tenancy integration', () => {
     await prisma.planVersionModule.create({ data: { planVersionId: zamurekVersion.id, productCode: 'ZAMUREK', moduleCode, defaultEnabled: true } });
     await prisma.planVersionQuota.create({ data: { id: crypto.randomUUID(), planVersionId: zamurekVersion.id, quotaCode: 'MAX_USERS', unit: 'COUNT', mode: 'CAPACITY', limitValue: 1n } });
     await prisma.subscription.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', planVersionId: zamurekVersion.id, status: 'ACTIVE', startsAt: new Date(Date.now() - 1000) } });
+    await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', moduleCode, enabled: true } });
+    await prisma.organizationEntitlement.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', moduleCode, effect: 'ALLOW', startsAt: new Date(Date.now() - 1000), reason: 'Product isolation regression', createdByActor: 'PLATFORM:test' } });
 
     const principal = { userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000006' };
     const capabilities = await organizations.capabilities(principal, created.id) as { plan: { code: string } | null; modules: Array<{ code: string }>; productCode?: string };
