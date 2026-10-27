@@ -1,14 +1,14 @@
 # Phase 10A.5 — suivi et progression (modèle)
 
-Le rapport [d'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code examiné à la baseline `main@0df3c09` et ses arbitrages; son addendum enregistre les preuves actuelles. Le cadrage C0 est fusionné au commit `78b91675e26a83e15be1539f7b3cc4f2a058a0b6`; la CI post-fusion a réussi et l'issue #153 est close. C1.1–C1.4 sont livrés selon leurs preuves PR et post-fusion, consignées dans [Docs/117](117_C1_EXECUTION_STATUS.md) et [Docs/118](118_C1_CLOSURE_EVIDENCE.md). C2–C8 ne sont pas déclarés livrés et restent hors autorisation actuelle.
+Le rapport [d'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code examiné à la baseline `main@0df3c09` et ses arbitrages; son addendum enregistre les preuves actuelles. Le cadrage C0 est fusionné au commit `78b91675e26a83e15be1539f7b3cc4f2a058a0b6`; la CI post-fusion a réussi et l'issue #153 est close. C1.1–C1.4 sont livrés selon leurs preuves PR et post-fusion, consignées dans [Docs/117](117_C1_EXECUTION_STATUS.md) et [Docs/118](118_C1_CLOSURE_EVIDENCE.md). C2 est autorisé et suivi dans [Docs/120](120_C2_EXECUTION_STATUS.md); il n'est pas encore déclaré livré. C3–C8 restent hors autorisation actuelle.
 
-**Statut Phase 10A.5 = IN_PROGRESS. C0 = ACCEPTED / CLOSED. C1.1–C1.4 = DONE. C2–C8 = PLANNED / NOT_STARTED / NOT AUTHORIZED.** Les critères G-01–G-14 restent des gates de livraison future et ne sont pas satisfaits par la clôture de C0/C1.
+**Statut Phase 10A.5 = IN_PROGRESS. C0 = ACCEPTED / CLOSED. C1.1–C1.4 = DONE. C2 = IN_PROGRESS / AUTHORIZED via issue #163. C3–C8 = PLANNED / NOT_STARTED / NOT AUTHORIZED.** Les critères G-01–G-14 restent des gates de livraison future et ne sont pas satisfaits par la clôture de C0/C1.
 
 | Lot | Poids | Dépendances |
 |---|---:|---|
 | C0 audit/mapping/ADRs | 10 | 10A clôturée |
 | C1 product catalog/entitlements | 12 | C0 |
-| C2 identity/tenancy/clients | 12 | C0 |
+| C2 identity/tenancy/clients | 12 | C0; autorisé, en cours selon Docs/120 |
 | C3 prix, catalogue, FX/unités | 12 | C1/C2 |
 | C4 Sales/POS/Cash transactionnel | 20 | C2/C3 |
 | C5 documents/impression/fiscalité | 10 | C4 |
