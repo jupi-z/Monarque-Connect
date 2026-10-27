@@ -5,6 +5,7 @@ import { PrismaService } from '../database/prisma.service.js';
 import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
 import { createDomainEvent } from '../events/domain-event.factory.js';
 import { createRequestContext, currentEventContext } from '../events/event-context.js';
+import { isProductCode, type ProductCode } from '../products/product-code.js';
 
 export interface SetEntitlementOverrideInput {
   organizationId: string;
@@ -22,6 +23,11 @@ export class EntitlementOverrideService {
   constructor(private readonly prisma: PrismaService, private readonly outbox: PrismaOutboxWriter) {}
 
   async set(input: SetEntitlementOverrideInput): Promise<unknown> {
+    return this.setForProduct('MONARQUE_CONNECT', input);
+  }
+
+  async setForProduct(productCode: ProductCode, input: SetEntitlementOverrideInput): Promise<unknown> {
+    if (!isProductCode(productCode)) throw new BadRequestException('Product code is invalid');
     const startsAt = input.startsAt ?? new Date();
     this.assertWindow(startsAt, input.endsAt);
     if (!input.reason.trim()) throw new BadRequestException('Entitlement override reason is required');
@@ -37,20 +43,22 @@ export class EntitlementOverrideService {
     const eventContext = currentEventContext() ?? createRequestContext();
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const [organization, module] = await Promise.all([
+        const [organization, product, productModule] = await Promise.all([
           tx.organization.findUnique({ where: { id: input.organizationId }, select: { id: true, status: true } }),
-          tx.moduleCatalog.findUnique({ where: { code: input.moduleCode }, select: { code: true, isCore: true } }),
+          tx.productCatalog.findUnique({ where: { code: productCode }, select: { active: true } }),
+          tx.productModule.findUnique({ where: { productCode_moduleCode: { productCode, moduleCode: input.moduleCode } }, select: { module: { select: { code: true, isCore: true } } } }),
         ]);
         if (!organization) throw new NotFoundException('Organization not found');
-        if (!module) throw new NotFoundException('Module not found');
-        if (module.isCore) throw new ConflictException('Core modules cannot receive commercial entitlement overrides');
+        if (!product?.active) throw new NotFoundException('Product not found or inactive');
+        if (!productModule) throw new NotFoundException('Module is not registered for this product');
+        if (productModule.module.isCore) throw new ConflictException('Core modules cannot receive commercial entitlement overrides');
         if (organization.status !== 'ACTIVE') throw new ConflictException('Organization is not active');
 
         const created = await tx.organizationEntitlement.create({
           data: {
             id: randomUUID(),
             organizationId: input.organizationId,
-            productCode: 'MONARQUE_CONNECT',
+            productCode,
             moduleCode: input.moduleCode,
             effect: input.effect,
             startsAt,
@@ -71,11 +79,11 @@ export class EntitlementOverrideService {
             targetId: created.id,
             requestId: eventContext.requestId ?? null,
             correlationId: eventContext.correlationId,
-            metadataJson: { moduleCode: input.moduleCode, effect: input.effect, reason: input.reason.trim(), startsAt: startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null, limits: limitsJson },
+            metadataJson: { ...(productCode === 'MONARQUE_CONNECT' ? {} : { productCode }), moduleCode: input.moduleCode, effect: input.effect, reason: input.reason.trim(), startsAt: startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null, limits: limitsJson },
           },
         });
         await this.outbox.enqueue(tx, createDomainEvent({
-          eventType: 'entitlement.override_set',
+          eventType: productCode === 'MONARQUE_CONNECT' ? 'entitlement.override_set' : 'product.entitlement.override_set',
           eventVersion: 1,
           occurredAt: new Date().toISOString(),
           actor: { type: 'PLATFORM', id: input.actorId },
@@ -85,7 +93,7 @@ export class EntitlementOverrideService {
           ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}),
           dataClassification: 'RESTRICTED',
           purpose: 'product-entitlements-control-plane',
-          payload: { moduleCode: input.moduleCode, effect: input.effect, reason: input.reason.trim(), startsAt: startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null, limits: input.limits ?? {} },
+          payload: { ...(productCode === 'MONARQUE_CONNECT' ? {} : { productCode }), moduleCode: input.moduleCode, effect: input.effect, reason: input.reason.trim(), startsAt: startsAt.toISOString(), endsAt: input.endsAt?.toISOString() ?? null, limits: input.limits ?? {} },
         }));
         return created;
       });
@@ -97,6 +105,11 @@ export class EntitlementOverrideService {
 
   async list(organizationId: string): Promise<unknown[]> {
     return this.prisma.organizationEntitlement.findMany({ where: { organizationId, productCode: 'MONARQUE_CONNECT' }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { id: true, organizationId: true, moduleCode: true, effect: true, startsAt: true, endsAt: true, reason: true, limitsJson: true, createdByActor: true, createdAt: true } });
+  }
+
+  async listForProduct(organizationId: string, productCode: ProductCode): Promise<unknown[]> {
+    if (!isProductCode(productCode)) throw new BadRequestException('Product code is invalid');
+    return this.prisma.organizationEntitlement.findMany({ where: { organizationId, productCode }, orderBy: [{ startsAt: 'desc' }, { createdAt: 'desc' }], select: { id: true, organizationId: true, productCode: true, moduleCode: true, effect: true, startsAt: true, endsAt: true, reason: true, limitsJson: true, createdByActor: true, createdAt: true } });
   }
 
   private assertWindow(startsAt: Date, endsAt?: Date): void {

@@ -48,9 +48,24 @@ describe('product-scoped persistence constraints', () => {
     await expect(prisma.subscription.count({ where: { organizationId } })).resolves.toBe(3);
   });
 
+  it('registers only shared Core modules for ZAMUREK until commercial capabilities are approved', async () => {
+    const zamurekModules = await prisma.productModule.findMany({ where: { productCode: 'ZAMUREK', module: { pillar: { not: 'ZAMUREK' } } }, select: { module: { select: { code: true, isCore: true } } } });
+
+    expect(zamurekModules.length).toBeGreaterThan(0);
+    expect(zamurekModules.every(({ module }) => module.isCore)).toBe(true);
+    expect(zamurekModules.map(({ module }) => module.code)).toContain('AUTH');
+    expect(zamurekModules.map(({ module }) => module.code)).not.toContain('CRM');
+    expect(zamurekModules.map(({ module }) => module.code)).not.toContain('SALES');
+  });
+
   it('keeps activation, quota usage, reservations and ledger idempotency independent by product', async () => {
+    const zamurekModuleCode = `ZAMUREK_TEST_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    await prisma.moduleCatalog.create({ data: { code: zamurekModuleCode, displayName: 'ZAMUREK test feature', pillar: 'ZAMUREK', isCore: false } });
+    await prisma.productModule.create({ data: { productCode: 'ZAMUREK', moduleCode: zamurekModuleCode } });
+    await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId, productCode: 'MONARQUE_CONNECT', moduleCode: 'CATALOG', enabled: true } });
+    await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId, productCode: 'ZAMUREK', moduleCode: zamurekModuleCode, enabled: true } });
+    await expect(prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId, productCode: 'ZAMUREK', moduleCode: 'CRM', enabled: true } })).rejects.toThrow();
     for (const productCode of ['MONARQUE_CONNECT', 'ZAMUREK'] as const) {
-      await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId, productCode, moduleCode: 'CATALOG', enabled: true } });
       await prisma.organizationQuotaUsage.create({ data: { id: crypto.randomUUID(), organizationId, productCode, quotaCode: 'MAX_USERS', periodKey: 'CURRENT', limitValue: 10n } });
     }
 

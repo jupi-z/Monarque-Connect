@@ -14,14 +14,14 @@
 
 | Donnée | Autorité / écriture | Lecture et scope C1 |
 |---|---|---|
-| Product catalog | Seed/migration contrôlés par le Core; pas d'écriture publique | Services d'entitlements et catalogue de plans |
+| Product catalog et affectation module/produit | Seed/migration contrôlés par le Core; pas d'écriture publique | `ProductCatalog` et `ProductModule` déterminent les seuls modules résolubles dans un produit |
 | Plan et PlanVersion | Administration/catalogue Billing Core | PlanVersion appartient à un seul produit; versions publiées restent immuables |
 | Subscription | `SubscriptionService` | `organizationId + productCode + at`; dates et états gardent les règles historiques du produit |
 | BillingSubscriptionTerm | Billing Core; FairScale actuel rattaché à Monarque Connect | Le produit est cohérent avec la Subscription liée; le C1 n'ajoute aucun checkout ZAMUREK |
 | Module activation / entitlement override | Services d'administration existants, étendus avec scope produit | Résolution limitée au produit explicite; Core global et suspension organisation restent prioritaires |
 | Quota usage / reservation / ledger | `QuotaService` dans la transaction de l'opération consommatrice | Clés d'unicité, idempotence et période incluent le produit; événements gardent tenant et quota |
 
-Le code actuel n'a pas de `productCode`. Les services à adapter sont au minimum `SubscriptionService`, `EffectiveEntitlementsService`, `QuotaService`, `AuthorizationService` et les parcours d'administration d'activations/overrides. Les appels legacy de `OrganizationService`, `InvitationService`, Billing FairScale et modules d'autorisation restent explicitement Monarque Connect. Aucun service ne doit sélectionner par `findFirst({ organizationId })` sans filtre produit lorsqu'un choix de produit est requis.
+Depuis C1.2, les plans, versions, abonnements, activations, overrides et quotas portent un `productCode` explicite, rétro-rempli vers `MONARQUE_CONNECT` sans changer leurs IDs. C1.3 ajoute `ProductModule`, registre contrôlé côté serveur, et des clés étrangères composées empêchant d'associer un module à un produit auquel il n'est pas inscrit. Les appels legacy de `OrganizationService`, `InvitationService`, Billing FairScale et des modules d'autorisation restent explicitement Monarque Connect. Aucun service ne doit sélectionner par `findFirst({ organizationId })` sans filtre produit lorsqu'un choix de produit est requis.
 
 ## 3. API et compatibilité
 
@@ -70,6 +70,8 @@ Les tables de quota utilisent actuellement des unicités sans produit (`organiza
 - Vérifier les contraintes d'exclusion sur subscriptions et Billing terms, FK et index quota composés.
 - Exécuter seed deux fois et prouver qu'aucun tarif ou version publiée n'est réécrit.
 
+Preuve de livraison C1.2 : PR #159 fusionnée par squash dans `cd5eb2fb0272bbe08abde60809ece945699c9bae`; CI PR #526 et CI post-fusion #527 réussies. Le commit de merge porte les migrations et preuves C1.1/C1.2.
+
 ### Services (C1.3–C1.4)
 
 - Organisation Connect seule, ZAMUREK seul et double produit.
@@ -78,6 +80,12 @@ Les tables de quota utilisent actuellement des unicités sans produit (`organiza
 - Replays identiques ne dupliquent pas; clé identique avec autre produit/payload échoue avec conflit.
 - Tests HTTP d'autorisation, établissement, tenant, et non-régression des clients existants; OpenAPI/contrats inchangés ou mise à jour versionnée.
 - Tests entitlements, Sales, Cash, Inventory, Billing, Intelligence, migrations et E2E complets dans CI GitHub-hosted; CI PR et post-fusion avant lot suivant.
+
+### Règle de registre C1.3
+
+`ProductModule(productCode, moduleCode)` est l'autorité d'affectation. Le backfill enregistre tous les modules existants pour `MONARQUE_CONNECT`; il enregistre uniquement les modules `isCore` pour `ZAMUREK`. La migration échoue explicitement si des affectations commerciales ZAMUREK préexistantes sont détectées. Les clés étrangères composées sur `PlanVersionModule`, `OrganizationModuleActivation` et `OrganizationEntitlement` rendent toute affectation hors registre impossible en base. L'activation commerciale ZAMUREK reste vide : le prix de 7 USD et toute offre restent inactifs.
+
+`resolveForProduct` ne retourne que les modules inscrits pour le produit demandé. `resolveEffective` et `EffectiveEntitlementsService.resolve` conservent leur portée Connect. Les opérations produit-scoped de quota, souscription, override et activation utilisent le produit explicite; leurs événements ZAMUREK sont distincts, sans changer les noms ni les payloads historiques Connect.
 
 ## 7. Retour arrière et risques
 

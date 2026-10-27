@@ -12,6 +12,7 @@ import type { UpdateMembershipDto } from './membership.dto.js';
 import { EffectiveEntitlementsService } from '../entitlements/effective-entitlements.service.js';
 import { QuotaService } from '../entitlements/quota.service.js';
 import { SubscriptionService } from '../entitlements/subscription.service.js';
+import { isProductCode, type ProductCode } from '../products/product-code.js';
 
 @Injectable()
 export class OrganizationService {
@@ -225,13 +226,22 @@ export class OrganizationService {
   }
 
   async updateModuleActivation(principal: AuthPrincipal, organizationId: string, moduleCode: string, enabled: boolean, reason: string): Promise<unknown> {
+    return this.updateModuleActivationForProduct(principal, organizationId, 'MONARQUE_CONNECT', moduleCode, enabled, reason);
+  }
+
+  async updateModuleActivationForProduct(principal: AuthPrincipal, organizationId: string, productCode: ProductCode, moduleCode: string, enabled: boolean, reason: string): Promise<unknown> {
+    if (!isProductCode(productCode)) throw new BadRequestException('Product code is invalid');
     const context = await this.authorization.requireMembership(principal, organizationId);
     this.authorization.assertPermission(context, 'organization:write');
     if (!reason.trim()) throw new BadRequestException('Activation reason is required');
-    const module = await this.prisma.moduleCatalog.findUnique({ where: { code: moduleCode }, select: { code: true, isCore: true } });
-    if (!module) throw new NotFoundException();
-    if (module.isCore) throw new BadRequestException('Core modules cannot be activated or deactivated');
-    const projection = await this.entitlements.resolve(organizationId);
+    const [product, productModule] = await Promise.all([
+      this.prisma.productCatalog.findUnique({ where: { code: productCode }, select: { active: true } }),
+      this.prisma.productModule.findUnique({ where: { productCode_moduleCode: { productCode, moduleCode } }, select: { module: { select: { code: true, isCore: true } } } }),
+    ]);
+    if (!product?.active) throw new NotFoundException('Product not found or inactive');
+    if (!productModule) throw new NotFoundException('Module is not registered for this product');
+    if (productModule.module.isCore) throw new BadRequestException('Core modules cannot be activated or deactivated');
+    const projection = await this.entitlements.resolveForProduct(organizationId, productCode);
     const target = projection.modules.find((item) => item.code === moduleCode);
     if (!target) throw new NotFoundException();
     if (enabled && (!target.entitled || target.reason === 'MODULE_NOT_INCLUDED' || target.reason === 'NO_ACTIVE_SUBSCRIPTION' || target.reason === 'SUBSCRIPTION_INACTIVE' || target.reason === 'MODULE_RETIRED' || target.reason === 'DEPENDENCY_NOT_ENTITLED')) {
@@ -239,7 +249,8 @@ export class OrganizationService {
     }
     const eventContext = currentEventContext() ?? createRequestContext();
     return this.prisma.$transaction(async (tx) => {
-      const productCode = 'MONARQUE_CONNECT' as const;
+      const activeProduct = await tx.productCatalog.findUnique({ where: { code: productCode }, select: { active: true } });
+      if (!activeProduct?.active) throw new NotFoundException('Product not found or inactive');
       const current = await tx.organizationModuleActivation.findUnique({ where: { organizationId_productCode_moduleCode: { organizationId, productCode, moduleCode } }, select: { enabled: true } });
       const previousEnabled = current?.enabled ?? target.active;
       if (previousEnabled === enabled) return { moduleCode, enabled, changed: false };
@@ -249,9 +260,9 @@ export class OrganizationService {
         create: { id: randomUUID(), organizationId, productCode, moduleCode, enabled },
         select: { id: true },
       });
-      await tx.auditEvent.create({ data: { id: randomUUID(), action: 'MODULE_ACTIVATION_CHANGED', actorUserId: principal.userId, organizationId, targetType: 'OrganizationModuleActivation', targetId: activation.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { moduleCode, previousEnabled, enabled, reason } } });
-      await this.outbox.enqueue(tx, createDomainEvent({ eventType: 'module.activation_changed', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'Organization', id: organizationId }, organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-module-activation', payload: { moduleCode, previousEnabled, enabled, reason } }));
-      return { moduleCode, enabled, changed: true };
+      await tx.auditEvent.create({ data: { id: randomUUID(), action: 'MODULE_ACTIVATION_CHANGED', actorUserId: principal.userId, organizationId, targetType: 'OrganizationModuleActivation', targetId: activation.id, requestId: eventContext.requestId ?? null, correlationId: eventContext.correlationId, metadataJson: { ...(productCode === 'MONARQUE_CONNECT' ? {} : { productCode }), moduleCode, previousEnabled, enabled, reason } } });
+      await this.outbox.enqueue(tx, createDomainEvent({ eventType: productCode === 'MONARQUE_CONNECT' ? 'module.activation_changed' : 'product.module.activation_changed', eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'Organization', id: organizationId }, organizationId, correlationId: eventContext.correlationId, ...(eventContext.requestId ? { requestId: eventContext.requestId } : {}), dataClassification: 'CONFIDENTIAL', purpose: 'product-entitlements-module-activation', payload: { ...(productCode === 'MONARQUE_CONNECT' ? {} : { productCode }), moduleCode, previousEnabled, enabled, reason } }));
+      return { ...(productCode === 'MONARQUE_CONNECT' ? {} : { productCode }), moduleCode, enabled, changed: true };
     });
   }
 
