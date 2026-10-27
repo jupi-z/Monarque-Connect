@@ -101,6 +101,7 @@ Ce dossier constitue la source de vérité fonctionnelle, architecturale et opé
 | `115_PHASE_10A5_C0_CODEBASE_AUDIT.md` | Audit C0 du code à la baseline et addendum de clôture vérifiée |
 | `116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md` | Contrat normatif du catalogue et des entitlements par produit |
 | `117_C1_EXECUTION_STATUS.md` | Suivi des PR, migrations et preuves CI de C1 |
+| `118_C1_CLOSURE_EVIDENCE.md` | Preuves de clôture C1 et limites résiduelles |
 
 ## Gel documentaire
 

@@ -1,6 +1,6 @@
 # C1 — Product Catalog & Product-Scoped Entitlements
 
-**Statut : contrat normatif accepté en C0 et mis en œuvre progressivement dans C1.1–C1.3; C1.4 termine les preuves de compatibilité et de durcissement.** Ce document reste la référence de contrat du catalogue produit, du scope produit des plans/souscriptions/droits/quotas et de la compatibilité des resolvers. Il n'active aucune offre commerciale ZAMUREK.
+**Statut : contrat normatif accepté en C0 et livré dans C1.1–C1.4.** Ce document reste la référence de contrat du catalogue produit, du scope produit des plans/souscriptions/droits/quotas et de la compatibilité des resolvers. Il n'active aucune offre commerciale ZAMUREK; preuves finales dans [Docs/118](118_C1_CLOSURE_EVIDENCE.md).
 
 ## 1. Décisions et vocabulaire
 
@@ -84,9 +84,9 @@ Preuve de livraison C1.2 : PR #159 fusionnée par squash dans `cd5eb2fb0272bbe08
 
 `ProductModule(productCode, moduleCode)` est l'autorité d'affectation. Le backfill enregistre tous les modules existants pour `MONARQUE_CONNECT`; il enregistre uniquement les modules `isCore` pour `ZAMUREK`. La migration échoue explicitement si des affectations commerciales ZAMUREK préexistantes sont détectées. Les clés étrangères composées sur `PlanVersionModule`, `OrganizationModuleActivation` et `OrganizationEntitlement` rendent toute affectation hors registre impossible en base. L'activation commerciale ZAMUREK reste vide : le prix de 7 USD et toute offre restent inactifs.
 
-`resolveForProduct` ne retourne que les modules inscrits pour le produit demandé. `resolveEffective` et `EffectiveEntitlementsService.resolve` conservent leur portée Connect. Les opérations produit-scoped de quota, souscription, override et activation utilisent le produit explicite; leurs événements ZAMUREK sont distincts, sans changer les noms ni les payloads historiques Connect.
+`resolveForProduct` ne retourne que les modules inscrits pour le produit demandé. `resolveEffective` et `EffectiveEntitlementsService.resolve` conservent leur portée Connect pour tous les droits; pour préserver la réponse historique, la projection legacy peut lister des modules d'autres produits mais ils restent explicitement refusés (`allowed: false`, `MODULE_NOT_INCLUDED`). Les souscriptions, activations, overrides, plans et quotas consommés par le resolver legacy restent `MONARQUE_CONNECT` scoped. Les opérations produit-scoped utilisent le produit explicite; leurs événements ZAMUREK sont distincts, sans changer les noms ni les payloads historiques Connect.
 
-Preuve C1.3 : PR [#160](https://github.com/jupi-z/Monarque-Connect/pull/160) fusionnée au commit `635e2a4169ade3a0daa19edab68057d930ea6668`; CI PR [#40556171997](https://github.com/jupi-z/Monarque-Connect/actions/runs/40556171997) et post-fusion [#40557775470](https://github.com/jupi-z/Monarque-Connect/actions/runs/40557775470) réussies. C1.4 ajoute la preuve HTTP/service legacy qu'un abonnement ZAMUREK n'altère pas les capacités, modules ou quotas des API historiques Connect.
+Preuves C1.3 et C1.4 : PR [#160](https://github.com/jupi-z/Monarque-Connect/pull/160) et [#161](https://github.com/jupi-z/Monarque-Connect/pull/161) fusionnées; CI PR et post-fusion consignées dans [Docs/117](117_C1_EXECUTION_STATUS.md) et [Docs/118](118_C1_CLOSURE_EVIDENCE.md). Les tests vérifient l'isolation des entitlements et quotas et le refus explicite des modules hors portée Connect dans les surfaces legacy.
 
 ## 7. Retour arrière et risques
 

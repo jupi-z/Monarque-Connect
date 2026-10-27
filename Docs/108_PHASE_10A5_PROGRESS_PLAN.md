@@ -1,8 +1,8 @@
 # Phase 10A.5 — suivi et progression (modèle)
 
-Le rapport [d'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code examiné à la baseline `main@0df3c09` et ses arbitrages; son addendum enregistre l'état courant. Le cadrage C0 est fusionné au commit `78b91675e26a83e15be1539f7b3cc4f2a058a0b6`; la CI post-fusion a réussi et l'issue #153 est close. C1.1, C1.2 et C1.3 sont livrés selon leurs preuves PR et post-fusion; C1.4 est en cours. C2–C8 ne sont pas déclarés livrés et restent hors autorisation actuelle.
+Le rapport [d'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code examiné à la baseline `main@0df3c09` et ses arbitrages; son addendum enregistre les preuves actuelles. Le cadrage C0 est fusionné au commit `78b91675e26a83e15be1539f7b3cc4f2a058a0b6`; la CI post-fusion a réussi et l'issue #153 est close. C1.1–C1.4 sont livrés selon leurs preuves PR et post-fusion, consignées dans [Docs/117](117_C1_EXECUTION_STATUS.md) et [Docs/118](118_C1_CLOSURE_EVIDENCE.md). C2–C8 ne sont pas déclarés livrés et restent hors autorisation actuelle.
 
-**Statut Phase 10A.5 = IN_PROGRESS. C0 = ACCEPTED / CLOSED. C1.1–C1.3 = DONE; C1.4 = IN_PROGRESS. C2–C8 = PLANNED / NOT_STARTED.** Les critères G-01–G-14 restent des gates de livraison future et ne sont pas satisfaits par la documentation C0.
+**Statut Phase 10A.5 = IN_PROGRESS. C0 = ACCEPTED / CLOSED. C1.1–C1.4 = DONE. C2–C8 = PLANNED / NOT_STARTED / NOT AUTHORIZED.** Les critères G-01–G-14 restent des gates de livraison future et ne sont pas satisfaits par la clôture de C0/C1.
 
 | Lot | Poids | Dépendances |
 |---|---:|---|
