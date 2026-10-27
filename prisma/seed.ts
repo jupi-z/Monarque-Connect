@@ -344,7 +344,7 @@ async function seedReferenceDataOnce(prisma: Prisma.TransactionClient): Promise<
 
 export async function seedReferenceData(prisma: PrismaClient): Promise<void> {
   await prisma.$transaction(async (transaction) => {
-    await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('monarque-connect-reference-seed'))`;
+    await transaction.$queryRaw<Array<{ lock: string }>>`SELECT pg_advisory_xact_lock(749218, 1)::text AS lock`;
     await seedReferenceDataOnce(transaction);
   });
 }
