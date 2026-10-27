@@ -64,10 +64,13 @@ async function seed(databaseUrl) {
 async function addCurrentSeedCompatibilityColumns(databaseUrl) {
   // The proof intentionally deploys only the Phase 9.5 migration set, while the
   // repository seed is compiled from the current Prisma schema. Keep this
-  // compatibility column outside _prisma_migrations so the historical proof
-  // remains exact; the real column is proven by the Phase 9.6 migration proof.
+  // compatibility surface outside _prisma_migrations so the historical proof
+  // remains exact; the real columns are proven by the C1 migration proof.
   const pool = new Pool({ connectionString: databaseUrl });
   try {
+    for (const table of ['plans', 'plan_versions', 'price_versions']) {
+      await pool.query(`ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS product_code VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT'`);
+    }
     await pool.query('ALTER TABLE price_versions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(200)');
     await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS price_versions_idempotency_key_key ON price_versions(idempotency_key)');
   } finally { await pool.end(); }
