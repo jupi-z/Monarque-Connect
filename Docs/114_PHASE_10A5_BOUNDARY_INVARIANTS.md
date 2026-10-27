@@ -1,8 +1,8 @@
 # 114 — Invariants normatifs des frontières du Core partagé (Phase 10A.5)
 
-**Statut : D-01 à D-10 acceptées par le propriétaire pour l'architecture et le séquencement.** Les capacités C1–C8 / 10B–12 ne sont pas implémentées par ce document. Aucune migration, API ou aptitude à la production n'est acquise du seul fait de ce texte. Les phases 0–10A et FairScale 9.5/9.6 conservent leurs contrats existants.
+**Statut : D-01 à D-10 acceptées par le propriétaire pour l'architecture et le séquencement.** Ce document reste normatif; l'état de réalisation des lots est suivi dans [Docs/117](117_C1_EXECUTION_STATUS.md). C1.1–C1.3 sont maintenant livrés avec les preuves référencées; C1.4 est en cours. Les capacités C2–C8 / 10B–12 ne sont pas implémentées par ce document. Aucune migration, API ou aptitude à la production n'est acquise du seul fait de ce texte. Les phases 0–10A et FairScale 9.5/9.6 conservent leurs contrats existants.
 
-La vérification de la baseline et les écarts du code avant migration sont consignés dans [Docs/115 — audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md). Les APIs et modèles futurs restent `PLANNED` jusqu'à leur implémentation et leurs tests. Baseline auditée : `0df3c0934effa0fef42d7073b759f5758e8c831e`. L'acceptation documentaire C0 attend fusion et CI post-fusion.
+La vérification de la baseline et les écarts du code avant migration sont consignés dans [Docs/115 — audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md). Les APIs et modèles non encore livrés restent `PLANNED` jusqu'à leur implémentation et leurs tests. Baseline initiale auditée : `0df3c0934effa0fef42d7073b759f5758e8c831e`; l'addendum de Docs/115 distingue cette baseline historique de l'état C1 actuel. C0 est accepté et clos après fusion et CI post-fusion; cela ne certifie que le cadrage architectural.
 
 ## B-00 — Gouvernance du changement et ordre d'exécution
 

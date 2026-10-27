@@ -1,6 +1,6 @@
 # C1 — Product Catalog & Product-Scoped Entitlements
 
-**Statut : contrat normatif autorisé après acceptation C0 et CI post-fusion de la PR #152.** Ce document prépare C1; aucune migration ou implémentation C1 n'est attestée avant une PR dédiée. Le périmètre s'arrête au catalogue produit, au scope produit des plans/souscriptions/droits/quotas et à la compatibilité du resolver. Il n'active aucune offre commerciale ZAMUREK.
+**Statut : contrat normatif accepté en C0 et mis en œuvre progressivement dans C1.1–C1.3; C1.4 termine les preuves de compatibilité et de durcissement.** Ce document reste la référence de contrat du catalogue produit, du scope produit des plans/souscriptions/droits/quotas et de la compatibilité des resolvers. Il n'active aucune offre commerciale ZAMUREK.
 
 ## 1. Décisions et vocabulaire
 
@@ -25,9 +25,8 @@ Depuis C1.2, les plans, versions, abonnements, activations, overrides et quotas 
 
 ## 3. API et compatibilité
 
-- `resolveEffective(organizationId, at?, db?)` garde son contrat et ses résultats Monarque Connect exclusivement. Son entrée et son comportement ne changent pas.
-- Ajouter `resolveEffectiveForProduct(organizationId, productCode, at?, db?)`, avec `productCode` obligatoire et rejet fail-closed des codes inconnus/inactifs. La signature exacte peut suivre les conventions TypeScript existantes, mais ne peut introduire de défaut implicite.
-- `EffectiveEntitlementsService.resolve(organizationId, at?, db?)` reste le resolver legacy Connect. Ajouter une entrée product-scoped distincte plutôt que rendre un argument optionnel ambigu.
+- `SubscriptionService.resolveEffective(organizationId, at?, db?)` garde son contrat et ses résultats Monarque Connect exclusivement. `SubscriptionService.resolveEffectiveForProduct(organizationId, productCode, at?, db?)` exige un code produit et refuse les produits inconnus/inactifs.
+- `EffectiveEntitlementsService.resolve(organizationId, at?, db?)` reste le resolver legacy Connect. `EffectiveEntitlementsService.resolveForProduct(organizationId, productCode, at?, db?)` est une entrée distincte, explicitement scoped.
 - Les opérations quota existantes restent Connect; les variantes product-scoped exigent le produit et maintiennent la portée établissement de l'appelant.
 - Aucun endpoint métier n'est ajouté par défaut dans C1. Si l'API publique est affectée, le changement est additif dans OpenAPI, avec test snapshot/golden legacy et compatibilité au moins N/N-1 selon la politique active.
 - Les modules sont des capacités du Core. Une entitlement ZAMUREK n'accorde aucun module Connect par simple appartenance au produit; les capacités partagées sont accordées par permission d'action explicite.
@@ -86,6 +85,8 @@ Preuve de livraison C1.2 : PR #159 fusionnée par squash dans `cd5eb2fb0272bbe08
 `ProductModule(productCode, moduleCode)` est l'autorité d'affectation. Le backfill enregistre tous les modules existants pour `MONARQUE_CONNECT`; il enregistre uniquement les modules `isCore` pour `ZAMUREK`. La migration échoue explicitement si des affectations commerciales ZAMUREK préexistantes sont détectées. Les clés étrangères composées sur `PlanVersionModule`, `OrganizationModuleActivation` et `OrganizationEntitlement` rendent toute affectation hors registre impossible en base. L'activation commerciale ZAMUREK reste vide : le prix de 7 USD et toute offre restent inactifs.
 
 `resolveForProduct` ne retourne que les modules inscrits pour le produit demandé. `resolveEffective` et `EffectiveEntitlementsService.resolve` conservent leur portée Connect. Les opérations produit-scoped de quota, souscription, override et activation utilisent le produit explicite; leurs événements ZAMUREK sont distincts, sans changer les noms ni les payloads historiques Connect.
+
+Preuve C1.3 : PR [#160](https://github.com/jupi-z/Monarque-Connect/pull/160) fusionnée au commit `635e2a4169ade3a0daa19edab68057d930ea6668`; CI PR [#40556171997](https://github.com/jupi-z/Monarque-Connect/actions/runs/40556171997) et post-fusion [#40557775470](https://github.com/jupi-z/Monarque-Connect/actions/runs/40557775470) réussies. C1.4 ajoute la preuve HTTP/service legacy qu'un abonnement ZAMUREK n'altère pas les capacités, modules ou quotas des API historiques Connect.
 
 ## 7. Retour arrière et risques
 

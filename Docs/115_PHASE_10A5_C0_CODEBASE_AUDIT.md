@@ -127,11 +127,11 @@ Le dépôt contient 54 migrations jusqu'à `prisma/migrations/20261020164848_pha
 
 **Protocole commun :** sauvegarde vérifiée; migration additive; déployer lecteurs tolérant l'ancien et nouveau; backfill reprenable avec compteurs/empreintes; valider invariants SQL; activer le nouveau chemin par flag serveur ciblé; vérifier métriques; contract seulement dans une release ultérieure. Pas de down migration destructive. En cas d'échec : désactiver le chemin, conserver les nouvelles colonnes/tables, restaurer la sauvegarde seulement selon procédure éprouvée ou appliquer un forward-fix. Preuve restore synthétique est exigée avant C8 et avant un release qui dépend de récupération.
 
-## 9. Plan C1–C8 préparé, non implémenté
+## 9. Plan C1–C8 et état d'exécution
 
 | Lot / PR | Dépendances | Portée et contrats | Vérification / acceptation / retour |
 |---|---|---|---|
-| C1 Product catalog & entitlements | C0 validé, choix product registry | Ajouter scope produit à catalogue/souscription/entitlements/quotas, backfill CONNECT, resolver explicite; aucun endpoint métier nouveau requis au départ. | Migration empty + production-shape synthétique, legacy golden tests, org multi-produit et suspensions indépendantes, concurrence abonnement, OpenAPI/contracts, rollback flag + forward fix. |
+| C1 Product catalog & entitlements | C0 validé, choix product registry | Livré progressivement par C1.1–C1.3; C1.4 complète la compatibilité et le durcissement. Ajouter scope produit à catalogue/souscription/entitlements/quotas, backfill CONNECT, resolver explicite; aucun endpoint métier nouveau requis au départ. | CI hébergée et preuves historiques de C1.1–C1.3; CI PR puis post-merge C1.4 requises pour clôturer C1. Pas d'offre commerciale ZAMUREK active. |
 | C2 Identity & tenant principals | C0; C1 context interface figée | OIDC mapping, auth context, buyers/agents/staff séparés, resource capability, canal serveur. | issuer+subject, duplicate, revoke, email collision, IDOR tenant/establishment, sessions legacy, E2E auth; table additive et coexistence. |
 | C3 Catalog/pricing/measure | C1/C2 contrats | Offer/variant/unit/policy/FX snapshots, calcul Decimal serveur; prix commercial et fiscal final soumis aux approbations. | property tests unités/arrondis/FX, devis expiré, prix historique, migrations et anciens Sales/Item, aucun nombre flottant. |
 | C4 Atomic POS command | C1–C3 plus arbitrages POS/finance | `ConfirmPosSale`, session/terminal et primitives tx-aware; un seul owner de transaction et ledgers existants. | PostgreSQL atomicity, retries/replays divergents, concurrency, cash change/net, stock, PSP webhook late, rollback sans mouvement partiel, RBAC. |
@@ -140,7 +140,7 @@ Le dépôt contient 54 migrations jusqu'à `prisma/migrations/20261020164848_pha
 | C7 Merchant/public API | C1–C6 selon endpoints | Façade publique versionnée et minimale, séparée du backoffice staff. | contract snapshots, abuse/rate limits, BOLA/IDOR, tenant/product scope, data minimization, N/N-1. |
 | C8 Release / preuve | C1–C7 | Compatibilité, migration, observabilité, récupération, SBOM et gates de release. | CI hosted PR + main, migrations base vide/upgrade, PostgreSQL/E2E/security/load ciblée, restore exercice, rapport et rollback contrôlé. |
 
-Chaque lot est une ou plusieurs PR courtes avec contrats avant migrations, tests négatifs et positifs, état SQL après concurrence, CI GitHub-hosted sur SHA précis et post-merge. Ces critères sont une feuille de route; aucun lot C1–C8 n'a commencé dans cette mission.
+Chaque lot est une ou plusieurs PR courtes avec contrats avant migrations, tests négatifs et positifs, état SQL après concurrence, CI GitHub-hosted sur SHA précis et post-merge. C1 est en cours de livraison; C2–C8 restent une feuille de route et ne sont pas autorisés par la présente mission.
 
 ## 10. Plan de validation réutilisable
 
@@ -190,13 +190,21 @@ Contraintes réelles lues : `subscriptions_no_overlapping_effective_periods` dan
 
 OpenAPI baseline : 200 opérations, aucune opération actuelle ne prend un scope productCode pour resolver multi-produit. C1 conserve les contrats existants; si une opération publique est ajoutée, elle doit être explicitement versionnée et couverte par OpenAPI/contracts. La matrice de non-régression est : legacy resolver = Connect; API historique sans code produit = Connect; quotas/org actions historiques = Connect; ajout ZAMUREK sans effet sur anciennes réponses; `N/N-1` des schémas publiés; CI migration, PostgreSQL et E2E sur chaque PR et post-fusion.
 
-## 14. Verdict C0
+## 14. Verdict C0 historique (état à la baseline)
 
 **Audit du code : réalisé et documenté sur la baseline ci-dessus.**
-**C0 gate : cadrage techniquement complet sous réserve des contrôles GitHub finaux et de la fusion PR #152.**
-**GO pour fusion documentaire : après revue des diffs Monarque Connect/ZAMUREK et CI verte du head révisé.**
-**GO conditionnel pour C1 : oui, uniquement après merge C0 et CI `main` post-fusion verte.**
+À la date de rédaction de cette section, le cadrage et la fusion de la PR #152 restaient à vérifier; les lignes ci-dessous sont conservées comme trace de la décision à cette date et ne décrivent plus l'état actuel.
+
+**C0 gate historique : cadrage techniquement complet sous réserve des contrôles GitHub finaux et de la fusion PR #152.**
+**GO historique pour fusion documentaire : après revue des diffs Monarque Connect/ZAMUREK et CI verte du head révisé.**
+**GO conditionnel historique pour C1 : uniquement après merge C0 et CI `main` post-fusion verte.**
 
 Les écarts produit/identité/POS/FX sont des fonctionnalités futures absentes, pas des régressions du Core. D-01–D-10 sont acceptées et le contrat C1 est maintenant fixé dans Docs/116. La restauration, la charge et les preuves RPO/RTO restent C8/release; aucune n'est présentée comme déjà démontrée. Les causes exactes de certains incidents HTTP historiques restent non attribuables faute de traces, mais ne sont pas un blocage de l'audit architectural C0.
 
-La CI de baseline [#40394652453](https://github.com/jupi-z/Monarque-Connect/actions/runs/40394652453) porte sur `0df3c0934effa0fef42d7073b759f5758e8c831e`; les checks de PR #152 portent sur le SHA propre au head et ne sont pas interchangeables. Aucun test local lourd n'a été lancé. Le gate C0 sera accepté seulement après les checks actuels du head, fusion documentaire autorisée, CI post-fusion verte, vérification de `main` et mise à jour/fermeture de l'issue #153.
+La CI de baseline [#40394652453](https://github.com/jupi-z/Monarque-Connect/actions/runs/40394652453) porte sur `0df3c0934effa0fef42d7073b759f5758e8c831e`; les checks de PR #152 portent sur le SHA propre au head et ne sont pas interchangeables. À la date de cet audit, le gate restait conditionnel. L'addendum ci-dessous documente la clôture vérifiée ultérieurement.
+
+### Addendum — clôture C0 et état C1 au 27 octobre 2026
+
+C0 a été accepté après fusion de la PR [#152](https://github.com/jupi-z/Monarque-Connect/pull/152), merge SHA `78b91675e26a83e15be1539f7b3cc4f2a058a0b6`, CI post-fusion verte [#40530366585](https://github.com/jupi-z/Monarque-Connect/actions/runs/40530366585), puis clôture de l'issue [#153](https://github.com/jupi-z/Monarque-Connect/issues/153). Les décisions D-01 à D-10 sont intégrées au cadre; les gates futurs et les limites externes restent ouverts dans leurs lots respectifs.
+
+C1.1, C1.2 et C1.3 ont depuis été fusionnés avec CI GitHub-hosted réussie sur les PR et après fusion. C1.3 est livrée par [PR #160](https://github.com/jupi-z/Monarque-Connect/pull/160), head `21435150f2fb1400a5e84e42cd72f7467c1df995`, merge `635e2a4169ade3a0daa19edab68057d930ea6668`; CI PR [#40556171997](https://github.com/jupi-z/Monarque-Connect/actions/runs/40556171997) et CI post-fusion [#40557775470](https://github.com/jupi-z/Monarque-Connect/actions/runs/40557775470) ont réussi. Ces éléments ne clôturent pas C1 : le durcissement de compatibilité C1.4 reste en cours.

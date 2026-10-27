@@ -142,4 +142,33 @@ describe('Identity and tenancy integration', () => {
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'AUTH', false, 'must fail')).rejects.toThrow();
     await expect(organizations.updateModuleActivation({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000005' }, created.id, 'CATALOG', true, 're-enable after onboarding')).resolves.toMatchObject({ enabled: true, changed: true });
   });
+
+  it('keeps legacy capability and quota surfaces scoped to Connect when ZAMUREK is active', async () => {
+    const owner = await auth.register({ email: 'product-scope@example.com', password: 'correct horse battery staple', firstName: 'Product', lastName: 'Owner' });
+    const created = await organizations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000006' }, {
+      businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Dual product tenant', handle: 'dual-product-tenant', defaultCurrency: 'EUR', establishmentName: 'Head office',
+    }) as { id: string };
+    const moduleCode = `ZAMUREK_TEST_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const planCode = `ZAMUREK_TEST_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    await prisma.moduleCatalog.create({ data: { code: moduleCode, displayName: 'ZAMUREK-only compatibility probe', pillar: 'ZAMUREK', isCore: false } });
+    await prisma.productModule.create({ data: { productCode: 'ZAMUREK', moduleCode } });
+    await prisma.plan.create({ data: { code: planCode, name: 'ZAMUREK compatibility probe', productCode: 'ZAMUREK' } });
+    const zamurekVersion = await prisma.planVersion.create({ data: { id: crypto.randomUUID(), productCode: 'ZAMUREK', planCode, version: 1, status: 'ACTIVE', currency: 'USD', billingPeriod: 'MONTHLY' } });
+    await prisma.planVersionModule.create({ data: { planVersionId: zamurekVersion.id, productCode: 'ZAMUREK', moduleCode, defaultEnabled: true } });
+    await prisma.planVersionQuota.create({ data: { id: crypto.randomUUID(), planVersionId: zamurekVersion.id, quotaCode: 'MAX_USERS', unit: 'COUNT', mode: 'CAPACITY', limitValue: 1n } });
+    await prisma.subscription.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', planVersionId: zamurekVersion.id, status: 'ACTIVE', startsAt: new Date(Date.now() - 1000) } });
+    await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', moduleCode, enabled: true } });
+    await prisma.organizationEntitlement.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', moduleCode, effect: 'ALLOW', startsAt: new Date(Date.now() - 1000), reason: 'Product isolation regression', createdByActor: 'PLATFORM:test' } });
+
+    const principal = { userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000006' };
+    const capabilities = await organizations.capabilities(principal, created.id) as { plan: { code: string } | null; modules: Array<{ code: string; allowed: boolean; reason: string }>; productCode?: string };
+    const modules = await organizations.modules(principal, created.id) as Array<{ code: string; allowed: boolean; reason: string }>;
+    const quotas = await organizations.quotas(principal, created.id) as Array<{ quotaCode: string; limit: string }>;
+
+    expect(capabilities.plan?.code).toBe('CONNECT');
+    expect(capabilities).not.toHaveProperty('productCode');
+    expect(capabilities.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: moduleCode, allowed: false, reason: 'MODULE_NOT_INCLUDED' })]));
+    expect(modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: moduleCode, allowed: false, reason: 'MODULE_NOT_INCLUDED' })]));
+    expect(quotas).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5' })]));
+  });
 });
