@@ -1234,6 +1234,7 @@ model BillingSubscriptionTerm {
   addons              BillingSubscriptionAddon[]
   scheduledChanges    BillingScheduledChange[]
 
+  @@unique([subscriptionId, productCode], map: "billing_subscription_terms_subscription_product_key")
   @@index([organizationId, productCode, status, currentPeriodEnd], map: "billing_subscription_terms_org_product_status_period_idx")
   @@index([billingCustomerId, status, currentPeriodEnd])
   @@map("billing_subscription_terms")
@@ -1468,7 +1469,7 @@ model OrganizationModuleActivation {
   module         ModuleCatalog @relation(fields: [moduleCode], references: [code], onDelete: Restrict)
 
   @@unique([organizationId, productCode, moduleCode], map: "organization_module_activations_organization_product_module_key")
-  @@index([organizationId, productCode, enabled], map: "organization_module_activations_organization_product_enabled_idx")
+  @@index([organizationId, productCode, enabled], map: "organization_module_activations_org_product_enabled_idx")
   @@map("organization_module_activations")
 }
 

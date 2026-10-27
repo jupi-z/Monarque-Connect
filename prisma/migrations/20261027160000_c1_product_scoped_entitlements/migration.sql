@@ -17,6 +17,7 @@ ALTER TABLE "plan_versions" ADD COLUMN "product_code" VARCHAR(64) NOT NULL DEFAU
 ALTER TABLE "price_versions" ADD COLUMN "product_code" VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT';
 ALTER TABLE "subscriptions" ADD COLUMN "product_code" VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT';
 ALTER TABLE "billing_subscription_terms" ADD COLUMN "product_code" VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT';
+ALTER TABLE "billing_subscription_terms" ADD CONSTRAINT "billing_subscription_terms_subscription_product_key" UNIQUE ("subscription_id", "product_code");
 ALTER TABLE "organization_module_activations" ADD COLUMN "product_code" VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT';
 ALTER TABLE "organization_entitlements" ADD COLUMN "product_code" VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT';
 ALTER TABLE "organization_quota_usages" ADD COLUMN "product_code" VARCHAR(64) NOT NULL DEFAULT 'MONARQUE_CONNECT';
@@ -68,7 +69,7 @@ ALTER TABLE "quota_ledgers" ADD CONSTRAINT "quota_ledgers_reservation_id_product
 DROP INDEX "organization_module_activations_organization_id_module_code_key";
 CREATE UNIQUE INDEX "organization_module_activations_organization_product_module_key" ON "organization_module_activations"("organization_id", "product_code", "module_code");
 DROP INDEX "organization_module_activations_organization_id_enabled_idx";
-CREATE INDEX "organization_module_activations_organization_product_enabled_idx" ON "organization_module_activations"("organization_id", "product_code", "enabled");
+CREATE INDEX "organization_module_activations_org_product_enabled_idx" ON "organization_module_activations"("organization_id", "product_code", "enabled");
 DROP INDEX "subscriptions_organization_id_status_starts_at_ends_at_idx";
 CREATE INDEX "subscriptions_organization_product_status_period_idx" ON "subscriptions"("organization_id", "product_code", "status", "starts_at", "ends_at");
 DROP INDEX "billing_subscription_terms_organization_id_status_current_p_idx";
