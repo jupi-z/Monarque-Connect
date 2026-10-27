@@ -251,8 +251,8 @@ describe('Effective organization entitlements', () => {
     await subscriptions.createForProduct('ZAMUREK', { organizationId, planVersionId: version.id, startsAt: at });
 
     const idempotencyKey = `same-key-${crypto.randomUUID()}`;
-    const zReservation = await quotas.reserveForProduct('ZAMUREK', { organizationId, quotaCode: 'MAX_USERS', amount: 1n, idempotencyKey });
-    const connectReservation = await quotas.reserveForProduct('MONARQUE_CONNECT', { organizationId, quotaCode: 'MAX_USERS', amount: 1n, idempotencyKey });
+    const zReservation = await quotas.reserveForProduct('ZAMUREK', { organizationId, quotaCode: 'MAX_USERS', amount: 1n, idempotencyKey, at });
+    const connectReservation = await quotas.reserveForProduct('MONARQUE_CONNECT', { organizationId, quotaCode: 'MAX_USERS', amount: 1n, idempotencyKey, at });
     expect(zReservation.id).not.toBe(connectReservation.id);
     await expect(quotas.commitForProduct(zReservation.id, 'MONARQUE_CONNECT')).rejects.toThrow();
     await quotas.commitForProduct(zReservation.id, 'ZAMUREK');
