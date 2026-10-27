@@ -2,7 +2,7 @@
 
 **Statut : décision d'architecture validée pour le cadrage ; NON IMPLÉMENTÉE.** Complète ADR-039, Docs/105–113 et les phases 10B–12. Aucune migration, API ou aptitude à la production n'est acquise du seul fait de ce texte. Les phases 0–10A et FairScale 9.5/9.6 conservent leurs contrats existants.
 
-La vérification de la baseline et les écarts observés avant migration sont consignés dans [Docs/115 — audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md). Ce rapport ne modifie pas le statut `PLANNED` des API et modèles ci-dessous.
+La vérification de la baseline et les écarts du code avant migration sont consignés dans [Docs/115 — audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md). Le rapport distingue les capacités réelles des contrats proposés et ne modifie pas le statut `PLANNED` des API et modèles ci-dessous. Baseline auditée : `0df3c0934effa0fef42d7073b759f5758e8c831e` (27/10/2026) ; gate C0 encore `NOT_ACCEPTED`.
 
 ## B-00 — Gouvernance du changement et ordre d'exécution
 

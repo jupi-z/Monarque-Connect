@@ -1,9 +1,9 @@
 # Premier prompt Codex — phase 10A.5 Monarque Connect × ZAMUREK
 
-> **Statut : proposition de prompt, exécuter seulement après revue/merge de cette branche de planification.** **Ne pas lancer C1–C8 avant la clôture de C0 et les invariants [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md) sans conflits résiduels.** Travailler **dans le clone local du dépôt privé Monarque Connect**, branche dédiée/PR ; ne jamais envoyer de code du Core dans le dépôt public ZAMUREK.
+> **Statut : proposition de prompt, exécuter seulement après revue/merge du cadrage.** **Ne pas lancer C1–C8 avant acceptation de C0 et des invariants [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md).** Travailler dans le dépôt propriétaire Monarque Connect sur branche dédiée/PR ; sa visibilité GitHub observée au 27/10/2026 est publique et ne doit pas être considérée comme une protection de confidentialité. Ne jamais copier le code du Core dans ZAMUREK.
 
 ```text
-Tu travailles sur https://github.com/jupi-z/Monarque-Connect, dépôt privé déjà cloné, sur une branche de travail propre créée à partir du dernier main validé.
+Tu travailles sur https://github.com/jupi-z/Monarque-Connect, sur une branche de travail propre créée à partir du dernier main validé. Vérifie les paramètres de visibilité et de contribution avant de publier des informations sensibles ; aucune donnée client, secret ou implémentation Core ne doit être copiée vers ZAMUREK.
 
 Ta mission est la PHASE 10A.5 — convergence du Core partagé avec ZAMUREK. NE COMMENCE PAS la phase 10B ni un nouveau backend ZAMUREK. Lis intégralement Docs/104 à 114, Docs/21, Docs/33, Docs/42, Docs/43, Docs/46, Docs/47, Docs/48, Docs/89, Docs/93, Docs/99, Docs/102 et Docs/103. Source partenaire : https://github.com/jupi-z/ZAMUREK (références de planification à jour, pas dépendance à du code commercial public).
 
