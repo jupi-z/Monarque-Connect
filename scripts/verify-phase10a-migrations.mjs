@@ -191,11 +191,11 @@ async function structuralProof(databaseUrl) {
        WHERE i.indrelid IN ('external_identities'::regclass, 'external_identity_link_challenges'::regclass, 'refresh_sessions'::regclass)`,
     );
     for (const required of [
-      ['external_identities_issuer_subject_key', 'external_identities issuer, subject'],
-      ['external_identities_id_user_id_key', 'external_identities id, user_id'],
-      ['refresh_sessions_id_user_id_key', 'refresh_sessions id, user_id'],
-      ['external_identity_link_challenges_state_hash_key', 'external_identity_link_challenges state_hash'],
-      ['external_identity_link_challenges_nonce_hash_key', 'external_identity_link_challenges nonce_hash'],
+      ['external_identities_issuer_subject_key', 'issuer, subject'],
+      ['external_identities_id_user_id_key', 'id, user_id'],
+      ['refresh_sessions_id_user_id_key', 'id, user_id'],
+      ['external_identity_link_challenges_state_hash_key', 'state_hash'],
+      ['external_identity_link_challenges_nonce_hash_key', 'nonce_hash'],
     ]) {
       const index = identityIndexes.rows.find((row) => row.name === required[0]);
       if (!index?.is_unique || !normalized(index.definition).includes(required[1])) {
