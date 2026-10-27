@@ -291,7 +291,7 @@ Monarque Connect ne repose ni sur ERPNext ni sur Frappe.
 4. **Phase 4 — CRM + Network entry — terminée**
    Leads, opportunités, profils publics, confiance, découverte, connexions et `NetworkInquiry → CRM` sont livrés et prouvés. Voir `Docs/70_PHASE_4_CLOSURE_EVIDENCE.md`.
 
-Les phases ventes, achats, opérations, messagerie, FairScale et **10A Intelligence déterministe** sont clôturées sur leur périmètre documenté. Les validations externes de commercialisation FairScale 9.6 restent ouvertes. **La Phase 10A.5** prépare le Core multi-produits transactionnel partagé; son gate C0 attend fusion et CI post-fusion, puis seul C1 est autorisé dans la mission en cours. Les phases 10B, 11, 11.5 et 12 ne sont pas implémentées. Lire [ADR-039](Docs/104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md), [phase 10A.5](Docs/105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md), [roadmap](Docs/21_EXECUTION_ROADMAP.md).
+Les phases ventes, achats, opérations, messagerie, FairScale et **10A Intelligence déterministe** sont clôturées sur leur périmètre documenté. Les validations externes de commercialisation FairScale 9.6 restent ouvertes. **C0 de la Phase 10A.5 est accepté et fusionné**; C1 — Product Catalog & Product-Scoped Entitlements — est en exécution contrôlée après CI post-fusion verte. Les lots C2–C8 et les phases 10B, 11, 11.5 et 12 ne sont pas commencés par cette mission. Lire [ADR-039](Docs/104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md), [phase 10A.5](Docs/105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md), [contrat C1](Docs/116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md), [roadmap](Docs/21_EXECUTION_ROADMAP.md).
 
 ## Démarrage local
 

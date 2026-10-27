@@ -1,8 +1,8 @@
 # Phase 10A.5 — suivi et progression (modèle)
 
-Le rapport [d'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code au `main@0df3c09` et ses arbitrages. Le cadrage attend fusion et CI post-fusion; C1 est autorisé après ce gate. Aucun lot C1–C8 n'est déclaré livré avant ses propres preuves.
+Le rapport [d'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code examiné à la baseline `main@0df3c09` et ses arbitrages. Le cadrage C0 est fusionné au commit `78b91675e26a83e15be1539f7b3cc4f2a058a0b6`; la CI post-fusion a réussi. C1 est maintenant autorisé et son exécution est suivie séparément. Aucun lot C1–C8 n'est déclaré livré avant ses propres preuves.
 
-**Statut Phase 10A.5 = IN_PROGRESS. C0 = prêt pour fusion documentaire et vérification post-fusion; C1 = autorisé après ce gate; C2–C8 = PLANNED / NOT_RUN.** Les critères G-01–G-14 restent des gates de livraison future et ne sont pas satisfaits par la documentation C0.
+**Statut Phase 10A.5 = IN_PROGRESS. C0 = ACCEPTED / CLOSED. C1 = IN_PROGRESS. C2–C8 = PLANNED / NOT_STARTED.** Les critères G-01–G-14 restent des gates de livraison future et ne sont pas satisfaits par la documentation C0.
 
 | Lot | Poids | Dépendances |
 |---|---:|---|
