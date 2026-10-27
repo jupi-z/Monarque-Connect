@@ -1,6 +1,6 @@
 # Contrats normatifs inter-produit — Monarque Connect Core ↔ ZAMUREK V1
 
-**Statut : architecture à implémenter, pas API actuellement disponible.** Toute API de ce document doit être marquée `PLANNED` jusqu'à preuve par tests. **Les arbitrages qui résolvent les incompatibilités avec le schéma existant figurent dans [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), en particulier B-01 à B-06.**
+**Statut : contrats futurs `PLANNED`; les contrats internes de catalogue et de résolution produit pour C1 sont figés dans [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md).** Aucun endpoint de ce document n'est actuellement disponible du seul fait de cette spécification. Les arbitrages de compatibilité sont définis dans [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), B-00 à B-09.
 
 ## Identifiants, scopes, plan produit
 - Identité applicative interne stable = `userId` (fédération future Monarque Auth/OIDC via couple `issuer + subject`, jamais rapprochement par e-mail) ; organisation commerciale = `organizationId` ; établissement = `establishmentId` ; canal public = `channelId`, **non secret** ; provenance `productCode=ZAMUREK|MONARQUE_CONNECT`.

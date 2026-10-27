@@ -1,8 +1,8 @@
 # 114 — Invariants normatifs des frontières du Core partagé (Phase 10A.5)
 
-**Statut : décision d'architecture validée pour le cadrage ; NON IMPLÉMENTÉE.** Complète ADR-039, Docs/105–113 et les phases 10B–12. Aucune migration, API ou aptitude à la production n'est acquise du seul fait de ce texte. Les phases 0–10A et FairScale 9.5/9.6 conservent leurs contrats existants.
+**Statut : D-01 à D-10 acceptées par le propriétaire pour l'architecture et le séquencement.** Les capacités C1–C8 / 10B–12 ne sont pas implémentées par ce document. Aucune migration, API ou aptitude à la production n'est acquise du seul fait de ce texte. Les phases 0–10A et FairScale 9.5/9.6 conservent leurs contrats existants.
 
-La vérification de la baseline et les écarts du code avant migration sont consignés dans [Docs/115 — audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md). Le rapport distingue les capacités réelles des contrats proposés et ne modifie pas le statut `PLANNED` des API et modèles ci-dessous. Baseline auditée : `0df3c0934effa0fef42d7073b759f5758e8c831e` (27/10/2026) ; gate C0 encore `NOT_ACCEPTED`.
+La vérification de la baseline et les écarts du code avant migration sont consignés dans [Docs/115 — audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md). Les APIs et modèles futurs restent `PLANNED` jusqu'à leur implémentation et leurs tests. Baseline auditée : `0df3c0934effa0fef42d7073b759f5758e8c831e`. L'acceptation documentaire C0 attend fusion et CI post-fusion.
 
 ## B-00 — Gouvernance du changement et ordre d'exécution
 
@@ -83,7 +83,7 @@ La vérification de la baseline et les écarts du code avant migration sont cons
 
 **Avant Phase 11.5** : versionnement des outils, classe A3 avec permissions/approbation expirante et effet réellement auditables ; budgets tenant/produit, arrêt d'urgence.
 
-**Avant Phase 12 / release** : tests A/B, E1/E2, BUYER C1/C2, staff, POS multi-caissier, doubles retries, remboursements, offline indéterminé, PSP signé, restore, charge, anciens SDK, stockage réel et critères pays. Les quatorze gates Docs/107 sont des preuves techniques ; un gate juridique externe manquant reste `BLOCKED_EXTERNAL` et interdit **commercial GO**, sans être renommé `PASS`.
+**Avant Phase 12 / release** : tests A/B, E1/E2, BUYER C1/C2, staff, POS multi-caissier, doubles retries, remboursements, offline indéterminé, PSP signé, restore, charge, anciens SDK, stockage réel et critères pays. RPO ≤15 minutes et RTO ≤4 heures sont des objectifs d'ingénierie, pas des garanties actuelles. Les gates juridiques externes restent `BLOCKED_EXTERNAL` sans être renommés `PASS`.
 
 ## B-09 — Matrice minimale de preuve avant fermeture
 
@@ -99,3 +99,20 @@ La vérification de la baseline et les écarts du code avant migration sont cons
 | Provenance | PR + commit SHA + CI PR et post-merge + environnement + jeu de données + métriques ; `NOT_RUN` ≠ `PASS` |
 
 **Règle de préséance :** le présent document précise les arbitrages techniques insuffisamment définis dans Docs/104–113 et ne remplace pas les exigences non contradictoires. Si un conflit persiste, arrêt des migrations concernées et ADR explicite avant implémentation.
+
+## Registre des décisions D-01 à D-10 — 27/10/2026
+
+| Décision | État | Portée et gate restant |
+|---|---|---|
+| D-01 Visibilité et propriété intellectuelle | DECIDED / ACCEPTED | Dépôt public intentionnel, Core propriétaire. Pas de licence OSS nouvelle; notice existante reste soumise à revue juridique; secrets/scans/protections maintenus. |
+| D-02 Multi-produits et abonnements | DECIDED / ACCEPTED | Registre stable serveur, codes `MONARQUE_CONNECT` et `ZAMUREK`; un abonnement effectif max par org/produit, exclusion de périodes par produit; resolver legacy Connect et nouveau resolver explicite. Tarif ZAMUREK 7 USD hypothèse inactive. Contrat C1: Docs/116. |
+| D-03 Monarque Auth / identité | DECIDED / ACCEPTED | Mapping durable `(issuer, subject) → internalUserId`, association explicite, pas de rapprochement email, sessions legacy coexistantes. Implémentation C2 uniquement. |
+| D-04 POS et finance | DECIDED / ACCEPTED | `ConfirmPosSale` possède une transaction SQL, écritures canoniques/Outbox, PSP et impression hors transaction, compensations append-only. Implémentation C4 uniquement. |
+| D-05 Documents/fiscalité | DECIDED / ACCEPTED | Facture interne, reçu et document fiscal séparés; conformité RDC non présumée. Validation externe bloque le flux concerné. |
+| D-06 Prix, unités et FX | DECIDED / ACCEPTED | Tarification versionnée côté serveur, Decimal/entiers, snapshots immuables, FX derrière port et fail-closed sans taux valable. Sélection commerciale du fournisseur reste ouverte. |
+| D-07 Stockage documentaire | DECIDED / ACCEPTED | Abstraction S3-compatible chiffrée, tenant-scoped, checksum/version/révocation/audit/restore. Prestataire et résidence à approuver avant production; C5. |
+| D-08 Résilience | DECIDED / ACCEPTED comme objectifs | RPO cible ≤15 min, RTO cible ≤4 h; objectifs non démontrés. Restore/perf p95/p99 et charge sont des preuves C8/release, pas un blocage du cadrage C0. |
+| D-09 Contrats et calendrier ZAMUREK | DECIDED / ACCEPTED | Contrat OpenAPI minimal/allowlist/version/SHA; cadrage → SDK/tests après contrat stable → intégration après commandes livrées → commercialisation après tous les gates. PR ZAMUREK #2 reste draft jusqu'au gel des frontières. |
+| D-10 IA/agents | DECIDED / ACCEPTED | Interfaces versionnées, aucun accès Prisma/admin, droits tenant/produit/action, approbation humaine et audit pour actions sensibles. Runtime non inclus en C1. |
+
+Les statuts `DECIDED / ACCEPTED` qualifient l'architecture, pas la livraison des fonctionnalités ni la preuve de conformité externe. Les gates C1 à C8 et commerciaux restent suivis séparément.

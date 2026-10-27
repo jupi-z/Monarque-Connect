@@ -3,7 +3,7 @@
 **Date de vérification : 27 octobre 2026**
 **Baseline Monarque Connect :** `main@0df3c0934effa0fef42d7073b759f5758e8c831e`
 **Baseline ZAMUREK :** `main@0ac6bbc2c00048335b4de88cc686e88247da783a`
-**État :** audit du code réalisé ; **gate C0 NOT_ACCEPTED**. Aucun schéma ni code métier n'a été modifié par cet audit.
+**État :** audit du code réalisé; D-01 à D-10 arbitrées par le propriétaire; gate C0 prêt pour revue documentaire finale et CI post-fusion. Aucune migration ou modification métier n'a été effectuée pour C0.
 
 ## 1. Résumé et preuves de référence
 
@@ -11,16 +11,16 @@ Le dépôt Monarque Connect fournit déjà un Core transactionnel riche, sous la
 
 La CI actuellement observée sur la baseline est le run [Backend CI #40394652453](https://github.com/jupi-z/Monarque-Connect/actions/runs/40394652453), sur le SHA indiqué ci-dessus : conclusion `success`. Les logs GitHub donnent 173 tests unitaires, 184 tests d'intégration PostgreSQL, 23 tests HTTP E2E, 54 migrations validées depuis une base vide et les upgrades historiques configurés, 200 opérations OpenAPI, lint, typecheck, contrats, build et smoke HTTP réussis. Ce sont des preuves du commit de baseline, pas des preuves du head révisé de la PR #152.
 
-Le dépôt ZAMUREK est actuellement public également. Sa CI `push` sur `main@0ac6bbc2c00048335b4de88cc686e88247da783a` est verte : [run #39840078492](https://github.com/jupi-z/ZAMUREK/actions/runs/39840078492). La PR de cadrage [#2](https://github.com/jupi-z/ZAMUREK/pull/2) est ouverte, en brouillon ; son check `specification` a réussi sur l'ancien head `d74c60d2559bc9a56284905fbd6bcc07684c81fd` au run [#40109185297](https://github.com/jupi-z/ZAMUREK/actions/runs/40109185297). Les deux résultats sont distincts et ne valident pas de futurs changements documentaires.
+Le dépôt ZAMUREK `main@0ac6bbc2c00048335b4de88cc686e88247da783a` avait la CI verte au run [#39840078492](https://github.com/jupi-z/ZAMUREK/actions/runs/39840078492). PR #2 est ouverte en brouillon; son check courant doit être revérifié après toute synchronisation documentaire. Ces preuves de baseline ne valent pas pour un head modifié.
 
-Les dépôts sont accessibles publiquement (`visibility=PUBLIC`). Plusieurs textes qualifient pourtant Monarque Connect de dépôt privé ou présentent cette confidentialité comme une garantie. L'audit n'a changé aucun réglage GitHub. Les documents corrigés parlent désormais de frontière de propriété et de gouvernance, non d'une visibilité supposée. Le propriétaire doit confirmer séparément la visibilité souhaitée et revoir l'historique public, les secrets et les règles de contribution.
+Les dépôts sont publics par décision intentionnelle du propriétaire (D-01). La visibilité ne confère aucun droit de réutilisation. `LICENSE` contient une notice propriétaire « DRAFT FOR LEGAL REVIEW » et `CONTRIBUTING.md` énonce l'autorité de Monarque Group S.A.S., les PR, la CI et l'interdiction de push direct. Aucun fichier de licence open source n'a été ajouté ni la notice existante remplacée; sa portée juridique reste à confirmer par conseil compétent. Les secrets, données client et informations d'exploitation ne doivent pas être publiés. La protection native de `main` est désormais active : PR obligatoire, check `validate-pr / validate`, branche à jour, force-push/suppression interdits, application aux administrateurs et zéro approbation GitHub imposée.
 
 ### État des branches de cadrage
 
 - Monarque Connect PR #152 : ouverte, brouillon, head initial `3da05fd41aca61ac8bdc04d970803fe0b873577e`, base annoncée `a2a8d99723be1761ba3c46ecb504830a60e39828`. Son dernier check avant synchronisation était en échec : run #40109257225. Il avait exécuté 373 tests dans le premier passage puis 2 échecs sur 23 au passage E2E, sur un ancien merge ref et un runner auto-hébergé. Ces échecs historiques ne sont pas une preuve contre le `main` actuel ; leurs journaux ne permettent pas d'attribuer avec certitude une cause rétrospective.
 - La branche PR #152 a reçu la fusion non destructive de `origin/main`, sans conflit ni écrasement de branches préexistantes. Le snapshot `1dcdf4375caa5eb89778681dd7d05b61624396f9` a été validé par [Backend CI #40496799262](https://github.com/jupi-z/Monarque-Connect/actions/runs/40496799262) (`success`; `validate-main` skipped sur événement PR). Le commit documentaire suivant `b384a3d2fdbe802f7127fe94e0a093be50fe9da8` a été validé par [Backend CI #40497812420](https://github.com/jupi-z/Monarque-Connect/actions/runs/40497812420), également `success`. Le head actuel de la PR et ses derniers checks sont vérifiables sur [PR #152](https://github.com/jupi-z/Monarque-Connect/pull/152). Côté ZAMUREK, le head PR #2 `4c495e8759a88e64229932ecc0d5700b4e57fc92` a passé [specification #40495102233](https://github.com/jupi-z/ZAMUREK/actions/runs/40495102233).
 - ZAMUREK PR #2 : ouverte, brouillon. Le check de spécification précédent est vert sur son ancien head seulement. La présente synchronisation corrige les assertions de visibilité erronées, sans implémentation runtime.
-- Issue [#153](https://github.com/jupi-z/Monarque-Connect/issues/153) : ouverte. Elle doit rester ouverte tant que les décisions P0 et les preuves de récupération/performance ne sont pas acceptées.
+- Issue [#153](https://github.com/jupi-z/Monarque-Connect/issues/153) : ouverte au moment de l'audit. Les décisions D-01–D-10 sont maintenant acceptées; les preuves réelles de backup/restore, RPO/RTO, charge et performance restent des gates C8 et ne bloquent pas l'acceptation architecturale C0.
 
 ## 2. Méthode et limites
 
@@ -62,7 +62,7 @@ Les parcours `PaymentService.record`, `InvoiceService` et Cash/Inventory ouvrent
 | B-04 prix / FX / fiscalité | **Partielle** : Decimal et snapshots de montants/devise existent. | Taux FX versionné et policy juridictionnelle absents. Les règles DRC/DGI et homologation ne sont pas prouvées. Prix, devise par défaut et historique actuels ne doivent pas être réécrits. |
 | B-05 autorisations / tenant / canal | **Partielle** : authorization et scopes établissement existent. | BUYER/AGENT/canal produit ne sont pas un modèle partagé complet. Concevoir des principals et politiques distincts; vérifier tenant, produit, établissement et ressource côté serveur dans toute commande. |
 | B-06 événement / idempotence | **Partielle** : Outbox et receipts idempotents présents. | `productCode` absent et certains services métier gèrent les clés séparément. Versionner l'enveloppe de manière additive; événements minimisés et idempotence sur payload canonique. |
-| B-07 disponibilité / stockage | **Partielle** : modules et CI structurés ; adaptateur document mémoire et garde prod. | Restore synthétique, charge, p95/p99, RPO/RTO et stockage durable de déploiement non prouvés ici. Exiger des preuves opérationnelles distinctes avant C8/release. |
+| B-07 disponibilité / stockage | **Partielle** : modules et CI structurés; adaptateur document mémoire et garde prod. | Restore synthétique, charge, p95/p99, objectifs RPO/RTO et stockage durable de déploiement non prouvés ici. C0 valide le cadre; preuves opérationnelles distinctes requises avant C8/release. |
 | B-08 contrat et compatibilité | **Partielle** : OpenAPI et contrats vérifiés dans CI. | Pas de contrat versionné produit/merchant publié; 200 opérations existantes sont le baseline. Contrats additifs, compatibilité N-1 et contract tests avant implémentation. |
 | B-09 validation / sécurité | **Partielle** : CI hosted, PostgreSQL, E2E, lint, typecheck et scans usuels sur baseline. | Tests des propriétés futures inexistants; aucun test d'intrusion ou de charge n'est revendiqué. C1–C8 doivent ajouter tests négatifs et concurrency réels, sans alléger l'existant. |
 
@@ -108,7 +108,7 @@ L'IdP authentifie et émet les claims OIDC; le Core mappe issuer+subject vers `i
 8. **EventEnvelope** : identifiant, type/version, tenant, acteur, source/aggregate, contexte produit, classification, occurredAt, payload minimal; outbox atomique avec mutation et consumers rejouables.
 9. **API partenaire** : façade REST/OpenAPI versionnée et allowlistée; aucun partage direct de modèles Prisma ni identifiants privilégiés. Contrats d'erreur/idempotence/pagination et limites de données documentés.
 
-Ces contrats sont des exigences de conception; ils n'autorisent pas à créer les migrations avant acceptation du gate C0 et l'approbation des décisions signalées en §11.
+Ces contrats sont des exigences de conception; ils n'autorisent pas à créer les migrations avant la fusion C0 et CI post-fusion verte. Les décisions D-01–D-10 ci-dessous ont été approuvées par le propriétaire; les décisions commerciales/réglementaires explicitement futures restent des gates propres à leurs usages.
 
 ## 8. Migrations et stratégie de retour
 
@@ -153,34 +153,50 @@ Chaque lot est une ou plusieurs PR courtes avec contrats avant migrations, tests
 - **Résilience/performance** : panne worker/Outbox/LLM/stockage, retry bounded, charge représentative, p95/p99 et contention; aucun chiffre n'est déclaré avant mesure.
 - **CI** : mêmes entrées npm et isolation tests fixées par CI stabilisation; GitHub-hosted seulement. Trois runs consécutifs ne sont exigés que lorsqu'un gate de phase le prescrit, et leurs SHA/runs doivent être cités.
 
-## 11. Registre des risques et décisions à approuver
+## 11. Registre des décisions et risques résiduels
 
 | ID | Décision / risque | État et propriétaire de validation |
 |---|---|---|
-| D-01 | Visibilité GitHub de Monarque Connect actuellement publique, malgré description privée précédente. | À confirmer par le propriétaire; aucune modification de visibilité faite. Contrôler secret scanning, historique et contributeurs avant toute décision. |
-| D-02 | Modèle de relation org→produit et règles exactes de souscription/grâce/renouvellement. | Décision commerciale/produit requise avant C1; l'audit recommande product scope explicite additive. |
-| D-03 | Fusion/association d'identités OIDC et méthode de preuve utilisateur. | Décision sécurité/identité avant C2; email seul explicitement insuffisant. |
-| D-04 | Politique vendeur, caissier, cash session, annulation/remboursement et réservation de stock POS. | Décision opérationnelle/financière avant C4; le modèle conservateur de Docs/114 est proposition. |
-| D-05 | Juridictions, taxes, arrondis légaux, document officiel et homologation RDC. | Validation par responsables compétents; aucune conformité fiscale revendiquée. Bloque activation commerciale concernée, pas les tests techniques synthétiques. |
-| D-06 | Sources FX, cadence, autorité, fraîcheur, conservation d'un taux et politique de spread. | Décision commerciale et financière avant prix CDF/FX en production. |
-| D-07 | Provider durable documents, rétention, résidence, sauvegarde et clés. | Choix d'exploitation avant C5/release; adaptateur mémoire interdit en production par garde existante. |
-| D-08 | Récupération/restauration et objectifs RPO/RTO. | Aucun exercice de restore ou charge n'a été exécuté dans cet audit : `NOT_RUN`; preuve requise à C8. |
-| D-09 | Contrat partagé publié et versionné Core↔ZAMUREK; politique de contribution aux deux repos publics. | Revue explicite avant génération/publish; aucune implémentation privée copiée. |
-| D-10 | Agents, outils et approbation des actions financières. | Interfaces prévues uniquement; modèle de menace et approbateur humain à valider avant C6 runtime/Phase 10B. |
+| D-01 | Visibilité publique intentionnelle et propriété distincte; pas de licence OSS ajoutée. | **DECIDED / ACCEPTED.** `LICENSE` est une notice propriétaire en brouillon de revue juridique; ne pas réécrire. Détection secrets, scans et règles de branche restent nécessaires. |
+| D-02 | Registre produit serveur, abonnement par organisation/produit, resolver legacy Connect, aucune grâce implicite nouvelle. | **DECIDED / ACCEPTED.** Contrat C1 détaillé en Docs/116; tarif ZAMUREK 7 USD reste hypothèse inactive. |
+| D-03 | Fédération future Monarque Auth/Keycloak, mapping issuer+subject, liaison explicite, pas de rapprochement email. | **DECIDED / ACCEPTED pour architecture.** Implémentation réservée à C2; aucune migration d'identité dans C1. |
+| D-04 | Commande `ConfirmPosSale`, ledgers canoniques, transaction unique et PSP hors transaction. | **DECIDED / ACCEPTED pour architecture.** Détails et tests requis avant C4; C4 non autorisé dans cette mission. |
+| D-05 | Facture commerciale, reçu et document fiscal distincts; conformité RDC non présumée. | **DECIDED / ACCEPTED techniquement.** Validation légale externe reste `EXTERNAL_PENDING` et bloque le flux commercial concerné. |
+| D-06 | Tarification serveur versionnée, Decimal/entiers et snapshots FX immuables. | **DECIDED / ACCEPTED pour architecture.** Fournisseur, fraîcheur et marge FX à valider avant conversion commerciale réelle. |
+| D-07 | Port de stockage fournisseur-indépendant compatible S3, exigences sécurité et restauration. | **DECIDED / ACCEPTED pour architecture.** Choix prestataire/résidence avant C5/release; Memory adapter ne vaut pas stockage de production. |
+| D-08 | Objectifs d'ingénierie RPO ≤15 min et RTO ≤4 h; stratégie de backup/restore. | **DECIDED / ACCEPTED comme objectifs, non comme preuves.** Exercices de restauration, charge et mesures relèvent de C8/release; `NOT_RUN` dans C0 n'est pas bloquant. |
+| D-09 | Contrat Core public/partenaire minimal, versionné, allowlisté; progression ZAMUREK par dépendances réelles. | **DECIDED / ACCEPTED.** PR ZAMUREK #2 reste draft jusqu'au gel des contrats; aucune copie de schéma privé ou code Core. |
+| D-10 | Agents derrière interfaces, droits produit/tenant et approbation humaine des opérations sensibles. | **DECIDED / ACCEPTED pour architecture.** Runtime/agents hors C1; préparation détaillée avant C6/10B. |
 
-## 12. Écarts documentaires relevés et synchronisation demandée
+## 12. Écarts documentaires et compatibilité inter-dépôts
 
-Les documents de cadrage décrivaient Monarque Connect et ZAMUREK comme privés. Les métadonnées GitHub à la date ci-dessus indiquent `PUBLIC` pour les deux dépôts. Cette clarification ne change ni la propriété du Core ni son interface autorisée.
+La documentation avait des règles incompatibles sur la visibilité et le calendrier ZAMUREK. D-01 confirme les dépôts publics intentionnels sans licence open source; D-09 remplace l'attente automatique jusqu'à Phase 12 par les gates progressifs contrat → SDK/tests → opérations réelles → commercialisation. Les roadmaps doivent refléter cela sans réduire les 43 capacités ZAMUREK.
 
 La PR #152 a été créée avant les corrections CI #156/#157; sa référence de base était dépassée et son échec historique venait d'un ancien merge commit. Elle a été synchronisée sur le main actuel sans conflit ni force-push. Le workflow actif de main est GitHub-hosted. Le runner auto-hébergé n'a pas été utilisé pour les vérifications de cette mission.
 
-## 13. Verdict C0
+## 13. Matrice de propriété des données et consommateurs C1
+
+| Donnée/commande | Propriétaire d'écriture constaté | Lecteurs / consommateurs constatés | Compatibilité / contrainte |
+|---|---|---|---|
+| Souscription et période effective | `SubscriptionService.createInTransaction`; Billing provider/lifecycle mettent à jour l'abonnement lié | `EffectiveEntitlementsService`, `QuotaService`, `AuthorizationService` | Exclusion GiST actuellement sur `organization_id + tstzrange`, statuts `TRIALING/ACTIVE/PAST_DUE/SUSPENDED`; C1 doit la recréer par org+produit dans une migration nouvelle. |
+| Module activation | `OrganizationService` | `EffectiveEntitlementsService` | Unicité actuelle org+module; API et actions existantes restent Connect. Nouvelle unicité org+product+module. |
+| Overrides d'entitlement | `EntitlementOverrideService` / service plateforme | `EffectiveEntitlementsService`, `QuotaService` | Org+module+dates; la nouvelle dimension produit doit entrer dans les recherches et les clés/contraintes. |
+| Usages, réservations, ledger de quota | `QuotaService`; appels transactionnels `OrganizationService`, `InvitationService` | `QuotaService`, endpoints d'administration/quota | Unicité usage org+quota+period, réservation org+idempotency; FK composite et clés ledger doivent être élargies au produit ensemble. |
+| Billing FairScale | `BillingService`, `BillingProviderService`, `BillingLifecycleService` | Entitlements/quota pour vérification client et capacités | Termes ont une exclusion GiST org+period; abonnements FairScale actuels doivent migrer Connect et conserver snapshots, périodes et IDs. |
+| Plans / versions | seed et `BillingAdminService` | `OrganizationService`, subscription, effective entitlements, quotas, Billing provider/lifecycle | PlanVersion unique planCode+version; version porte modules et quotas. C1 rattache Plan/PlanVersion à un produit sans modifier les codes/versions historiques. |
+| Suspension | organisation globale dans `OrganizationService`; status d'abonnement produit via Billing lifecycle | authorization, entitlement resolver, subscriptions | L'état `Organization.status` reste global prioritaire; état subscription scoped uniquement au produit concerné. |
+
+Contraintes réelles lues : `subscriptions_no_overlapping_effective_periods` dans `20261012100000_harden_phase2_invariants`; `billing_subscription_terms_no_overlap` dans `20261019131202_phase96_billing_transactions`; unicités des usages/réservations/ledgers en `prisma/schema.prisma` modèles `OrganizationQuotaUsage`, `QuotaReservation`, `QuotaLedger`. Aucune de ces migrations historiques ne sera modifiée.
+
+OpenAPI baseline : 200 opérations, aucune opération actuelle ne prend un scope productCode pour resolver multi-produit. C1 conserve les contrats existants; si une opération publique est ajoutée, elle doit être explicitement versionnée et couverte par OpenAPI/contracts. La matrice de non-régression est : legacy resolver = Connect; API historique sans code produit = Connect; quotas/org actions historiques = Connect; ajout ZAMUREK sans effet sur anciennes réponses; `N/N-1` des schémas publiés; CI migration, PostgreSQL et E2E sur chaque PR et post-fusion.
+
+## 14. Verdict C0
 
 **Audit du code : réalisé et documenté sur la baseline ci-dessus.**
-**C0 gate : NOT_ACCEPTED / IN_PROGRESS.**
-**GO pour fusionner les documents : non, jusqu'à revue des nouveaux checks et de la cohérence inter-dépôts.**
-**GO pour démarrer C1 : NO-GO.**
+**C0 gate : cadrage techniquement complet sous réserve des contrôles GitHub finaux et de la fusion PR #152.**
+**GO pour fusion documentaire : après revue des diffs Monarque Connect/ZAMUREK et CI verte du head révisé.**
+**GO conditionnel pour C1 : oui, uniquement après merge C0 et CI `main` post-fusion verte.**
 
-Les lacunes produit/identité/POS/FX citées sont des fonctionnalités futures non présentes, et non des régressions du Core existant. Avant C1, il reste à obtenir la revue d'architecture de la PR #152 et l'acceptation explicite de D-02 : modèle produit, règles d'abonnement et backfill des enregistrements historiques vers CONNECT. Le contrat de compatibilité doit être approuvé avant toute migration. D-01 (visibilité GitHub) est un risque de gouvernance à confirmer séparément ; il ne change pas techniquement le modèle C1, mais interdit de traiter le dépôt public comme confidentiel. D-03 (mapping d'identité OIDC) doit être tranché avant C2 et ne bloque pas seul C1 si C1 ne modifie pas l'identité. La restauration, la charge et les gates d'exploitation restent requises pour C8; aucune preuve n'est inventée ici.
+Les écarts produit/identité/POS/FX sont des fonctionnalités futures absentes, pas des régressions du Core. D-01–D-10 sont acceptées et le contrat C1 est maintenant fixé dans Docs/116. La restauration, la charge et les preuves RPO/RTO restent C8/release; aucune n'est présentée comme déjà démontrée. Les causes exactes de certains incidents HTTP historiques restent non attribuables faute de traces, mais ne sont pas un blocage de l'audit architectural C0.
 
-La CI de baseline et les CI de cadrage ci-dessus sont des preuves distinctes sur leurs SHA exacts ; les contrôles lourds ont été exécutés par GitHub-hosted runners. Aucun test local lourd n'a été lancé. Ces checks verts ne ferment pas l'issue #153 ni n'acceptent le gate C0 jusqu'à résolution et vérification des prérequis et arbitrages ci-dessus.
+La CI de baseline [#40394652453](https://github.com/jupi-z/Monarque-Connect/actions/runs/40394652453) porte sur `0df3c0934effa0fef42d7073b759f5758e8c831e`; les checks de PR #152 portent sur le SHA propre au head et ne sont pas interchangeables. Aucun test local lourd n'a été lancé. Le gate C0 sera accepté seulement après les checks actuels du head, fusion documentaire autorisée, CI post-fusion verte, vérification de `main` et mise à jour/fermeture de l'issue #153.

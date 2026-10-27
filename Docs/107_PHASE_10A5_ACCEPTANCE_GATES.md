@@ -21,7 +21,7 @@
 | G-14 Security & supply chain | P0 | staff/BUYER/AGENT distincts, POS permissions dédiées, RBAC, données personnelles, OIDC-ready, SBOM/licences, JWT, no secrets et CI scans passés |
 
 **Deux seuils distincts :**
-1. **Démarrage du développement ZAMUREK après Monarque Connect** : aucun code produit dans le dépôt ZAMUREK (clients, SDK, intégration runtime ou verticales) avant la clôture technique des phases Monarque Connect 10A.5, 10B, 11, 11.5 et 12, chacune prouvée par ses gates et une CI post-fusion verte. Avant cette échéance, seules la documentation de cadrage et la revue des contrats inter-dépôts sont autorisées. Les contrats C0–C3/C6/C7 gelés restent un prérequis d'intégration, mais ne suffisent pas à autoriser le démarrage du code ZAMUREK. Les obligations externes de commercialisation restent des gates séparés.
+1. **Séquence ZAMUREK selon D-09** : cadrage et recherche UX avant contrats stables; fondations client/SDK et tests contractuels après stabilisation des contrats Core nécessaires; intégration fonctionnelle après livraison des opérations correspondantes; commercialisation après les gates techniques et externes applicables. Les 43 capacités V1 restent requises; cette séquence ne réduit pas le périmètre.
 2. **Clôture de 10A.5** : G-01 à G-14 PASS avec preuves effectives (hormis légal commercial externe qui reste BLOQUÉ pour production sans empêcher code terminé). Toutes écritures financières nécessitent G-05/06/07. Les gates externes 9.6 restent ouverts tant que les opérations réelles non prouvées.
 
 Le statut des phases closes reste clos. Pas de « 100% » sans logs/test/commit et environnement enregistrés ; un dossier écrit seul n'est pas un gate PASS.

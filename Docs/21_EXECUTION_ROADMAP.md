@@ -150,11 +150,11 @@ Implémenter cycle souscription payante, échéances, promotion welcome à usage
 
 ### 10A.5 — Convergence architecturale et Core omnicanal Monarque Connect × ZAMUREK
 
-**État au 27 octobre 2026 : CADRAGE C0 EN COURS / AUDIT RÉALISÉ, GATE NON ACCEPTÉ / C1–C8 NON IMPLÉMENTÉS.** **Frontières techniques opposables avant toute migration** : [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md) B-00→B-09 et [audit du code réel](115_PHASE_10A5_C0_CODEBASE_AUDIT.md). L'audit confirme plusieurs écarts de capacité encore à construire (produits scoped, mapping OIDC, orchestration POS atomique, FX/policies) et formule les décisions P0. Baseline auditée `0df3c0934effa0fef42d7073b759f5758e8c831e`; la CI verte de cette baseline ne préjuge pas des checks de la PR documentaire synchronisée. Décision proposée par [ADR-039](104_ADR_039_SHARED_COMMERCE_CORE_ZAMUREK.md), [spécification](105_PHASE_10A5_CONVERGENCE_EXECUTION_SPEC.md), [contrats](106_SHARED_PRODUCT_CONTRACTS.md), [recette](107_PHASE_10A5_ACCEPTANCE_GATES.md) et [progression](108_PHASE_10A5_PROGRESS_PLAN.md).
+**État au 27 octobre 2026 : C0 documenté et soumis à fusion/CI post-fusion; C1 autorisé conditionnellement après ce gate; C2–C8 non implémentés.** **Frontières opposables** : [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), audit du code réel [Docs/115](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) et contrat C1 [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md). Baseline auditée `0df3c0934effa0fef42d7073b759f5758e8c831e`; les CI du head synchronisé et du merge `main` restent distinctes et obligatoires.
 
 Insérée immédiatement après la clôture technique de 10A, **avant d'implémenter 10B**. Créer une seule architecture transactionnelle pour les deux produits, sans reprise des phases closes : vente omnicanale, commande canonique, POS cash transactionnel, paiements/mouvements cohérents, documents imprimables/fiscalité sous gate, tarification canaux, identité publique/walk-in, entitlements produits, scopes tenants/établissements, contrats events/outils IA et APIs versions.
 
-**Séquence inter-dépôts obligatoire** : le dépôt ZAMUREK reste en cadrage documentaire et revue de contrats uniquement pendant les travaux Monarque Connect. Aucun code de client, SDK, intégration runtime ou verticale ZAMUREK ne commence avant la clôture technique des phases Monarque Connect 10A.5, 10B, 11, 11.5 et 12, chacune accompagnée de ses gates prouvés et d'une CI post-fusion verte. Le gel des contrats C0–C3/C6/C7 demeure un prérequis d'intégration, mais ne réduit pas cette séquence. Les gates externes FairScale 9.6, juridiques et commerciaux restent suivis séparément et ne sont pas déclarés satisfaits par la clôture technique.
+**Séquence inter-dépôts selon D-09** : cadrage UX/documentaire avant contrats stables; SDK et tests contractuels ZAMUREK après stabilisation des contrats Core nécessaires; intégration fonctionnelle après livraison et vérification des opérations transactionnelles concernées; commercialisation après les gates techniques, commerciaux et réglementaires applicables. Le périmètre V1 ZAMUREK et ses 43 capacités ne sont pas réduits. Aucun développement applicatif ZAMUREK n'est inclus dans la présente mission.
 
 ### 10B — probabiliste gouverné, commun aux deux produits
 
@@ -162,7 +162,7 @@ Insérée immédiatement après la clôture technique de 10A, **avant d'impléme
 
 ## Phase 11 — Control Plane multi-produits
 
-**Plan révisé** : [Docs/110](110_PHASE_11_MULTI_PRODUCT_CONTROL_PLANE_PLAN.md). Étendre les fondations existantes de FairScale 9.5/9.6 (ne pas les dupliquer) afin de commercialiser indépendamment Monarque Connect et ZAMUREK et d'autoriser leur coexistence sur une même organisation. `ZAMUREK_BASIC` 7 USD/mois/org sous validation coûts/quotas/fiscalité. Une souscription ZAMUREK ne donne pas automatiquement accès aux modules ERP avancés. Les gates paiements externes 9.6 restent ouverts.
+**Plan révisé** : [Docs/110](110_PHASE_11_MULTI_PRODUCT_CONTROL_PLANE_PLAN.md). Étendre les fondations existantes de FairScale 9.5/9.6 (ne pas les dupliquer) afin de commercialiser indépendamment Monarque Connect et ZAMUREK et d'autoriser leur coexistence sur une même organisation. Le prix ZAMUREK de 7 USD/mois/org reste une hypothèse inactive, à valider avec coûts/quotas/fiscalité avant toute activation commerciale. Une souscription ZAMUREK ne donne pas automatiquement accès aux modules ERP avancés. Les gates paiements externes 9.6 restent ouverts.
 
 ## Phase 11.5 — Agent readiness partagée
 

@@ -2,21 +2,20 @@
 
 ## Repository
 
-Privé.
+Public par décision intentionnelle du propriétaire; la visibilité publique n'accorde aucun droit de réutilisation. La notice propriétaire existante dans `LICENSE` demeure « draft for legal review » et n'est pas remplacée par une licence open source.
 
 ## Main — état cible
 
 - PR obligatoire ;
-- au moins 1 approbation ;
-- conversations résolues ;
-- Backend CI obligatoire ;
+- PR obligatoire ;
+- check `validate-pr / validate` obligatoire ;
 - branche à jour avant merge ;
-- force push interdit ;
-- suppression interdite.
+- force push et suppression interdits ;
+- application de la règle aux administrateurs.
 
-L'activation technique dépend des fonctions disponibles sur le plan GitHub du dépôt privé. Tant que la protection n'est pas effectivement activée, la règle opérationnelle est stricte : **aucun contributeur ne pousse directement sur `main`; toute contribution passe par branche + PR + CI verte + revue de `@jupi-z`.**
+La protection de branche est activée sur `main` et ne requiert pas d'approbation GitHub, afin de garder le flux possible sans second approbateur. Les revues techniques restent recommandées et les changements normatifs doivent être explicitement examinés; elles ne sont pas un check de fusion configuré côté GitHub.
 
-L'état technique courant de cette protection est suivi dans l'issue `#6`.
+Le check requis ne doit pas être renommé sans mettre à jour la règle. Les checks propres au workflow main continuent à s'exécuter après fusion.
 
 ## Ownership
 
