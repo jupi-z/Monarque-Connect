@@ -51,15 +51,16 @@ describe('Phase 9.6 Billing HTTP flow', () => {
 
   async function createZamurekBillingTerm() {
     const prisma = app.get(PrismaService);
+    const organization = bodyOf<{ id: string }>(await request(serverOf(app)).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'ZAMUREK Billing isolation tenant', handle: `zamurek-billing-${randomUUID().slice(0, 8)}`, defaultCurrency: 'EUR', establishmentName: 'Head office' }).expect(201));
     const planCode = `ZAMUREK_BILLING_${randomUUID().slice(0, 8).toUpperCase()}`;
     await prisma.plan.create({ data: { code: planCode, name: 'ZAMUREK billing fixture', productCode: 'ZAMUREK' } });
     const planVersion = await prisma.planVersion.create({ data: { id: randomUUID(), productCode: 'ZAMUREK', planCode, version: 1, status: 'ACTIVE', currency: 'USD', billingPeriod: 'MONTHLY' } });
     const customer = await prisma.billingCustomer.create({ data: { id: randomUUID(), identityKey: `zamurek-billing-test:${randomUUID()}`, displayName: 'ZAMUREK test customer' } });
     const startsAt = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
     const endsAt = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
-    const subscription = await prisma.subscription.create({ data: { id: randomUUID(), organizationId, productCode: 'ZAMUREK', planVersionId: planVersion.id, status: 'ACTIVE', startsAt, endsAt } });
-    const term = await prisma.billingSubscriptionTerm.create({ data: { id: randomUUID(), billingCustomerId: customer.id, organizationId, productCode: 'ZAMUREK', subscriptionId: subscription.id, status: 'ACTIVE', planCode, billingPeriod: 'MONTHLY', currency: 'USD', catalogVersion: 1, baseAmountMinor: 700n, discountAmountMinor: 0n, addonAmountMinor: 0n, totalAmountMinor: 700n, startsAt, currentPeriodStart: startsAt, currentPeriodEnd: endsAt, nextRenewalAt: endsAt } });
-    return { prisma, term, subscription };
+    const subscription = await prisma.subscription.create({ data: { id: randomUUID(), organizationId: organization.id, productCode: 'ZAMUREK', planVersionId: planVersion.id, status: 'ACTIVE', startsAt, endsAt } });
+    const term = await prisma.billingSubscriptionTerm.create({ data: { id: randomUUID(), billingCustomerId: customer.id, organizationId: organization.id, productCode: 'ZAMUREK', subscriptionId: subscription.id, status: 'ACTIVE', planCode, billingPeriod: 'MONTHLY', currency: 'USD', catalogVersion: 1, baseAmountMinor: 700n, discountAmountMinor: 0n, addonAmountMinor: 0n, totalAmountMinor: 700n, startsAt, currentPeriodStart: startsAt, currentPeriodEnd: endsAt, nextRenewalAt: endsAt } });
+    return { prisma, term, subscription, organizationId: organization.id };
   }
 
   it('does not activate a plan until a signed payment event is verified', async () => {
@@ -156,13 +157,13 @@ describe('Phase 9.6 Billing HTTP flow', () => {
   });
 
   it('keeps another product invoices out of Connect billing reads', async () => {
-    const { prisma, term } = await createZamurekBillingTerm();
+    const { prisma, term, organizationId: zamurekOrganizationId } = await createZamurekBillingTerm();
     const now = new Date();
     const invoice = await prisma.billingInvoice.create({ data: { id: randomUUID(), billingCustomerId: term.billingCustomerId, organizationId, subscriptionTermId: term.id, number: `ZM-${randomUUID()}`, sequence: 1, status: 'OPEN', currency: 'USD', periodStart: term.currentPeriodStart, periodEnd: term.currentPeriodEnd, subtotalMinor: 700n, discountMinor: 0n, totalMinor: 700n, amountPaidMinor: 0n, dueAt: now } });
 
-    const listed = bodyOf<Array<{ id: string }>>(await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/billing/invoices`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    const listed = bodyOf<Array<{ id: string }>>(await request(serverOf(app)).get(`/api/v1/organizations/${zamurekOrganizationId}/billing/invoices`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
     expect(listed.some((item) => item.id === invoice.id)).toBe(false);
-    await request(serverOf(app)).get(`/api/v1/organizations/${organizationId}/billing/invoices/${invoice.id}`).set('Authorization', `Bearer ${ownerToken}`).expect(404);
+    await request(serverOf(app)).get(`/api/v1/organizations/${zamurekOrganizationId}/billing/invoices/${invoice.id}`).set('Authorization', `Bearer ${ownerToken}`).expect(404);
   });
 
   it('does not apply another product scheduled billing changes in the Connect lifecycle job', async () => {
@@ -177,13 +178,13 @@ describe('Phase 9.6 Billing HTTP flow', () => {
   });
 
   it('does not let Connect cancel or replay another product scheduled change', async () => {
-    const { prisma, term } = await createZamurekBillingTerm();
+    const { prisma, term, organizationId: zamurekOrganizationId } = await createZamurekBillingTerm();
     const idempotencyKey = `zamurek-scheduled-${randomUUID()}`;
     const change = await prisma.billingScheduledChange.create({ data: { id: randomUUID(), subscriptionTermId: term.id, organizationId, idempotencyKey, kind: 'CANCELLATION', status: 'PENDING', effectiveAt: term.currentPeriodEnd } });
     const server = serverOf(app);
 
-    await request(server).post(`/api/v1/organizations/${organizationId}/billing/subscription/changes/${change.id}/cancel`).set('Authorization', `Bearer ${ownerToken}`).expect(404);
-    await request(server).post(`/api/v1/organizations/${organizationId}/billing/subscription/${term.id}/changes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', idempotencyKey).send({ kind: 'CANCELLATION' }).expect(409);
+    await request(server).post(`/api/v1/organizations/${zamurekOrganizationId}/billing/subscription/changes/${change.id}/cancel`).set('Authorization', `Bearer ${ownerToken}`).expect(404);
+    await request(server).post(`/api/v1/organizations/${zamurekOrganizationId}/billing/subscription/${term.id}/changes`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', idempotencyKey).send({ kind: 'CANCELLATION' }).expect(409);
 
     await expect(prisma.billingScheduledChange.findUnique({ where: { id: change.id } })).resolves.toMatchObject({ status: 'PENDING' });
   });
