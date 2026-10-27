@@ -1,11 +1,11 @@
 # Phase 10A.5 — Convergence Monarque Connect × ZAMUREK
 
-**Statut au 27/10/2026 : cadrage C0 révisé selon D-01–D-10; gate d'acceptation dépend de fusion/CI post-fusion. C1–C8 non implémentés.** Entre **10A clôturée** et **10B**. La présente phase ne se substitue ni aux gates externes FairScale 9.6 ni à 11/11.5/12.
+**Statut actualisé au 27/10/2026 : C0 accepté et clôturé; C1.1, C1.2 et C1.3 livrés avec CI GitHub-hosted PR et post-fusion réussies; C1.4 en cours de durcissement final. C2–C8 restent planifiés et non implémentés.** Entre **10A clôturée** et **10B**. La présente phase ne se substitue ni aux gates externes FairScale 9.6 ni à 11/11.5/12.
 
 ## Objectif / résultat
 Obtenir **un seul Core transactionnel** intégrable par ZAMUREK, sans rupture des modules déjà livrés. Monarque Connect est le dépôt propriétaire du Core ; visibilité GitHub `PUBLIC` intentionnelle, sans licence open source accordée. ZAMUREK progresse par étapes : cadrage avant contrats stables; SDK et tests contractuels après stabilisation des contrats Core nécessaires; intégration fonctionnelle après livraison des opérations transactionnelles concernées; commercialisation après les gates techniques et externes applicables. Aucun développement applicatif ZAMUREK n'est inclus dans C0/C1.
 
-**Frontières gelées avant toute migration :** [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), B-00→B-09, décisions D-01→D-10 et contrat C1 dans [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md). [L'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code réel au `main@0df3c09`; CI du head révisé puis CI post-fusion restent obligatoires. Les capacités futures (product scope, OIDC, POS atomique, FX) ne sont pas déclarées implémentées. C1 préserve APIs, identifiants, devise et snapshots historiques Monarque Connect.
+**Frontières gelées avant migration :** [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), B-00→B-09, décisions D-01→D-10 et contrat C1 dans [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md). [L'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) décrit l'état inspecté à la baseline `main@0df3c09`; son addendum consigne la clôture et la progression vérifiée ultérieure. Les migrations C1.2 et C1.3 sont additives et prouvées par CI; C1.4 garde la CI PR puis post-fusion comme gate de sortie. Les capacités futures (OIDC, POS atomique, FX) ne sont pas déclarées implémentées. C1 préserve APIs, identifiants, devise et snapshots historiques Monarque Connect.
 
 ## Tranches ordonnées et dépendances
 | Tranche | Livrable obligatoire | Pré-requis / tests |

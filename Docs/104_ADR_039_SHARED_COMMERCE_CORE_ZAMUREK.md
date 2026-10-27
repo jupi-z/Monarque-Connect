@@ -1,6 +1,6 @@
 # ADR-039 — Monarque Connect, socle commercial partagé ; ZAMUREK, produit vertical
 
-**Statut : ACCEPTÉ PAR LE PROPRIÉTAIRE POUR LE CADRAGE — 27/10/2026.** Les décisions D-01 à D-10 sont arrêtées pour C0 et la préparation des lots concernés. Leur acceptation ne signifie pas que les capacités futures sont implémentées, ni que la Phase 10A.5 est clôturée. C1 est autorisé uniquement après fusion du cadrage C0 et CI post-fusion verte.
+**Statut : ACCEPTÉ PAR LE PROPRIÉTAIRE — 27/10/2026.** Les décisions D-01 à D-10 sont arrêtées pour C0 et les lots concernés. Leur acceptation ne signifie pas que les capacités futures sont implémentées, ni que la Phase 10A.5 est clôturée. C0 est désormais clos après fusion de son cadrage et CI post-fusion verte; C1 est autorisé dans le périmètre séquencé ci-dessous et son suivi probant est tenu dans [Docs/117](117_C1_EXECUTION_STATUS.md). Les capacités non livrées restent soumises à leurs propres gates.
 
 **Arbitrage de sûreté complétant ADR-039 :** [Docs/114 — invariants des frontières](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), décisions B-00→B-09, est **normatif avant migration**. En particulier : authentification future Monarque Auth/OIDC sans perte d'identité métier, souscriptions par produit, permissions POS distinctes, Invoice canonique pour le règlement V1, transactions atomiques, stockage réel et gates commerciaux séparés.
 
