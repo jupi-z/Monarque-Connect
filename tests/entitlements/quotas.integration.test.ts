@@ -64,6 +64,17 @@ describe('Organization quota reservations', () => {
     await expect(prisma.outboxEvent.count({ where: { organizationId, eventType: { in: ['quota.reserved', 'quota.committed', 'quota.released'] } } })).resolves.toBe(4);
   });
 
+  it('does not let the Connect quota service finish a reservation owned by another product', async () => {
+    const reservationId = crypto.randomUUID();
+    await prisma.organizationQuotaUsage.create({ data: { id: crypto.randomUUID(), organizationId, productCode: 'ZAMUREK', quotaCode: 'MAX_USERS', periodKey: 'CURRENT', limitValue: 10n, reservedValue: 2n } });
+    await prisma.quotaReservation.create({ data: { id: reservationId, organizationId, productCode: 'ZAMUREK', quotaCode: 'MAX_USERS', periodKey: 'CURRENT', amount: 2n, limitValue: 10n, status: 'HELD', idempotencyKey: 'zamurek-held-reservation' } });
+
+    await expect(quotas.commit(reservationId)).rejects.toThrow();
+    await expect(prisma.quotaReservation.findUnique({ where: { id: reservationId } })).resolves.toMatchObject({ productCode: 'ZAMUREK', status: 'HELD' });
+    await expect(prisma.organizationQuotaUsage.findUnique({ where: { organizationId_productCode_quotaCode_periodKey: { organizationId, productCode: 'ZAMUREK', quotaCode: 'MAX_USERS', periodKey: 'CURRENT' } } })).resolves.toMatchObject({ usedValue: 0n, reservedValue: 2n });
+    await expect(prisma.quotaLedger.count({ where: { reservationId } })).resolves.toBe(0);
+  });
+
   it('derives the period on the server and applies an entitlement limit override', async () => {
     await prisma.organizationEntitlement.create({ data: { id: crypto.randomUUID(), organizationId, moduleCode: 'MEMBERSHIPS', effect: 'LIMIT_OVERRIDE', startsAt: new Date('2026-10-01T00:00:00.000Z'), reason: 'Temporary cap', limitsJson: { MAX_USERS: '2' }, createdByActor: 'PLATFORM:test' } });
     await expect(quotas.reserve({ organizationId, quotaCode: 'MAX_USERS', amount: 3n, at: new Date('2026-10-15T00:00:00.000Z'), idempotencyKey: 'override-cap' })).rejects.toThrow('Quota capacity exceeded');
