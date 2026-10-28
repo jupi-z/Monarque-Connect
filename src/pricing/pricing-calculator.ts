@@ -100,6 +100,7 @@ export interface CommercialQuoteCalculationResult {
     version: number;
     calculationCurrency: 'SOURCE' | 'TARGET';
     currencyCode: string;
+    taxableBase: string;
     amount: string;
   }>;
   sourceTotal: string | null;
@@ -183,10 +184,19 @@ export function calculateCommercialQuote(input: CommercialQuoteCalculationInput)
     }
     taxCodes.add(tax.code);
     const rate = new Decimal(tax.rate);
-    const currencyCode = tax.calculationCurrency === 'SOURCE' ? input.sourceCurrencyCode : input.targetCurrencyCode;
-    const amount = (tax.calculationCurrency === 'SOURCE' ? sourceNetAmount : targetNetAmount)
-      .mul(rate).toDecimalPlaces(tax.calculationCurrency === 'SOURCE' ? input.sourceCurrencyDigits : input.targetCurrencyDigits, Decimal.ROUND_HALF_UP);
-    taxLines.push({ code: tax.code, version: tax.version, calculationCurrency: tax.calculationCurrency, currencyCode, amount: amount.toFixed(tax.calculationCurrency === 'SOURCE' ? input.sourceCurrencyDigits : input.targetCurrencyDigits) });
+    const isSourceTax = tax.calculationCurrency === 'SOURCE';
+    const currencyCode = isSourceTax ? input.sourceCurrencyCode : input.targetCurrencyCode;
+    const taxableBase = isSourceTax ? sourceNetAmount : targetNetAmount;
+    const digits = isSourceTax ? input.sourceCurrencyDigits : input.targetCurrencyDigits;
+    const amount = taxableBase.mul(rate).toDecimalPlaces(digits, Decimal.ROUND_HALF_UP);
+    taxLines.push({
+      code: tax.code,
+      version: tax.version,
+      calculationCurrency: tax.calculationCurrency,
+      currencyCode,
+      taxableBase: taxableBase.toFixed(digits),
+      amount: amount.toFixed(digits),
+    });
     if (tax.calculationCurrency === 'SOURCE') sourceTaxTotal = sourceTaxTotal.plus(amount);
     else targetTaxTotal = targetTaxTotal.plus(amount);
   }

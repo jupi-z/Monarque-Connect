@@ -26,7 +26,7 @@ type QuoteCalculationResult = {
   sourceSubtotal: string;
   discountAmount: string;
   sourceNetAmount: string;
-  taxes: Array<{ code: string; version: number; calculationCurrency: 'SOURCE' | 'TARGET'; amount: string; currencyCode: string }>;
+  taxes: Array<{ code: string; version: number; calculationCurrency: 'SOURCE' | 'TARGET'; amount: string; currencyCode: string; taxableBase: string }>;
   sourceTotal: string | null;
   targetTotal: string;
 };
@@ -68,7 +68,7 @@ describe('commercial quote calculator', () => {
       sourceSubtotal: '100.00',
       discountAmount: '10.00',
       sourceNetAmount: '90.00',
-      taxes: [{ code: 'CONFIGURED_TAX', version: 3, calculationCurrency: 'SOURCE', amount: '9.00', currencyCode: 'USD' }],
+      taxes: [{ code: 'CONFIGURED_TAX', version: 3, calculationCurrency: 'SOURCE', taxableBase: '90.00', amount: '9.00', currencyCode: 'USD' }],
       sourceTotal: '99.00',
       targetTotal: '99.00',
     });
@@ -86,7 +86,7 @@ describe('commercial quote calculator', () => {
     expect(result).toMatchObject({
       sourceSubtotal: '100.00',
       sourceNetAmount: '100.00',
-      taxes: [{ code: 'SOURCE_TAX', version: 1, calculationCurrency: 'SOURCE', amount: '10.00', currencyCode: 'USD' }],
+      taxes: [{ code: 'SOURCE_TAX', version: 1, calculationCurrency: 'SOURCE', taxableBase: '100.00', amount: '10.00', currencyCode: 'USD' }],
       sourceTotal: '110.00',
       targetTotal: '220.00',
     });
@@ -103,7 +103,7 @@ describe('commercial quote calculator', () => {
     expect(result).toMatchObject({
       sourceSubtotal: '2.50',
       sourceNetAmount: '2.50',
-      taxes: [{ code: 'TARGET_TAX', version: 1, calculationCurrency: 'TARGET', amount: '590.00', currencyCode: 'CDF' }],
+      taxes: [{ code: 'TARGET_TAX', version: 1, calculationCurrency: 'TARGET', taxableBase: '5900.00', amount: '590.00', currencyCode: 'CDF' }],
       sourceTotal: null,
       targetTotal: '6490.00',
     });
