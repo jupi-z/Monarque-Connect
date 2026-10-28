@@ -249,12 +249,21 @@ async function structuralProof(databaseUrl) {
     }
 
     const unitChecks = await pool.query(
-      `SELECT conname FROM pg_constraint WHERE conrelid IN ('measure_units'::regclass, 'currency_definitions'::regclass, 'item_variants'::regclass, 'commercial_offers'::regclass, 'catalog_command_receipts'::regclass) AND contype = 'c'`,
+      `SELECT conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid IN ('measure_units'::regclass, 'currency_definitions'::regclass, 'item_variants'::regclass, 'commercial_offers'::regclass, 'catalog_command_receipts'::regclass) AND contype = 'c'`,
     );
     const unitCheckNames = new Set(unitChecks.rows.map((row) => row.conname));
     for (const required of ['measure_units_factor_check', 'measure_units_registry_version_check', 'currency_definitions_minor_digits_check', 'item_variants_code_format_check', 'item_variants_attributes_object_check', 'commercial_offers_version_check', 'catalog_command_receipts_payload_hash_check']) {
       if (!unitCheckNames.has(required)) throw new Error(`Missing C3 catalog constraint ${required}`);
     }
+    const attributesCheck = unitChecks.rows.find((row) => row.conname === 'item_variants_attributes_object_check')?.definition?.replaceAll('"', '').toLowerCase();
+    if (!attributesCheck?.includes('jsonb_typeof(attributes_json) = \'object\'') || !attributesCheck.includes('jsonb_path_query_array') || !attributesCheck.includes('<= 30')) {
+      throw new Error('Item variant JSON attributes are not constrained to a bounded object');
+    }
+    const attributeCountProbe = await pool.query(
+      `SELECT jsonb_array_length(jsonb_path_query_array($1::jsonb, '$.keyvalue()')) AS count`,
+      [JSON.stringify(Object.fromEntries(Array.from({ length: 31 }, (_, index) => [`field${index}`, 'value'])))],
+    );
+    if (Number(attributeCountProbe.rows[0]?.count) !== 31) throw new Error('PostgreSQL JSONPath key counting did not return the expected result');
 
     const units = await pool.query("SELECT code, dimension, base_unit_code, numerator::text, denominator::text, registry_version, source_revision FROM measure_units WHERE active ORDER BY code");
     const expectedUnits = [

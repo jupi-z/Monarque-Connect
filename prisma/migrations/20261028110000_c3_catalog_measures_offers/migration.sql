@@ -71,7 +71,7 @@ CREATE TABLE "item_variants" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
     CONSTRAINT "item_variants_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "item_variants_code_format_check" CHECK ("code" ~ '^[A-Z0-9][A-Z0-9._-]{0,63}$'),
-    CONSTRAINT "item_variants_attributes_object_check" CHECK (jsonb_typeof("attributes_json") = 'object' AND jsonb_object_length("attributes_json") <= 30)
+    CONSTRAINT "item_variants_attributes_object_check" CHECK (jsonb_typeof("attributes_json") = 'object' AND jsonb_array_length(jsonb_path_query_array("attributes_json", '$.keyvalue()')) <= 30)
 );
 
 CREATE UNIQUE INDEX "item_variants_item_id_code_key" ON "item_variants"("item_id", "code");
