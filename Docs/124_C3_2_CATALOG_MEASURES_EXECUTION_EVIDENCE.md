@@ -51,6 +51,7 @@ La conversion de quantité emploie `BigInt` et des facteurs rationnels. L'entré
 | OpenAPI et contrats | PASS: 206 opérations OpenAPI principales et 13 opérations proposées C3 validées; validation des contrats réussie |
 | Smoke HTTP et nettoyage | PASS: smoke des endpoints health et suppression du conteneur PostgreSQL isolé réussies |
 | CI PR | [Backend CI #40646849656](https://github.com/jupi-z/Monarque-Connect/actions/runs/40646849656), run #578, conclusion `success`, sur le head `a1e38498206b05694b030dfb4716f83533eaba02`. Les échecs antérieurs et leur résolution sont conservés dans la ligne ci-dessous. |
+| Revalidation de la preuve documentaire | [Backend CI #40647891175](https://github.com/jupi-z/Monarque-Connect/actions/runs/40647891175), run #579, conclusion `success`, sur le head `052fafd7f467cd4cce3268ea50a67d786f0dd65b`; le seul changement depuis le SHA précédent est la consignation des résultats de CI. |
 | CI post-fusion | NOT_RUN; PR non fusionnée |
 
 Les échecs antérieurs ont été corrigés de manière ciblée: [#40645157199](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645157199) lint; [#40645436513](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645436513) typecheck; [#40645716729](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645716729) lint; [#40645899634](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645899634) migration (`jsonb_object_length` non disponible, remplacé par le comptage JSONPath testé); [#40646173196](https://github.com/jupi-z/Monarque-Connect/actions/runs/40646173196) reset global qui supprimait les deux registres système. La CI verte #40646849656 confirme la correction de ces défauts de validation sur son SHA exact.
@@ -59,4 +60,4 @@ Aucune preuve de migration appliquée sur production ou d'exécution runtime dé
 
 ## Suite
 
-La PR reste en brouillon jusqu'à la revue finale et à la validation de son SHA final. Après fusion contrôlée, vérifier la CI post-fusion sur `main`, puis seulement commencer C3.3 sur une branche dédiée. Aucune activité C4 n'est incluse.
+Le run #579 revalide également l'ensemble des contrôles sur la révision documentaire `052fafd`. Le présent ajout consigne cette preuve; il exige une dernière exécution sur le nouveau SHA du document avant fusion. Après fusion contrôlée, vérifier la CI post-fusion sur `main`, puis seulement commencer C3.3 sur une branche dédiée. Aucune activité C4 n'est incluse.
