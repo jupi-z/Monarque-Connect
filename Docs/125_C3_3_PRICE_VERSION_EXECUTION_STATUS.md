@@ -1,6 +1,6 @@
 # C3.3.1 — Prix commerciaux versionnés: état d'exécution
 
-**Statut: implémentation candidate, validation GitHub-hosted en attente.** Ce document décrit le périmètre proposé de la première tranche C3.3. Il ne déclare ni migration validée, ni parcours de cotation terminé, ni C3.3/C3 clôturé.
+**Statut: implémentation candidate, CI corrective en cours.** Ce document décrit le périmètre proposé de la première tranche C3.3. Il ne déclare ni migration validée, ni parcours de cotation terminé, ni C3.3/C3 clôturé.
 
 ## Baseline
 
@@ -31,7 +31,9 @@
 |---|---|
 | Tests ciblés locaux | `NOT_RUN`: Vitest n'est pas installé dans ce worktree; la commande ciblée n'a pas démarré. Aucun résultat de test n'est revendiqué localement. |
 | Prisma validate/generate, lint, typecheck, contrats, OpenAPI, PostgreSQL, E2E, build et smoke HTTP | `NOT_RUN`: à exécuter sur GitHub-hosted par CI PR. |
-| CI PR / CI post-fusion | `NOT_RUN`: aucun SHA de candidat publié/validé au moment de cette note. |
+| CI PR `#175`, SHA `422a73e060d840048ab8f88ab5b6925da41aea5d` | `FAILURE`: [run 40654523289](https://github.com/jupi-z/Monarque-Connect/actions/runs/40654523289), job `validate-pr / validate`. Prisma `generate` a refusé le nom de l'index `commercial_price_versions_org_product_offer_currency_effective_idx`, supérieur à la limite PostgreSQL de 63 octets. `validate-main` a été `SKIPPED`. |
+| Correction de l'index | Renommage cohérent en `commercial_price_versions_price_scope_time_idx` dans le schéma Prisma, la migration et la preuve structurelle SQL. Vérification statique légère effectuée; nouvelle CI GitHub-hosted et nouvelle validation Prisma restent `PENDING` sur le SHA correctif. |
+| CI post-fusion | `NOT_RUN`: la PR n'est pas fusionnée. |
 | Déploiement ou validation production | `NOT_RUN` et hors périmètre. |
 
 ## Limites et suite

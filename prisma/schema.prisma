@@ -2073,7 +2073,7 @@ model CommercialPriceVersion {
 
   @@unique([offerId, currencyCode, version], map: "commercial_price_versions_offer_currency_version_key")
   @@unique([organizationId, offerId, currencyCode, effectiveFrom], map: "commercial_price_versions_org_offer_currency_effective_key")
-  @@index([organizationId, productCode, offerId, currencyCode, effectiveFrom(sort: Desc)], map: "commercial_price_versions_org_product_offer_currency_effective_idx")
+  @@index([organizationId, productCode, offerId, currencyCode, effectiveFrom(sort: Desc)], map: "commercial_price_versions_price_scope_time_idx")
   @@map("commercial_price_versions")
 }
 

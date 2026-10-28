@@ -33,7 +33,7 @@ CREATE UNIQUE INDEX "commercial_price_versions_offer_currency_version_key"
   ON "commercial_price_versions"("offer_id", "currency_code", "version");
 CREATE UNIQUE INDEX "commercial_price_versions_org_offer_currency_effective_key"
   ON "commercial_price_versions"("organization_id", "offer_id", "currency_code", "effective_from");
-CREATE INDEX "commercial_price_versions_org_product_offer_currency_effective_idx"
+CREATE INDEX "commercial_price_versions_price_scope_time_idx"
   ON "commercial_price_versions"("organization_id", "product_code", "offer_id", "currency_code", "effective_from" DESC);
 
 CREATE FUNCTION "enforce_commercial_price_version_insert"() RETURNS trigger AS $$

@@ -123,7 +123,7 @@ async function structuralProof(databaseUrl) {
     for (const required of [
       'commercial_price_versions_offer_currency_version_key',
       'commercial_price_versions_org_offer_currency_effective_key',
-      'commercial_price_versions_org_product_offer_currency_effective_idx',
+      'commercial_price_versions_price_scope_time_idx',
     ]) if (!priceIndexNames.has(required)) throw new Error(`Missing commercial price index ${required}`);
     const priceTriggers = await pool.query(
       `SELECT t.tgname, pg_get_functiondef(t.tgfoid) AS function_definition
