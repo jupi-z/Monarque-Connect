@@ -1,6 +1,6 @@
 # C3.2 — Catalogue, variantes, offres et mesures — état d'exécution
 
-**État : IN PROGRESS / NOT VALIDATED.** Ce document suit l'implémentation candidate de C3.2. Il ne constitue pas une preuve de migration appliquée, de tests réussis, de CI verte ou de livraison fusionnée. Les preuves seront ajoutées après exécution par GitHub-hosted Actions sur le SHA exact de la PR et après validation de la CI post-fusion.
+**État : VALIDATED ON PR SHA / NOT MERGED.** La validation GitHub-hosted de la PR est verte sur le SHA indiqué ci-dessous. C3.2 n'est pas encore livrée sur `main` : la fusion et la CI post-fusion restent requises.
 
 ## Baseline et périmètre
 
@@ -39,17 +39,24 @@ La conversion de quantité emploie `BigInt` et des facteurs rationnels. L'entré
 | Contrôle | État au moment de rédaction |
 |---|---|
 | Inspection statique et `git diff --check` | Réalisée localement; aucune erreur d'espacement signalée |
-| Prisma validate/generate | NOT_RUN localement; à exécuter sur GitHub-hosted Actions |
-| Lint/typecheck/build | NOT_RUN localement; à exécuter sur GitHub-hosted Actions |
-| Tests unitaires exacts de mesure | Ajoutés; résultat complet attendu sur le SHA courant |
-| Tests PostgreSQL d'offres, isolation, idempotence et concurrence | Premier passage exécuté par Actions; échec détecté car le reset global tronquait les registres et les offres n'avaient plus d'unités actives |
-| Test HTTP non authentifié des registres et contrats OpenAPI | Exécuté dans le premier passage PostgreSQL; l'absence du registre après reset reproduisait le défaut de fixture |
-| Migration depuis base vide et états historiques supportés | Actions a reproduit `P3018` avec `jsonb_object_length`; le DDL utilise maintenant `jsonb_path_query_array` et le script vérifie sa contrainte et le comptage JSONPath. Une exécution complète après correction est encore requise |
-| CI PR | [PR #174](https://github.com/jupi-z/Monarque-Connect/pull/174), brouillon. Échecs corrigés successivement: run [40645157199](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645157199) lint, [40645436513](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645436513) typecheck, [40645716729](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645716729) lint, [40645899634](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645899634) migration, [40646173196](https://github.com/jupi-z/Monarque-Connect/actions/runs/40646173196) integration/reset. La correction du reset vient d'être ajoutée; la CI sur son nouveau SHA reste à vérifier |
+| SHA candidat vérifié | `a1e38498206b05694b030dfb4716f83533eaba02`; run PR a exécuté le merge ref synthétique `faa16a5ca3b39fe9ea5852484eb3ae733a4a85c1` |
+| Prisma validate/generate | PASS sur le runner GitHub-hosted; Prisma Client v7.10.0 généré et schéma validé |
+| Audit dépendances runtime | PASS: 137 packages de production atteignables; aucune vulnérabilité High/Critical atteignable au runtime. `npm ci` signale 5 advisories totales (1 moderate, 4 high), dont les avis Prisma de développement sont explicitement exclus du graphe runtime par le contrôle dédié |
+| Lint/typecheck/build | PASS sur le runner GitHub-hosted |
+| Tests unitaires | PASS: 48 fichiers, 193 tests |
+| Tests d'intégration PostgreSQL | PASS: 46 fichiers, 216 tests |
+| Tests HTTP E2E | PASS: 10 fichiers, 28 tests, base isolée et migrations appliquées |
+| Répétabilité CRM / Phase 1 | PASS: dix répétitions de chaque suite, dans les deux ordres; 20 invocations ciblées réussies |
+| Migration depuis base vide et upgrades historiques | PASS: 59 migrations depuis zéro; preuves d'upgrade depuis l'état Phase 9.6 (54 migrations) et depuis le `main` de référence; `prisma:deploy` appliqué avec succès |
+| OpenAPI et contrats | PASS: 206 opérations OpenAPI principales et 13 opérations proposées C3 validées; validation des contrats réussie |
+| Smoke HTTP et nettoyage | PASS: smoke des endpoints health et suppression du conteneur PostgreSQL isolé réussies |
+| CI PR | [Backend CI #40646849656](https://github.com/jupi-z/Monarque-Connect/actions/runs/40646849656), run #578, conclusion `success`, sur le head `a1e38498206b05694b030dfb4716f83533eaba02`. Les échecs antérieurs et leur résolution sont conservés dans la ligne ci-dessous. |
 | CI post-fusion | NOT_RUN; PR non fusionnée |
 
-Aucune preuve de migration appliquée sur production ou d'exécution runtime déployée n'est revendiquée. Les échecs ci-dessus sont des constats directs des logs GitHub, avec correction candidate; ils ne sont pas transformés en succès. La nouvelle CI doit prouver la migration, les tests, contrats, build et E2E sur son SHA exact.
+Les échecs antérieurs ont été corrigés de manière ciblée: [#40645157199](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645157199) lint; [#40645436513](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645436513) typecheck; [#40645716729](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645716729) lint; [#40645899634](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645899634) migration (`jsonb_object_length` non disponible, remplacé par le comptage JSONPath testé); [#40646173196](https://github.com/jupi-z/Monarque-Connect/actions/runs/40646173196) reset global qui supprimait les deux registres système. La CI verte #40646849656 confirme la correction de ces défauts de validation sur son SHA exact.
+
+Aucune preuve de migration appliquée sur production ou d'exécution runtime déployée n'est revendiquée. Les cinq advisories signalés par `npm ci` sont toujours recensés; le contrôle de dépendances runtime a réussi, mais cela ne signifie pas que l'audit complet du graphe de développement est exempt d'advisories. Les preuves CI ci-dessus concernent exclusivement le SHA de PR `a1e38498206b05694b030dfb4716f83533eaba02`; la livraison C3.2 reste conditionnée à la fusion autorisée et à une CI post-fusion verte.
 
 ## Suite
 
-Terminer la revue statique et exécuter de nouveau tous les gates applicables sur GitHub-hosted Actions. Garder la PR en brouillon jusqu'à la réussite complète du SHA final. Ne commencer C3.3 qu'après fusion contrôlée et CI post-fusion verte sur `main`.
+La PR reste en brouillon jusqu'à la revue finale et à la validation de son SHA final. Après fusion contrôlée, vérifier la CI post-fusion sur `main`, puis seulement commencer C3.3 sur une branche dédiée. Aucune activité C4 n'est incluse.
