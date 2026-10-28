@@ -106,17 +106,20 @@ async function structuralProof(databaseUrl) {
     const foundTables = new Set(tables.rows.map((row) => row.table_name));
     for (const table of expectedTables) if (!foundTables.has(table)) throw new Error(`Missing required migration-proof table ${table}`);
 
-    const policyConstraints = await pool.query(
-      `SELECT conname FROM pg_constraint WHERE conrelid = ANY($1::regclass[])`,
-      [['public.pricing_policy_versions', 'public.tax_policy_versions']],
+    const policyStructures = await pool.query(
+      `SELECT conname AS name FROM pg_constraint WHERE conrelid = ANY($1::regclass[])
+       UNION
+       SELECT indexname AS name FROM pg_indexes
+       WHERE schemaname = 'public' AND tablename = ANY($2::text[])`,
+      [['public.pricing_policy_versions', 'public.tax_policy_versions'], ['pricing_policy_versions', 'tax_policy_versions']],
     );
-    const policyConstraintNames = new Set(policyConstraints.rows.map((row) => row.conname));
+    const policyStructureNames = new Set(policyStructures.rows.map((row) => row.name));
     for (const required of [
       'pricing_policy_versions_code_check', 'pricing_policy_versions_rounding_mode_check',
       'pricing_policy_versions_calculation_scale_check', 'pricing_policy_versions_fx_age_check',
       'pricing_policy_versions_scope_code_version_key', 'tax_policy_versions_rate_check',
       'tax_policy_versions_activation_check', 'tax_policy_versions_scope_code_version_key',
-    ]) if (!policyConstraintNames.has(required)) throw new Error(`Missing C3 pricing policy constraint ${required}`);
+    ]) if (!policyStructureNames.has(required)) throw new Error(`Missing C3 pricing policy constraint or index ${required}`);
     const policyTriggers = await pool.query(
       `SELECT c.relname AS table_name, t.tgname, pg_get_functiondef(t.tgfoid) AS function_definition
        FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
