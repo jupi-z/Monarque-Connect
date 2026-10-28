@@ -27,6 +27,7 @@ describe('Identity and tenancy integration', () => {
   const outbox = new PrismaOutboxWriter();
   let auth: AuthService;
   let organizations: OrganizationService;
+  let authorization: AuthorizationService;
   let ownerId = '';
   let secondUserId = '';
   let invitations: InvitationService;
@@ -42,7 +43,7 @@ describe('Identity and tenancy integration', () => {
     const prismaService = prisma as never;
     const subscriptions = new SubscriptionService(prismaService, outbox);
     const entitlements = new EffectiveEntitlementsService(prismaService, subscriptions);
-    const authorization = new AuthorizationService(prismaService, entitlements);
+    authorization = new AuthorizationService(prismaService, entitlements);
     auth = new AuthService(prismaService, password, token, outbox, new LoginRateLimiter(prismaService));
     const quotas = new QuotaService(prismaService, subscriptions, outbox);
     organizations = new OrganizationService(prismaService, authorization, outbox, entitlements, quotas, subscriptions);
@@ -170,5 +171,58 @@ describe('Identity and tenancy integration', () => {
     expect(capabilities.modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: moduleCode, allowed: false, reason: 'MODULE_NOT_INCLUDED' })]));
     expect(modules).toEqual(expect.arrayContaining([expect.objectContaining({ code: moduleCode, allowed: false, reason: 'MODULE_NOT_INCLUDED' })]));
     expect(quotas).toEqual(expect.arrayContaining([expect.objectContaining({ quotaCode: 'MAX_USERS', limit: '5' })]));
+  });
+
+  it('authorizes product modules from PostgreSQL without crossing product, tenant, or establishment boundaries', async () => {
+    const owner = await auth.register({ email: 'product-auth@example.com', password: 'correct horse battery staple', firstName: 'Product', lastName: 'Owner' });
+    const other = await auth.register({ email: 'product-auth-other@example.com', password: 'correct horse battery staple', firstName: 'Other', lastName: 'Tenant' });
+    const created = await organizations.create({ userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000007' }, {
+      businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Product authorization tenant', handle: 'product-authorization-tenant', defaultCurrency: 'EUR', establishmentName: 'Head office',
+    }) as { id: string; establishment: { id: string } };
+    const principal = { userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000007' };
+    const moduleCode = `ZAMUREK_AUTH_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const planCode = `ZAMUREK_AUTH_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+
+    await prisma.moduleCatalog.create({ data: { code: moduleCode, displayName: 'C2 product authorization probe', pillar: 'ZAMUREK', isCore: false } });
+    await prisma.productModule.create({ data: { productCode: 'ZAMUREK', moduleCode } });
+    await prisma.plan.create({ data: { code: planCode, name: 'C2 product authorization probe', productCode: 'ZAMUREK' } });
+    const version = await prisma.planVersion.create({ data: { id: crypto.randomUUID(), productCode: 'ZAMUREK', planCode, version: 1, status: 'ACTIVE', currency: 'USD', billingPeriod: 'MONTHLY' } });
+    await prisma.planVersionModule.create({ data: { planVersionId: version.id, productCode: 'ZAMUREK', moduleCode, defaultEnabled: true } });
+    await prisma.subscription.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', planVersionId: version.id, status: 'ACTIVE', startsAt: new Date(Date.now() - 1_000) } });
+    await prisma.organizationModuleActivation.create({ data: { id: crypto.randomUUID(), organizationId: created.id, productCode: 'ZAMUREK', moduleCode, enabled: true } });
+
+    const productContext = await authorization.requireModuleForProduct(principal, created.id, 'ZAMUREK', moduleCode, 'organization:read');
+    expect(productContext).toMatchObject({
+      productCode: 'ZAMUREK', actorType: 'STAFF', organizationId: created.id,
+      authorizationProvenance: { kind: 'ACTIVE_TENANT_MEMBERSHIP', membershipId: productContext.membershipId },
+    });
+    await expect(prisma.$transaction((tx) => authorization.requireModuleForProductInTransaction(
+      tx, principal, created.id, 'ZAMUREK', moduleCode, 'organization:read',
+    ))).resolves.toMatchObject({ productCode: 'ZAMUREK', actorType: 'STAFF', membershipId: productContext.membershipId });
+
+    await expect(authorization.requireModuleForProduct(principal, created.id, 'ZAMUREK', 'CRM', 'crm:read')).rejects.toThrow();
+    await expect(authorization.requireModuleForProduct(
+      { userId: other.id, sessionId: '00000000-0000-0000-0000-000000000008' }, created.id, 'ZAMUREK', moduleCode, 'organization:read',
+    )).rejects.toThrow();
+
+    const secondEstablishment = await organizations.createEstablishment(principal, created.id, { code: 'SECOND', name: 'Second site', type: 'BRANCH' }) as { id: string };
+    await prisma.membership.update({ where: { id: productContext.membershipId }, data: { scopeMode: 'SELECTED_ESTABLISHMENTS' } });
+    await prisma.membershipEstablishmentScope.create({ data: {
+      membershipId: productContext.membershipId,
+      organizationId: created.id,
+      establishmentId: created.establishment.id,
+    } });
+    const scopedContext = await authorization.requireModuleForProduct(principal, created.id, 'ZAMUREK', moduleCode, 'organization:read');
+    expect(scopedContext.establishmentIds).toEqual([created.establishment.id]);
+    await expect(authorization.assertEstablishment(scopedContext, created.establishment.id)).resolves.toBeUndefined();
+    await expect(authorization.assertEstablishment(scopedContext, secondEstablishment.id)).rejects.toThrow();
+
+    await prisma.subscription.updateMany({ where: { organizationId: created.id, productCode: 'ZAMUREK' }, data: { status: 'SUSPENDED' } });
+    await expect(authorization.requireModuleForProduct(principal, created.id, 'ZAMUREK', moduleCode, 'organization:read')).rejects.toThrow();
+    await expect(authorization.requireModule(principal, created.id, 'AUTH', 'organization:read')).resolves.toMatchObject({ organizationId: created.id });
+
+    await prisma.organization.update({ where: { id: created.id }, data: { status: 'SUSPENDED' } });
+    await expect(authorization.requireModule(principal, created.id, 'AUTH', 'organization:read')).rejects.toThrow();
+    await expect(authorization.requireModuleForProduct(principal, created.id, 'ZAMUREK', moduleCode, 'organization:read')).rejects.toThrow();
   });
 });
