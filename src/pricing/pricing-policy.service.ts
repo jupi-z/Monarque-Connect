@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, type AuditAction, type TaxPolicyStatus } from '@prisma/client';
+import { Prisma, type AuditAction, type TaxCalculationCurrency, type TaxPolicyStatus } from '@prisma/client';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { createDomainEvent } from '../events/domain-event.factory.js';
