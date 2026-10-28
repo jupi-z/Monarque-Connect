@@ -2,7 +2,7 @@
 
 **C0 :** clôturé et suivi dans l'issue #153.
 **C1 :** clôturé; les PR #158–#162 et la CI post-fusion #540 sont vérifiées.
-**C2 : TECHNIQUEMENT LIVRÉ — C2.1 à C2.4 fusionnés; clôture documentaire en cours.** Issue de suivi : [#163](https://github.com/jupi-z/Monarque-Connect/issues/163).
+**C2 : CLÔTURÉ — C2.1 à C2.4 et la synchronisation documentaire sont fusionnés; issue #163 fermée.** La clôture documentaire est la PR [#170](https://github.com/jupi-z/Monarque-Connect/pull/170), fusionnée dans `main@2dff07eae662d8de186d6f23cf831dd72c1dfec9`, avec CI post-fusion [#170 / run 40635438412](https://github.com/jupi-z/Monarque-Connect/actions/runs/40635438412) verte.
 **Dernière baseline fonctionnelle validée :** `main@bef5d7fa92522f71466b9933917853ed96796dd7`; CI post-fusion #559 [réussie](https://github.com/jupi-z/Monarque-Connect/actions/runs/40608585529).
 
 | Lot | État | Gate |

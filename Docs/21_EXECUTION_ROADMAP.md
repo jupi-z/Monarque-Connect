@@ -156,6 +156,8 @@ Insérée immédiatement après la clôture technique de 10A, **avant d'impléme
 
 **Séquence inter-dépôts selon D-09** : cadrage UX/documentaire avant contrats stables; SDK et tests contractuels ZAMUREK après stabilisation des contrats Core nécessaires; intégration fonctionnelle après livraison et vérification des opérations transactionnelles concernées; commercialisation après les gates techniques, commerciaux et réglementaires applicables. Le périmètre V1 ZAMUREK et ses 43 capacités ne sont pas réduits. C2 ne développe ni l'application ZAMUREK ni Monarque Auth.
 
+**C3 — Shared Catalog, Pricing, Measures & FX :** autorisé après synchronisation C2 (PR #170, `main@2dff07e`, CI post-fusion #40635438412 verte). Contrat normatif [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md), suivi [Docs/123](123_C3_EXECUTION_STATUS.md), issue #171. C3.1 contract-first en cours; aucune migration C3 encore livrée. `Item` reste canonique; tarifs commerciaux tenant distincts de FairScale; C4 uniquement raccordera le pricing aux transactions et POS.
+
 ### 10B — probabiliste gouverné, commun aux deux produits
 
 **Plan révisé** : [Docs/109](109_PHASE_10B_SHARED_AI_EXECUTION_PLAN.md). Démarrer après validation des interfaces partagées de 10A.5. Une AI Gateway et un Model Registry partagés, policy par tenant et produit, Knowledge Layer minimale, premier assistant réellement évalué, source KPI déterministe 10A ; pas de moteur IA parallèle ZAMUREK. Respecter [Docs/48](48_AI_SECURITY_AND_EVALUATION.md), confidentialité, sécurité des tools, contrôle coût, résilience. Aucun agent généraliste A3 autonome.

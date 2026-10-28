@@ -2,6 +2,13 @@
 
 `openapi.yaml` est la source normative de la **surface publique API Monarque Connect v1.2**.
 
+Les contrats proposés pour une phase future restent dans `contracts/` et ne
+déclarent aucune route runtime. À partir de C3, le contrat de travail
+`contracts/phase10a5-c3-proposed.openapi.yaml` est explicitement marqué
+`proposed-not-runtime` et validé séparément. Une opération ne rejoint
+`openapi.yaml` qu'avec son implémentation, ses contrôles d'accès et ses tests
+HTTP dans la même tranche livrable.
+
 Le contrat expose notamment :
 - identity/tenancy ;
 - establishments ;
