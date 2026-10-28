@@ -1,6 +1,6 @@
 import { generateKeyPair } from 'node:crypto';
 import { promisify } from 'node:util';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, it } from 'vitest';
 import { exportPKCS8, exportSPKI } from 'jose';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
@@ -36,7 +36,8 @@ describe('C3 platform FX rate HTTP boundary', () => {
   });
 
   it('exposes the FX ingestion route behind the authentication guard', async () => {
-    await request(app.getHttpServer())
+    const server = app.getHttpServer() as Parameters<typeof request>[0];
+    await request(server)
       .post('/api/v1/platform/pricing/fx-rates')
       .set('Idempotency-Key', 'c3-fx-unauthenticated-test-key')
       .send({})
