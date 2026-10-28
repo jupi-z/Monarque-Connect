@@ -1,13 +1,14 @@
 # C3.3 — Prix commerciaux versionnés et registre FX: état d'exécution
 
-**Statut: C3.3.1 livré; implémentation C3.3.2 validée sur son SHA de code, validation du SHA documentaire en attente.** Ce document conserve l'historique de la première tranche puis suit le registre FX en cours. Il ne déclare ni moteur complet de cotation terminé, ni C3.3/C3 clôturé.
+**Statut: C3.3.1 et C3.3.2 livrés; le moteur de cotation C3.3 reste en cours.** Ce document conserve l’historique des validations et ne déclare ni le moteur complet de cotation terminé, ni C3.3/C3 clôturé.
 
 ## Baseline
 
 - Baseline initiale C3.3: `main@909764d461991489250b5da1caf673d209ebfef8`.
 - `main` après fusion C3.3.1: `1a1970504c5a8b7976740c620060292bf37aa408`.
+- `main` après fusion C3.3.2 FX: `ab3d99a3507d3d24c089b071f01e9d7094996305`; CI post-fusion #40665166818 réussie.
 - Backend CI post-fusion C3.2: run [40650502528](https://github.com/jupi-z/Monarque-Connect/actions/runs/40650502528), conclusion `success` sur le SHA de cette baseline.
-- Branche candidate: `monarque/c3-pricing-fx`.
+- Branches livrées: `monarque/c3-pricing-fx` (PR #175) et `monarque/c3-fx-policy-registry` (PR #176).
 - Contrat normatif: [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md).
 
 ## Périmètre de C3.3.1
@@ -56,11 +57,10 @@ Les lignes d'échec ci-dessous sont l'historique des itérations de la PR #175 a
 
 ## C3.3.2 — Registre de taux FX
 
-- PR brouillon [#176](https://github.com/jupi-z/Monarque-Connect/pull/176), branche `monarque/c3-fx-policy-registry`; SHA de code validé `1771207227a090d694392378d7cd598dbaba6c70`.
+- PR [#176](https://github.com/jupi-z/Monarque-Connect/pull/176) fusionnée; SHA `ab3d99a3507d3d24c089b071f01e9d7094996305` (implémentation finale issue du SHA de code `1771207227a090d694392378d7cd598dbaba6c70`).
 - Périmètre: ingestion plateforme allowlistée, taux Decimal immuable, reçus idempotents, audit et Outbox atomiques, sans fournisseur FX externe ni moteur de cotation.
-- CI complète sur ce SHA: [run 40663124677](https://github.com/jupi-z/Monarque-Connect/actions/runs/40663124677), `success`. Les journaux confirment Prisma generate/validate/deploy, migrations depuis zéro et états historiques, OpenAPI, contrats, tests unitaires, intégration PostgreSQL, E2E HTTP, répétitions CRM/Phase 1, build, smoke HTTP et nettoyage de la base isolée.
+- CI PR réussie sur le head final `7e6ec7721e3208dba7e50837847af9dce7230324`: [run 40664290224](https://github.com/jupi-z/Monarque-Connect/actions/runs/40664290224). CI post-fusion réussie sur `main@ab3d99a3507d3d24c089b071f01e9d7094996305`: [run 40665166818](https://github.com/jupi-z/Monarque-Connect/actions/runs/40665166818). La validation couvre Prisma, migrations historiques et depuis zéro, OpenAPI, contrats, tests unitaires, PostgreSQL, E2E HTTP, répétitions CRM/Phase 1, build, smoke HTTP et nettoyage du conteneur isolé.
 - Itérations antérieures conservées: les runs [40662535049](https://github.com/jupi-z/Monarque-Connect/actions/runs/40662535049) et [40662838967](https://github.com/jupi-z/Monarque-Connect/actions/runs/40662838967) ont détecté successivement un import Vitest `expect` manquant puis un import TypeScript inutilisé de `CommercialPriceService`. Les deux défauts ont été corrigés et ne sont pas masqués.
-- Cette mise à jour documentaire produit un nouveau SHA; sa CI complète doit réussir avant que la PR puisse être prête ou fusionnée.
 
 ## Limites et suite
 
