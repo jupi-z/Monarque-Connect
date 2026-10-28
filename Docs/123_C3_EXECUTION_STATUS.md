@@ -13,14 +13,14 @@
 | C1 | DONE | Registre de produits et entitlements scoped | Docs/116, Docs/118; PR #158–#162 |
 | C2 | DONE | Identités externes et principaux tenant | Docs/119–121; PR #164–#169; preuve de clôture CI #561, puis `main@2dff07e` CI post-fusion #170 run 40635438412 |
 | C3.1 | DONE | Audit, contrat normatif et OpenAPI proposé; aucune migration ni route runtime | PR [#172](https://github.com/jupi-z/Monarque-Connect/pull/172), fusionnée au commit `e19bd1f`; CI PR #569 et post-fusion #40639567210 vertes |
-| C3.2 | NOT STARTED | Catalogue, mesures, variantes et offres | Aucun schéma ni DDL C3 livré |
+| C3.2 | IN PROGRESS / NOT VALIDATED | Catalogue, mesures, variantes et offres | Implémentation en cours sur branche dédiée; migration et routes non fusionnées; tests locaux non exécutés pour préserver le poste; CI GitHub-hosted requise. Détails dans [Docs/124](124_C3_2_CATALOG_MEASURES_EXECUTION_EVIDENCE.md). |
 | C3.3 | NOT STARTED | Pricing, politiques, FX et snapshots | Aucun moteur ni taux C3 livré |
 | C3.4 | NOT STARTED | Durcissement, compatibilité et clôture | NOT_RUN |
 | C4–C8 | NOT AUTHORIZED | Hors de cette mission | Pas commencé |
 
 ## Contrat et audit
 
-Le contrat cible et les preuves d'inspection du code sont dans [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md). C3.1 a figé les propriétaires du Core, la distinction Billing SaaS/prix commerciaux, les snapshots, les politiques de précision et d'arrondi, les droits et l'OpenAPI proposé. La PR #172 est fusionnée et ses CI PR/post-fusion sont vertes. Le contrat OpenAPI reste `proposed-not-runtime`; aucun comportement C3 n'est implémenté. C3.2 reste NOT STARTED jusqu'à l'approbation et la fusion de son plan/migration dédiée.
+Le contrat cible et les preuves d'inspection du code sont dans [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md). C3.1 a figé les propriétaires du Core, la distinction Billing SaaS/prix commerciaux, les snapshots, les politiques de précision et d'arrondi, les droits et les contrats OpenAPI proposés; PR #172 est fusionnée et ses CI PR/post-fusion sont vertes. C3.2 est en cours sur une branche dédiée; son implémentation, sa migration et ses contrats runtime restent non validés avant CI GitHub-hosted et fusion. Aucun prix commercial, moteur de calcul de prix, conversion FX runtime ou snapshot financier C3 n'est encore déclaré livré. C3.3 et C3.4 n'ont pas commencé.
 
 ## Gates de clôture C3
 

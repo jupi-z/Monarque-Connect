@@ -281,6 +281,10 @@ enum AuditAction {
   CATALOG_ITEM_CREATED
   CATALOG_ITEM_UPDATED
   CATALOG_ITEM_STATUS_CHANGED
+  CATALOG_VARIANT_CREATED
+  CATALOG_OFFER_CREATED
+  CATALOG_OFFER_UPDATED
+  CATALOG_OFFER_STATUS_CHANGED
   WAREHOUSE_CREATED
   WAREHOUSE_UPDATED
   WAREHOUSE_STATUS_CHANGED
@@ -713,6 +717,7 @@ model User {
   createdMessagingBlocks            MessagingOrganizationBlock[]          @relation("MessagingBlockCreatedBy")
   networkTrustCommandReceipts       NetworkTrustCommandReceipt[]
   messagingCommandReceipts          MessagingCommandReceipt[]
+  catalogCommandReceipts            CatalogCommandReceipt[]
 
   @@index([status])
   @@map("users")
@@ -831,6 +836,7 @@ model ProductCatalog {
   quotaUsages   OrganizationQuotaUsage[]
   quotaReservations QuotaReservation[]
   quotaLedgers  QuotaLedger[]
+  commercialOffers CommercialOffer[]
 
   @@map("product_catalog")
 }
@@ -1131,6 +1137,8 @@ model Organization {
   entitlements                      OrganizationEntitlement[]
   businessParties                   BusinessParty[]
   items                             Item[]
+  commercialOffers                  CommercialOffer[]
+  catalogCommandReceipts            CatalogCommandReceipt[]
   warehouses                        Warehouse[]
   leads                             Lead[]
   opportunities                     Opportunity[]
@@ -1651,6 +1659,7 @@ model Establishment {
   scopeLinks                        MembershipEstablishmentScope[]
   invitationScopeLinks              InvitationEstablishmentScope[]
   warehouses                        Warehouse[]
+  commercialOffers                  CommercialOffer[]
   opportunities                     Opportunity[]
   quotes                            Quote[]
   salesOrders                       SalesOrder[]
@@ -1940,11 +1949,116 @@ model Item {
   inventoryMovements           InventoryMovement[]
   inventoryBalances            InventoryBalance[]
   inventoryReconciliations     InventoryReconciliation[]
+  variants                     ItemVariant[]
+  commercialOffers             CommercialOffer[]
 
   @@unique([id, organizationId])
   @@index([organizationId, active, name])
   @@index([organizationId, type, active])
   @@map("items")
+}
+
+/// Server-controlled, versioned measurement registry. Legacy Item.unit values are not rewritten.
+model MeasureUnit {
+  code            String        @id @db.VarChar(32)
+  displayName     String        @map("display_name") @db.VarChar(80)
+  dimension       String        @db.VarChar(32)
+  baseUnitCode    String        @map("base_unit_code") @db.VarChar(32)
+  numerator       BigInt
+  denominator     BigInt
+  registryVersion Int           @map("registry_version")
+  sourceRevision  String        @map("source_revision") @db.VarChar(80)
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  baseUnit        MeasureUnit   @relation("MeasureUnitBase", fields: [baseUnitCode], references: [code], onDelete: Restrict)
+  derivedUnits    MeasureUnit[] @relation("MeasureUnitBase")
+  offers          CommercialOffer[]
+
+  @@index([active, dimension, code])
+  @@map("measure_units")
+}
+
+/// Explicitly supported currency metadata; this does not alter organization or historical document currencies.
+model CurrencyDefinition {
+  code            String   @id @db.Char(3)
+  minorUnitDigits Int      @map("minor_unit_digits")
+  registryVersion Int      @map("registry_version")
+  sourceRevision  String   @map("source_revision") @db.VarChar(80)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([active, code])
+  @@map("currency_definitions")
+}
+
+model ItemVariant {
+  id             String          @id @db.Uuid
+  itemId         String          @map("item_id") @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  code           String          @db.VarChar(80)
+  displayName    String          @map("display_name") @db.VarChar(160)
+  attributesJson Json            @default("{}") @map("attributes_json")
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  item           Item            @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  offers         CommercialOffer[]
+
+  @@unique([itemId, code])
+  @@unique([id, itemId, organizationId])
+  @@index([organizationId, itemId, active])
+  @@map("item_variants")
+}
+
+enum CommercialOfferStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model CommercialOffer {
+  id                String                @id @db.Uuid
+  organizationId    String                @map("organization_id") @db.Uuid
+  productCode       String                @map("product_code") @db.VarChar(64)
+  itemId            String                @map("item_id") @db.Uuid
+  variantId         String?               @map("variant_id") @db.Uuid
+  establishmentId   String?               @map("establishment_id") @db.Uuid
+  channelCode       String?               @map("channel_code") @db.VarChar(48)
+  sellUnitCode      String                @map("sell_unit_code") @db.VarChar(32)
+  displayName       String?               @map("display_name") @db.VarChar(160)
+  status            CommercialOfferStatus @default(ACTIVE)
+  version           Int                   @default(1)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization      Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product           ProductCatalog        @relation(fields: [productCode], references: [code], onDelete: Restrict)
+  item              Item                  @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  variant           ItemVariant?          @relation(fields: [variantId, itemId, organizationId], references: [id, itemId, organizationId], onDelete: Restrict)
+  establishment     Establishment?        @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sellUnit          MeasureUnit           @relation(fields: [sellUnitCode], references: [code], onDelete: Restrict)
+
+  @@unique([id, organizationId])
+  @@index([organizationId, productCode, status, createdAt, id])
+  @@index([organizationId, establishmentId, productCode, status])
+  @@map("commercial_offers")
+}
+
+/// Stores idempotency fingerprints for catalog create commands; resources are reloaded through scoped authorization.
+model CatalogCommandReceipt {
+  id             String       @id @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  actorUserId    String       @map("actor_user_id") @db.Uuid
+  operation      String       @db.VarChar(80)
+  idempotencyKey String       @map("idempotency_key") @db.VarChar(200)
+  payloadHash    String       @map("payload_hash") @db.VarChar(64)
+  resourceType   String       @map("resource_type") @db.VarChar(40)
+  resourceId     String       @map("resource_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User         @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, actorUserId, operation, idempotencyKey])
+  @@index([organizationId, createdAt])
+  @@map("catalog_command_receipts")
 }
 
 model Warehouse {

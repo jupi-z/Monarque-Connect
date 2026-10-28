@@ -149,6 +149,127 @@ describe('Catalog items referential', () => {
     ]);
     expect(responses.map((response) => response.status).sort((a, b) => a - b)).toEqual([201, 409]);
   });
+
+  it('serves authenticated versioned measure and currency registries without changing tenant currency', async () => {
+    const server = serverOf(app);
+    await request(server).get('/api/v1/catalog/measure-units').expect(401);
+    await request(server).get('/api/v1/catalog/currencies').expect(401);
+    const measures = bodyOf<{ version: string; items: Array<{ code: string; baseUnitCode: string; numerator: string; denominator: string }> }>(await request(server).get('/api/v1/catalog/measure-units').set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    const gram = measures.items.find((unit) => unit.code === 'G');
+    expect(measures.version).toBe('measure-units-v1');
+    expect(gram).toMatchObject({ baseUnitCode: 'KG', numerator: '1', denominator: '1000' });
+    const currencies = bodyOf<{ version: string; items: Array<{ code: string; minorUnitDigits: number; registryVersion: number; sourceRevision: string }> }>(await request(server).get('/api/v1/catalog/currencies').set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    expect(currencies.items).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CDF', minorUnitDigits: 2, registryVersion: 1, sourceRevision: 'six-iso4217-list-one-2026-10' })]));
+    await expect(prisma.organization.findUniqueOrThrow({ where: { id: organizationId }, select: { defaultCurrency: true } })).resolves.toMatchObject({ defaultCurrency: 'EUR' });
+  });
+
+  it('creates tenant-scoped variants and product-scoped offers with replay-safe idempotency', async () => {
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', name: 'Weighted product', unit: 'kg', referencePrice: '20', currency: 'USD' }).expect(201));
+    const variantResponse = await request(server).post(`/api/v1/organizations/${organizationId}/catalog/items/${item.id}/variants`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'variant-create-1').send({ productCode: 'MONARQUE_CONNECT', code: 'RED', displayName: 'Red', attributes: { color: 'red' } }).expect(201);
+    const variant = bodyOf<{ id: string; itemId: string; status: string; attributes: Record<string, string> }>(variantResponse);
+    expect(variant).toMatchObject({ itemId: item.id, status: 'ACTIVE', attributes: { color: 'red' } });
+    const replayedVariant = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/items/${item.id}/variants`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'variant-create-1').send({ productCode: 'MONARQUE_CONNECT', code: 'RED', displayName: 'Red', attributes: { color: 'red' } }).expect(201));
+    expect(replayedVariant.id).toBe(variant.id);
+    await request(server).post(`/api/v1/organizations/${organizationId}/catalog/items/${item.id}/variants`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'variant-create-1').send({ productCode: 'MONARQUE_CONNECT', code: 'RED', displayName: 'Blue', attributes: { color: 'blue' } }).expect(409);
+
+    const offerInput = { productCode: 'MONARQUE_CONNECT', itemId: item.id, variantId: variant.id, sellUnitCode: 'KG', displayName: 'Red weighted product' };
+    const offer = bodyOf<{ id: string; organizationId: string; productCode: string; itemId: string; variantId: string; sellUnitCode: string; version: number }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'offer-create-1').send(offerInput).expect(201));
+    expect(offer).toMatchObject({ organizationId, productCode: 'MONARQUE_CONNECT', itemId: item.id, variantId: variant.id, sellUnitCode: 'KG', version: 1 });
+    const replayedOffer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'offer-create-1').send(offerInput).expect(201));
+    expect(replayedOffer.id).toBe(offer.id);
+
+    await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'offer-zamurek-denied').send({ ...offerInput, productCode: 'ZAMUREK' }).expect(403);
+    await request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', 'offer-update-1').send({ expectedVersion: 1, status: 'INACTIVE' }).expect(200);
+    await request(server).get(`/api/v1/organizations/${organizationId}/catalog/offers?productCode=MONARQUE_CONNECT`).set('Authorization', `Bearer ${ownerToken}`).expect(200).expect((response) => {
+      expect(bodyOf<{ items: Array<{ id: string }> }>(response).items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: offer.id })]));
+    });
+    await expect(prisma.auditEvent.count({ where: { targetId: variant.id, action: 'CATALOG_VARIANT_CREATED' } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { targetId: offer.id, action: { in: ['CATALOG_OFFER_CREATED', 'CATALOG_OFFER_STATUS_CHANGED'] } } })).resolves.toBe(2);
+    await expect(prisma.outboxEvent.count({ where: { aggregateId: offer.id, eventType: { in: ['catalog.offer.created', 'catalog.offer.status_changed'] } } })).resolves.toBe(2);
+  });
+
+  it('does not list or reactivate offers whose item or variant is inactive', async () => {
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', name: 'Deactivatable offer item', unit: 'kg', referencePrice: '1', currency: 'EUR' }).expect(201));
+    const variant = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/items/${item.id}/variants`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `variant-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', code: `VAR-${randomUUID().slice(0, 8)}` }).expect(201));
+    const offer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `offer-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, variantId: variant.id, sellUnitCode: 'KG' }).expect(201));
+    await prisma.itemVariant.update({ where: { id: variant.id }, data: { active: false } });
+    const listedWithInactiveVariant = bodyOf<{ items: Array<{ id: string }> }>(await request(server).get(`/api/v1/organizations/${organizationId}/catalog/offers?productCode=MONARQUE_CONNECT`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    expect(listedWithInactiveVariant.items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: offer.id })]));
+    await request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `reactivate-${randomUUID()}`).send({ expectedVersion: 1, status: 'INACTIVE' }).expect(200);
+    await request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `reactivate-${randomUUID()}`).send({ expectedVersion: 2, status: 'ACTIVE' }).expect(409);
+
+    const itemOffer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `item-offer-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG' }).expect(201));
+    await request(server).post(`/api/v1/organizations/${organizationId}/items/${item.id}/deactivate`).set('Authorization', `Bearer ${ownerToken}`).expect(200);
+    await request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${itemOffer.id}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `item-deactivate-${randomUUID()}`).send({ expectedVersion: 1, status: 'INACTIVE' }).expect(200);
+    await request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${itemOffer.id}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `item-reactivate-${randomUUID()}`).send({ expectedVersion: 2, status: 'ACTIVE' }).expect(409);
+    const listedWithInactiveItem = bodyOf<{ items: Array<{ id: string }> }>(await request(server).get(`/api/v1/organizations/${organizationId}/catalog/offers?productCode=MONARQUE_CONNECT`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    expect(listedWithInactiveItem.items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: itemOffer.id })]));
+  });
+
+  it('does not list or reactivate offers whose registered selling unit is inactive', async () => {
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', name: 'Inactive unit service', unit: 'hour', referencePrice: '1', currency: 'EUR' }).expect(201));
+    const unique = randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase();
+    const unitCode = `TEST_${unique}`;
+    const idempotencyKey = `unit-offer-${unique}`;
+    await prisma.measureUnit.create({ data: { code: unitCode, displayName: 'Temporary test time unit', dimension: 'TIME', baseUnitCode: 'HOUR', numerator: 1n, denominator: 1n, registryVersion: 1, sourceRevision: `test-${unique}` } });
+    let offerId: string | undefined;
+    try {
+      offerId = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', idempotencyKey).send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: unitCode }).expect(201)).id;
+      await prisma.measureUnit.update({ where: { code: unitCode }, data: { active: false } });
+      const listed = bodyOf<{ items: Array<{ id: string }> }>(await request(server).get(`/api/v1/organizations/${organizationId}/catalog/offers?productCode=MONARQUE_CONNECT`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+      expect(listed.items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: offerId })]));
+      await request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${offerId}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `unit-offer-inactive-${unique}`).send({ expectedVersion: 1, status: 'INACTIVE' }).expect(200);
+      await request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${offerId}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `unit-offer-reactivate-${unique}`).send({ expectedVersion: 2, status: 'ACTIVE' }).expect(409);
+    } finally {
+      await prisma.$transaction(async (tx) => {
+        if (offerId) {
+          await tx.catalogCommandReceipt.deleteMany({ where: { organizationId, resourceId: offerId } });
+          await tx.auditEvent.deleteMany({ where: { targetId: offerId } });
+          await tx.outboxEvent.deleteMany({ where: { aggregateId: offerId } });
+          await tx.commercialOffer.deleteMany({ where: { id: offerId, organizationId } });
+        } else {
+          await tx.catalogCommandReceipt.deleteMany({ where: { organizationId, idempotencyKey } });
+        }
+        await tx.item.deleteMany({ where: { id: item.id, organizationId } });
+        await tx.measureUnit.delete({ where: { code: unitCode } });
+      });
+    }
+  });
+
+  it('uses optimistic concurrency so only one competing offer update is applied', async () => {
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', name: 'Concurrent offer service', unit: 'hour', referencePrice: '1', currency: 'EUR' }).expect(201));
+    const offer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `concurrent-offer-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'HOUR' }).expect(201));
+    const responses = await Promise.all([
+      request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `concurrent-update-a-${randomUUID()}`).send({ expectedVersion: 1, displayName: 'Concurrent A' }),
+      request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `concurrent-update-b-${randomUUID()}`).send({ expectedVersion: 1, displayName: 'Concurrent B' }),
+    ]);
+    expect(responses.map((response) => response.status).sort((a, b) => a - b)).toEqual([200, 409]);
+    await expect(prisma.commercialOffer.findUniqueOrThrow({ where: { id: offer.id }, select: { version: true } })).resolves.toEqual({ version: 2 });
+    await expect(prisma.outboxEvent.count({ where: { aggregateId: offer.id, eventType: 'catalog.offer.updated' } })).resolves.toBe(1);
+  });
+
+  it('limits channel-specific offers to their channel and rejects blank update names', async () => {
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'SERVICE', name: 'Channel offer service', unit: 'hour', referencePrice: '1', currency: 'EUR' }).expect(201));
+    const channelOffer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `channel-offer-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'HOUR', channelCode: 'POS' }).expect(201));
+    const publicList = bodyOf<{ items: Array<{ id: string }> }>(await request(server).get(`/api/v1/organizations/${organizationId}/catalog/offers?productCode=MONARQUE_CONNECT`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    expect(publicList.items).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: channelOffer.id })]));
+    const globalOffer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `global-offer-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'HOUR' }).expect(201));
+    const posList = bodyOf<{ items: Array<{ id: string }> }>(await request(server).get(`/api/v1/organizations/${organizationId}/catalog/offers?productCode=MONARQUE_CONNECT&channelCode=POS`).set('Authorization', `Bearer ${ownerToken}`).expect(200));
+    expect(posList.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: channelOffer.id }), expect.objectContaining({ id: globalOffer.id })]));
+    await request(server).patch(`/api/v1/organizations/${organizationId}/catalog/offers/${channelOffer.id}`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `blank-name-${randomUUID()}`).send({ expectedVersion: 1, displayName: '   ' }).expect(400);
+  });
+
+  it('rejects an offer that references an item owned by another organization', async () => {
+    const server = serverOf(app);
+    const foreignOrganization = bodyOf<{ id: string }>(await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({ businessTypeCode: 'SERVICE_PROVIDER', name: 'Separate catalog tenant', handle: `phase3-foreign-${randomUUID().slice(0, 8)}`, defaultCurrency: 'EUR', establishmentName: 'Foreign office' }).expect(201));
+    const foreignItem = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${foreignOrganization.id}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', name: 'Foreign item', unit: 'kg', referencePrice: '1', currency: 'EUR' }).expect(201));
+    await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `cross-tenant-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', itemId: foreignItem.id, sellUnitCode: 'KG' }).expect(404);
+  });
 });
 
 function bodyOf<T>(response: Response): T {
