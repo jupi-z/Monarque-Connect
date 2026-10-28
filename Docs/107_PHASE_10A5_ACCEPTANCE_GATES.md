@@ -2,7 +2,7 @@
 
 **État initial : NOT_RUN pour tous les critères, aucun code implémenté par ce cadrage.** Les invariants [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md) sont des critères **P0** supplémentaires avant migration ; une mise à jour documentaire n'est pas une preuve technique.
 
-**Mise à jour C3 du 28/10/2026 :** le C3.1 contract-first est en cours selon [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md) et [Docs/123](123_C3_EXECUTION_STATUS.md). Les gates C3 restent `NOT_RUN` jusqu'aux preuves d'implémentation et de CI; aucune migration C3 n'est autorisée par ce statut seul.
+**Mise à jour C3 du 28/10/2026 :** le gate documentaire C3.1 est satisfait par la PR #172, fusionnée dans `main@e19bd1fba2bb3757bb13ea8466383bd34fbb7846`; sa CI post-fusion #40639567210 est verte. Voir [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md) et [Docs/123](123_C3_EXECUTION_STATUS.md). Les gates d'implémentation C3.2–C3.4 restent `NOT_RUN`; aucune migration C3 n'est incluse dans la clôture C3.1.
 
 | Gate | Priorité | Preuve exigée |
 |---|---|---|

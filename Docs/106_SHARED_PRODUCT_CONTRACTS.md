@@ -1,6 +1,6 @@
 # Contrats normatifs inter-produit — Monarque Connect Core ↔ ZAMUREK V1
 
-**Addendum C3 au 28/10/2026 :** le contrat normatif partagé Catalogue/Pricing/Mesures/FX est suivi dans [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md). Il est proposé en C3.1 et ne décrit encore aucune route C3 livrée. Le produit consommateur doit utiliser l'offre et le snapshot canoniques du Core une fois les contrats nécessaires stabilisés; pas de catalogue/pricing maître ni de schéma Prisma duplicatif dans ZAMUREK. Aucun prix hypothétique ZAMUREK n'est activé.
+**Addendum C3 au 28/10/2026 :** le contrat normatif partagé Catalogue/Pricing/Mesures/FX est gelé dans [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md) par la PR #172 (fusion `e19bd1f`, CI post-fusion #40639567210 verte). L'OpenAPI C3 demeure `proposed-not-runtime`; aucune route ni fonction C3 n'est livrée. Le produit consommateur doit utiliser l'offre et le snapshot canoniques du Core une fois les contrats nécessaires stabilisés; pas de catalogue/pricing maître ni de schéma Prisma duplicatif dans ZAMUREK. Aucun prix hypothétique ZAMUREK n'est activé.
 
 **Statut : contrats futurs `PLANNED`; les contrats internes de catalogue et de résolution produit pour C1 sont figés dans [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md).** Aucun endpoint de ce document n'est actuellement disponible du seul fait de cette spécification. Les arbitrages de compatibilité sont définis dans [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), B-00 à B-09.
 
