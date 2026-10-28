@@ -33,6 +33,8 @@
 | Prisma validate/generate, lint, typecheck, contrats, OpenAPI, PostgreSQL, E2E, build et smoke HTTP | `NOT_RUN`: à exécuter sur GitHub-hosted par CI PR. |
 | CI PR `#175`, SHA `422a73e060d840048ab8f88ab5b6925da41aea5d` | `FAILURE`: [run 40654523289](https://github.com/jupi-z/Monarque-Connect/actions/runs/40654523289), job `validate-pr / validate`. Prisma `generate` a refusé le nom de l'index `commercial_price_versions_org_product_offer_currency_effective_idx`, supérieur à la limite PostgreSQL de 63 octets. `validate-main` a été `SKIPPED`. |
 | Correction de l'index | Renommage cohérent en `commercial_price_versions_price_scope_time_idx` dans le schéma Prisma, la migration et la preuve structurelle SQL. Vérification statique légère effectuée; nouvelle CI GitHub-hosted et nouvelle validation Prisma restent `PENDING` sur le SHA correctif. |
+| CI PR `#175`, SHA `1aff84d06130c1f5c3646aa1d4be6ce520dc1264` | `FAILURE`: [run 40654853484](https://github.com/jupi-z/Monarque-Connect/actions/runs/40654853484), annotation ESLint `no-unsafe-assignment` sur l'assertion de schéma `PositiveCommercialPriceAmount`. Les vérifications précédentes du même job ont atteint le lint; l'échec n'est pas masqué. |
+| Correction du contrat de test | L'assertion remplace `expect.any(String)` par le motif décimal attendu explicitement; aucune assertion n'est retirée. La validation GitHub-hosted du nouveau SHA reste `PENDING`. |
 | CI post-fusion | `NOT_RUN`: la PR n'est pas fusionnée. |
 | Déploiement ou validation production | `NOT_RUN` et hors périmètre. |
 

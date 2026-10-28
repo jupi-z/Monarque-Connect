@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 type Parameter = { $ref?: string; name?: string; in?: string; required?: boolean; schema?: { pattern?: string } };
 type Operation = { operationId?: string; parameters?: Parameter[]; 'x-required-principal'?: string; 'x-required-roles'?: string[]; 'x-required-permissions'?: string[]; 'x-product-entitlement-required'?: boolean; 'x-establishment-scope-derived-from-resource'?: boolean };
 type PathItem = { parameters?: Parameter[]; get?: Operation; post?: Operation; patch?: Operation };
-type Schema = { $ref?: string; type?: string; required?: string[]; minProperties?: number; properties?: Record<string, { $ref?: string; type?: string; items?: { type?: string }; pattern?: string }> };
+type Schema = { $ref?: string; type?: string; pattern?: string; required?: string[]; minProperties?: number; properties?: Record<string, { $ref?: string; type?: string; items?: { type?: string }; pattern?: string }> };
 type Document = { paths: Record<string, PathItem>; components: { schemas: Record<string, Schema | undefined> } };
 
 const expected: Array<[string, keyof PathItem, string]> = [
@@ -83,7 +83,10 @@ describe('C3 catalog runtime contracts', () => {
     expect(operation?.parameters).toContainEqual(expect.objectContaining({ $ref: '#/components/parameters/IdempotencyKey' }));
     expect(schema(spec, 'CreateCommercialPriceVersion').required).toEqual(['amount', 'currencyCode', 'priceUnitCode']);
     expect(schema(spec, 'CreateCommercialPriceVersion').properties?.amount?.$ref).toBe('#/components/schemas/PositiveCommercialPriceAmount');
-    expect(schema(spec, 'PositiveCommercialPriceAmount')).toMatchObject({ type: 'string', pattern: expect.any(String) });
+    expect(schema(spec, 'PositiveCommercialPriceAmount')).toMatchObject({
+      type: 'string',
+      pattern: '^(?=.*[1-9])(?:0|[1-9][0-9]{0,15})(?:\\.[0-9]{1,8})?$',
+    });
     expect(schema(spec, 'CommercialPriceVersion').required).toContain('effectiveFrom');
   });
 });
