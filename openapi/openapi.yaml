@@ -16,6 +16,7 @@ tags:
   - { name: Memberships }
   - { name: Parties }
   - { name: Catalog }
+  - { name: Pricing }
   - { name: CRM }
   - { name: Quotes }
   - { name: Orders }
@@ -668,6 +669,102 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CommercialPriceVersion" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/pricing/policy-versions:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Pricing]
+      operationId: createPricingPolicyVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:policy:manage]
+      x-product-entitlement-required: true
+      description: Creates an immutable, product-scoped policy version. Omitted effectiveFrom uses server time; explicit dates must be future-dated.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePricingPolicyVersion" }
+      responses:
+        "201":
+          description: Immutable pricing policy version created or exactly replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PricingPolicyVersion" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/pricing/tax-policy-versions:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Pricing]
+      operationId: createTaxPolicyVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:tax:manage]
+      x-product-entitlement-required: true
+      description: Creates a tenant-scoped technical tax configuration in DRAFT; no legal certification is implied.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTaxPolicyVersion" }
+      responses:
+        "201":
+          description: Draft tax configuration created or exactly replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaxPolicyVersion" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: taxPolicyVersionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Pricing]
+      operationId: activateTaxPolicyVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:tax:manage]
+      x-product-entitlement-required: true
+      description: Explicitly activates a tenant-reviewed technical policy; this acknowledgement makes no legal-compliance claim.
+      parameters:
+        - name: productCode
+          in: query
+          required: true
+          schema: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActivateTaxPolicyVersion" }
+      responses:
+        "200":
+          description: Tax policy version is active or exactly replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaxPolicyVersion" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -4613,6 +4710,78 @@ components:
         priceUnitCode: { type: string }
         effectiveFrom: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
+    CreatePricingPolicyVersion:
+      type: object
+      additionalProperties: false
+      required: [productCode, code, roundingMode, maxFxAgeSeconds]
+      properties:
+        productCode: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
+        code: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" }
+        effectiveFrom: { type: string, format: date-time, description: Server time when omitted; explicit values must be future timestamps. }
+        roundingMode: { type: string, enum: [HALF_UP] }
+        maxFxAgeSeconds: { type: integer, minimum: 1, maximum: 2592000 }
+        allowedCurrencies: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, pattern: "^[A-Z]{3}$" } }
+        allowedFxSources: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, pattern: "^[A-Z][A-Z0-9._-]{0,63}$" } }
+        discountRuleCodes: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" } }
+        taxPolicyCodes: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" } }
+    PricingPolicyVersion:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, productCode, code, version, effectiveFrom, roundingMode, calculationScale, maxFxAgeSeconds, allowedCurrencies, allowedFxSources, discountRuleCodes, taxPolicyCodes, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
+        code: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" }
+        version: { type: integer, minimum: 1 }
+        effectiveFrom: { type: string, format: date-time }
+        roundingMode: { type: string, enum: [HALF_UP] }
+        calculationScale: { type: integer, const: 18 }
+        maxFxAgeSeconds: { type: integer, minimum: 1, maximum: 2592000 }
+        allowedCurrencies: { type: array, items: { type: string, pattern: "^[A-Z]{3}$" } }
+        allowedFxSources: { type: array, items: { type: string } }
+        discountRuleCodes: { type: array, items: { type: string } }
+        taxPolicyCodes: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+    CreateTaxPolicyVersion:
+      type: object
+      additionalProperties: false
+      required: [productCode, code, jurisdictionCode, taxCategoryCode, rate, calculationCurrency, configurationReference]
+      properties:
+        productCode: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
+        code: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" }
+        jurisdictionCode: { type: string, minLength: 2, maxLength: 64, pattern: "^[A-Z0-9][A-Z0-9._:-]{1,63}$" }
+        taxCategoryCode: { type: string, minLength: 1, maxLength: 64, pattern: "^[A-Z][A-Z0-9._-]{0,63}$" }
+        rate: { type: string, maxLength: 25, pattern: "^(?:0|[1-9]\\d{0,5})(?:\\.\\d{1,18})?$" }
+        calculationCurrency: { type: string, enum: [SOURCE, TARGET] }
+        effectiveFrom: { type: string, format: date-time }
+        configurationReference: { type: string, minLength: 1, maxLength: 512 }
+    ActivateTaxPolicyVersion:
+      type: object
+      additionalProperties: false
+      required: [acknowledgement]
+      properties:
+        acknowledgement: { type: string, const: OWNER_REVIEWED_CONFIGURATION }
+    TaxPolicyVersion:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, productCode, code, version, status, jurisdictionCode, taxCategoryCode, rate, calculationCurrency, effectiveFrom, configurationReference, activatedAt, tenantReviewAcknowledgement, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
+        code: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" }
+        version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [DRAFT, ACTIVE] }
+        jurisdictionCode: { type: string }
+        taxCategoryCode: { type: string }
+        rate: { type: string, maxLength: 25, pattern: "^(?:0|[1-9]\\d{0,5})\\.\\d{18}$" }
+        calculationCurrency: { type: string, enum: [SOURCE, TARGET] }
+        effectiveFrom: { type: string, format: date-time }
+        configurationReference: { type: string, maxLength: 512 }
+        activatedAt: { type: [string, "null"], format: date-time }
+        tenantReviewAcknowledgement: { type: [string, "null"], enum: [OWNER_REVIEWED_CONFIGURATION, null] }
+        createdAt: { type: string, format: date-time }
     IngestFxRate:
       type: object
       additionalProperties: false

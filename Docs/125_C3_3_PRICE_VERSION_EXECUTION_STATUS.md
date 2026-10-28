@@ -64,4 +64,17 @@ Les lignes d'échec ci-dessous sont l'historique des itérations de la PR #175 a
 
 ## Limites et suite
 
-Cette tranche apporte le registre persistant `FxRate` et ses reçus d’ingestion, mais pas encore la persistance ni les opérations de `PricingPolicyVersion`, `TaxPolicyVersion`, `PricingQuote`, `PricingQuoteLine` ou `PricingQuoteRevocation`, ni la sélection d’un taux dans une cotation commerciale. Elle ne configure aucun fournisseur FX, ne déclare aucune conformité fiscale, ne remplace pas les anciens calculs Sales/Billing et ne réalise aucune transaction POS. Ces points restent ouverts dans C3.3/C3.4 et doivent être livrés avant toute clôture C3.
+À la baseline `main@825c7e6dc8556ab9bd30a85c8027d06276b676fb`, le registre `FxRate` est persistant et ingesté avec reçus idempotents. `PricingPolicyVersion` et `TaxPolicyVersion` n’y sont pas encore persistés; leur livraison est proposée dans la PR #178, actuellement en brouillon. `PricingQuote`, `PricingQuoteLine`, `PricingQuoteRevocation` et la sélection d’un taux dans une cotation commerciale restent à réaliser. Aucun fournisseur FX n’est configuré, aucune conformité fiscale n’est déclarée, les calculs historiques Sales/Billing ne sont pas remplacés et aucune transaction POS n’est livrée.
+
+## C3.3.3 — Registre des policies de prix et configurations fiscales (en cours)
+
+- PR [#178](https://github.com/jupi-z/Monarque-Connect/pull/178), état `draft`, head initial `78edeb1741d509882e9fb2cb02a332cdeed65b31`, base `main@825c7e6dc8556ab9bd30a85c8027d06276b676fb`.
+- Périmètre proposé: policies versionnées immuables par tenant/produit; configuration fiscale en `DRAFT`, activation explicite OWNER/ADMIN; contrôle des droits produit, idempotence, concurrence, audit et Outbox atomiques; triggers PostgreSQL d’immuabilité; aucun calcul fiscal ni conformité légale.
+- Contrat runtime et E2E HTTP/PostgreSQL ajoutés sur la branche. Le premier run [40672829952](https://github.com/jupi-z/Monarque-Connect/actions/runs/40672829952) a échoué au lint parce que les delegates Prisma des modèles non encore présents dans le schéma étaient référencés par les tests. C’est un échec de compilation du test de caractérisation; aucune assertion HTTP n’a été exécutée. La CI après ajout des modèles et du service n’est pas encore observée à la date de cette mise à jour.
+- Validations de migration, OpenAPI, contrat, tests et build pour ce lot : `PENDING` jusqu’aux résultats GitHub Actions sur le SHA complet.
+
+La conception n’inclut pas de statut `REVOKED` sans commande de révocation réellement définie; une correction de politique se fait par une nouvelle version et les historiques demeurent immuables.
+
+## Limites et suite
+
+Les quotes, les lignes de quote, les snapshots de calcul et la consommation commerciale de taux FX restent à réaliser dans C3.3/C3.4. La configuration d’un fournisseur FX réel, la conformité fiscale et le POS ne sont pas inclus dans ces livraisons.

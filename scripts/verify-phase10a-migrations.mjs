@@ -96,7 +96,7 @@ async function structuralProof(databaseUrl) {
     const expectedTables = [
       'metric_snapshots', 'insight_alerts', 'external_identities', 'external_identity_link_challenges',
       'measure_units', 'currency_definitions', 'item_variants', 'commercial_offers', 'catalog_command_receipts',
-      'commercial_price_versions',
+      'commercial_price_versions', 'pricing_policy_versions', 'tax_policy_versions',
     ];
     const projectionTables = ['metric_snapshots', 'insight_alerts'];
     const tables = await pool.query(
@@ -105,6 +105,28 @@ async function structuralProof(databaseUrl) {
     );
     const foundTables = new Set(tables.rows.map((row) => row.table_name));
     for (const table of expectedTables) if (!foundTables.has(table)) throw new Error(`Missing required migration-proof table ${table}`);
+
+    const policyConstraints = await pool.query(
+      `SELECT conname FROM pg_constraint WHERE conrelid = ANY($1::regclass[])`,
+      [['public.pricing_policy_versions', 'public.tax_policy_versions']],
+    );
+    const policyConstraintNames = new Set(policyConstraints.rows.map((row) => row.conname));
+    for (const required of [
+      'pricing_policy_versions_code_check', 'pricing_policy_versions_rounding_mode_check',
+      'pricing_policy_versions_calculation_scale_check', 'pricing_policy_versions_fx_age_check',
+      'pricing_policy_versions_scope_code_version_key', 'tax_policy_versions_rate_check',
+      'tax_policy_versions_activation_check', 'tax_policy_versions_scope_code_version_key',
+    ]) if (!policyConstraintNames.has(required)) throw new Error(`Missing C3 pricing policy constraint ${required}`);
+    const policyTriggers = await pool.query(
+      `SELECT c.relname AS table_name, t.tgname, pg_get_functiondef(t.tgfoid) AS function_definition
+       FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
+       WHERE c.relname = ANY($1::text[]) AND NOT t.tgisinternal`,
+      [['pricing_policy_versions', 'tax_policy_versions']],
+    );
+    if (!policyTriggers.rows.some((row) => row.table_name === 'pricing_policy_versions' && row.function_definition.includes('pricing policy versions are immutable')) ||
+        !policyTriggers.rows.some((row) => row.table_name === 'tax_policy_versions' && row.function_definition.includes('DRAFT to ACTIVE acknowledgement'))) {
+      throw new Error('C3 pricing policy immutability/activation triggers are missing');
+    }
 
     const priceConstraints = await pool.query(
       `SELECT conname, contype, pg_get_constraintdef(oid) AS definition
@@ -419,7 +441,7 @@ try {
   const c1AfterCounts = await sourceCounts(databaseUrls.c1Upgrade);
   if (JSON.stringify(c1BeforeCounts) !== JSON.stringify(c1AfterCounts)) throw new Error('C1 migration changed historical source-table row counts');
 
-  console.log(`Phase 10A.5 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade, and current-main upgrade; product catalog/backfill, scoped entitlements, identity registry/challenges and immutability, exact C3 measure/currency registries, tenant-scoped catalog constraints and idempotency, audit enum values, projection constraints, idempotent seed, and historical source-row preservation verified.`);
+  console.log(`Phase 10A.5 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade, and current-main upgrade; product catalog/backfill, scoped entitlements, identity registry/challenges and immutability, exact C3 measure/currency registries, tenant-scoped catalog and pricing policy constraints/idempotency/immutability, audit enum values, projection constraints, idempotent seed, and historical source-row preservation verified.`);
 } finally {
   await dropDatabase(adminPool, databaseNames.empty);
   await dropDatabase(adminPool, databaseNames.upgrade);

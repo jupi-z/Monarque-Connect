@@ -1,6 +1,6 @@
 # C3 — Shared Catalog, Pricing, Measures & FX: contrat normatif
 
-**Statut : CONTRAT C3.1 GELÉ, aucun modèle ou endpoint C3 livré.** Le contrat proposé a été fusionné par PR #172 au commit `e19bd1fba2bb3757bb13ea8466383bd34fbb7846`; CI post-fusion [#40639567210](https://github.com/jupi-z/Monarque-Connect/actions/runs/40639567210) verte. Ce document fige les frontières et le comportement attendu avant migration; l'OpenAPI reste `proposed-not-runtime`. L'implémentation C3.2+ et les preuves correspondantes sont suivies dans [Docs/123](123_C3_EXECUTION_STATUS.md) et l'issue [#171](https://github.com/jupi-z/Monarque-Connect/issues/171).
+**Statut : contrat C3.1 gelé; C3.2, C3.3.1 et C3.3.2 sont livrés sur main.** Le contrat initial a été fusionné par PR #172 au commit `e19bd1fba2bb3757bb13ea8466383bd34fbb7846`; les livraisons suivantes et leurs preuves sont consignées dans [Docs/123](123_C3_EXECUTION_STATUS.md), [Docs/124](124_C3_2_CATALOG_MEASURES_EXECUTION_EVIDENCE.md) et [Docs/125](125_C3_3_PRICE_VERSION_EXECUTION_STATUS.md). Le contrat OpenAPI est maintenant partiellement implémenté: registre FX, offres/prix, variantes, puis policies de tarification et fiscalité sont suivis opération par opération. La PR #178 est en cours et ne constitue pas encore une preuve fusionnée.
 
 ## 1. Base de code auditée et propriétaires
 
@@ -79,7 +79,7 @@ Ces routes sont **PLANNED** jusqu'à leur livraison et leur présence dans l'Ope
 
 Les permissions tenant distinctes sont `pricing:quote:create`, `pricing:quote:read`, `pricing:price:publish`, `pricing:policy:manage` et `pricing:tax:manage`. CATALOG read/write ne donne pas le droit de publier un prix. Initialement OWNER/ADMIN peuvent publier tarifs et gérer les policies; STAFF SALES/OPERATIONS peuvent demander et lire une cotation selon leurs permissions Sales; FINANCE peut lire les cotations. Les autres rôles reçoivent uniquement les permissions explicitement présentes dans la matrice C3. La capacité d'ingérer FX est PLATFORM seulement et reste séparée des permissions tenant.
 
-Le contrat proposé complet est versionné dans [`contracts/phase10a5-c3-proposed.openapi.yaml`](../contracts/phase10a5-c3-proposed.openapi.yaml) et vérifié par [`tests/contracts/phase10a5-c3-pricing.contract.test.ts`](../tests/contracts/phase10a5-c3-pricing.contract.test.ts). Le fichier reste `proposed-not-runtime`: ses routes ne sont pas disponibles tant que leurs contrôleurs ne sont pas implémentés puis ajoutés à l'OpenAPI runtime.
+Le contrat complet est versionné dans [`contracts/phase10a5-c3-proposed.openapi.yaml`](../contracts/phase10a5-c3-proposed.openapi.yaml) et vérifié par [`tests/contracts/phase10a5-c3-pricing.contract.test.ts`](../tests/contracts/phase10a5-c3-pricing.contract.test.ts). Son état `partially-implemented` distingue les routes effectivement présentes dans `openapi/openapi.yaml` des routes encore planifiées. La PR #178 ajoute au contrat runtime les opérations de création des policies et d'activation d'une policy fiscale; elles restent en cours de validation jusqu'à leur fusion.
 
 Schemas OpenAPI normatifs (les champs décimaux sont `string`, regex décimale non exponentielle; les dates sont RFC 3339 UTC):
 

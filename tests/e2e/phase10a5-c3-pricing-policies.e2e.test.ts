@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { exportPKCS8, exportSPKI } from 'jose';
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { Response } from 'supertest';
@@ -34,6 +35,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     app.useGlobalFilters(new ProblemDetailsFilter());
     await app.init();
     prisma = app.get(PrismaService);
+    app.get(ConfigService).set('PRICING_FX_ALLOWED_SOURCES', ['TEST_FIXTURE']);
     await seedReferenceData(prisma);
   });
 
@@ -62,7 +64,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
 
   it('serializes concurrent policy version creation for one tenant/product/code', async () => {
     const tenant = await createTenant(app, prisma);
-    const payload = pricingPolicyPayload(`CONCURRENT_${randomUUID().replaceAll('-', '').slice(0, 12)}`);
+    const payload = { ...pricingPolicyPayload(`CONCURRENT_${randomUUID().replaceAll('-', '').slice(0, 12)}`), effectiveFrom: new Date(Date.now() + 60_000).toISOString() };
     const route = `/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`;
     const submit = (suffix: string) => request(serverOf(app)).post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-race-${suffix}-${randomUUID()}`).send(payload);
     const [left, right] = await Promise.all([submit('left'), submit('right')]);
@@ -77,20 +79,20 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     const route = `/api/v1/organizations/${tenant.organizationId}/pricing/tax-policy-versions`;
     const draft = bodyOf<{ id: string; status: string; rate: string; jurisdictionCode: string; configurationReference: string }>(await request(serverOf(app))
       .post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', key).send(payload).expect(201));
-    expect(draft).toMatchObject({ status: 'DRAFT', rate: '0.16000000', jurisdictionCode: payload.jurisdictionCode, configurationReference: payload.configurationReference });
-    await request(serverOf(app)).post(`/api/v1/organizations/${tenant.organizationId}/pricing/tax-policy-versions/${draft.id}/activate`).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-tax-bad-ack-${randomUUID()}`).send({ acknowledgement: 'LEGAL_COMPLIANCE_CONFIRMED' }).expect(400);
+    expect(draft).toMatchObject({ status: 'DRAFT', rate: '0.160000000000000000', jurisdictionCode: payload.jurisdictionCode, configurationReference: payload.configurationReference });
+    await request(serverOf(app)).post(`/api/v1/organizations/${tenant.organizationId}/pricing/tax-policy-versions/${draft.id}/activate`).query({ productCode: payload.productCode }).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-tax-bad-ack-${randomUUID()}`).send({ acknowledgement: 'LEGAL_COMPLIANCE_CONFIRMED' }).expect(400);
 
     const activateRoute = `/api/v1/organizations/${tenant.organizationId}/pricing/tax-policy-versions/${draft.id}/activate`;
     const activationKey = `c3-tax-activate-${randomUUID()}`;
     const acknowledgement = { acknowledgement: 'OWNER_REVIEWED_CONFIGURATION' };
     const active = bodyOf<{ id: string; status: string; activatedAt: string | null }>(await request(serverOf(app))
-      .post(activateRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', activationKey).send(acknowledgement).expect(200));
+      .post(activateRoute).query({ productCode: payload.productCode }).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', activationKey).send(acknowledgement).expect(200));
     expect(active).toMatchObject({ id: draft.id, status: 'ACTIVE' });
     expect(active.activatedAt).toBeTruthy();
     const replay = bodyOf<{ id: string; status: string }>(await request(serverOf(app))
-      .post(activateRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', activationKey).send(acknowledgement).expect(200));
+      .post(activateRoute).query({ productCode: payload.productCode }).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', activationKey).send(acknowledgement).expect(200));
     expect(replay).toMatchObject({ id: draft.id, status: 'ACTIVE' });
-    await request(serverOf(app)).post(activateRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', activationKey).send({ acknowledgement: 'OWNER_REVIEWED_CONFIGURATION', ignored: true }).expect(400);
+    await request(serverOf(app)).post(activateRoute).query({ productCode: payload.productCode }).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', activationKey).send({ acknowledgement: 'OWNER_REVIEWED_CONFIGURATION', ignored: true }).expect(400);
 
     await expect(prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'TaxPolicyVersion', targetId: draft.id, action: 'PRICING_TAX_POLICY_ACTIVATED' } })).resolves.toBe(1);
     await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'TaxPolicyVersion', aggregateId: draft.id, eventType: 'pricing.tax_policy_version.activated' } })).resolves.toBe(1);
@@ -107,6 +109,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     const route = `/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`;
     await request(serverOf(app)).post(route).set('Authorization', `Bearer ${sales.token}`).set('Idempotency-Key', `c3-policy-sales-${randomUUID()}`).send(pricingPolicyPayload()).expect(403);
     await request(serverOf(app)).post(`/api/v1/organizations/${outsider.organizationId}/pricing/policy-versions`).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-cross-${randomUUID()}`).send(pricingPolicyPayload()).expect(403);
+    await request(serverOf(app)).post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-product-${randomUUID()}`).send(pricingPolicyPayload(undefined, 'ZAMUREK')).expect(403);
     await request(serverOf(app)).post(route).set('Idempotency-Key', `c3-policy-unauth-${randomUUID()}`).send({}).expect(401);
     await expect(prisma.pricingPolicyVersion.count({ where: { organizationId: tenant.organizationId } })).resolves.toBe(0);
     await expect(prisma.pricingPolicyVersion.count({ where: { organizationId: outsider.organizationId } })).resolves.toBe(0);
@@ -125,8 +128,8 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
   });
 });
 
-function pricingPolicyPayload(code = `POLICY_${randomUUID().replaceAll('-', '').slice(0, 12)}`) {
-  return { productCode: 'MONARQUE_CONNECT', code, roundingMode: 'HALF_UP', maxFxAgeSeconds: 86400, allowedCurrencies: ['CDF', 'USD'], allowedFxSources: ['TEST_FIXTURE'], discountRuleCodes: [], taxPolicyCodes: [] };
+function pricingPolicyPayload(code = `POLICY_${randomUUID().replaceAll('-', '').slice(0, 12)}`, productCode = 'MONARQUE_CONNECT') {
+  return { productCode, code, roundingMode: 'HALF_UP', maxFxAgeSeconds: 86400, allowedCurrencies: ['CDF', 'USD'], allowedFxSources: ['TEST_FIXTURE'], discountRuleCodes: [], taxPolicyCodes: [] };
 }
 
 function taxPolicyPayload() {
