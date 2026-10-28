@@ -65,7 +65,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
 
   it('serializes concurrent policy version creation for one tenant/product/code', async () => {
     const tenant = await createTenant(app, prisma);
-    const payload = { ...pricingPolicyPayload(`CONCURRENT_${randomUUID().replaceAll('-', '').slice(0, 12)}`), effectiveFrom: new Date(Date.now() + 60_000).toISOString() };
+    const payload = { ...pricingPolicyPayload(`CONCURRENT_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`), effectiveFrom: new Date(Date.now() + 60_000).toISOString() };
     const route = `/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`;
     const submit = (suffix: string) => request(serverOf(app)).post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-race-${suffix}-${randomUUID()}`).send(payload);
     const [left, right] = await Promise.all([submit('left'), submit('right')]);
@@ -130,7 +130,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
   });
 });
 
-function pricingPolicyPayload(code = `POLICY_${randomUUID().replaceAll('-', '').slice(0, 12)}`, productCode = 'MONARQUE_CONNECT') {
+function pricingPolicyPayload(code = `POLICY_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`, productCode = 'MONARQUE_CONNECT') {
   return { productCode, code, roundingMode: 'HALF_UP', maxFxAgeSeconds: 86400, allowedCurrencies: ['CDF', 'USD'], allowedFxSources: ['TEST_FIXTURE'], discountRuleCodes: [], taxPolicyCodes: [] };
 }
 
@@ -141,7 +141,7 @@ async function expectHttpStatus(responsePromise: PromiseLike<Response>, expected
 }
 
 function taxPolicyPayload() {
-  return { productCode: 'MONARQUE_CONNECT', code: `TAX_${randomUUID().replaceAll('-', '').slice(0, 12)}`, jurisdictionCode: 'TEST-XX', taxCategoryCode: 'SYNTHETIC_STANDARD', rate: '0.16', calculationCurrency: 'SOURCE', effectiveFrom: new Date(Date.now() + 60_000).toISOString(), configurationReference: `synthetic-test-config:${randomUUID()}` };
+  return { productCode: 'MONARQUE_CONNECT', code: `TAX_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`, jurisdictionCode: 'TEST-XX', taxCategoryCode: 'SYNTHETIC_STANDARD', rate: '0.16', calculationCurrency: 'SOURCE', effectiveFrom: new Date(Date.now() + 60_000).toISOString(), configurationReference: `synthetic-test-config:${randomUUID()}` };
 }
 
 async function createTenant(app: INestApplication, prisma: PrismaService): Promise<{ organizationId: string; ownerToken: string; ownerId: string }> {
