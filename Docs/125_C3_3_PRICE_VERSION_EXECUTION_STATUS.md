@@ -1,6 +1,6 @@
 # C3.3 — Prix commerciaux versionnés et registre FX: état d'exécution
 
-**Statut: C3.3.1–C3.3.4 livrés et validés sur main; la résolution persistante des devis et les snapshots C3.3 restent en cours.** Ce document conserve l’historique des validations et ne déclare ni le moteur complet de cotation terminé, ni C3.3/C3 clôturé.
+**Statut au `main@ce7d9ae392db49419033dee959513f8da083208f`: C3.3.1–C3.3.5 livrés et validés.** Les devis persistés et snapshots sont désormais sur `main`; les résolveurs de remises et contexte fiscal, ainsi que la révocation des devis, restent à livrer. Ce document conserve l'historique des validations et ne déclare ni C3.3 ni C3 clôturé.
 
 ## Baseline
 
@@ -98,12 +98,17 @@ Le calcul Decimal pur d’une ligne de devis est livré par C3.3.4. La PR #182 a
 
 ## C3.3.5 — devis commerciaux persistés et snapshots immuables
 
-- PR [#182](https://github.com/jupi-z/Monarque-Connect/pull/182), état au 2026-10-28: ouverte, head `3452141202f69aaea1f26330cc0e2023ab1d4bba`, en attente de revue et fusion; base `223054c2430b2998b64be8e58c732bc309d5a62c`.
+- PR [#182](https://github.com/jupi-z/Monarque-Connect/pull/182), fusionnée le 2026-10-28; head `83d4462f515557c983a6a37fa8699baa7e499597`, merge commit / `main` `ce7d9ae392db49419033dee959513f8da083208f`.
 - Run d’abord test-only [40710233231](https://github.com/jupi-z/Monarque-Connect/actions/runs/40710233231): échec E2E attendu, la route de quote n’existait pas avant l’implémentation.
 - Run [40715509694](https://github.com/jupi-z/Monarque-Connect/actions/runs/40715509694), SHA `2b828be5d27081f7efd3b2fafd836f19b6f63032`: échec lint sur une erreur de syntaxe dans la construction de la ligne snapshot; les étapes suivantes ont été sautées et le conteneur PostgreSQL supprimé.
 - Run [40743729776](https://github.com/jupi-z/Monarque-Connect/actions/runs/40743729776), SHA `aece159b34f7e9a0782a6358f61c2b125e3c22a9`: lint réussi, typecheck échoué (`price` potentiellement indéfini et champ `organizationId` incompatible dans le nested create Prisma). Les migrations/tests n’ont pas démarré; nettoyage PostgreSQL réussi.
 - Run [40744111262](https://github.com/jupi-z/Monarque-Connect/actions/runs/40744111262), SHA `18881d7b145a1aa57f7f53fc1a2145fa021d9b52`: typecheck et migrations passés; contrat échoué car le runtime OpenAPI référençait `ProductCode` sans déclarer le composant. Aucun test PostgreSQL/E2E n’a été lancé; nettoyage réussi.
 - Run [40744922728](https://github.com/jupi-z/Monarque-Connect/actions/runs/40744922728), SHA `32a47ff3742b63687d9739b7f5cf6256f99ce59f`: migrations, unit/contract et intégration PostgreSQL passées; E2E a démontré que la réponse utilisait bien `subtotal`, alors que l’assertion attendait `sourceSubtotal`. Le test a été corrigé pour suivre le snapshot contractuel.
-- CI complète réussie sur le head final `3452141202f69aaea1f26330cc0e2023ab1d4bba`: [run 40745940521](https://github.com/jupi-z/Monarque-Connect/actions/runs/40745940521). Preuves de logs: Prisma validate/generate/deploy; 63 migrations depuis base vide et upgrades historiques supportés; OpenAPI/contrats; 210 tests unitaires/contrats; 220 tests PostgreSQL; 39 E2E; répétitions CRM/Phase 1; build, smoke HTTP et suppression du conteneur isolé. CI post-fusion: `NOT_RUN` tant que la PR reste ouverte.
+- CI complète réussie sur le head final `3452141202f69aaea1f26330cc0e2023ab1d4bba`: [run 40745940521](https://github.com/jupi-z/Monarque-Connect/actions/runs/40745940521). Preuves de logs: Prisma validate/generate/deploy; 63 migrations depuis base vide et upgrades historiques supportés; OpenAPI/contrats; 210 tests unitaires/contrats; 220 tests PostgreSQL; 39 E2E; répétitions CRM/Phase 1; build, smoke HTTP et suppression du conteneur isolé.
+- CI post-fusion réussie sur le merge commit `ce7d9ae392db49419033dee959513f8da083208f`: [run 40750165326](https://github.com/jupi-z/Monarque-Connect/actions/runs/40750165326). Les logs confirment 63 migrations, 213 opérations OpenAPI runtime et 13 opérations proposées, 210 tests unitaires/contrats, 220 tests PostgreSQL, 39 E2E, répétitions CRM/Phase 1, build, smoke HTTP et nettoyage PostgreSQL.
 - Le service n’accepte aucun prix final ni instant de valorisation venant du client; il vérifie le produit, l’organisation, l’établissement et les permissions dans le serveur. Un snapshot de quote et sa ligne sont protégés par FK tenant/product/resource, trigger d’immutabilité, idempotence exacte et audit/Outbox atomiques. Un rejeu divergent retourne `409`; la validité temporelle renvoyée est recalculée depuis `expiresAt` sans modifier le snapshot stocké.
-- Remises et taxes: si une politique active les configure, la quote échoue en `422` tant que les résolveurs fiables de remise, de catégorie Item et de juridiction vendeur ne sont pas livrés. Il s’agit d’un gate C3 restant, non d’une fonctionnalité livrée. Aucun fournisseur FX réel ni conformité fiscale n’est déclaré.
+- Remises et taxes: si une politique active les configure, la quote échoue en `422` tant que les résolveurs fiables de remise, catégorie d'offre et juridiction configurée ne sont pas livrés. C'est un gate C3 restant, non une fonctionnalité livrée. Le contrat d'exécution est dans [Docs/126](126_C3_TRUSTED_TAX_AND_DISCOUNT_RESOLUTION_CONTRACT.md). Aucun fournisseur FX réel ni conformité fiscale n'est déclaré.
+
+## Baseline actuelle après C3.3.5
+
+`main@ce7d9ae392db49419033dee959513f8da083208f`; PR #182 et CI post-fusion #40750165326 sont confirmées. La révocation append-only prévue au contrat reste à implémenter. Les compteurs de validations et migrations ci-dessus sont ceux des journaux CI observés; aucun test lourd local n'a été lancé.
