@@ -1,6 +1,6 @@
 # C3.3 — Prix commerciaux versionnés et registre FX: état d'exécution
 
-**Statut: C3.3.1, C3.3.2 et C3.3.3 livrés et validés sur main; le moteur de cotation/snapshots C3.3 reste en cours.** Ce document conserve l’historique des validations et ne déclare ni le moteur complet de cotation terminé, ni C3.3/C3 clôturé.
+**Statut: C3.3.1–C3.3.4 livrés et validés sur main; la résolution persistante des devis et les snapshots C3.3 restent en cours.** Ce document conserve l’historique des validations et ne déclare ni le moteur complet de cotation terminé, ni C3.3/C3 clôturé.
 
 ## Baseline
 
@@ -8,6 +8,7 @@
 - `main` après fusion C3.3.1: `1a1970504c5a8b7976740c620060292bf37aa408`.
 - `main` après fusion C3.3.2 FX: `ab3d99a3507d3d24c089b071f01e9d7094996305`; CI post-fusion #40665166818 réussie.
 - `main` après fusion C3.3.3 policies: `659ed86e7909b5ce81ebe38d76db59e80be4def7`; CI PR [40696540239](https://github.com/jupi-z/Monarque-Connect/actions/runs/40696540239) et post-fusion [40697766771](https://github.com/jupi-z/Monarque-Connect/actions/runs/40697766771) réussies.
+- `main` après fusion C3.3.4 quote calculation kernel: `173d68ff9bc8bb0beab16e4e0e72d788b91435b8`; PR #180, CI PR [40704490523](https://github.com/jupi-z/Monarque-Connect/actions/runs/40704490523), CI post-fusion [40705791462](https://github.com/jupi-z/Monarque-Connect/actions/runs/40705791462), toutes deux réussies.
 - Backend CI post-fusion C3.2: run [40650502528](https://github.com/jupi-z/Monarque-Connect/actions/runs/40650502528), conclusion `success` sur le SHA de cette baseline.
 - Branches livrées: `monarque/c3-pricing-fx` (PR #175) et `monarque/c3-fx-policy-registry` (PR #176).
 - Contrat normatif: [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md).
@@ -84,4 +85,13 @@ La conception n’inclut pas de statut `REVOKED` sans commande de révocation r�
 
 ## Limites et suite
 
-Les quotes, les lignes de quote, les snapshots de calcul et la consommation commerciale de taux FX restent à réaliser dans C3.3/C3.4. La configuration d’un fournisseur FX réel, la conformité fiscale et le POS ne sont pas inclus dans ces livraisons.
+Le calcul Decimal pur d’une ligne de devis est livré par C3.3.4. Les devis et lignes persistés, la sélection serveur du prix/policy/FX, le snapshot immuable, l’idempotence HTTP et la consommation du résultat restent à réaliser dans C3.3/C3.4. La configuration d’un fournisseur FX réel, la conformité fiscale et le POS ne sont pas inclus dans ces livraisons.
+
+## C3.3.4 — noyau de calcul Decimal des lignes de cotation
+
+- PR [#180](https://github.com/jupi-z/Monarque-Connect/pull/180), fusionnée au SHA `173d68ff9bc8bb0beab16e4e0e72d788b91435b8`; branche finale `cec10357a09ad7851ed7dcf9a29f1361ea344b09`.
+- CI PR [40704490523](https://github.com/jupi-z/Monarque-Connect/actions/runs/40704490523) réussie sur le head final; CI post-fusion [40705791462](https://github.com/jupi-z/Monarque-Connect/actions/runs/40705791462) réussie sur `main@173d68f`.
+- `calculateCommercialQuote` réutilise la conversion rationnelle des mesures et un contexte Decimal isolé; prend un prix et des règles déjà résolus côté serveur; retourne les montants source/cible, la remise agrégée, les bases taxables et les lignes fiscales versionnées. La règle V1 est `HALF_UP` aux frontières monétaires définies; les taxes SOURCE s’ajoutent au total source avant FX, les taxes TARGET s’appliquent après conversion. Les modes mixtes et les règles null/mal formées sont refusés.
+- Les tests couvrent le cas synthétique `125 g × 20 USD/kg × 2 360 CDF/USD = 5 900 CDF`, taxe en SOURCE avec FX, taxe TARGET, remise avant taxe, dépassement de remise, mode de taxe mixte/inconnu et configuration nulle. Le run d’abord test-only a produit le RED attendu avant implémentation; il ne compte pas comme validation positive.
+- Portée exclue: aucune table ou API de devis, aucun résolveur de règles, aucune persistance/snapshot, aucune route Sales modifiée, aucune fiscalité juridique ou source FX externe.
+- Suites complètes CI PR et post-fusion sont les preuves effectives; aucun test lourd local n’a été lancé.
