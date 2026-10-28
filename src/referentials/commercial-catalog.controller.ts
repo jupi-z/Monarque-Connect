@@ -2,13 +2,14 @@ import { Body, Controller, Get, Headers, Param, Patch, Post, Query, UseGuards } 
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
-import { CatalogItemVariantParams, CommercialCatalogOrganizationParams, CommercialOfferListQuery, CommercialOfferParams, CreateCommercialOfferDto, CreateItemVariantDto, UpdateCommercialOfferDto } from './commercial-catalog.dto.js';
+import { CatalogItemVariantParams, CommercialCatalogOrganizationParams, CommercialOfferListQuery, CommercialOfferParams, CommercialPriceVersionParams, CreateCommercialOfferDto, CreateCommercialPriceVersionDto, CreateItemVariantDto, UpdateCommercialOfferDto } from './commercial-catalog.dto.js';
 import { CommercialCatalogService } from './commercial-catalog.service.js';
+import { CommercialPriceService } from '../pricing/commercial-price.service.js';
 
 @Controller('organizations/:organizationId/catalog')
 @UseGuards(AuthGuard)
 export class CommercialCatalogController {
-  constructor(private readonly catalog: CommercialCatalogService) {}
+  constructor(private readonly catalog: CommercialCatalogService, private readonly prices: CommercialPriceService) {}
 
   @Get('offers')
   listOffers(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: CommercialCatalogOrganizationParams, @Query() query: CommercialOfferListQuery): Promise<unknown> {
@@ -28,5 +29,10 @@ export class CommercialCatalogController {
   @Post('items/:itemId/variants')
   createVariant(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: CatalogItemVariantParams, @Headers('idempotency-key') key: string | undefined, @Body() input: CreateItemVariantDto): Promise<unknown> {
     return this.catalog.createVariant(principal, params.organizationId, params.itemId, input, key);
+  }
+
+  @Post('offers/:offerId/price-versions')
+  publishPriceVersion(@CurrentPrincipal() principal: AuthPrincipal, @Param() params: CommercialPriceVersionParams, @Headers('idempotency-key') key: string | undefined, @Body() input: CreateCommercialPriceVersionDto): Promise<unknown> {
+    return this.prices.publish(principal, params.organizationId, params.offerId, input, key);
   }
 }

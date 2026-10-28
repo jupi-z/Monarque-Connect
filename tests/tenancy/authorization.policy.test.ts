@@ -42,6 +42,30 @@ describe('tenant authorization policy', () => {
     }
   });
 
+  it('keeps commercial price publishing separate from catalog writes and quote permissions', () => {
+    for (const role of ['OWNER', 'ADMIN'] as const) {
+      expect(rolePermissions[role]).toContain('pricing:price:publish');
+      expect(rolePermissions[role]).toContain('pricing:policy:manage');
+      expect(rolePermissions[role]).toContain('pricing:tax:manage');
+    }
+    for (const role of ['SALES', 'OPERATIONS'] as const) {
+      expect(rolePermissions[role]).toEqual(expect.arrayContaining(['pricing:quote:create', 'pricing:quote:read']));
+      expect(rolePermissions[role]).not.toContain('pricing:price:publish');
+      expect(rolePermissions[role]).not.toContain('pricing:policy:manage');
+      expect(rolePermissions[role]).not.toContain('pricing:tax:manage');
+    }
+    expect(rolePermissions.FINANCE).toContain('pricing:quote:read');
+    expect(rolePermissions.FINANCE).not.toContain('pricing:quote:create');
+    expect(rolePermissions.FINANCE).not.toContain('pricing:price:publish');
+    for (const role of ['VIEWER'] as const) {
+      expect(rolePermissions[role]).not.toContain('pricing:quote:create');
+      expect(rolePermissions[role]).not.toContain('pricing:quote:read');
+      expect(rolePermissions[role]).not.toContain('pricing:price:publish');
+      expect(rolePermissions[role]).not.toContain('pricing:policy:manage');
+      expect(rolePermissions[role]).not.toContain('pricing:tax:manage');
+    }
+  });
+
   it('applies the Phase 4 CRM role matrix', () => {
     for (const role of ['OWNER', 'ADMIN', 'SALES', 'FINANCE', 'OPERATIONS', 'VIEWER'] as const) {
       expect(rolePermissions[role]).toContain('crm:read');

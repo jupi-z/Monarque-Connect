@@ -638,6 +638,42 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /organizations/{organizationId}/catalog/offers/{offerId}/price-versions:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: offerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Catalog]
+      operationId: publishCommercialPriceVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:price:publish]
+      x-product-entitlement-required: true
+      x-tenant-scoped-resource: CommercialOffer
+      x-establishment-scope-derived-from-resource: true
+      description: Product and optional establishment scope are derived from the tenant-scoped offer; past effective times are rejected and published versions are immutable.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCommercialPriceVersion" }
+      responses:
+        "201":
+          description: Immutable commercial price version published.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialPriceVersion" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/catalog/items/{itemId}/variants:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -4528,6 +4564,32 @@ components:
         channelCode: { type: [string, 'null'], pattern: '^[A-Za-z][A-Za-z0-9_]{0,47}$', maxLength: 48 }
         displayName: { type: [string, 'null'], maxLength: 160 }
         status: { type: string, enum: [ACTIVE, INACTIVE] }
+    CreateCommercialPriceVersion:
+      type: object
+      additionalProperties: false
+      required: [amount, currencyCode, priceUnitCode]
+      properties:
+        amount: { $ref: "#/components/schemas/PositiveCommercialPriceAmount" }
+        currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+        priceUnitCode: { type: string, pattern: '^[A-Za-z][A-Za-z0-9_]{0,31}$' }
+        effectiveFrom: { type: string, format: date-time, description: Server time when omitted; client-provided past values are rejected. }
+        expectedLatestVersionId: { type: string, format: uuid }
+    CommercialPriceVersion:
+      type: object
+      additionalProperties: false
+      required: [id, offerId, amount, currencyCode, priceUnitCode, effectiveFrom, version]
+      properties:
+        id: { type: string, format: uuid }
+        offerId: { type: string, format: uuid }
+        amount: { $ref: "#/components/schemas/PositiveCommercialPriceAmount" }
+        currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+        priceUnitCode: { type: string }
+        effectiveFrom: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    PositiveCommercialPriceAmount:
+      type: string
+      maxLength: 25
+      pattern: '^(?=.*[1-9])(?:0|[1-9][0-9]{0,15})(?:\.[0-9]{1,8})?$'
     Warehouse:
       type: object
       additionalProperties: false

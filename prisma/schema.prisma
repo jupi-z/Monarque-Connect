@@ -285,6 +285,7 @@ enum AuditAction {
   CATALOG_OFFER_CREATED
   CATALOG_OFFER_UPDATED
   CATALOG_OFFER_STATUS_CHANGED
+  COMMERCIAL_PRICE_VERSION_PUBLISHED
   WAREHOUSE_CREATED
   WAREHOUSE_UPDATED
   WAREHOUSE_STATUS_CHANGED
@@ -718,6 +719,7 @@ model User {
   networkTrustCommandReceipts       NetworkTrustCommandReceipt[]
   messagingCommandReceipts          MessagingCommandReceipt[]
   catalogCommandReceipts            CatalogCommandReceipt[]
+  publishedCommercialPrices         CommercialPriceVersion[]
 
   @@index([status])
   @@map("users")
@@ -837,6 +839,7 @@ model ProductCatalog {
   quotaReservations QuotaReservation[]
   quotaLedgers  QuotaLedger[]
   commercialOffers CommercialOffer[]
+  commercialPriceVersions CommercialPriceVersion[]
 
   @@map("product_catalog")
 }
@@ -1138,6 +1141,7 @@ model Organization {
   businessParties                   BusinessParty[]
   items                             Item[]
   commercialOffers                  CommercialOffer[]
+  commercialPriceVersions           CommercialPriceVersion[]
   catalogCommandReceipts            CatalogCommandReceipt[]
   warehouses                        Warehouse[]
   leads                             Lead[]
@@ -1973,6 +1977,7 @@ model MeasureUnit {
   baseUnit        MeasureUnit   @relation("MeasureUnitBase", fields: [baseUnitCode], references: [code], onDelete: Restrict)
   derivedUnits    MeasureUnit[] @relation("MeasureUnitBase")
   offers          CommercialOffer[]
+  commercialPrices CommercialPriceVersion[]
 
   @@index([active, dimension, code])
   @@map("measure_units")
@@ -1986,6 +1991,7 @@ model CurrencyDefinition {
   sourceRevision  String   @map("source_revision") @db.VarChar(80)
   active          Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  commercialPrices CommercialPriceVersion[]
 
   @@index([active, code])
   @@map("currency_definitions")
@@ -2035,11 +2041,40 @@ model CommercialOffer {
   variant           ItemVariant?          @relation(fields: [variantId, itemId, organizationId], references: [id, itemId, organizationId], onDelete: Restrict)
   establishment     Establishment?        @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
   sellUnit          MeasureUnit           @relation(fields: [sellUnitCode], references: [code], onDelete: Restrict)
+  priceVersions     CommercialPriceVersion[]
 
   @@unique([id, organizationId])
+  @@unique([id, organizationId, productCode], map: "commercial_offers_id_organization_product_key")
   @@index([organizationId, productCode, status, createdAt, id])
   @@index([organizationId, establishmentId, productCode, status])
   @@map("commercial_offers")
+}
+
+/// Immutable tenant commercial price; deliberately distinct from FairScale PriceVersion.
+model CommercialPriceVersion {
+  id                 String             @id @db.Uuid
+  organizationId     String             @map("organization_id") @db.Uuid
+  productCode        String             @map("product_code") @db.VarChar(64)
+  offerId            String             @map("offer_id") @db.Uuid
+  version            Int
+  currencyCode       String             @map("currency_code") @db.Char(3)
+  amount             Decimal            @db.Decimal(24, 8)
+  priceUnitCode      String             @map("price_unit_code") @db.VarChar(32)
+  effectiveFrom      DateTime           @map("effective_from") @db.Timestamptz(6)
+  publishedByUserId  String             @map("published_by_user_id") @db.Uuid
+  commandPayloadHash String             @map("command_payload_hash") @db.VarChar(64)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product            ProductCatalog     @relation(fields: [productCode], references: [code], onDelete: Restrict)
+  offer              CommercialOffer    @relation(fields: [offerId, organizationId, productCode], references: [id, organizationId, productCode], onDelete: Restrict, map: "commercial_price_versions_offer_org_product_fkey")
+  currency           CurrencyDefinition @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
+  priceUnit          MeasureUnit        @relation(fields: [priceUnitCode], references: [code], onDelete: Restrict)
+  publishedBy        User               @relation(fields: [publishedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([offerId, currencyCode, version], map: "commercial_price_versions_offer_currency_version_key")
+  @@unique([organizationId, offerId, currencyCode, effectiveFrom], map: "commercial_price_versions_org_offer_currency_effective_key")
+  @@index([organizationId, productCode, offerId, currencyCode, effectiveFrom(sort: Desc)], map: "commercial_price_versions_org_product_offer_currency_effective_idx")
+  @@map("commercial_price_versions")
 }
 
 /// Stores idempotency fingerprints for catalog create commands; resources are reloaded through scoped authorization.

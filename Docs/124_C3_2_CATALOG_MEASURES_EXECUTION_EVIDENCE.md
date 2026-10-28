@@ -1,6 +1,6 @@
 # C3.2 — Catalogue, variantes, offres et mesures — état d'exécution
 
-**État : VALIDATED ON PR SHA / NOT MERGED.** La validation GitHub-hosted de la PR est verte sur le SHA indiqué ci-dessous. C3.2 n'est pas encore livrée sur `main` : la fusion et la CI post-fusion restent requises.
+**État : MERGED / POST-MERGE CI VERIFIED.** La PR #174 est fusionnée dans `main@909764d461991489250b5da1caf673d209ebfef8`; la Backend CI post-fusion #583, run [40650502528](https://github.com/jupi-z/Monarque-Connect/actions/runs/40650502528), est terminée avec `success` sur ce SHA.
 
 ## Baseline et périmètre
 
@@ -54,12 +54,12 @@ La conversion de quantité emploie `BigInt` et des facteurs rationnels. L'entré
 | Revalidation de la preuve documentaire | [Backend CI #40647891175](https://github.com/jupi-z/Monarque-Connect/actions/runs/40647891175), run #579, conclusion `success`, sur le head `052fafd7f467cd4cce3268ea50a67d786f0dd65b`; le seul changement depuis le SHA précédent est la consignation des résultats de CI. |
 | Revalidation complète après synchronisation des preuves | [Backend CI #40648514831](https://github.com/jupi-z/Monarque-Connect/actions/runs/40648514831), run #580, conclusion `success`, sur le head `2e3c5bb583c8a47eeb118d8573020eeacc8832d4`. |
 | CI complète du candidat final C3.2 | [Backend CI #40649204260](https://github.com/jupi-z/Monarque-Connect/actions/runs/40649204260), run #581, conclusion `success`, sur le head `49e96bbc78ac0a429a09a056e481efff54a25a7f`. |
-| CI post-fusion | NOT_RUN; PR non fusionnée |
+| CI post-fusion | PASS: [Backend CI #583 / run 40650502528](https://github.com/jupi-z/Monarque-Connect/actions/runs/40650502528), conclusion `success`, SHA `909764d461991489250b5da1caf673d209ebfef8` |
 
 Les échecs antérieurs ont été corrigés de manière ciblée: [#40645157199](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645157199) lint; [#40645436513](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645436513) typecheck; [#40645716729](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645716729) lint; [#40645899634](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645899634) migration (`jsonb_object_length` non disponible, remplacé par le comptage JSONPath testé); [#40646173196](https://github.com/jupi-z/Monarque-Connect/actions/runs/40646173196) reset global qui supprimait les deux registres système. La CI verte #40646849656 confirme la correction de ces défauts de validation sur son SHA exact.
 
-Aucune preuve de migration appliquée sur production ou d'exécution runtime déployée n'est revendiquée. Les cinq advisories signalés par `npm ci` sont toujours recensés; le contrôle de dépendances runtime a réussi, mais cela ne signifie pas que l'audit complet du graphe de développement est exempt d'advisories. Les preuves CI ci-dessus concernent exclusivement le SHA de PR `a1e38498206b05694b030dfb4716f83533eaba02`; la livraison C3.2 reste conditionnée à la fusion autorisée et à une CI post-fusion verte.
+Aucune preuve de migration appliquée sur production ou d'exécution runtime déployée n'est revendiquée. Les cinq advisories signalés par `npm ci` sont toujours recensés; le contrôle de dépendances runtime a réussi, mais cela ne signifie pas que l'audit complet du graphe de développement est exempt d'advisories. Les preuves CI PR ci-dessus concernent exclusivement les SHA de PR indiqués. La CI post-fusion #583 apporte la preuve distincte que le commit résultant sur `main` a été validé; elle ne constitue pas une preuve de déploiement en production.
 
 ## Suite
 
-Le run #581 valide la révision finale candidate `49e96bb`; la PR reste non fusionnée et la CI post-fusion sur `main` n'a pas encore été exécutée. C3.3 ne commencera qu'après fusion contrôlée et CI post-fusion verte. Aucune activité C4 n'est incluse.
+La révision candidate finale `49e96bb` a été fusionnée par la PR #174. Le SHA merge `909764d` a passé la CI post-fusion #583. C3.3 peut s'appuyer sur cette baseline; aucune activité C4 n'est incluse.
