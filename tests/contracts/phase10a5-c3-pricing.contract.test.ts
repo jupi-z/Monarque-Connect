@@ -220,6 +220,14 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     expect(requiredProperty(snapshot, 'productCode').pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
     expect(requiredProperty(snapshot, 'sourceTotal').anyOf?.[1]?.type).toBe('null');
     expect(requiredProperty(snapshot, 'taxCalculationCurrency').enum).toEqual(['SOURCE', 'TARGET']);
+    expect(requiredProperty(snapshot, 'taxCategoryCode').type).toEqual(['string', 'null']);
+    expect(requiredProperty(snapshot, 'taxContext').anyOf?.[1]?.type).toBe('null');
+    expect(requiredProperty(snapshot, 'valuationAt').format).toBe('date-time');
+    for (const legacyOptionalField of ['taxContext', 'taxCategoryCode', 'valuationAt']) {
+      expect(snapshot.required).not.toContain(legacyOptionalField);
+    }
+    expect(requiredSchema(spec, 'TaxLineSnapshot').required).toEqual(expect.arrayContaining(['policyVersionId', 'code', 'version', 'calculationCurrency', 'rate', 'taxableBase', 'amount', 'currencyCode']));
+    expect(requiredSchema(spec, 'PricingTaxContextSnapshot').required).toEqual(expect.arrayContaining(['versionId', 'version', 'establishmentId', 'jurisdictionCode', 'effectiveFrom']));
   });
 
   it('keeps tax configuration tenant-admin controlled and explicitly non-certifying', async () => {

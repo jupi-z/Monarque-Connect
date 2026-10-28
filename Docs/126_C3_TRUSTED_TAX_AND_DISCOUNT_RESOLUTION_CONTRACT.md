@@ -53,7 +53,9 @@ Chaque mutation revalide produit, entitlements, membership et scope d'établisse
 
 ## 5. Snapshot, concurrence et erreurs
 
-Le snapshot quote inclut `taxContext` (version, portée, juridiction configurée), `taxCategoryCode`, les identifiants/codes/versions des politiques de remise et de taxe, leur base/devise, les montants calculés, les versions de pricing policy, prix, mesure et FX, ainsi que `calculationVersion`. Toute donnée monétaire reste une chaîne Decimal. Le snapshot ne contient pas de réinterprétation juridique.
+Les nouveaux snapshots de quote (version 2) incluent l'instant `valuationAt`, `taxContext` (identifiant/version, portée, juridiction configurée et `effectiveFrom`), `taxCategoryCode`, les identifiants/codes/versions des politiques de remise et de taxe, leur base/devise, les montants calculés, les versions de pricing policy, prix, mesure et FX, ainsi que `calculationVersion`. Toute donnée monétaire reste une chaîne Decimal. Le snapshot ne contient pas de réinterprétation juridique.
+
+Les snapshots historiques version 1 restent immuables et n'ont ni `valuationAt`, ni `taxContext`, ni `taxCategoryCode`. Le contrat de lecture accepte leur omission : sous la version 1, l'absence de ces propriétés signifie que le moteur antérieur n'a appliqué aucune taxe (il refusait les policies fiscales), et ne doit pas être réparée par une réinterprétation ou une migration des données.
 
 La cotation verrouille les scopes de l'offre et des configurations temporelles pendant la résolution et la persistance. Les modifications concurrentes doivent donner une version déterministe ou un `409`; aucun devis ne mélange des versions prises à des instants différents. Rejeu identique retourne le snapshot existant sans consommer de compteur; rejeu divergent `409`.
 

@@ -13,7 +13,7 @@ import { calculateCommercialQuote } from './pricing-calculator.js';
 import type { CreatePricingQuoteDto } from './pricing-quote.dto.js';
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
-const CALCULATION_VERSION = 'C3_PRICING_V1';
+const CALCULATION_VERSION = 'C3_PRICING_V2';
 const Decimal = Prisma.Decimal.clone({ precision: 80, rounding: Prisma.Decimal.ROUND_HALF_UP });
 
 type FxSnapshot = {
@@ -27,6 +27,22 @@ type FxSnapshot = {
   observedAt: string;
   validFrom: string;
   validUntil: string;
+};
+
+type ResolvedTaxPolicy = {
+  id: string;
+  code: string;
+  version: number;
+  rate: Prisma.Decimal;
+  calculationCurrency: 'SOURCE' | 'TARGET';
+};
+
+type ResolvedTaxContext = {
+  versionId: string;
+  version: number;
+  establishmentId: string | null;
+  jurisdictionCode: string;
+  effectiveFrom: string;
 };
 
 @Injectable()
@@ -108,11 +124,9 @@ export class PricingQuoteService {
         if (policy.discountRuleCodes.length) {
           throw new UnprocessableEntityException('Configured discount rules cannot be resolved by the C3 quote engine');
         }
-        // No trusted item tax category or seller jurisdiction is available in the current catalog contract.
-        // Refusing is safer than applying an activated tenant tax rule to an unrelated item or jurisdiction.
-        if (policy.taxPolicyCodes.length) {
-          throw new UnprocessableEntityException('Tax calculation requires a verified item category and seller jurisdiction context');
-        }
+        const resolvedTaxes = await this.resolveTaxes(
+          tx, organizationId, productCode, establishmentId, offer.taxCategoryCode, policy.taxPolicyCodes, valuationAt,
+        );
 
         const eligiblePrices = await tx.commercialPriceVersion.findMany({
           where: {
@@ -176,7 +190,9 @@ export class PricingQuoteService {
             fxQuoteCurrencyCode: targetCurrency,
           } : {}),
           discounts: [],
-          taxes: [],
+          taxes: resolvedTaxes.policies.map((tax) => ({
+            code: tax.code, version: tax.version, rate: tax.rate.toFixed(18), calculationCurrency: tax.calculationCurrency,
+          })),
         });
 
         const expiryCandidates = [new Date(valuationAt.getTime() + QUOTE_TTL_MS)];
@@ -186,6 +202,25 @@ export class PricingQuoteService {
         ]);
         if (nextPrice) expiryCandidates.push(nextPrice.effectiveFrom);
         if (nextPolicy) expiryCandidates.push(nextPolicy.effectiveFrom);
+        if (policy.taxPolicyCodes.length) {
+          const contextScopes = establishmentId && resolvedTaxes.context?.establishmentId === establishmentId
+            ? [establishmentId]
+            : establishmentId ? [establishmentId, null] : [null];
+          const nextTaxContext = await tx.pricingTaxContextVersion.findFirst({
+            where: {
+              organizationId, productCode, effectiveFrom: { gt: valuationAt },
+              OR: contextScopes.map((scope) => ({ establishmentId: scope })),
+            },
+            orderBy: { effectiveFrom: 'asc' }, select: { effectiveFrom: true },
+          });
+          const nextTaxPolicy = await tx.taxPolicyVersion.findFirst({
+            where: { organizationId, productCode, code: { in: policy.taxPolicyCodes }, effectiveFrom: { gt: valuationAt } },
+            orderBy: [{ effectiveFrom: 'asc' }, { code: 'asc' }, { version: 'asc' }],
+            select: { effectiveFrom: true },
+          });
+          if (nextTaxContext) expiryCandidates.push(nextTaxContext.effectiveFrom);
+          if (nextTaxPolicy) expiryCandidates.push(nextTaxPolicy.effectiveFrom);
+        }
         if (fx) expiryCandidates.push(new Date(fx.validUntil));
         const expiresAt = expiryCandidates.reduce((earliest, value) => value < earliest ? value : earliest);
         if (expiresAt <= valuationAt) throw new UnprocessableEntityException('The resolved pricing inputs do not remain valid for a positive quote interval');
@@ -194,12 +229,27 @@ export class PricingQuoteService {
         const createdAt = new Date();
         const ratio = this.unitRatio(inputUnit, baseUnit);
         const normalizedQuantity = convertMeasureQuantity(canonical.quantity, this.rational(inputUnit), this.rational(baseUnit));
-        const taxMode = 'SOURCE' as const;
+        const taxMode = resolvedTaxes.policies[0]?.calculationCurrency ?? 'SOURCE';
+        const taxLines = calculation.taxes.map((line) => {
+          const policyVersion = resolvedTaxes.policies.find((candidate) => candidate.code === line.code && candidate.version === line.version);
+          if (!policyVersion) throw new UnprocessableEntityException('A resolved tax line has no immutable policy version');
+          return {
+            policyVersionId: policyVersion.id,
+            code: line.code,
+            version: line.version,
+            calculationCurrency: line.calculationCurrency,
+            rate: policyVersion.rate.toFixed(18),
+            taxableBase: line.taxableBase,
+            amount: line.amount,
+            currencyCode: line.currencyCode,
+          };
+        });
         const snapshot = {
           id,
-          snapshotVersion: 1,
+          snapshotVersion: 2,
           calculationVersion: CALCULATION_VERSION,
           createdAt: createdAt.toISOString(),
+          valuationAt: valuationAt.toISOString(),
           expiresAt: expiresAt.toISOString(),
           organizationId,
           productCode,
@@ -223,8 +273,10 @@ export class PricingQuoteService {
           netAmount: calculation.sourceNetAmount,
           discountAmount: calculation.discountAmount,
           discounts: [],
-          taxLines: [],
-          taxPolicyVersionIds: [],
+          taxCategoryCode: resolvedTaxes.taxCategoryCode,
+          taxContext: resolvedTaxes.context,
+          taxLines,
+          taxPolicyVersionIds: resolvedTaxes.policies.map((tax) => tax.id),
           sourceTotal: calculation.sourceTotal,
           sourceCurrency: price.currencyCode,
           targetTotal: calculation.targetTotal,
@@ -239,7 +291,7 @@ export class PricingQuoteService {
           data: {
             id, organizationId, productCode, establishmentId, offerId: offer.id, itemId: offer.itemId, variantId,
             priceVersionId: price.id, pricingPolicyVersionId: policy.id, actorUserId: principal.userId,
-            idempotencyKey: key, inputHash, valuationAt, expiresAt, snapshotVersion: 1,
+            idempotencyKey: key, inputHash, valuationAt, expiresAt, snapshotVersion: 2,
             calculationVersion: CALCULATION_VERSION, snapshotJson: snapshot,
             lines: {
               create: [{
@@ -299,6 +351,63 @@ export class PricingQuoteService {
     if (policy.roundingMode !== 'HALF_UP') throw new UnprocessableEntityException('The active rounding policy is unsupported');
     if (!policy.allowedCurrencies.length) throw new UnprocessableEntityException('The active pricing policy allows no commercial currencies');
     return policy;
+  }
+
+  private async resolveTaxes(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    productCode: ProductCode,
+    establishmentId: string | null,
+    taxCategoryCode: string | null,
+    policyCodes: string[],
+    at: Date,
+  ): Promise<{ context: ResolvedTaxContext | null; taxCategoryCode: string | null; policies: ResolvedTaxPolicy[] }> {
+    if (!policyCodes.length) return { context: null, taxCategoryCode, policies: [] };
+    if (!taxCategoryCode) throw new UnprocessableEntityException('Tax calculation requires an explicitly classified commercial offer');
+
+    const scope = { organizationId, productCode, status: 'ACTIVE' as const, effectiveFrom: { lte: at } };
+    const establishmentContext = establishmentId
+      ? await tx.pricingTaxContextVersion.findFirst({
+        where: { ...scope, establishmentId }, orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+      })
+      : null;
+    const defaultContext = establishmentContext ? null : await tx.pricingTaxContextVersion.findFirst({
+      where: { ...scope, establishmentId: null }, orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+    });
+    const contextVersion = establishmentContext ?? defaultContext;
+    if (!contextVersion) throw new UnprocessableEntityException('Tax calculation requires an effective organization or establishment tax context');
+
+    const candidates = await tx.taxPolicyVersion.findMany({
+      where: { organizationId, productCode, code: { in: policyCodes }, status: 'ACTIVE', effectiveFrom: { lte: at } },
+      orderBy: [{ code: 'asc' }, { effectiveFrom: 'desc' }, { version: 'desc' }],
+    });
+    const latestByCode = new Map<string, typeof candidates[number]>();
+    for (const candidate of candidates) if (!latestByCode.has(candidate.code)) latestByCode.set(candidate.code, candidate);
+    const matchingPolicies = [...latestByCode.values()]
+      .filter((candidate) => candidate.jurisdictionCode === contextVersion.jurisdictionCode && candidate.taxCategoryCode === taxCategoryCode)
+      .sort((left, right) => left.code.localeCompare(right.code));
+    if (!matchingPolicies.length) {
+      throw new UnprocessableEntityException('No active tax policy matches the resolved tenant context and offer classification');
+    }
+    const calculationCurrencies = new Set(matchingPolicies.map((candidate) => candidate.calculationCurrency));
+    if (calculationCurrencies.size !== 1) {
+      throw new UnprocessableEntityException('SOURCE and TARGET tax policies cannot be mixed in one quote');
+    }
+
+    return {
+      context: {
+        versionId: contextVersion.id,
+        version: contextVersion.version,
+        establishmentId: contextVersion.establishmentId,
+        jurisdictionCode: contextVersion.jurisdictionCode,
+        effectiveFrom: contextVersion.effectiveFrom.toISOString(),
+      },
+      taxCategoryCode,
+      policies: matchingPolicies.map((candidate) => ({
+        id: candidate.id, code: candidate.code, version: candidate.version,
+        rate: candidate.rate, calculationCurrency: candidate.calculationCurrency,
+      })),
+    };
   }
 
   private async resolveFx(

@@ -4938,13 +4938,26 @@ components:
     TaxLineSnapshot:
       type: object
       additionalProperties: false
-      required: [policyVersionId, rate, taxableBase, amount, currencyCode]
+      required: [policyVersionId, code, version, calculationCurrency, rate, taxableBase, amount, currencyCode]
       properties:
         policyVersionId: { type: string, format: uuid }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$' }
+        version: { type: integer, minimum: 1 }
+        calculationCurrency: { type: string, enum: [SOURCE, TARGET] }
         rate: { $ref: "#/components/schemas/NonNegativeRateString" }
         taxableBase: { $ref: "#/components/schemas/NonNegativeAmountString" }
         amount: { $ref: "#/components/schemas/NonNegativeAmountString" }
         currencyCode: { type: string, pattern: "^[A-Z]{3}$" }
+    PricingTaxContextSnapshot:
+      type: object
+      additionalProperties: false
+      required: [versionId, version, establishmentId, jurisdictionCode, effectiveFrom]
+      properties:
+        versionId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        establishmentId: { type: [string, "null"], format: uuid }
+        jurisdictionCode: { type: string, pattern: "^[A-Z0-9][A-Z0-9._:-]{1,63}$" }
+        effectiveFrom: { type: string, format: date-time }
     DiscountLineSnapshot:
       type: object
       additionalProperties: false
@@ -4963,6 +4976,7 @@ components:
         snapshotVersion: { type: integer, minimum: 1 }
         calculationVersion: { type: string }
         createdAt: { type: string, format: date-time }
+        valuationAt: { type: string, format: date-time, description: Present for snapshot version 2 and later; omitted by immutable historical version 1 snapshots. }
         expiresAt: { type: string, format: date-time }
         organizationId: { type: string, format: uuid }
         productCode: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
@@ -5002,6 +5016,8 @@ components:
         netAmount: { $ref: "#/components/schemas/NonNegativeAmountString" }
         discountAmount: { $ref: "#/components/schemas/NonNegativeAmountString" }
         discounts: { type: array, items: { $ref: "#/components/schemas/DiscountLineSnapshot" } }
+        taxCategoryCode: { type: [string, "null"], pattern: "^[A-Z][A-Z0-9._-]{0,63}$", description: Present for snapshot version 2 and later; omitted by immutable historical version 1 snapshots. }
+        taxContext: { anyOf: [{ $ref: "#/components/schemas/PricingTaxContextSnapshot" }, { type: "null" }], description: Present for snapshot version 2 and later; omitted by immutable historical version 1 snapshots. }
         taxLines: { type: array, items: { $ref: "#/components/schemas/TaxLineSnapshot" } }
         taxPolicyVersionIds: { type: array, uniqueItems: true, items: { type: string, format: uuid } }
         sourceTotal: { anyOf: [{ $ref: "#/components/schemas/NonNegativeAmountString" }, { type: "null" }] }
