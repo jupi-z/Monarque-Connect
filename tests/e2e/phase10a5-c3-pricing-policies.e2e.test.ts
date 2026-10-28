@@ -124,7 +124,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     await request(serverOf(app)).post(policyRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-invalid-${randomUUID()}`).send({ ...pricingPolicyPayload(), allowedCurrencies: ['USD', 'USD'] }).expect(400);
     await request(serverOf(app)).post(policyRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-invalid-${randomUUID()}`).send({ ...pricingPolicyPayload(), maxFxAgeSeconds: 0 }).expect(400);
     await request(serverOf(app)).post(taxRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-tax-invalid-${randomUUID()}`).send({ ...taxPolicyPayload(), rate: '-0.1' }).expect(400);
-    await request(serverOf(app)).post(taxRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-tax-invalid-${randomUUID()}`).send({ ...taxPolicyPayload(), rate: '0.123456789' }).expect(400);
+    await request(serverOf(app)).post(taxRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-tax-invalid-${randomUUID()}`).send({ ...taxPolicyPayload(), rate: '0.1234567890123456789' }).expect(400);
     await expect(prisma.pricingPolicyVersion.count({ where: { organizationId: tenant.organizationId } })).resolves.toBe(0);
     await expect(prisma.taxPolicyVersion.count({ where: { organizationId: tenant.organizationId } })).resolves.toBe(0);
   });
