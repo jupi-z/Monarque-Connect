@@ -4,6 +4,8 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '../../src/auth/auth.guard.js';
 import { AuthorizationService } from '../../src/tenancy/authorization.service.js';
 import { PlatformAuthorizationService } from '../../src/entitlements/platform-authorization.service.js';
+import { AuthModule } from '../../src/auth/auth.module.js';
+import { IDENTITY_PROVIDER_PORT } from '../../src/auth/identity-provider.port.js';
 
 describe('C2 trusted actor provenance', () => {
   it('derives only an authenticated internal identity from the verified legacy session', async () => {
@@ -38,6 +40,15 @@ describe('C2 trusted actor provenance', () => {
     });
     expect(() => platform.assertPlatformAdmin({ userId: 'tenant-user', sessionId: 'session-2' }))
       .toThrow(ForbiddenException);
+  });
+
+  it('keeps the OIDC port unregistered so legacy startup has no identity-provider dependency', () => {
+    const providers = Reflect.getMetadata('providers', AuthModule) as unknown[];
+    const hasOidcBinding = providers.some((provider) => provider === IDENTITY_PROVIDER_PORT
+      || (typeof provider === 'object' && provider !== null && 'provide' in provider
+        && provider.provide === IDENTITY_PROVIDER_PORT));
+
+    expect(hasOidcBinding).toBe(false);
   });
 });
 

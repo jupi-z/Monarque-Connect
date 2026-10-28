@@ -1,6 +1,6 @@
 # C2 — Identity, Tenancy & Tenant Principals
 
-**Statut :** contrat normatif C2.1–C2.3. C2.2 est livré sur `main@e57e5b4`; C2.3 est en implémentation sur une branche dédiée et reste soumis à sa PR et à ses CI. C2.4 n'est pas réputé livré.
+**Statut :** contrat normatif C2.1–C2.3. C2.2 est livré sur `main@e57e5b4`; C2.3 est livré sur `main@62a5287`. C2.4 reste en validation et n'est pas réputé livré.
 **Baseline C2.1 :** `main@e34e9fa0d7c92cd0ae69a82d1b39110906fbaec3`; CI post-fusion #540 verte. C2.1 est fusionné au commit `cf80f6d251d094b02587d64a842fbf4af8c8c7ef`; CI post-fusion #542 verte. Les détails SQL C2.2 ci-dessous précèdent toute migration.
 **Suivi :** issue [#163](https://github.com/jupi-z/Monarque-Connect/issues/163).
 **Compatibilité :** [Docs/114](114_PHASE_10A5_BOUNDARY_INVARIANTS.md), [Docs/115](115_PHASE_10A5_C0_CODEBASE_AUDIT.md), [Docs/116](116_C1_PRODUCT_CATALOG_AND_ENTITLEMENTS_CONTRACT.md), [Docs/118](118_C1_CLOSURE_EVIDENCE.md).
