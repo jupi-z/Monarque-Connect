@@ -1,0 +1,732 @@
+openapi: 3.1.0
+info:
+  title: Monarque Connect C3 Catalog and Pricing Contract
+  version: 0.1.0-proposed
+  description: >-
+    Normative proposal for Phase 10A.5 C3 only. These operations are not runtime
+    endpoints until implemented, merged into openapi/openapi.yaml, and verified.
+  x-contract-status: proposed-not-runtime
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Catalog
+  - name: Pricing
+  - name: Platform FX
+paths:
+  /catalog/measure-units:
+    get:
+      tags: [Catalog]
+      operationId: listMeasureUnits
+      responses:
+        '200':
+          description: Read-only, versioned measure unit registry.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, items]
+                properties:
+                  version: { type: string }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/MeasureUnit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /catalog/currencies:
+    get:
+      tags: [Catalog]
+      operationId: listCurrencies
+      responses:
+        '200':
+          description: Allowlisted currency metadata; no organization defaults are changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, items]
+                properties:
+                  version: { type: string }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/CurrencyDefinition' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /organizations/{organizationId}/catalog/offers:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [Catalog]
+      operationId: listCommercialOffers
+      x-required-principal: STAFF
+      x-required-permissions: [catalog:read]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/ProductCode'
+        - name: establishmentId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: cursor
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Offers visible in the authorized tenant, product and establishment scope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OfferPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Catalog]
+      operationId: createCommercialOffer
+      x-required-principal: STAFF
+      x-required-permissions: [catalog:write]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCommercialOffer' }
+      responses:
+        '201':
+          description: Offer created; price is not set by this command.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommercialOffer' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /organizations/{organizationId}/catalog/offers/{offerId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: offerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Catalog]
+      operationId: updateCommercialOffer
+      x-required-principal: STAFF
+      x-required-permissions: [catalog:write]
+      x-product-entitlement-required: true
+      description: Product scope is derived from the tenant-scoped offer; the client cannot change its product.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCommercialOffer' }
+      responses:
+        '200':
+          description: Metadata/status transition only; published prices are unchanged.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommercialOffer' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /organizations/{organizationId}/catalog/offers/{offerId}/price-versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: offerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Catalog]
+      operationId: publishCommercialPriceVersion
+      x-required-principal: STAFF
+      x-required-permissions: [pricing:price:publish]
+      x-product-entitlement-required: true
+      description: Product scope is derived from the tenant-scoped offer; the client cannot change its product.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCommercialPriceVersion' }
+      responses:
+        '201':
+          description: Immutable price version published for future/current server time.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommercialPriceVersion' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /organizations/{organizationId}/pricing/policy-versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [Pricing]
+      operationId: createPricingPolicyVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:policy:manage]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePricingPolicyVersion' }
+      responses:
+        '201':
+          description: New immutable pricing policy version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingPolicyVersion' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /organizations/{organizationId}/pricing/quotes:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [Pricing]
+      operationId: createPricingQuote
+      x-required-principal: STAFF
+      x-required-permissions: [pricing:quote:create]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePricingQuote' }
+      responses:
+        '201':
+          description: Deterministic immutable quote snapshot; no sale or ledger entry is created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingQuoteSnapshot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /organizations/{organizationId}/pricing/quotes/{quoteId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: quoteId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Pricing]
+      operationId: getPricingQuote
+      x-required-principal: STAFF
+      x-required-permissions: [pricing:quote:read]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/ProductCode'
+      responses:
+        '200':
+          description: The original immutable snapshot and a current validity marker.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingQuoteSnapshot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /organizations/{organizationId}/catalog/items/{itemId}/variants:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Catalog]
+      operationId: createItemVariant
+      x-required-principal: STAFF
+      x-required-permissions: [catalog:write]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateItemVariant' }
+      responses:
+        '201':
+          description: Variant created under the tenant-scoped canonical Item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemVariant' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /organizations/{organizationId}/pricing/tax-policy-versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [Pricing]
+      operationId: createTaxPolicyVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:tax:manage]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTaxPolicyVersion' }
+      responses:
+        '201':
+          description: Draft technical tax configuration; not a legal certification.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaxPolicyVersion' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: taxPolicyVersionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Pricing]
+      operationId: activateTaxPolicyVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:tax:manage]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/ProductCode'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ActivateTaxPolicyVersion' }
+      responses:
+        '200':
+          description: Explicit activation of a tenant-configured technical rule; no legal status is implied.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaxPolicyVersion' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /platform/pricing/fx-rates:
+    post:
+      tags: [Platform FX]
+      operationId: ingestFxRate
+      x-required-principal: PLATFORM
+      x-required-permissions: [pricing:fx:ingest]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngestFxRate' }
+      responses:
+        '201':
+          description: Approved-source rate recorded with provenance.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FxRate' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProductCode:
+      name: productCode
+      in: query
+      required: true
+      schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+      description: Untrusted selector; the server validates it against the controlled product registry and actor entitlement. Initial codes are MONARQUE_CONNECT and ZAMUREK; future registered products do not require a second product enum.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 16, maxLength: 200 }
+  responses:
+    BadRequest:
+      description: Invalid decimal, unit, scope selector, or request shape.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Unauthorized:
+      description: Authentication is required.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Forbidden:
+      description: Permission, entitlement, or establishment scope is denied.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    NotFound:
+      description: Resource does not exist in the authorized scope.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Conflict:
+      description: Idempotency payload divergence, stale expected version, or concurrent version conflict.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Unprocessable:
+      description: No valid current price, policy, tax policy, or FX rate is available.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  schemas:
+    PositivePriceAmountString:
+      type: string
+      maxLength: 25
+      pattern: '^(?=.*[1-9])(?:0|[1-9][0-9]{0,15})(?:\.[0-9]{1,8})?$'
+      description: Positive decimal amount with at most 16 integer and 8 fractional digits, matching NUMERIC(24,8).
+    PositiveQuantityString:
+      type: string
+      maxLength: 25
+      pattern: '^(?=.*[1-9])(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,12})?$'
+      description: Positive decimal quantity with at most 12 integer and 12 fractional digits, matching NUMERIC(24,12).
+    PositiveFxRateString:
+      type: string
+      maxLength: 25
+      pattern: '^(?=.*[1-9])(?:0|[1-9][0-9]{0,5})(?:\.[0-9]{1,18})?$'
+      description: Positive decimal FX rate with at most 6 integer and 18 fractional digits, matching NUMERIC(24,18).
+    NonNegativeAmountString:
+      type: string
+      maxLength: 66
+      pattern: '^(?:0|[1-9][0-9]{0,46})(?:\.[0-9]{1,18})?$'
+      description: Non-negative amount with at most 47 integer and 18 fractional digits.
+    NonNegativeRateString:
+      type: string
+      maxLength: 25
+      pattern: '^(?:0|[1-9][0-9]{0,5})(?:\.[0-9]{1,18})?$'
+      description: Non-negative rate with at most 6 integer and 18 fractional digits.
+    Problem:
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri-reference }
+      additionalProperties: true
+    MeasureUnit:
+      type: object
+      required: [code, dimension, baseUnitCode, numerator, denominator, registryVersion]
+      properties:
+        code: { type: string }
+        dimension: { type: string }
+        baseUnitCode: { type: string }
+        numerator: { type: string, pattern: '^[1-9][0-9]{0,17}$' }
+        denominator: { type: string, pattern: '^[1-9][0-9]{0,17}$' }
+        registryVersion: { type: string }
+    CurrencyDefinition:
+      type: object
+      required: [code, minorUnitDigits, sourceRevision]
+      properties:
+        code: { type: string, pattern: '^[A-Z]{3}$' }
+        minorUnitDigits: { type: integer, minimum: 0, maximum: 4 }
+        sourceRevision: { type: string }
+    CommercialOffer:
+      type: object
+      required: [id, organizationId, productCode, itemId, sellUnitCode, status, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        itemId: { type: string, format: uuid }
+        variantId: { type: [string, 'null'], format: uuid }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        channelCode: { type: [string, 'null'] }
+        sellUnitCode: { type: string }
+        displayName: { type: [string, 'null'] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        version: { type: integer, minimum: 1 }
+    OfferPage:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CommercialOffer' } }
+        nextCursor: { type: [string, 'null'] }
+    CreateCommercialOffer:
+      type: object
+      required: [productCode, itemId, sellUnitCode]
+      properties:
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        itemId: { type: string, format: uuid }
+        variantId: { type: string, format: uuid }
+        establishmentId: { type: string, format: uuid }
+        channelCode: { type: string, maxLength: 64 }
+        sellUnitCode: { type: string }
+        displayName: { type: string, maxLength: 160 }
+      additionalProperties: false
+    CreateItemVariant:
+      type: object
+      required: [productCode, code]
+      properties:
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        code: { type: string, pattern: '^[A-Z0-9][A-Z0-9._-]{0,63}$' }
+        displayName: { type: string, maxLength: 160 }
+        attributes:
+          type: object
+          maxProperties: 30
+          additionalProperties: { type: string, maxLength: 256 }
+      additionalProperties: false
+    ItemVariant:
+      type: object
+      required: [id, organizationId, productCode, itemId, code, status]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        itemId: { type: string, format: uuid }
+        code: { type: string }
+        displayName: { type: [string, 'null'] }
+        attributes: { type: object, additionalProperties: { type: string } }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    UpdateCommercialOffer:
+      type: object
+      required: [expectedVersion]
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        channelCode: { type: [string, 'null'], maxLength: 64 }
+        displayName: { type: [string, 'null'], maxLength: 160 }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+      additionalProperties: false
+    CreateCommercialPriceVersion:
+      type: object
+      required: [amount, currencyCode, priceUnitCode]
+      properties:
+        amount: { $ref: '#/components/schemas/PositivePriceAmountString' }
+        currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+        priceUnitCode: { type: string }
+        effectiveFrom: { type: string, format: date-time, description: Server time when omitted; client-provided past values are rejected. }
+        expectedLatestVersionId: { type: string, format: uuid }
+      additionalProperties: false
+    CommercialPriceVersion:
+      type: object
+      required: [id, offerId, amount, currencyCode, priceUnitCode, effectiveFrom, version]
+      properties:
+        id: { type: string, format: uuid }
+        offerId: { type: string, format: uuid }
+        amount: { $ref: '#/components/schemas/PositivePriceAmountString' }
+        currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+        priceUnitCode: { type: string }
+        effectiveFrom: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    CreatePricingPolicyVersion:
+      type: object
+      required: [productCode, code, roundingMode, maxFxAgeSeconds]
+      properties:
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        effectiveFrom: { type: string, format: date-time, description: Server time when omitted; future activation only. }
+        roundingMode: { type: string, enum: [HALF_UP] }
+        maxFxAgeSeconds: { type: integer, minimum: 1, maximum: 2592000 }
+        allowedCurrencies: { type: array, uniqueItems: true, items: { type: string, pattern: '^[A-Z]{3}$' } }
+        allowedFxSources: { type: array, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 64 } }
+        discountRuleCodes: { type: array, uniqueItems: true, items: { type: string } }
+        taxPolicyCodes: { type: array, uniqueItems: true, items: { type: string } }
+      additionalProperties: false
+    CreateTaxPolicyVersion:
+      type: object
+      required: [productCode, code, jurisdictionCode, taxCategoryCode, rate, calculationCurrency]
+      properties:
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        jurisdictionCode: { type: string, minLength: 2, maxLength: 64 }
+        taxCategoryCode: { type: string, minLength: 1, maxLength: 64 }
+        rate: { $ref: '#/components/schemas/NonNegativeRateString' }
+        calculationCurrency: { type: string, enum: [SOURCE, TARGET] }
+        effectiveFrom: { type: string, format: date-time }
+        configurationReference: { type: string, minLength: 1, maxLength: 512 }
+      additionalProperties: false
+    ActivateTaxPolicyVersion:
+      type: object
+      required: [acknowledgement]
+      properties:
+        acknowledgement:
+          type: string
+          const: OWNER_REVIEWED_CONFIGURATION
+          description: Confirms owner review of technical settings; does not assert legal compliance.
+      additionalProperties: false
+    TaxPolicyVersion:
+      type: object
+      required: [id, organizationId, productCode, code, version, status, jurisdictionCode, taxCategoryCode, calculationCurrency]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        code: { type: string }
+        version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [DRAFT, ACTIVE, REVOKED] }
+        jurisdictionCode: { type: string }
+        taxCategoryCode: { type: string }
+        calculationCurrency: { type: string, enum: [SOURCE, TARGET] }
+    PricingPolicyVersion:
+      type: object
+      required: [id, organizationId, productCode, code, version, effectiveFrom, roundingMode]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        code: { type: string }
+        version: { type: integer, minimum: 1 }
+        effectiveFrom: { type: string, format: date-time }
+        roundingMode: { type: string, enum: [HALF_UP] }
+    CreatePricingQuote:
+      type: object
+      required: [productCode, offerId, quantity, unitCode]
+      properties:
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        offerId: { type: string, format: uuid }
+        variantId: { type: string, format: uuid }
+        quantity: { $ref: '#/components/schemas/PositiveQuantityString' }
+        unitCode: { type: string }
+        targetCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        establishmentId: { type: string, format: uuid }
+        channelCode: { type: string, maxLength: 64 }
+      additionalProperties: false
+    FxSnapshot:
+      type: object
+      required: [rateId, baseCurrency, quoteCurrency, appliedRate, direction, sourceCode, sourceReference, observedAt, validFrom, validUntil]
+      properties:
+        rateId: { type: string, format: uuid }
+        baseCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        quoteCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        appliedRate: { $ref: '#/components/schemas/PositiveFxRateString' }
+        direction: { type: string, enum: [DIRECT, RECIPROCAL] }
+        sourceCode: { type: string }
+        sourceReference: { type: string }
+        observedAt: { type: string, format: date-time }
+        validFrom: { type: string, format: date-time }
+        validUntil: { type: string, format: date-time }
+    TaxLineSnapshot:
+      type: object
+      required: [policyVersionId, rate, taxableBase, amount, currencyCode]
+      properties:
+        policyVersionId: { type: string, format: uuid }
+        rate: { $ref: '#/components/schemas/NonNegativeRateString' }
+        taxableBase: { $ref: '#/components/schemas/NonNegativeAmountString' }
+        amount: { $ref: '#/components/schemas/NonNegativeAmountString' }
+        currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+    DiscountLineSnapshot:
+      type: object
+      required: [ruleCode, policyVersion, amount, currencyCode]
+      properties:
+        ruleCode: { type: string }
+        policyVersion: { type: string }
+        amount: { $ref: '#/components/schemas/NonNegativeAmountString' }
+        currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+    PricingQuoteSnapshot:
+      type: object
+      required: [id, snapshotVersion, calculationVersion, createdAt, expiresAt, organizationId, productCode, establishmentId, channelCode, offerId, variantId, priceVersionId, pricingPolicyVersionId, inputHash, quantityOriginal, quantityNormalized, unitPrice, subtotal, netAmount, discountAmount, discounts, taxLines, taxPolicyVersionIds, sourceTotal, sourceCurrency, targetTotal, targetCurrency, roundingPolicyVersion, taxCalculationCurrency, fx, validity]
+      properties:
+        id: { type: string, format: uuid }
+        snapshotVersion: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        channelCode: { type: [string, 'null'] }
+        offerId: { type: string, format: uuid }
+        variantId: { type: [string, 'null'], format: uuid }
+        priceVersionId: { type: string, format: uuid }
+        pricingPolicyVersionId: { type: string, format: uuid }
+        inputHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        quantityOriginal:
+          type: object
+          required: [amount, unitCode]
+          properties:
+            amount: { $ref: '#/components/schemas/PositiveQuantityString' }
+            unitCode: { type: string }
+        quantityNormalized:
+          type: object
+          required: [amount, baseUnitCode, conversionNumerator, conversionDenominator, unitRegistryVersion]
+          properties:
+            amount: { $ref: '#/components/schemas/PositiveQuantityString' }
+            baseUnitCode: { type: string }
+            conversionNumerator: { type: string, pattern: '^[1-9][0-9]{0,17}$' }
+            conversionDenominator: { type: string, pattern: '^[1-9][0-9]{0,17}$' }
+            unitRegistryVersion: { type: string }
+        unitPrice:
+          type: object
+          required: [amount, currencyCode, unitCode]
+          properties:
+            amount: { $ref: '#/components/schemas/PositivePriceAmountString' }
+            currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+            unitCode: { type: string }
+        subtotal: { $ref: '#/components/schemas/NonNegativeAmountString', description: Amount before discounts in sourceCurrency, rounded by the snapshot policy. }
+        netAmount: { $ref: '#/components/schemas/NonNegativeAmountString', description: Amount after discounts and before tax, in sourceCurrency. }
+        discountAmount: { $ref: '#/components/schemas/NonNegativeAmountString', description: Total authorized discount, in sourceCurrency. }
+        discounts: { type: array, items: { $ref: '#/components/schemas/DiscountLineSnapshot' } }
+        taxLines: { type: array, items: { $ref: '#/components/schemas/TaxLineSnapshot' } }
+        taxPolicyVersionIds: { type: array, uniqueItems: true, items: { type: string, format: uuid } }
+        sourceTotal: { anyOf: [{ $ref: '#/components/schemas/NonNegativeAmountString' }, { type: 'null' }], description: Final source-currency total when tax is calculated in SOURCE; null when tax is calculated in TARGET. }
+        sourceCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        targetTotal: { $ref: '#/components/schemas/NonNegativeAmountString', description: Final payable quote amount in targetCurrency. }
+        targetCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        roundingPolicyVersion: { type: string }
+        taxCalculationCurrency: { type: string, enum: [SOURCE, TARGET] }
+        calculationVersion: { type: string }
+        fx: { anyOf: [{ $ref: '#/components/schemas/FxSnapshot' }, { type: 'null' }] }
+        validity: { type: string, enum: [VALID, EXPIRED, REVOKED] }
+      additionalProperties: false
+    IngestFxRate:
+      type: object
+      required: [baseCurrency, quoteCurrency, rate, sourceCode, observedAt, validFrom, validUntil, sourceReference]
+      properties:
+        baseCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        quoteCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        rate: { $ref: '#/components/schemas/PositiveFxRateString' }
+        sourceCode: { type: string, minLength: 1, maxLength: 64 }
+        observedAt: { type: string, format: date-time }
+        validFrom: { type: string, format: date-time }
+        validUntil: { type: string, format: date-time }
+        sourceReference: { type: string, minLength: 1, maxLength: 256 }
+      additionalProperties: false
+    FxRate:
+      type: object
+      required: [id, baseCurrency, quoteCurrency, rate, sourceCode, sourceReference, observedAt, validFrom, validUntil]
+      properties:
+        id: { type: string, format: uuid }
+        baseCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        quoteCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        rate: { $ref: '#/components/schemas/PositiveFxRateString' }
+        sourceCode: { type: string }
+        sourceReference: { type: string }
+        observedAt: { type: string, format: date-time }
+        validFrom: { type: string, format: date-time }
+        validUntil: { type: string, format: date-time }
