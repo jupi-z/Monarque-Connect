@@ -14,8 +14,8 @@ for (const document of documents) {
   if (spec.openapi !== '3.1.0') throw new Error(`${document.path}: expected OpenAPI 3.1.0, got ${spec.openapi ?? 'missing'}`);
   if (!spec.info?.title || !spec.info?.version) throw new Error(`${document.path}: info.title and info.version are required`);
   if (!spec.paths || typeof spec.paths !== 'object') throw new Error(`${document.path}: paths are required`);
-  if (document.proposed && spec.info['x-contract-status'] !== 'proposed-not-runtime') {
-    throw new Error('The C3 contract must remain explicitly marked proposed-not-runtime until implementation is merged');
+  if (document.proposed && !['proposed-not-runtime', 'partially-implemented'].includes(spec.info['x-contract-status'])) {
+    throw new Error('The C3 contract must state whether it is proposed or partially implemented');
   }
 
   const operationIds = new Set();
@@ -30,6 +30,12 @@ for (const document of documents) {
       if (operationIds.has(operation.operationId)) throw new Error(`${document.path}: duplicate operationId: ${operation.operationId}`);
       operationIds.add(operation.operationId);
     }
+  }
+
+  if (document.proposed && spec.info['x-contract-status'] === 'partially-implemented') {
+    const implemented = Object.values(spec.paths).flatMap((item) => Object.values(item ?? {}))
+      .filter((operation) => operation && typeof operation === 'object' && operation['x-runtime-status'] === 'implemented');
+    if (!implemented.length) throw new Error('Partially implemented C3 contract must identify runtime operations');
   }
 
   const unresolvedSchemaRefs = [...source.matchAll(/#\/components\/schemas\/([A-Za-z0-9_]+)/g)]

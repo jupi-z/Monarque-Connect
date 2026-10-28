@@ -17,7 +17,7 @@ type Schema = {
   allOf?: Schema[];
   anyOf?: Schema[];
 };
-type Operation = { operationId?: string; parameters?: Parameter[]; requestBody?: { description?: string; content?: Record<string, { schema?: Schema }> }; responses?: Record<string, { description?: string; content?: Record<string, { schema?: Schema }> }> };
+type Operation = { operationId?: string; 'x-runtime-status'?: string; parameters?: Parameter[]; requestBody?: { description?: string; content?: Record<string, { schema?: Schema }> }; responses?: Record<string, { description?: string; content?: Record<string, { schema?: Schema }> }> };
 type PathItem = Record<string, Operation> & { parameters?: Parameter[] };
 type Document = {
   info: { 'x-contract-status'?: string };
@@ -44,6 +44,10 @@ const expected: Record<string, string> = {
 
 async function load(): Promise<Document> {
   return parse(await readFile(new URL('../../contracts/phase10a5-c3-proposed.openapi.yaml', import.meta.url), 'utf8')) as Document;
+}
+
+async function loadRuntime(): Promise<Document> {
+  return parse(await readFile(new URL('../../openapi/openapi.yaml', import.meta.url), 'utf8')) as Document;
 }
 
 function operation(spec: Document, key: string): Operation {
@@ -94,13 +98,22 @@ function schemaRef(schema: Schema | undefined): string | undefined {
   return schema.$ref ?? schema.allOf?.map(schemaRef).find(Boolean) ?? schema.anyOf?.map(schemaRef).find(Boolean);
 }
 
-describe('C3 proposed catalog and pricing OpenAPI contract', () => {
-  it('remains explicitly proposed and freezes every operation before runtime implementation', async () => {
+describe('C3 catalog and pricing OpenAPI contract', () => {
+  it('marks runtime coverage accurately and keeps planned operations explicit', async () => {
     const spec = await load();
-    expect(spec.info['x-contract-status']).toBe('proposed-not-runtime');
+    expect(spec.info['x-contract-status']).toBe('partially-implemented');
     expect(spec.servers).toEqual([{ url: '/api/v1' }]);
     for (const [key, operationId] of Object.entries(expected)) {
       expect(operation(spec, key).operationId, key).toBe(operationId);
+    }
+    const runtime = await loadRuntime();
+    for (const key of [
+      'POST /organizations/{organizationId}/pricing/policy-versions',
+      'POST /organizations/{organizationId}/pricing/tax-policy-versions',
+      'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate',
+    ]) {
+      expect(operation(runtime, key).operationId, key).toBe(expected[key]);
+      expect(operation(spec, key)['x-runtime-status']).toBe('implemented');
     }
   });
 

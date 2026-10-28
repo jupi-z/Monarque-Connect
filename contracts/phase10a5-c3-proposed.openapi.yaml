@@ -3,9 +3,9 @@ info:
   title: Monarque Connect C3 Catalog and Pricing Contract
   version: 0.1.0-proposed
   description: >-
-    Normative proposal for Phase 10A.5 C3 only. These operations are not runtime
-    endpoints until implemented, merged into openapi/openapi.yaml, and verified.
-  x-contract-status: proposed-not-runtime
+    Normative contract for Phase 10A.5 C3. Operations marked implemented are
+    present in runtime OpenAPI; the remaining operations are planned.
+  x-contract-status: partially-implemented
 servers:
   - url: /api/v1
 security:
@@ -174,6 +174,7 @@ paths:
     post:
       tags: [Pricing]
       operationId: createPricingPolicyVersion
+      x-runtime-status: implemented
       x-required-principal: STAFF
       x-required-roles: [OWNER, ADMIN]
       x-required-permissions: [pricing:policy:manage]
@@ -284,6 +285,7 @@ paths:
     post:
       tags: [Pricing]
       operationId: createTaxPolicyVersion
+      x-runtime-status: implemented
       x-required-principal: STAFF
       x-required-roles: [OWNER, ADMIN]
       x-required-permissions: [pricing:tax:manage]
@@ -315,6 +317,7 @@ paths:
     post:
       tags: [Pricing]
       operationId: activateTaxPolicyVersion
+      x-runtime-status: implemented
       x-required-principal: STAFF
       x-required-roles: [OWNER, ADMIN]
       x-required-permissions: [pricing:tax:manage]
@@ -552,21 +555,21 @@ components:
       required: [productCode, code, roundingMode, maxFxAgeSeconds]
       properties:
         productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
-        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
-        effectiveFrom: { type: string, format: date-time, description: Server time when omitted; future activation only. }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$' }
+        effectiveFrom: { type: string, format: date-time, description: Server time when omitted; explicit values must be future timestamps. }
         roundingMode: { type: string, enum: [HALF_UP] }
         maxFxAgeSeconds: { type: integer, minimum: 1, maximum: 2592000 }
-        allowedCurrencies: { type: array, uniqueItems: true, items: { type: string, pattern: '^[A-Z]{3}$' } }
-        allowedFxSources: { type: array, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 64 } }
-        discountRuleCodes: { type: array, uniqueItems: true, items: { type: string } }
-        taxPolicyCodes: { type: array, uniqueItems: true, items: { type: string } }
+        allowedCurrencies: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, pattern: '^[A-Z]{3}$' } }
+        allowedFxSources: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, pattern: '^[A-Z][A-Z0-9._-]{0,63}$' } }
+        discountRuleCodes: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$' } }
+        taxPolicyCodes: { type: array, maxItems: 100, uniqueItems: true, items: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$' } }
       additionalProperties: false
     CreateTaxPolicyVersion:
       type: object
-      required: [productCode, code, jurisdictionCode, taxCategoryCode, rate, calculationCurrency]
+      required: [productCode, code, jurisdictionCode, taxCategoryCode, rate, calculationCurrency, configurationReference]
       properties:
         productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
-        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$' }
         jurisdictionCode: { type: string, minLength: 2, maxLength: 64 }
         taxCategoryCode: { type: string, minLength: 1, maxLength: 64 }
         rate: { $ref: '#/components/schemas/NonNegativeRateString' }
@@ -585,20 +588,26 @@ components:
       additionalProperties: false
     TaxPolicyVersion:
       type: object
-      required: [id, organizationId, productCode, code, version, status, jurisdictionCode, taxCategoryCode, calculationCurrency]
+      required: [id, organizationId, productCode, code, version, status, jurisdictionCode, taxCategoryCode, rate, calculationCurrency, effectiveFrom, configurationReference, activatedAt, tenantReviewAcknowledgement, createdAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
         productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
         code: { type: string }
         version: { type: integer, minimum: 1 }
-        status: { type: string, enum: [DRAFT, ACTIVE, REVOKED] }
+        status: { type: string, enum: [DRAFT, ACTIVE] }
         jurisdictionCode: { type: string }
         taxCategoryCode: { type: string }
+        rate: { $ref: '#/components/schemas/NonNegativeRateString' }
         calculationCurrency: { type: string, enum: [SOURCE, TARGET] }
+        effectiveFrom: { type: string, format: date-time }
+        configurationReference: { type: string, maxLength: 512 }
+        activatedAt: { type: [string, 'null'], format: date-time }
+        tenantReviewAcknowledgement: { type: [string, 'null'], const: OWNER_REVIEWED_CONFIGURATION }
+        createdAt: { type: string, format: date-time }
     PricingPolicyVersion:
       type: object
-      required: [id, organizationId, productCode, code, version, effectiveFrom, roundingMode]
+      required: [id, organizationId, productCode, code, version, effectiveFrom, roundingMode, calculationScale, maxFxAgeSeconds, allowedCurrencies, allowedFxSources, discountRuleCodes, taxPolicyCodes, createdAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -607,6 +616,13 @@ components:
         version: { type: integer, minimum: 1 }
         effectiveFrom: { type: string, format: date-time }
         roundingMode: { type: string, enum: [HALF_UP] }
+        calculationScale: { type: integer, const: 18 }
+        maxFxAgeSeconds: { type: integer, minimum: 1, maximum: 2592000 }
+        allowedCurrencies: { type: array, items: { type: string, pattern: '^[A-Z]{3}$' } }
+        allowedFxSources: { type: array, items: { type: string } }
+        discountRuleCodes: { type: array, items: { type: string } }
+        taxPolicyCodes: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
     CreatePricingQuote:
       type: object
       required: [productCode, offerId, quantity, unitCode]

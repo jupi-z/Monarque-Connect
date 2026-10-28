@@ -326,6 +326,9 @@ enum AuditAction {
   BILLING_CUSTOMER_VERIFICATION_CHANGED
   BILLING_CUSTOMER_ORGANIZATION_LINKED
   PRICING_FX_RATE_INGESTED
+  PRICING_POLICY_VERSION_CREATED
+  PRICING_TAX_POLICY_DRAFT_CREATED
+  PRICING_TAX_POLICY_ACTIVATED
   SUPPLIER_RFQ_CREATED
   SUPPLIER_RFQ_UPDATED
   SUPPLIER_RFQ_STATUS_CHANGED
@@ -723,6 +726,9 @@ model User {
   publishedCommercialPrices         CommercialPriceVersion[]
   ingestedFxRates                   FxRate[]                              @relation("FxRateIngestedBy")
   fxRateIngestionReceipts            FxRateIngestionReceipt[]
+  createdPricingPolicyVersions      PricingPolicyVersion[]                @relation("PricingPolicyVersionCreatedBy")
+  createdTaxPolicyVersions          TaxPolicyVersion[]                    @relation("TaxPolicyVersionCreatedBy")
+  activatedTaxPolicyVersions        TaxPolicyVersion[]                    @relation("TaxPolicyVersionActivatedBy")
 
   @@index([status])
   @@map("users")
@@ -843,6 +849,8 @@ model ProductCatalog {
   quotaLedgers  QuotaLedger[]
   commercialOffers CommercialOffer[]
   commercialPriceVersions CommercialPriceVersion[]
+  pricingPolicyVersions PricingPolicyVersion[]
+  taxPolicyVersions TaxPolicyVersion[]
 
   @@map("product_catalog")
 }
@@ -1145,6 +1153,8 @@ model Organization {
   items                             Item[]
   commercialOffers                  CommercialOffer[]
   commercialPriceVersions           CommercialPriceVersion[]
+  pricingPolicyVersions              PricingPolicyVersion[]
+  taxPolicyVersions                  TaxPolicyVersion[]
   catalogCommandReceipts            CatalogCommandReceipt[]
   warehouses                        Warehouse[]
   leads                             Lead[]
@@ -2026,6 +2036,16 @@ enum CommercialOfferStatus {
   INACTIVE
 }
 
+enum TaxPolicyStatus {
+  DRAFT
+  ACTIVE
+}
+
+enum TaxCalculationCurrency {
+  SOURCE
+  TARGET
+}
+
 model CommercialOffer {
   id                String                @id @db.Uuid
   organizationId    String                @map("organization_id") @db.Uuid
@@ -2080,6 +2100,63 @@ model CommercialPriceVersion {
   @@unique([organizationId, offerId, currencyCode, effectiveFrom], map: "commercial_price_versions_org_offer_currency_effective_key")
   @@index([organizationId, productCode, offerId, currencyCode, effectiveFrom(sort: Desc)], map: "commercial_price_versions_price_scope_time_idx")
   @@map("commercial_price_versions")
+}
+
+/// Immutable tenant/product-scoped rules. A correction is a new version, never an update.
+model PricingPolicyVersion {
+  id                 String       @id @db.Uuid
+  organizationId     String       @map("organization_id") @db.Uuid
+  productCode        String       @map("product_code") @db.VarChar(64)
+  code               String       @db.VarChar(64)
+  version            Int
+  effectiveFrom      DateTime     @map("effective_from") @db.Timestamptz(6)
+  roundingMode       String       @map("rounding_mode") @db.VarChar(16)
+  calculationScale   Int          @default(18) @map("calculation_scale")
+  maxFxAgeSeconds    Int          @map("max_fx_age_seconds")
+  allowedCurrencies  String[]     @default([]) @map("allowed_currencies")
+  allowedFxSources   String[]     @default([]) @map("allowed_fx_sources")
+  discountRuleCodes  String[]     @default([]) @map("discount_rule_codes")
+  taxPolicyCodes     String[]     @default([]) @map("tax_policy_codes")
+  createdByUserId    String       @map("created_by_user_id") @db.Uuid
+  commandPayloadHash String       @map("command_payload_hash") @db.VarChar(64)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product            ProductCatalog @relation(fields: [productCode], references: [code], onDelete: Restrict)
+  createdBy          User         @relation("PricingPolicyVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, productCode, code, version], map: "pricing_policy_versions_scope_code_version_key")
+  @@index([organizationId, productCode, code, effectiveFrom(sort: Desc)], map: "pricing_policy_versions_scope_effective_idx")
+  @@map("pricing_policy_versions")
+}
+
+/// Tenant-configured technical tax rule. ACTIVE means explicitly reviewed by the tenant, not legally certified.
+model TaxPolicyVersion {
+  id                         String                @id @db.Uuid
+  organizationId             String                @map("organization_id") @db.Uuid
+  productCode                String                @map("product_code") @db.VarChar(64)
+  code                       String                @db.VarChar(64)
+  version                    Int
+  status                     TaxPolicyStatus       @default(DRAFT)
+  jurisdictionCode           String                @map("jurisdiction_code") @db.VarChar(64)
+  taxCategoryCode            String                @map("tax_category_code") @db.VarChar(64)
+  rate                       Decimal               @db.Decimal(24, 18)
+  calculationCurrency        TaxCalculationCurrency @map("calculation_currency")
+  effectiveFrom              DateTime              @map("effective_from") @db.Timestamptz(6)
+  configurationReference     String                @map("configuration_reference") @db.VarChar(512)
+  createdByUserId            String                @map("created_by_user_id") @db.Uuid
+  activatedByUserId           String?               @map("activated_by_user_id") @db.Uuid
+  activatedAt                 DateTime?             @map("activated_at") @db.Timestamptz(6)
+  activationAcknowledgement  String?               @map("activation_acknowledgement") @db.VarChar(40)
+  commandPayloadHash         String                @map("command_payload_hash") @db.VarChar(64)
+  createdAt                  DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization               Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product                    ProductCatalog        @relation(fields: [productCode], references: [code], onDelete: Restrict)
+  createdBy                  User                  @relation("TaxPolicyVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  activatedBy                User?                 @relation("TaxPolicyVersionActivatedBy", fields: [activatedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, productCode, code, version], map: "tax_policy_versions_scope_code_version_key")
+  @@index([organizationId, productCode, jurisdictionCode, taxCategoryCode, status, effectiveFrom(sort: Desc)], map: "tax_policy_versions_resolution_idx")
+  @@map("tax_policy_versions")
 }
 
 /// Immutable, provenance-bearing reference exchange rate; it does not imply a live provider or a commercial spread.
