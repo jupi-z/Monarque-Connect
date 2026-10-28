@@ -7,6 +7,8 @@ type Schema = {
   type?: string | string[];
   format?: string;
   pattern?: string;
+  maxLength?: number;
+  description?: string;
   enum?: unknown[];
   properties?: Record<string, Schema>;
   required?: string[];
@@ -15,7 +17,7 @@ type Schema = {
   allOf?: Schema[];
   anyOf?: Schema[];
 };
-type Operation = { operationId?: string; parameters?: Parameter[]; requestBody?: { content?: Record<string, { schema?: Schema }> }; responses?: Record<string, { content?: Record<string, { schema?: Schema }> }> };
+type Operation = { operationId?: string; parameters?: Parameter[]; requestBody?: { description?: string; content?: Record<string, { schema?: Schema }> }; responses?: Record<string, { description?: string; content?: Record<string, { schema?: Schema }> }> };
 type PathItem = Record<string, Operation> & { parameters?: Parameter[] };
 type Document = {
   info: { 'x-contract-status'?: string };
@@ -46,11 +48,36 @@ async function load(): Promise<Document> {
 
 function operation(spec: Document, key: string): Operation {
   const [method, ...pathParts] = key.split(' ');
+  if (!method) throw new Error(`Invalid operation key ${key}`);
   const path = pathParts.join(' ');
   const pathItem = spec.paths[path];
-  const result = pathItem?.[method.toLowerCase()];
+  if (!pathItem) throw new Error(`Missing proposed path ${path}`);
+  const result = pathItem[method.toLowerCase()];
   if (!result) throw new Error(`Missing proposed operation ${key}`);
   return { ...result, parameters: [...(pathItem.parameters ?? []), ...(result.parameters ?? [])] };
+}
+
+function requiredSchema(spec: Document, name: string): Schema {
+  const schema = spec.components.schemas[name];
+  if (!schema) throw new Error(`Missing proposed schema ${name}`);
+  return schema;
+}
+
+function requiredProperty(schema: Schema, name: string): Schema {
+  const property = schema.properties?.[name];
+  if (!property) throw new Error(`Missing proposed schema property ${name}`);
+  return property;
+}
+
+function requiredItems(schema: Schema): Schema {
+  if (!schema.items) throw new Error('Missing proposed array items schema');
+  return schema.items;
+}
+
+function requiredParameter(spec: Document, name: string): Parameter {
+  const parameter = spec.components.parameters[name];
+  if (!parameter) throw new Error(`Missing proposed parameter ${name}`);
+  return parameter;
 }
 
 function schemaRef(schema: Schema | undefined): string | undefined {
@@ -78,30 +105,30 @@ describe('C3 proposed catalog and pricing OpenAPI contract', () => {
 
   it('serializes every economic value as decimal text and excludes client valuation timestamps', async () => {
     const spec = await load();
-    const quoteRequest = spec.components.schemas.CreatePricingQuote;
-    expect(quoteRequest.properties?.quantity?.$ref).toBe('#/components/schemas/PositiveQuantityString');
+    const quoteRequest = requiredSchema(spec, 'CreatePricingQuote');
+    expect(requiredProperty(quoteRequest, 'quantity').$ref).toBe('#/components/schemas/PositiveQuantityString');
     expect(quoteRequest.properties).not.toHaveProperty('asOf');
     for (const name of ['CreateCommercialPriceVersion', 'CreatePricingQuote', 'IngestFxRate']) {
-      const source = spec.components.schemas[name];
+      const source = requiredSchema(spec, name);
       const economicFields = name === 'CreateCommercialPriceVersion' ? ['amount'] : name === 'CreatePricingQuote' ? ['quantity'] : ['rate'];
       const expectedSchema = name === 'CreateCommercialPriceVersion' ? 'PositivePriceAmountString' : name === 'CreatePricingQuote' ? 'PositiveQuantityString' : 'PositiveFxRateString';
       for (const field of economicFields) {
-        const prop = source.properties?.[field];
+        const prop = requiredProperty(source, field);
         expect(schemaRef(prop), `${name}.${field}`).toBe(`#/components/schemas/${expectedSchema}`);
         expect(prop?.type, `${name}.${field}`).not.toBe('number');
       }
     }
-    expect(schemaRef(spec.components.schemas.PricingQuoteSnapshot.properties?.targetTotal)).toBe('#/components/schemas/NonNegativeAmountString');
-    expect(spec.components.schemas.PositivePriceAmountString.maxLength).toBe(25);
-    expect(spec.components.schemas.PositiveQuantityString.maxLength).toBe(25);
-    expect(spec.components.schemas.PositiveFxRateString.maxLength).toBe(25);
-    const positivePricePattern = new RegExp(spec.components.schemas.PositivePriceAmountString.pattern!);
+    expect(schemaRef(requiredProperty(requiredSchema(spec, 'PricingQuoteSnapshot'), 'targetTotal'))).toBe('#/components/schemas/NonNegativeAmountString');
+    expect(requiredSchema(spec, 'PositivePriceAmountString').maxLength).toBe(25);
+    expect(requiredSchema(spec, 'PositiveQuantityString').maxLength).toBe(25);
+    expect(requiredSchema(spec, 'PositiveFxRateString').maxLength).toBe(25);
+    const positivePricePattern = new RegExp(requiredSchema(spec, 'PositivePriceAmountString').pattern!);
     expect(['0.01', '9999999999999999.12345678'].every((value) => positivePricePattern.test(value))).toBe(true);
     expect(['0', '-1', '10000000000000000', '1.123456789'].some((value) => positivePricePattern.test(value))).toBe(false);
-    const positiveQuantityPattern = new RegExp(spec.components.schemas.PositiveQuantityString.pattern!);
+    const positiveQuantityPattern = new RegExp(requiredSchema(spec, 'PositiveQuantityString').pattern!);
     expect(['1', '0.01', '999999999999.123456789012'].every((value) => positiveQuantityPattern.test(value))).toBe(true);
     expect(['0', '0.000', '-1', '1e2', '01.2', '1.1234567890123', '1000000000000'].some((value) => positiveQuantityPattern.test(value))).toBe(false);
-    const positiveFxPattern = new RegExp(spec.components.schemas.PositiveFxRateString.pattern!);
+    const positiveFxPattern = new RegExp(requiredSchema(spec, 'PositiveFxRateString').pattern!);
     expect(['0.000000000000000001', '999999.123456789012345678'].every((value) => positiveFxPattern.test(value))).toBe(true);
     expect(['0', '-1', '1000000', '1.1234567890123456789'].some((value) => positiveFxPattern.test(value))).toBe(false);
   });
@@ -109,17 +136,18 @@ describe('C3 proposed catalog and pricing OpenAPI contract', () => {
   it('requires explicit product selection and non-authoritative tenant scoping for tenant operations', async () => {
     const spec = await load();
     const productResolvedFromTenantScopedResource = new Set(['updateCommercialOffer', 'publishCommercialPriceVersion']);
-    expect(spec.components.parameters.ProductCode.schema?.pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
-    expect(spec.components.parameters.ProductCode.schema).not.toHaveProperty('enum');
+    const productCode = requiredParameter(spec, 'ProductCode');
+    expect(productCode.schema?.pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
+    expect(productCode.schema).not.toHaveProperty('enum');
     for (const [key, operationId] of Object.entries(expected)) {
       if (!key.includes('/organizations/')) continue;
       const op = operation(spec, key);
       const params = op.parameters ?? [];
       const bodySchema = Object.values(op.requestBody?.content ?? {})[0]?.schema;
       const bodyName = bodySchema?.$ref?.split('/').at(-1);
-      const bodyRequiresProduct = bodyName ? spec.components.schemas[bodyName]?.required?.includes('productCode') : bodySchema?.required?.includes('productCode');
+      const bodyRequiresProduct = bodyName ? requiredSchema(spec, bodyName).required?.includes('productCode') : bodySchema?.required?.includes('productCode');
       expect(params.some((parameter) => parameter.name === 'productCode' && parameter.required) || bodyRequiresProduct || productResolvedFromTenantScopedResource.has(operationId), operationId).toBe(true);
-      const productSchema = bodyName ? spec.components.schemas[bodyName]?.properties?.productCode : bodySchema?.properties?.productCode;
+      const productSchema = bodyName ? requiredSchema(spec, bodyName).properties?.productCode : bodySchema?.properties?.productCode;
       if (productSchema) {
         expect(productSchema.pattern, operationId).toBe('^[A-Z][A-Z0-9_]{1,63}$');
         expect(productSchema).not.toHaveProperty('enum');
@@ -149,22 +177,23 @@ describe('C3 proposed catalog and pricing OpenAPI contract', () => {
     const quote = operation(spec, 'POST /organizations/{organizationId}/pricing/quotes');
     expect(quote.responses?.['422']).toBeDefined();
     expect(schemaRef(quote.responses?.['201']?.content?.['application/json']?.schema)).toBe('#/components/schemas/PricingQuoteSnapshot');
-    expect(spec.components.schemas.PricingQuoteSnapshot.required).toEqual(expect.arrayContaining(['inputHash', 'priceVersionId', 'pricingPolicyVersionId', 'subtotal', 'netAmount', 'discountAmount', 'sourceTotal', 'sourceCurrency', 'targetTotal', 'roundingPolicyVersion', 'calculationVersion', 'validity', 'establishmentId', 'channelCode', 'variantId', 'fx']));
-    expect(spec.components.schemas.PricingQuoteSnapshot.properties?.establishmentId).toBeDefined();
-    expect(spec.components.schemas.PricingQuoteSnapshot.properties?.channelCode).toBeDefined();
-    expect(spec.components.schemas.PricingQuoteSnapshot.properties?.discounts?.items?.$ref).toBe('#/components/schemas/DiscountLineSnapshot');
-    expect(spec.components.schemas.PricingQuoteSnapshot.properties?.taxLines?.items?.$ref).toBe('#/components/schemas/TaxLineSnapshot');
-    expect(spec.components.schemas.FxSnapshot.required).toEqual(expect.arrayContaining(['sourceReference', 'validFrom', 'validUntil']));
-    expect(spec.components.schemas.PricingQuoteSnapshot.properties?.productCode?.pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
-    expect(spec.components.schemas.PricingQuoteSnapshot.properties?.sourceTotal?.anyOf?.[1]?.type).toBe('null');
-    expect(spec.components.schemas.PricingQuoteSnapshot.properties?.taxCalculationCurrency?.enum).toEqual(['SOURCE', 'TARGET']);
+    const snapshot = requiredSchema(spec, 'PricingQuoteSnapshot');
+    expect(snapshot.required).toEqual(expect.arrayContaining(['inputHash', 'priceVersionId', 'pricingPolicyVersionId', 'subtotal', 'netAmount', 'discountAmount', 'sourceTotal', 'sourceCurrency', 'targetTotal', 'roundingPolicyVersion', 'calculationVersion', 'validity', 'establishmentId', 'channelCode', 'variantId', 'fx']));
+    expect(requiredProperty(snapshot, 'establishmentId')).toBeDefined();
+    expect(requiredProperty(snapshot, 'channelCode')).toBeDefined();
+    expect(requiredItems(requiredProperty(snapshot, 'discounts')).$ref).toBe('#/components/schemas/DiscountLineSnapshot');
+    expect(requiredItems(requiredProperty(snapshot, 'taxLines')).$ref).toBe('#/components/schemas/TaxLineSnapshot');
+    expect(requiredSchema(spec, 'FxSnapshot').required).toEqual(expect.arrayContaining(['sourceReference', 'validFrom', 'validUntil']));
+    expect(requiredProperty(snapshot, 'productCode').pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
+    expect(requiredProperty(snapshot, 'sourceTotal').anyOf?.[1]?.type).toBe('null');
+    expect(requiredProperty(snapshot, 'taxCalculationCurrency').enum).toEqual(['SOURCE', 'TARGET']);
   });
 
   it('keeps tax configuration tenant-admin controlled and explicitly non-certifying', async () => {
     const spec = await load();
     const activate = operation(spec, 'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate');
     expect(activate.responses?.['200']?.description).toContain('no legal status is implied');
-    expect(spec.components.schemas.ActivateTaxPolicyVersion.properties?.acknowledgement?.type).toBe('string');
+    expect(requiredProperty(requiredSchema(spec, 'ActivateTaxPolicyVersion'), 'acknowledgement').type).toBe('string');
     expect((activate as Operation & { 'x-required-permissions'?: string[] })['x-required-permissions']).toContain('pricing:tax:manage');
   });
 });
