@@ -240,11 +240,16 @@ export class PricingQuoteService {
             priceVersionId: price.id, pricingPolicyVersionId: policy.id, actorUserId: principal.userId,
             idempotencyKey: key, inputHash, valuationAt, expiresAt, snapshotVersion: 1,
             calculationVersion: CALCULATION_VERSION, snapshotJson: snapshot,
-            lines: { create: [{ id: randomUUID(), organizationId, lineIndex: 0, snapshotJson: {
-              itemId: offer.itemId, itemName: offer.item.name, offerId: offer.id, variantId,
-              quantityOriginal: snapshot.quantityOriginal, quantityNormalized: snapshot.quantityNormalized,
-              unitPrice: snapshot.unitPrice, subtotal: snapshot.subtotal,
-            }] },
+            lines: {
+              create: [{
+                id: randomUUID(), organizationId, lineIndex: 0,
+                snapshotJson: {
+                  itemId: offer.itemId, itemName: offer.item.name, offerId: offer.id, variantId,
+                  quantityOriginal: snapshot.quantityOriginal, quantityNormalized: snapshot.quantityNormalized,
+                  unitPrice: snapshot.unitPrice, subtotal: snapshot.subtotal,
+                },
+              }],
+            },
           },
         });
         await tx.auditEvent.create({ data: {
