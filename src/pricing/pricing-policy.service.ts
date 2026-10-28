@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, type AuditAction, type TaxCalculationCurrency, type TaxPolicyStatus } from '@prisma/client';
+import { Prisma, type AuditAction, type TaxPolicyStatus } from '@prisma/client';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import { PrismaService } from '../database/prisma.service.js';
 import { createDomainEvent } from '../events/domain-event.factory.js';
@@ -113,7 +113,7 @@ export class PricingPolicyService {
         const policy = await tx.taxPolicyVersion.create({ data: {
           id: randomUUID(), organizationId, productCode, code: input.code, version: (latest?.version ?? 0) + 1,
           status: 'DRAFT', jurisdictionCode, taxCategoryCode, rate: new Prisma.Decimal(rate),
-          calculationCurrency: input.calculationCurrency as TaxCalculationCurrency, effectiveFrom, configurationReference,
+          calculationCurrency: input.calculationCurrency, effectiveFrom, configurationReference,
           createdByUserId: principal.userId, commandPayloadHash: payloadHash,
         } });
         await this.writeReceipt(tx, principal.userId, organizationId, TAX_POLICY_CREATE, key, payloadHash, 'TaxPolicyVersion', policy.id);
