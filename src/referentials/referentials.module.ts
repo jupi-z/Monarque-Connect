@@ -12,7 +12,6 @@ import { CatalogReferenceController } from './catalog-reference.controller.js';
 import { CatalogReferenceService } from './catalog-reference.service.js';
 import { CommercialCatalogController } from './commercial-catalog.controller.js';
 import { CommercialCatalogService } from './commercial-catalog.service.js';
-import { CommercialPriceService } from '../pricing/commercial-price.service.js';
 import { PricingModule } from '../pricing/pricing.module.js';
 
 @Module({
