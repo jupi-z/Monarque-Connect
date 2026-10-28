@@ -11,7 +11,7 @@
 | C0 | DONE | Audit et arbitrages | Docs/115; issue #153 close |
 | C1 | DONE | Registre de produits et entitlements scoped | Docs/116, Docs/118; PR #158–#162 |
 | C2 | DONE | Identités externes et principaux tenant | Docs/119–121; PR #164–#169; preuve de clôture CI #561, puis `main@2dff07e` CI post-fusion #170 run 40635438412 |
-| C3.1 | IN PROGRESS | Audit, contrat normatif et OpenAPI proposé; aucune migration | Branche `monarque/c3-contracts`; CI attendue via PR avant toute implémentation |
+| C3.1 | IN PROGRESS | Audit, contrat normatif et OpenAPI proposé; aucune migration | PR [#172](https://github.com/jupi-z/Monarque-Connect/pull/172), head initial `753facaf85b98826fa45425b6043a3a45fa49b23`; CI PR avant toute implémentation |
 | C3.2 | NOT STARTED | Catalogue, mesures, variantes et offres | Aucun schéma ni DDL C3 livré |
 | C3.3 | NOT STARTED | Pricing, politiques, FX et snapshots | Aucun moteur ni taux C3 livré |
 | C3.4 | NOT STARTED | Durcissement, compatibilité et clôture | NOT_RUN |
