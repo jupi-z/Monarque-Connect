@@ -180,6 +180,13 @@ describe('Identity and tenancy integration', () => {
       businessTypeCode: 'COMMERCE_DISTRIBUTION', name: 'Product authorization tenant', handle: 'product-authorization-tenant', defaultCurrency: 'EUR', establishmentName: 'Head office',
     }) as { id: string; establishment: { id: string } };
     const principal = { userId: owner.id, sessionId: '00000000-0000-0000-0000-000000000007' };
+    // The default CONNECT plan includes one establishment. Grant a test-only
+    // capacity override before creating the second site used by the scope check.
+    await prisma.organizationEntitlement.create({ data: {
+      id: crypto.randomUUID(), organizationId: created.id, productCode: 'MONARQUE_CONNECT',
+      moduleCode: 'ESTABLISHMENTS', effect: 'LIMIT_OVERRIDE', startsAt: new Date(Date.now() - 1_000),
+      reason: 'C2 establishment-scope test fixture', limitsJson: { MAX_ESTABLISHMENTS: '2' }, createdByActor: 'PLATFORM:test',
+    } });
     const moduleCode = `ZAMUREK_AUTH_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
     const planCode = `ZAMUREK_AUTH_${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
