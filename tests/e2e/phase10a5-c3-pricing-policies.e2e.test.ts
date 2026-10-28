@@ -237,7 +237,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
 
     const converted = bodyOf<{
       quantityNormalized: { amount: string; baseUnitCode: string };
-      sourceSubtotal: string;
+      subtotal: string;
       sourceCurrency: string;
       targetTotal: string;
       targetCurrency: string;
@@ -250,7 +250,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
       .expect(201));
     expect(converted).toMatchObject({
       quantityNormalized: { amount: '0.125', baseUnitCode: 'KG' },
-      sourceSubtotal: '2.50',
+      subtotal: '2.50',
       sourceCurrency: 'USD',
       targetTotal: '5900.00',
       targetCurrency: 'CDF',
