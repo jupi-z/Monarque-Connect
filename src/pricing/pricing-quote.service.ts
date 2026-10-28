@@ -13,7 +13,7 @@ import { calculateCommercialQuote } from './pricing-calculator.js';
 import type { CreatePricingQuoteDto } from './pricing-quote.dto.js';
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
-const CALCULATION_VERSION = 'C3_PRICING_V2';
+const CALCULATION_VERSION = 'C3_PRICING_V3';
 const Decimal = Prisma.Decimal.clone({ precision: 80, rounding: Prisma.Decimal.ROUND_HALF_UP });
 
 type FxSnapshot = {
@@ -43,6 +43,14 @@ type ResolvedTaxContext = {
   establishmentId: string | null;
   jurisdictionCode: string;
   effectiveFrom: string;
+};
+
+type ResolvedDiscountRule = {
+  id: string;
+  code: string;
+  version: number;
+  rate: Prisma.Decimal;
+  amount: string;
 };
 
 @Injectable()
@@ -121,9 +129,6 @@ export class PricingQuoteService {
 
         const valuationAt = new Date();
         const policy = await this.resolvePolicy(tx, organizationId, productCode, valuationAt);
-        if (policy.discountRuleCodes.length) {
-          throw new UnprocessableEntityException('Configured discount rules cannot be resolved by the C3 quote engine');
-        }
         const resolvedTaxes = await this.resolveTaxes(
           tx, organizationId, productCode, establishmentId, offer.taxCategoryCode, policy.taxPolicyCodes, valuationAt,
         );
@@ -175,7 +180,7 @@ export class PricingQuoteService {
         const fx = price.currencyCode === targetCurrency
           ? null
           : await this.resolveFx(tx, price.currencyCode, targetCurrency, valuationAt, policy.maxFxAgeSeconds, policy.allowedFxSources);
-        const calculation = calculateCommercialQuote({
+        const calculationInput = {
           quantity: canonical.quantity,
           inputUnit: this.rational(inputUnit),
           priceUnit: this.rational(price.priceUnit),
@@ -189,7 +194,15 @@ export class PricingQuoteService {
             fxBaseCurrencyCode: price.currencyCode,
             fxQuoteCurrencyCode: targetCurrency,
           } : {}),
-          discounts: [],
+        };
+        const grossCalculation = calculateCommercialQuote({ ...calculationInput, discounts: [], taxes: [] });
+        const resolvedDiscounts = await this.resolveDiscounts(
+          tx, organizationId, productCode, policy.discountRuleCodes, valuationAt,
+          sourceCurrency.minorUnitDigits, grossCalculation.sourceSubtotal,
+        );
+        const calculation = calculateCommercialQuote({
+          ...calculationInput,
+          discounts: resolvedDiscounts.map((discount) => ({ code: discount.code, amount: discount.amount })),
           taxes: resolvedTaxes.policies.map((tax) => ({
             code: tax.code, version: tax.version, rate: tax.rate.toFixed(18), calculationCurrency: tax.calculationCurrency,
           })),
@@ -202,6 +215,13 @@ export class PricingQuoteService {
         ]);
         if (nextPrice) expiryCandidates.push(nextPrice.effectiveFrom);
         if (nextPolicy) expiryCandidates.push(nextPolicy.effectiveFrom);
+        if (policy.discountRuleCodes.length) {
+          const nextDiscountRule = await tx.commercialDiscountRuleVersion.findFirst({
+            where: { organizationId, productCode, code: { in: policy.discountRuleCodes }, effectiveFrom: { gt: valuationAt } },
+            orderBy: { effectiveFrom: 'asc' }, select: { effectiveFrom: true },
+          });
+          if (nextDiscountRule) expiryCandidates.push(nextDiscountRule.effectiveFrom);
+        }
         if (policy.taxPolicyCodes.length) {
           const contextScopes = establishmentId && resolvedTaxes.context?.establishmentId === establishmentId
             ? [establishmentId]
@@ -246,7 +266,7 @@ export class PricingQuoteService {
         });
         const snapshot = {
           id,
-          snapshotVersion: 2,
+          snapshotVersion: 3,
           calculationVersion: CALCULATION_VERSION,
           createdAt: createdAt.toISOString(),
           valuationAt: valuationAt.toISOString(),
@@ -272,7 +292,10 @@ export class PricingQuoteService {
           subtotal: calculation.sourceSubtotal,
           netAmount: calculation.sourceNetAmount,
           discountAmount: calculation.discountAmount,
-          discounts: [],
+          discounts: resolvedDiscounts.map((discount) => ({
+            ruleVersionId: discount.id, ruleCode: discount.code, version: discount.version,
+            rate: discount.rate.toFixed(18), amount: discount.amount, currencyCode: price!.currencyCode,
+          })),
           taxCategoryCode: resolvedTaxes.taxCategoryCode,
           taxContext: resolvedTaxes.context,
           taxLines,
@@ -291,7 +314,7 @@ export class PricingQuoteService {
           data: {
             id, organizationId, productCode, establishmentId, offerId: offer.id, itemId: offer.itemId, variantId,
             priceVersionId: price.id, pricingPolicyVersionId: policy.id, actorUserId: principal.userId,
-            idempotencyKey: key, inputHash, valuationAt, expiresAt, snapshotVersion: 2,
+            idempotencyKey: key, inputHash, valuationAt, expiresAt, snapshotVersion: 3,
             calculationVersion: CALCULATION_VERSION, snapshotJson: snapshot,
             lines: {
               create: [{
@@ -351,6 +374,42 @@ export class PricingQuoteService {
     if (policy.roundingMode !== 'HALF_UP') throw new UnprocessableEntityException('The active rounding policy is unsupported');
     if (!policy.allowedCurrencies.length) throw new UnprocessableEntityException('The active pricing policy allows no commercial currencies');
     return policy;
+  }
+
+  private async resolveDiscounts(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    productCode: ProductCode,
+    codes: string[],
+    at: Date,
+    currencyDigits: number,
+    grossSubtotal: string,
+  ): Promise<ResolvedDiscountRule[]> {
+    if (!codes.length) return [];
+    const versions = await tx.commercialDiscountRuleVersion.findMany({
+      where: { organizationId, productCode, code: { in: codes }, effectiveFrom: { lte: at } },
+      orderBy: [{ code: 'asc' }, { effectiveFrom: 'desc' }, { version: 'desc' }],
+    });
+    const latestByCode = new Map<string, typeof versions[number]>();
+    for (const version of versions) if (!latestByCode.has(version.code)) latestByCode.set(version.code, version);
+    const unresolved = codes.filter((code) => !latestByCode.has(code));
+    if (unresolved.length) throw new UnprocessableEntityException('Every configured discount rule must have an effective tenant/product-scoped version');
+
+    const resolved = codes.slice().sort().map((code) => latestByCode.get(code)!);
+    const totalRate = resolved.reduce((sum, rule) => sum.plus(rule.rate), new Decimal(0));
+    if (totalRate.gt(100)) throw new UnprocessableEntityException('Configured percentage discount rates cannot exceed 100 percent in total');
+
+    const subtotal = new Decimal(grossSubtotal);
+    const discounts = resolved.map((rule) => ({
+      id: rule.id,
+      code: rule.code,
+      version: rule.version,
+      rate: rule.rate,
+      amount: subtotal.mul(rule.rate).div(100).toDecimalPlaces(currencyDigits, Decimal.ROUND_HALF_UP).toFixed(currencyDigits),
+    }));
+    const totalAmount = discounts.reduce((sum, discount) => sum.plus(discount.amount), new Decimal(0));
+    if (totalAmount.gt(subtotal)) throw new UnprocessableEntityException('Rounded discount amounts cannot exceed the source subtotal');
+    return discounts;
   }
 
   private async resolveTaxes(

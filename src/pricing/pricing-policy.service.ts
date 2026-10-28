@@ -9,11 +9,12 @@ import { createRequestContext, currentEventContext } from '../events/event-conte
 import { PrismaOutboxWriter } from '../events/prisma-outbox.writer.js';
 import { AuthorizationService } from '../tenancy/authorization.service.js';
 import { isProductCode, type ProductCode } from '../products/product-code.js';
-import type { ActivateTaxPolicyVersionDto, CreatePricingPolicyVersionDto, CreateTaxPolicyVersionDto } from './pricing-policy.dto.js';
+import type { ActivateTaxPolicyVersionDto, CreateCommercialDiscountRuleVersionDto, CreatePricingPolicyVersionDto, CreateTaxPolicyVersionDto } from './pricing-policy.dto.js';
 
 const POLICY_CREATE = 'PRICING_POLICY_VERSION_CREATE';
 const TAX_POLICY_CREATE = 'TAX_POLICY_VERSION_CREATE';
 const TAX_POLICY_ACTIVATE = 'TAX_POLICY_VERSION_ACTIVATE';
+const DISCOUNT_RULE_CREATE = 'PRICING_DISCOUNT_RULE_VERSION_CREATE';
 const CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const SOURCE_PATTERN = /^[A-Z][A-Z0-9._-]{0,63}$/;
 
@@ -128,6 +129,54 @@ export class PricingPolicyService {
     }
   }
 
+  async createCommercialDiscountRuleVersion(principal: AuthPrincipal, organizationId: string, input: CreateCommercialDiscountRuleVersionDto, rawKey?: string): Promise<unknown> {
+    const productCode = this.product(input.productCode);
+    const key = this.requireKey(rawKey);
+    const commandTime = new Date();
+    const effectiveFrom = this.effectiveFrom(input.effectiveFrom, commandTime);
+    if (input.effectiveFrom !== undefined && effectiveFrom <= commandTime) throw new BadRequestException('effectiveFrom must be in the future');
+    const rate = this.percentageRate(input.rate);
+    const configurationReference = input.configurationReference.trim();
+    if (!configurationReference) throw new BadRequestException('A configuration reference is required');
+    const normalized = {
+      productCode, code: input.code, rate, effectiveFrom: input.effectiveFrom === undefined ? null : effectiveFrom.toISOString(), configurationReference,
+    };
+    const payloadHash = this.hash(normalized);
+    const context = currentEventContext() ?? createRequestContext();
+    await this.authorization.requireModuleForProduct(principal, organizationId, productCode, 'CATALOG', 'pricing:policy:manage');
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const auth = await this.authorization.requireModuleForProductInTransaction(tx, principal, organizationId, productCode, 'CATALOG', 'pricing:policy:manage');
+        await this.lockVersionScope(tx, 'commercial-discount-rule', organizationId, productCode, input.code);
+        const replay = await this.receipt(tx, principal.userId, organizationId, DISCOUNT_RULE_CREATE, key, payloadHash, 'CommercialDiscountRuleVersion');
+        if (replay) {
+          const prior = await tx.commercialDiscountRuleVersion.findFirst({ where: { id: replay.resourceId, organizationId, productCode } });
+          if (!prior) throw new ConflictException('Idempotent discount rule version is no longer available');
+          return this.serializeDiscountRule(prior);
+        }
+
+        const latest = await tx.commercialDiscountRuleVersion.findFirst({
+          where: { organizationId, productCode, code: input.code }, orderBy: { version: 'desc' }, select: { version: true, effectiveFrom: true },
+        });
+        if (latest && effectiveFrom <= latest.effectiveFrom) throw new ConflictException('Discount rule versions must have strictly increasing effective times');
+
+        const rule = await tx.commercialDiscountRuleVersion.create({ data: {
+          id: randomUUID(), organizationId, productCode, code: input.code, version: (latest?.version ?? 0) + 1,
+          rate: new Prisma.Decimal(rate), effectiveFrom, configurationReference, createdByUserId: principal.userId, commandPayloadHash: payloadHash,
+        } });
+        await this.writeReceipt(tx, principal.userId, organizationId, DISCOUNT_RULE_CREATE, key, payloadHash, 'CommercialDiscountRuleVersion', rule.id);
+        await this.recordMutation(tx, auth, principal, organizationId, 'PRICING_DISCOUNT_RULE_VERSION_CREATED', 'pricing.discount_rule_version.created', 'CommercialDiscountRuleVersion', rule.id, context, {
+          productCode, code: rule.code, version: rule.version, commandPayloadHash: payloadHash,
+        });
+        return this.serializeDiscountRule(rule);
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+    } catch (error) {
+      if (this.isUniqueViolation(error)) return this.resolveCreateReplay(principal, organizationId, productCode, DISCOUNT_RULE_CREATE, key, payloadHash, 'CommercialDiscountRuleVersion');
+      throw error;
+    }
+  }
+
   async activateTaxPolicyVersion(
     principal: AuthPrincipal,
     organizationId: string,
@@ -224,8 +273,8 @@ export class PricingPolicyService {
     await tx.catalogCommandReceipt.create({ data: { id: randomUUID(), organizationId, actorUserId, operation, idempotencyKey, payloadHash, resourceType, resourceId } });
   }
 
-  private async resolveCreateReplay(principal: AuthPrincipal, organizationId: string, productCode: ProductCode, operation: string, key: string, payloadHash: string, resourceType: 'PricingPolicyVersion' | 'TaxPolicyVersion'): Promise<unknown> {
-    const permission = operation === POLICY_CREATE ? 'pricing:policy:manage' : 'pricing:tax:manage';
+  private async resolveCreateReplay(principal: AuthPrincipal, organizationId: string, productCode: ProductCode, operation: string, key: string, payloadHash: string, resourceType: 'PricingPolicyVersion' | 'TaxPolicyVersion' | 'CommercialDiscountRuleVersion'): Promise<unknown> {
+    const permission = operation === POLICY_CREATE || operation === DISCOUNT_RULE_CREATE ? 'pricing:policy:manage' : 'pricing:tax:manage';
     await this.authorization.requireModuleForProduct(principal, organizationId, productCode, 'CATALOG', permission);
     const receipt = await this.prisma.catalogCommandReceipt.findUnique({ where: { organizationId_actorUserId_operation_idempotencyKey: { organizationId, actorUserId: principal.userId, operation, idempotencyKey: key } }, select: { payloadHash: true, resourceType: true, resourceId: true } });
     if (!receipt) throw new ConflictException('Concurrent pricing policy command conflicted; retry with the same idempotency key');
@@ -235,9 +284,14 @@ export class PricingPolicyService {
       if (!policy) throw new ConflictException('Idempotent pricing policy version is no longer available');
       return this.serializePricingPolicy(policy);
     }
-    const policy = await this.prisma.taxPolicyVersion.findFirst({ where: { id: receipt.resourceId, organizationId, productCode } });
-    if (!policy) throw new ConflictException('Idempotent tax policy version is no longer available');
-    return this.serializeTaxPolicy(policy);
+    if (resourceType === 'TaxPolicyVersion') {
+      const policy = await this.prisma.taxPolicyVersion.findFirst({ where: { id: receipt.resourceId, organizationId, productCode } });
+      if (!policy) throw new ConflictException('Idempotent tax policy version is no longer available');
+      return this.serializeTaxPolicy(policy);
+    }
+    const rule = await this.prisma.commercialDiscountRuleVersion.findFirst({ where: { id: receipt.resourceId, organizationId, productCode } });
+    if (!rule) throw new ConflictException('Idempotent discount rule version is no longer available');
+    return this.serializeDiscountRule(rule);
   }
 
   private async resolveActivationReplay(principal: AuthPrincipal, organizationId: string, productCode: ProductCode, taxPolicyVersionId: string, key: string, payloadHash: string): Promise<unknown> {
@@ -258,7 +312,7 @@ export class PricingPolicyService {
     organizationId: string,
     action: AuditAction,
     eventType: string,
-    aggregateType: 'PricingPolicyVersion' | 'TaxPolicyVersion',
+    aggregateType: 'PricingPolicyVersion' | 'TaxPolicyVersion' | 'CommercialDiscountRuleVersion',
     aggregateId: string,
     context: { requestId?: string; correlationId: string },
     metadata: Record<string, unknown>,
@@ -303,6 +357,17 @@ export class PricingPolicyService {
     };
   }
 
+  private serializeDiscountRule(value: {
+    id: string; organizationId: string; productCode: string; code: string; version: number; rate: Prisma.Decimal;
+    effectiveFrom: Date; configurationReference: string; createdAt: Date;
+  }): Record<string, unknown> {
+    return {
+      id: value.id, organizationId: value.organizationId, productCode: value.productCode, code: value.code,
+      version: value.version, rate: value.rate.toFixed(18), effectiveFrom: value.effectiveFrom.toISOString(),
+      configurationReference: value.configurationReference, createdAt: value.createdAt.toISOString(),
+    };
+  }
+
   private product(value: string): ProductCode {
     if (!isProductCode(value)) throw new BadRequestException('productCode is invalid');
     return value;
@@ -332,6 +397,13 @@ export class PricingPolicyService {
     if (!/^(?:0|[1-9]\d{0,5})(?:\.\d{1,18})?$/.test(value)) throw new BadRequestException('Tax rate must be non-negative with at most 6 integer and 18 fractional digits');
     const rate = new Prisma.Decimal(value);
     if (!rate.isFinite() || rate.isNegative()) throw new BadRequestException('Tax rate must be a finite non-negative decimal');
+    return rate.toFixed(18);
+  }
+
+  private percentageRate(value: string): string {
+    if (!/^(?:0|[1-9]\d?|100)(?:\.\d{1,18})?$/.test(value)) throw new BadRequestException('Discount rate must be between 0 and 100 with at most 18 fractional digits');
+    const rate = new Prisma.Decimal(value);
+    if (!rate.isFinite() || rate.isNegative() || rate.gt(100)) throw new BadRequestException('Discount rate must be a finite percentage between 0 and 100');
     return rate.toFixed(18);
   }
 

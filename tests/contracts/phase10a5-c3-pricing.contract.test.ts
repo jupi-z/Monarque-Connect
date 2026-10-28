@@ -13,6 +13,8 @@ type Schema = {
   properties?: Record<string, Schema>;
   required?: string[];
   items?: Schema;
+  additionalProperties?: boolean;
+  description?: string;
   $ref?: string;
   allOf?: Schema[];
   anyOf?: Schema[];
@@ -257,5 +259,26 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     expect(requiredProperty(classificationInput, 'taxCategoryCode').type).toEqual(['string', 'null']);
     expect(requiredSchema(spec, 'CommercialOffer').required).toContain('taxCategoryCode');
     expect(requiredProperty(requiredSchema(spec, 'CommercialOffer'), 'taxCategoryCode').type).toEqual(['string', 'null']);
+  });
+
+  it('defines immutable server-managed discount rules and provenance-bearing quote snapshots', async () => {
+    const spec = await load();
+    const operationContract = operation(spec, 'POST /organizations/{organizationId}/pricing/discount-rule-versions') as Operation & {
+      'x-required-principal'?: string; 'x-required-roles'?: string[]; 'x-required-permissions'?: string[];
+    };
+    expect(operationContract['x-required-principal']).toBe('STAFF');
+    expect(operationContract['x-required-roles']).toEqual(expect.arrayContaining(['OWNER', 'ADMIN']));
+    expect(operationContract['x-required-permissions']).toContain('pricing:policy:manage');
+    expect(schemaRef(Object.values(operationContract.requestBody?.content ?? {})[0]?.schema)).toBe('#/components/schemas/CreateCommercialDiscountRuleVersion');
+    expect(schemaRef(operationContract.responses?.['201']?.content?.['application/json']?.schema)).toBe('#/components/schemas/CommercialDiscountRuleVersion');
+
+    const input = requiredSchema(spec, 'CreateCommercialDiscountRuleVersion');
+    expect(input.required).toEqual(expect.arrayContaining(['productCode', 'code', 'rate', 'configurationReference']));
+    expect(requiredProperty(input, 'rate').type).toBe('string');
+    expect(input.additionalProperties).toBe(false);
+    const snapshot = requiredSchema(spec, 'DiscountLineSnapshot');
+    expect(snapshot.required).toEqual(expect.arrayContaining(['ruleVersionId', 'ruleCode', 'version', 'rate', 'amount', 'currencyCode']));
+    expect(snapshot.properties).not.toHaveProperty('policyVersion');
+    expect(requiredProperty(requiredSchema(spec, 'PricingQuoteSnapshot'), 'snapshotVersion').description).toContain('version 3');
   });
 });

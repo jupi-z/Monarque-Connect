@@ -739,6 +739,36 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /organizations/{organizationId}/pricing/discount-rule-versions:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Pricing]
+      operationId: createCommercialDiscountRuleVersion
+      x-runtime-status: implemented
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:policy:manage]
+      x-product-entitlement-required: true
+      description: Creates an immutable tenant/product-scoped percentage discount rule version. The configuration reference is provenance, not legal or promotional approval.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCommercialDiscountRuleVersion" }
+      responses:
+        "201":
+          description: Immutable percentage discount rule version created or exactly replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialDiscountRuleVersion" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/pricing/quotes:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -4961,10 +4991,12 @@ components:
     DiscountLineSnapshot:
       type: object
       additionalProperties: false
-      required: [ruleCode, policyVersion, amount, currencyCode]
+      required: [ruleVersionId, ruleCode, version, rate, amount, currencyCode]
       properties:
-        ruleCode: { type: string }
-        policyVersion: { type: string }
+        ruleVersionId: { type: string, format: uuid }
+        ruleCode: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" }
+        version: { type: integer, minimum: 1 }
+        rate: { type: string, maxLength: 22, pattern: "^(?:0|[1-9]\\d?|100)\\.\\d{18}$" }
         amount: { $ref: "#/components/schemas/NonNegativeAmountString" }
         currencyCode: { type: string, pattern: "^[A-Z]{3}$" }
     PricingQuoteSnapshot:
@@ -4973,7 +5005,7 @@ components:
       required: [id, snapshotVersion, calculationVersion, createdAt, expiresAt, organizationId, productCode, establishmentId, channelCode, offerId, variantId, priceVersionId, pricingPolicyVersionId, inputHash, quantityOriginal, quantityNormalized, unitPrice, subtotal, netAmount, discountAmount, discounts, taxLines, taxPolicyVersionIds, sourceTotal, sourceCurrency, targetTotal, targetCurrency, roundingPolicyVersion, taxCalculationCurrency, fx, validity]
       properties:
         id: { type: string, format: uuid }
-        snapshotVersion: { type: integer, minimum: 1 }
+        snapshotVersion: { type: integer, minimum: 1, description: Version 1 is historical; version 2 adds valuation and tax context; version 3 adds versioned commercial discount snapshots. }
         calculationVersion: { type: string }
         createdAt: { type: string, format: date-time }
         valuationAt: { type: string, format: date-time, description: Present for snapshot version 2 and later; omitted by immutable historical version 1 snapshots. }
@@ -5015,7 +5047,7 @@ components:
         subtotal: { $ref: "#/components/schemas/NonNegativeAmountString" }
         netAmount: { $ref: "#/components/schemas/NonNegativeAmountString" }
         discountAmount: { $ref: "#/components/schemas/NonNegativeAmountString" }
-        discounts: { type: array, items: { $ref: "#/components/schemas/DiscountLineSnapshot" } }
+        discounts: { type: array, items: { $ref: "#/components/schemas/DiscountLineSnapshot" }, description: Empty in historical snapshots; version 3 entries reference immutable tenant/product-scoped discount rule versions. }
         taxCategoryCode: { type: [string, "null"], pattern: "^[A-Z][A-Z0-9._-]{0,63}$", description: Present for snapshot version 2 and later; omitted by immutable historical version 1 snapshots. }
         taxContext: { anyOf: [{ $ref: "#/components/schemas/PricingTaxContextSnapshot" }, { type: "null" }], description: Present for snapshot version 2 and later; omitted by immutable historical version 1 snapshots. }
         taxLines: { type: array, items: { $ref: "#/components/schemas/TaxLineSnapshot" } }
@@ -5028,6 +5060,30 @@ components:
         taxCalculationCurrency: { type: string, enum: [SOURCE, TARGET] }
         fx: { anyOf: [{ $ref: "#/components/schemas/FxSnapshot" }, { type: "null" }] }
         validity: { type: string, enum: [VALID, EXPIRED] }
+    CreateCommercialDiscountRuleVersion:
+      type: object
+      additionalProperties: false
+      required: [productCode, code, rate, configurationReference]
+      properties:
+        productCode: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
+        code: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" }
+        rate: { type: string, maxLength: 22, pattern: "^(?:0|[1-9]\\d?|100)(?:\\.\\d{1,18})?$" }
+        effectiveFrom: { type: string, format: date-time, description: Server time when omitted; explicit values must be future timestamps. }
+        configurationReference: { type: string, minLength: 1, maxLength: 512, pattern: "^\\S(?:[\\s\\S]*\\S)?$" }
+    CommercialDiscountRuleVersion:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, productCode, code, version, rate, effectiveFrom, configurationReference, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: "^[A-Z][A-Z0-9_]{1,63}$" }
+        code: { type: string, pattern: "^[A-Z][A-Z0-9_]{0,63}$" }
+        version: { type: integer, minimum: 1 }
+        rate: { type: string, maxLength: 22, pattern: "^(?:0|[1-9]\\d?|100)\\.\\d{18}$" }
+        effectiveFrom: { type: string, format: date-time }
+        configurationReference: { type: string, minLength: 1, maxLength: 512, pattern: "^\\S(?:[\\s\\S]*\\S)?$" }
+        createdAt: { type: string, format: date-time }
     CreateTaxPolicyVersion:
       type: object
       additionalProperties: false
