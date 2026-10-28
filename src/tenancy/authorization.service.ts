@@ -252,6 +252,11 @@ export type Permission =
   | 'parties:write'
   | 'catalog:read'
   | 'catalog:write'
+  | 'pricing:quote:create'
+  | 'pricing:quote:read'
+  | 'pricing:price:publish'
+  | 'pricing:policy:manage'
+  | 'pricing:tax:manage'
   | 'inventory:read'
   | 'inventory:write'
   | 'expenses:read'
@@ -297,7 +302,7 @@ export type Permission =
 export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
   OWNER: [
     'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
-    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'pricing:quote:create', 'pricing:quote:read', 'pricing:price:publish', 'pricing:policy:manage', 'pricing:tax:manage', 'inventory:read', 'inventory:write',
     'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
@@ -309,7 +314,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
   ],
   ADMIN: [
     'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
-    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'pricing:quote:create', 'pricing:quote:read', 'pricing:price:publish', 'pricing:policy:manage', 'pricing:tax:manage', 'inventory:read', 'inventory:write',
     'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
@@ -320,7 +325,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'messaging:read', 'messaging:write', 'messaging:participants:write', 'messaging:block:write',
   ],
   SALES: [
-    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write',
+    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'pricing:quote:create', 'pricing:quote:read',
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:trust:read',
     'sales:quotes:read', 'sales:quotes:write', 'sales:orders:read', 'sales:orders:write', 'sales:invoices:read', 'sales:payments:read',
@@ -328,14 +333,14 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
     'messaging:read', 'messaging:write',
   ],
   FINANCE: [
-    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'inventory:read', 'crm:read',
+    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'catalog:read', 'pricing:quote:read', 'inventory:read', 'crm:read',
     'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'sales:quotes:read', 'sales:orders:read', 'sales:invoices:read', 'sales:invoices:write', 'sales:payments:read', 'sales:payments:write',
     'purchases:rfqs:read', 'purchases:orders:read', 'purchases:receipts:read',
     'projects:read', 'documents:read', 'billing:read', 'billing:write', 'intelligence:read', 'messaging:read',
   ],
   OPERATIONS: [
-    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'inventory:read', 'inventory:write',
+    'organization:read', 'establishments:read', 'capabilities:read', 'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'pricing:quote:create', 'pricing:quote:read', 'inventory:read', 'inventory:write',
     'expenses:read', 'expenses:write', 'cash:read',
     'crm:read', 'network:discovery:read', 'network:connections:read', 'network:connections:write', 'network:inquiries:read', 'network:inquiries:write',
     'sales:quotes:read', 'sales:orders:read', 'sales:orders:write', 'sales:invoices:read', 'sales:payments:read',

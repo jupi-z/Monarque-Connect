@@ -12,10 +12,11 @@ import { CatalogReferenceController } from './catalog-reference.controller.js';
 import { CatalogReferenceService } from './catalog-reference.service.js';
 import { CommercialCatalogController } from './commercial-catalog.controller.js';
 import { CommercialCatalogService } from './commercial-catalog.service.js';
+import { CommercialPriceService } from '../pricing/commercial-price.service.js';
 
 @Module({
   imports: [AuthModule, EventModule, TenancyModule],
   controllers: [PartyController, ItemController, WarehouseController, CatalogReferenceController, CommercialCatalogController],
-  providers: [PartyService, ItemService, WarehouseService, CatalogReferenceService, CommercialCatalogService],
+  providers: [PartyService, ItemService, WarehouseService, CatalogReferenceService, CommercialCatalogService, CommercialPriceService],
 })
 export class ReferentialsModule {}

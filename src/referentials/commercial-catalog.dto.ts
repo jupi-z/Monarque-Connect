@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { PRODUCT_CODES, type ProductCode } from '../products/product-code.js';
 
 export class CommercialCatalogOrganizationParams {
@@ -10,6 +10,32 @@ export class CommercialCatalogOrganizationParams {
 export class CommercialOfferParams extends CommercialCatalogOrganizationParams {
   @IsUUID()
   offerId!: string;
+}
+
+export class CommercialPriceVersionParams extends CommercialOfferParams {}
+
+export class CreateCommercialPriceVersionDto {
+  @IsString()
+  @MaxLength(25)
+  @Matches(/^(?=.*[1-9])(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/)
+  amount!: string;
+
+  @IsString()
+  @Matches(/^[A-Z]{3}$/)
+  currencyCode!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(32)
+  priceUnitCode!: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  effectiveFrom?: string;
+
+  @IsOptional()
+  @IsUUID()
+  expectedLatestVersionId?: string;
 }
 
 export class CatalogItemVariantParams extends CommercialCatalogOrganizationParams {

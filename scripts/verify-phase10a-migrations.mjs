@@ -96,6 +96,7 @@ async function structuralProof(databaseUrl) {
     const expectedTables = [
       'metric_snapshots', 'insight_alerts', 'external_identities', 'external_identity_link_challenges',
       'measure_units', 'currency_definitions', 'item_variants', 'commercial_offers', 'catalog_command_receipts',
+      'commercial_price_versions',
     ];
     const projectionTables = ['metric_snapshots', 'insight_alerts'];
     const tables = await pool.query(
@@ -104,6 +105,40 @@ async function structuralProof(databaseUrl) {
     );
     const foundTables = new Set(tables.rows.map((row) => row.table_name));
     for (const table of expectedTables) if (!foundTables.has(table)) throw new Error(`Missing required migration-proof table ${table}`);
+
+    const priceConstraints = await pool.query(
+      `SELECT conname, contype, pg_get_constraintdef(oid) AS definition
+       FROM pg_constraint WHERE conrelid = 'public.commercial_price_versions'::regclass`,
+    );
+    const priceConstraintNames = new Set(priceConstraints.rows.map((row) => row.conname));
+    for (const required of [
+      'commercial_price_versions_version_check', 'commercial_price_versions_amount_check',
+      'commercial_price_versions_payload_hash_check', 'commercial_price_versions_offer_org_product_fkey',
+      'commercial_price_versions_currency_code_fkey', 'commercial_price_versions_price_unit_code_fkey',
+    ]) if (!priceConstraintNames.has(required)) throw new Error(`Missing commercial price constraint ${required}`);
+    const priceIndexes = await pool.query(
+      `SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'commercial_price_versions'`,
+    );
+    const priceIndexNames = new Set(priceIndexes.rows.map((row) => row.indexname));
+    for (const required of [
+      'commercial_price_versions_offer_currency_version_key',
+      'commercial_price_versions_org_offer_currency_effective_key',
+      'commercial_price_versions_price_scope_time_idx',
+    ]) if (!priceIndexNames.has(required)) throw new Error(`Missing commercial price index ${required}`);
+    const priceTriggers = await pool.query(
+      `SELECT t.tgname, pg_get_functiondef(t.tgfoid) AS function_definition
+       FROM pg_trigger t WHERE t.tgrelid = 'public.commercial_price_versions'::regclass AND NOT t.tgisinternal`,
+    );
+    const insertGuard = priceTriggers.rows.find((row) => row.tgname === 'commercial_price_versions_insert_guard');
+    const immutableGuard = priceTriggers.rows.find((row) => row.tgname === 'commercial_price_versions_immutable');
+    if (!insertGuard || !insertGuard.function_definition.includes('FOR UPDATE OF o')
+      || !insertGuard.function_definition.includes('NEW."effective_from" <= latest_effective_from')
+      || !insertGuard.function_definition.includes('commercial price effective times must increase strictly')) {
+      throw new Error('Commercial price insertion guard is missing its offer lock or temporal-order check');
+    }
+    if (!immutableGuard || !immutableGuard.function_definition.includes('commercial price versions are immutable')) {
+      throw new Error('Commercial price immutable update/delete guard is missing');
+    }
 
     const checks = await pool.query(
       'SELECT conname FROM pg_constraint WHERE conrelid = ANY($1::regclass[]) AND contype = \'c\'',
@@ -319,6 +354,12 @@ async function structuralProof(databaseUrl) {
     const receiptIndex = receiptUniqueIndex.rows[0]?.indexdef?.replaceAll('"', '').toLowerCase();
     if (!receiptIndex?.includes('unique') || !receiptIndex.includes('(organization_id, actor_user_id, operation, idempotency_key)')) {
       throw new Error('C3 catalog idempotency receipt uniqueness is not enforced by PostgreSQL');
+    }
+    const receiptResourceTypes = await pool.query(
+      `SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'catalog_command_receipts'::regclass AND conname = 'catalog_command_receipts_resource_type_check'`,
+    );
+    if (!receiptResourceTypes.rows[0]?.definition.includes('CommercialPriceVersion')) {
+      throw new Error('C3 idempotency receipts do not allow immutable commercial price versions');
     }
   } finally { await pool.end(); }
 }

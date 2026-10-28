@@ -270,6 +270,107 @@ describe('Catalog items referential', () => {
     const foreignItem = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${foreignOrganization.id}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', name: 'Foreign item', unit: 'kg', referencePrice: '1', currency: 'EUR' }).expect(201));
     await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `cross-tenant-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', itemId: foreignItem.id, sellUnitCode: 'KG' }).expect(404);
   });
+
+  it('publishes immutable tenant price versions with authorization, idempotency and temporal ordering', async () => {
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({ type: 'PRODUCT', name: `Priced item ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD' }).expect(201));
+    const offer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `price-offer-${randomUUID()}`).send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG' }).expect(201));
+    const path = `/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}/price-versions`;
+    const key = `price-publish-${randomUUID()}`;
+    const command = { amount: '20', currencyCode: 'USD', priceUnitCode: 'KG' };
+
+    await request(server).post(path).set('Idempotency-Key', `anonymous-${randomUUID()}`).send(command).expect(401);
+    await request(server).post(path).set('Authorization', `Bearer ${viewerToken}`).set('Idempotency-Key', `viewer-${randomUUID()}`).send(command).expect(403);
+    const first = bodyOf<{ id: string; offerId: string; amount: string; currencyCode: string; priceUnitCode: string; version: number }>(
+      await request(server).post(path).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', key).send(command).expect(201),
+    );
+    expect(first).toMatchObject({ offerId: offer.id, amount: '20.00000000', currencyCode: 'USD', priceUnitCode: 'KG', version: 1 });
+    const replay = bodyOf<{ id: string }>(await request(server).post(path).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', key).send(command).expect(201));
+    expect(replay.id).toBe(first.id);
+    await request(server).post(path).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', key).send({ ...command, amount: '21' }).expect(409);
+    await request(server).post(path).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `backdate-${randomUUID()}`).send({ ...command, effectiveFrom: '2020-01-01T00:00:00.000Z' }).expect(400);
+    await request(server).post(path).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `wrong-unit-${randomUUID()}`).send({ ...command, priceUnitCode: 'L' }).expect(400);
+
+    const future = new Date(Date.now() + 60_000).toISOString();
+    const second = bodyOf<{ id: string; version: number }>(await request(server).post(path).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `future-${randomUUID()}`).send({ ...command, amount: '22', effectiveFrom: future, expectedLatestVersionId: first.id }).expect(201));
+    expect(second.version).toBe(2);
+    await expect(prisma.commercialPriceVersion.count({ where: { organizationId, offerId: offer.id, currencyCode: 'USD' } })).resolves.toBe(2);
+    await expect(prisma.auditEvent.count({ where: { organizationId, targetType: 'CommercialPriceVersion', action: 'COMMERCIAL_PRICE_VERSION_PUBLISHED' } })).resolves.toBe(2);
+    await expect(prisma.outboxEvent.count({ where: { organizationId, aggregateType: 'CommercialPriceVersion', eventType: 'catalog.price_version.published' } })).resolves.toBe(2);
+    await expect(prisma.outboxEvent.findFirstOrThrow({ where: { aggregateId: first.id, eventType: 'catalog.price_version.published' }, select: { payloadJson: true } })).resolves.not.toHaveProperty('payloadJson.amount');
+    await expect(prisma.commercialPriceVersion.update({ where: { id: first.id }, data: { amount: '99' } })).rejects.toThrow();
+    await expect(prisma.commercialPriceVersion.delete({ where: { id: second.id } })).rejects.toThrow();
+  });
+
+  it('does not publish a foreign tenant offer through a caller-selected organization path', async () => {
+    const server = serverOf(app);
+    const foreignOrganization = bodyOf<{ id: string }>(await request(server).post('/api/v1/organizations').set('Authorization', `Bearer ${ownerToken}`).send({
+      businessTypeCode: 'SERVICE_PROVIDER', name: 'Foreign price tenant', handle: `price-foreign-${randomUUID().slice(0, 8)}`,
+      defaultCurrency: 'EUR', establishmentName: 'Foreign office',
+    }).expect(201));
+    const operationsVersion = await prisma.planVersion.findUniqueOrThrow({ where: { planCode_version: { planCode: 'OPERATIONS', version: 1 } } });
+    await prisma.subscription.updateMany({ where: { organizationId: foreignOrganization.id }, data: { planVersionId: operationsVersion.id, startsAt: new Date('2020-01-01T00:00:00.000Z') } });
+    const foreignItem = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${foreignOrganization.id}/items`).set('Authorization', `Bearer ${ownerToken}`).send({
+      type: 'PRODUCT', name: `Foreign price item ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD',
+    }).expect(201));
+    const foreignOffer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${foreignOrganization.id}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `foreign-price-offer-${randomUUID()}`).send({
+      productCode: 'MONARQUE_CONNECT', itemId: foreignItem.id, sellUnitCode: 'KG',
+    }).expect(201));
+
+    await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers/${foreignOffer.id}/price-versions`)
+      .set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `cross-tenant-price-${randomUUID()}`)
+      .send({ amount: '20', currencyCode: 'USD', priceUnitCode: 'KG' }).expect(404);
+    await expect(prisma.commercialPriceVersion.count({ where: { offerId: foreignOffer.id } })).resolves.toBe(0);
+  });
+
+  it('enforces establishment scope when publishing a price version', async () => {
+    const server = serverOf(app);
+    const primary = await prisma.establishment.findFirstOrThrow({ where: { organizationId, isPrimary: true } });
+    const restrictedEstablishment = await prisma.establishment.create({ data: {
+      id: randomUUID(), organizationId, code: `PRICE-SCOPE-${randomUUID().slice(0, 8)}`, name: 'Restricted price office', type: 'BRANCH',
+    } });
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({
+      type: 'PRODUCT', name: `Scoped price item ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD',
+    }).expect(201));
+    const offer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `scoped-price-offer-${randomUUID()}`).send({
+      productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG', establishmentId: restrictedEstablishment.id,
+    }).expect(201));
+    const registration = bodyOf<{ email: string }>(await request(server).post('/api/v1/auth/register').send({
+      email: `price-scope-${randomUUID()}@example.com`, password: 'correct horse battery staple', firstName: 'Scoped', lastName: 'Owner',
+    }).expect(201));
+    const login = bodyOf<{ accessToken: string }>(await request(server).post('/api/v1/auth/login').send({ identifier: registration.email, password: 'correct horse battery staple' }).expect(200));
+    const user = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: registration.email.toLowerCase() } });
+    const membershipId = randomUUID();
+    await prisma.membership.create({ data: {
+      id: membershipId, organizationId, userId: user.id, role: 'OWNER', scopeMode: 'SELECTED_ESTABLISHMENTS',
+      scopeLinks: { create: [{ establishmentId: primary.id }] },
+    } });
+
+    await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}/price-versions`)
+      .set('Authorization', `Bearer ${login.accessToken}`).set('Idempotency-Key', `out-of-scope-price-${randomUUID()}`)
+      .send({ amount: '20', currencyCode: 'USD', priceUnitCode: 'KG' }).expect(403);
+    await expect(prisma.commercialPriceVersion.count({ where: { offerId: offer.id } })).resolves.toBe(0);
+  });
+
+  it('serializes concurrent price publications without duplicate versions', async () => {
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/items`).set('Authorization', `Bearer ${ownerToken}`).send({
+      type: 'PRODUCT', name: `Concurrent price item ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD',
+    }).expect(201));
+    const offer = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers`).set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `concurrent-price-offer-${randomUUID()}`).send({
+      productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG',
+    }).expect(201));
+    const path = `/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}/price-versions`;
+    const responses = await Promise.all(['20', '21'].map((amount) => request(server).post(path)
+      .set('Authorization', `Bearer ${ownerToken}`).set('Idempotency-Key', `concurrent-price-${amount}-${randomUUID()}`)
+      .send({ amount, currencyCode: 'USD', priceUnitCode: 'KG' })));
+
+    expect(responses.every((response) => response.status === 201 || response.status === 409)).toBe(true);
+    const versions = await prisma.commercialPriceVersion.findMany({ where: { organizationId, offerId: offer.id, currencyCode: 'USD' }, orderBy: { version: 'asc' }, select: { version: true } });
+    expect(versions.length).toBeGreaterThanOrEqual(1);
+    expect(versions.length).toBeLessThanOrEqual(2);
+    expect(versions.map(({ version }) => version)).toEqual(versions.map((_, index) => index + 1));
+  });
 });
 
 function bodyOf<T>(response: Response): T {
