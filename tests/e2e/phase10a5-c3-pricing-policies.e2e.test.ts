@@ -428,11 +428,13 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
       .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', key).send(command);
     const [left, right] = await Promise.all([submit(), submit()]);
     expect([left.status, right.status].sort()).toEqual([201, 201]);
-    expect(left.body.id).toBe(right.body.id);
+    const leftRule = bodyOf<{ id: string }>(left);
+    const rightRule = bodyOf<{ id: string }>(right);
+    expect(leftRule.id).toBe(rightRule.id);
     await expect(prisma.commercialDiscountRuleVersion.count({ where: { organizationId: tenant.organizationId, productCode: 'MONARQUE_CONNECT', code } })).resolves.toBe(1);
     await expect(prisma.catalogCommandReceipt.count({ where: { organizationId: tenant.organizationId, actorUserId: tenant.ownerId, operation: 'PRICING_DISCOUNT_RULE_VERSION_CREATE', idempotencyKey: key } })).resolves.toBe(1);
-    await expect(prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'CommercialDiscountRuleVersion', targetId: left.body.id, action: 'PRICING_DISCOUNT_RULE_VERSION_CREATED' } })).resolves.toBe(1);
-    await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'CommercialDiscountRuleVersion', aggregateId: left.body.id, eventType: 'pricing.discount_rule_version.created' } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'CommercialDiscountRuleVersion', targetId: leftRule.id, action: 'PRICING_DISCOUNT_RULE_VERSION_CREATED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'CommercialDiscountRuleVersion', aggregateId: leftRule.id, eventType: 'pricing.discount_rule_version.created' } })).resolves.toBe(1);
   });
 
   it('rejects percentage discount rates above one hundred percent', async () => {

@@ -294,7 +294,7 @@ export class PricingQuoteService {
           discountAmount: calculation.discountAmount,
           discounts: resolvedDiscounts.map((discount) => ({
             ruleVersionId: discount.id, ruleCode: discount.code, version: discount.version,
-            rate: discount.rate.toFixed(18), amount: discount.amount, currencyCode: price!.currencyCode,
+            rate: discount.rate.toFixed(18), amount: discount.amount, currencyCode: price.currencyCode,
           })),
           taxCategoryCode: resolvedTaxes.taxCategoryCode,
           taxContext: resolvedTaxes.context,
