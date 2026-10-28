@@ -158,7 +158,7 @@ export class CommercialCatalogService {
             ...(input.establishmentId !== undefined ? { establishmentId: input.establishmentId } : {}),
             ...(data.channelCode !== undefined ? { channelCode: data.channelCode } : {}),
             ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
-            ...(input.status !== undefined ? { status: input.status as CommercialOfferStatus } : {}),
+            ...(input.status !== undefined ? { status: input.status } : {}),
             version: { increment: 1 },
           },
         });

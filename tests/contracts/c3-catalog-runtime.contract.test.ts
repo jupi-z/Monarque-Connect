@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 
-type Parameter = { $ref?: string; name?: string; in?: string; required?: boolean };
+type Parameter = { $ref?: string; name?: string; in?: string; required?: boolean; schema?: { pattern?: string } };
 type Operation = { operationId?: string; parameters?: Parameter[]; 'x-required-principal'?: string; 'x-required-permissions'?: string[]; 'x-product-entitlement-required'?: boolean };
 type PathItem = { parameters?: Parameter[]; get?: Operation; post?: Operation; patch?: Operation };
 type Document = { paths: Record<string, PathItem>; components: { schemas: Record<string, { type?: string; required?: string[]; properties?: Record<string, { type?: string; items?: { type?: string }; pattern?: string }> }> } };
@@ -41,7 +41,10 @@ describe('C3 catalog runtime contracts', () => {
         if (operation.operationId !== 'listCommercialOffers') expect([...(item.parameters ?? []), ...(operation.parameters ?? [])]).toContainEqual(expect.objectContaining({ $ref: '#/components/parameters/IdempotencyKey' }));
       }
     }
-    expect(spec.paths['/organizations/{organizationId}/catalog/offers']?.get?.parameters).toContainEqual(expect.objectContaining({ name: 'channelCode', in: 'query', schema: expect.objectContaining({ pattern: '^[A-Za-z][A-Za-z0-9_]{0,47}$' }) }));
+    const offerListParameters = spec.paths['/organizations/{organizationId}/catalog/offers']?.get?.parameters ?? [];
+    const channelParameter = offerListParameters.find((parameter) => parameter.name === 'channelCode');
+    expect(channelParameter?.in).toBe('query');
+    expect(channelParameter?.schema?.pattern).toBe('^[A-Za-z][A-Za-z0-9_]{0,47}$');
   });
 
   it('keeps precise measurement factors as strings and tenant-scoped models versioned', async () => {
