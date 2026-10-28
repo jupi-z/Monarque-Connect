@@ -121,7 +121,7 @@ CREATE TABLE "catalog_command_receipts" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "catalog_command_receipts_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "catalog_command_receipts_payload_hash_check" CHECK ("payload_hash" ~ '^[0-9a-f]{64}$'),
-    CONSTRAINT "catalog_command_receipts_resource_type_check" CHECK ("resource_type" IN ('CommercialOffer', 'ItemVariant')),
+    CONSTRAINT "catalog_command_receipts_resource_type_check" CHECK ("resource_type" IN ('CommercialOffer', 'ItemVariant', 'CommercialPriceVersion')),
     CONSTRAINT "catalog_command_receipts_operation_check" CHECK (length(btrim("operation")) > 0 AND length(btrim("idempotency_key")) > 0)
 );
 

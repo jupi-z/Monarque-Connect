@@ -355,6 +355,12 @@ async function structuralProof(databaseUrl) {
     if (!receiptIndex?.includes('unique') || !receiptIndex.includes('(organization_id, actor_user_id, operation, idempotency_key)')) {
       throw new Error('C3 catalog idempotency receipt uniqueness is not enforced by PostgreSQL');
     }
+    const receiptResourceTypes = await pool.query(
+      `SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'catalog_command_receipts'::regclass AND conname = 'catalog_command_receipts_resource_type_check'`,
+    );
+    if (!receiptResourceTypes.rows[0]?.definition.includes('CommercialPriceVersion')) {
+      throw new Error('C3 idempotency receipts do not allow immutable commercial price versions');
+    }
   } finally { await pool.end(); }
 }
 
