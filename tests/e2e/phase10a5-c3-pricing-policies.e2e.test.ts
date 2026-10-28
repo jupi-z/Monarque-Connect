@@ -128,6 +128,67 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     await expect(prisma.pricingPolicyVersion.count({ where: { organizationId: tenant.organizationId } })).resolves.toBe(0);
     await expect(prisma.taxPolicyVersion.count({ where: { organizationId: tenant.organizationId } })).resolves.toBe(0);
   });
+
+  it('creates a server-priced commercial quote and replays its immutable result idempotently', async () => {
+    const tenant = await createTenant(app, prisma);
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/items`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .send({ type: 'PRODUCT', name: `Quote item ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD' })
+      .expect(201));
+    const offer = bodyOf<{ id: string }>(await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `quote-offer-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG' })
+      .expect(201));
+    await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers/${offer.id}/price-versions`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `quote-price-${randomUUID()}`)
+      .send({ amount: '20', currencyCode: 'USD', priceUnitCode: 'KG' })
+      .expect(201);
+    await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `quote-policy-${randomUUID()}`)
+      .send(pricingPolicyPayload())
+      .expect(201);
+
+    const route = `/api/v1/organizations/${tenant.organizationId}/pricing/quotes`;
+    const key = `pricing-quote-${randomUUID()}`;
+    const command = { productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '2', unitCode: 'KG', targetCurrency: 'USD' };
+    const firstResponse = await request(server)
+      .post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', key)
+      .send(command)
+      .expect(201);
+    const first = bodyOf<{ id: string; organizationId: string; productCode: string; sourceCurrencyCode: string; targetCurrencyCode: string; sourceSubtotal: string; targetTotal: string }>(firstResponse);
+    expect(first).toMatchObject({
+      organizationId: tenant.organizationId,
+      productCode: 'MONARQUE_CONNECT',
+      sourceCurrencyCode: 'USD',
+      targetCurrencyCode: 'USD',
+      sourceSubtotal: '40.00',
+      targetTotal: '40.00',
+    });
+
+    const replay = await request(server)
+      .post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', key)
+      .send(command)
+      .expect(201);
+    expect(replay.body).toEqual(first);
+    await request(server)
+      .post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', key)
+      .send({ ...command, quantity: '3' })
+      .expect(409);
+  });
 });
 
 function pricingPolicyPayload(code = `POLICY_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`, productCode = 'MONARQUE_CONNECT') {
