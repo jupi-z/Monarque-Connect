@@ -4027,6 +4027,12 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    ProductCode:
+      name: productCode
+      in: query
+      required: true
+      schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+      description: Untrusted selector; the server validates it against the controlled product registry and actor entitlement.
     Cursor:
       name: cursor
       in: query
