@@ -1,6 +1,6 @@
 # Phase 10A.5 — Convergence Monarque Connect × ZAMUREK
 
-**Statut actualisé au 28/10/2026 : C0 et C1.1–C1.4 acceptés et clôturés avec preuves GitHub-hosted; C2 autorisé et démarré, issue #163; C3–C8 restent planifiés et hors autorisation actuelle.** Entre **10A clôturée** et **10B**. La présente phase ne se substitue ni aux gates externes FairScale 9.6 ni à 11/11.5/12.
+**Statut actualisé au 28/10/2026 : C0, C1.1–C1.4 et C2.1–C2.4 clôturés avec preuves GitHub-hosted; l'issue C2 #163 est fermée.** Le dernier `main` vérifié avant cette synchronisation est `7e724fb7d07669d6c1e66342e0222f4bd81c77f9`; la CI post-fusion de clôture documentaire C2 #561 a réussi ([run](https://github.com/jupi-z/Monarque-Connect/actions/runs/40609732641)). C3 est autorisé par la mission du 28/10/2026, mais son exécution commence après fusion de la synchronisation documentaire et validation de sa CI post-fusion. C4–C8 restent planifiés et non autorisés. Cette convergence demeure entre **10A clôturée** et **10B** et ne se substitue ni aux gates externes FairScale 9.6 ni à 11/11.5/12.
 
 ## Objectif / résultat
 Obtenir **un seul Core transactionnel** intégrable par ZAMUREK, sans rupture des modules déjà livrés. Monarque Connect est le dépôt propriétaire du Core ; visibilité GitHub `PUBLIC` intentionnelle, sans licence open source accordée. ZAMUREK progresse par étapes : cadrage avant contrats stables; SDK et tests contractuels après stabilisation des contrats Core nécessaires; intégration fonctionnelle après livraison des opérations transactionnelles concernées; commercialisation après les gates techniques et externes applicables. Aucun développement applicatif ZAMUREK n'est inclus dans C0/C1.
@@ -21,6 +21,16 @@ Obtenir **un seul Core transactionnel** intégrable par ZAMUREK, sans rupture de
 | C8 Release/proof | Migration empty DB + upgrade 10A / 9.6, tests unit/e2e/perf ciblés, documentation et modèle de preuves, DI/compatibilité | CI PR et `main` vertes, aucune régression phases 1–10A, rapport traçable |
 
 **C4 et C5** peuvent être livrés après C0–C3; la **clôture finale de 10A.5** exige les critères techniques applicables C0–C8. Les clients/SDK ZAMUREK peuvent démarrer après stabilisation des contrats Core nécessaires; intégration fonctionnelle après livraison des opérations correspondantes; commercialisation après les gates applicables. Le périmètre final V1 ZAMUREK n'est pas réduit. C2 ne développe ni l'application ZAMUREK ni Monarque Auth.
+
+### État d'exécution des lots au 28/10/2026
+
+| Lot | État | Preuve / portée |
+|---|---|---|
+| C0 | DONE | Issue #153 close; audit et décisions consignés dans Docs/115 et Docs/114. |
+| C1.1–C1.4 | DONE | PR #158–#162 fusionnées; preuves dans Docs/118. |
+| C2.1–C2.4 | DONE | PR #164–#168 fusionnées; clôture documentaire PR #169; issue #163 close; baseline fonctionnelle `bef5d7fa92522f71466b9933917853ed96796dd7`, CI post-fusion #559 success; baseline documentaire actuelle `7e724fb7d07669d6c1e66342e0222f4bd81c77f9`, CI #561 success. |
+| C3 | AUTHORIZED / NOT STARTED | Autorisé le 28/10/2026; C3.1 contract-first après fusion et CI verte de cette synchronisation. |
+| C4–C8 | PLANNED / NOT AUTHORIZED | Hors périmètre de l'autorisation actuelle. |
 
 ## Principes d'intégration
 
