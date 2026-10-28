@@ -1,0 +1,105 @@
+import { describe, expect, it } from 'vitest';
+import * as calculator from '../../src/pricing/pricing-calculator.js';
+import type { RationalMeasure } from '../../src/referentials/measure-conversion.js';
+
+const kg: RationalMeasure = { code: 'KG', dimension: 'MASS', baseUnitCode: 'KG', numerator: 1n, denominator: 1n };
+const gram: RationalMeasure = { code: 'G', dimension: 'MASS', baseUnitCode: 'KG', numerator: 1n, denominator: 1000n };
+
+type QuoteCalculationInput = {
+  quantity: string;
+  inputUnit: RationalMeasure;
+  priceUnit: RationalMeasure;
+  unitPrice: string;
+  sourceCurrencyCode: string;
+  sourceCurrencyDigits: number;
+  targetCurrencyCode: string;
+  targetCurrencyDigits: number;
+  discounts?: Array<{ code: string; amount: string }>;
+  taxes?: Array<{ code: string; version: number; rate: string; calculationCurrency: 'SOURCE' | 'TARGET' }>;
+  fxRate?: string;
+  fxBaseCurrencyCode?: string;
+  fxQuoteCurrencyCode?: string;
+};
+
+type QuoteCalculationResult = {
+  quantityInPriceUnit: string;
+  sourceSubtotal: string;
+  discountAmount: string;
+  sourceNetAmount: string;
+  taxes: Array<{ code: string; version: number; calculationCurrency: 'SOURCE' | 'TARGET'; amount: string; currencyCode: string }>;
+  sourceTotal: string | null;
+  targetTotal: string;
+};
+
+function calculateQuote(input: QuoteCalculationInput): QuoteCalculationResult {
+  const candidate: unknown = Reflect.get(calculator, 'calculateCommercialQuote');
+  expect(candidate, 'pricing-calculator must export calculateCommercialQuote').toBeTypeOf('function');
+  return (candidate as (value: QuoteCalculationInput) => QuoteCalculationResult)(input);
+}
+
+describe('commercial quote calculator', () => {
+  it('calculates the 125 g × 20 USD/kg × 2,360 CDF/USD reference exactly', () => {
+    const result = calculateQuote({
+      quantity: '125', inputUnit: gram, priceUnit: kg, unitPrice: '20',
+      sourceCurrencyCode: 'USD', sourceCurrencyDigits: 2,
+      targetCurrencyCode: 'CDF', targetCurrencyDigits: 2,
+      fxRate: '2360', fxBaseCurrencyCode: 'USD', fxQuoteCurrencyCode: 'CDF',
+    });
+
+    expect(result).toMatchObject({
+      quantityInPriceUnit: '0.125',
+      sourceSubtotal: '2.50',
+      discountAmount: '0.00',
+      sourceNetAmount: '2.50',
+      taxes: [],
+      sourceTotal: '2.50',
+      targetTotal: '5900.00',
+    });
+  });
+
+  it('applies resolved discounts before source-currency tax and rounds at each declared boundary', () => {
+    const result = calculateQuote({
+      quantity: '1', inputUnit: kg, priceUnit: kg, unitPrice: '100',
+      sourceCurrencyCode: 'USD', sourceCurrencyDigits: 2,
+      targetCurrencyCode: 'USD', targetCurrencyDigits: 2,
+      discounts: [{ code: 'SERVER_APPROVED', amount: '10' }],
+      taxes: [{ code: 'CONFIGURED_TAX', version: 3, rate: '0.1', calculationCurrency: 'SOURCE' }],
+    });
+
+    expect(result).toMatchObject({
+      sourceSubtotal: '100.00',
+      discountAmount: '10.00',
+      sourceNetAmount: '90.00',
+      taxes: [{ code: 'CONFIGURED_TAX', version: 3, calculationCurrency: 'SOURCE', amount: '9.00', currencyCode: 'USD' }],
+      sourceTotal: '99.00',
+      targetTotal: '99.00',
+    });
+  });
+
+  it('calculates TARGET taxes after conversion and does not invent a source total', () => {
+    const result = calculateQuote({
+      quantity: '125', inputUnit: gram, priceUnit: kg, unitPrice: '20',
+      sourceCurrencyCode: 'USD', sourceCurrencyDigits: 2,
+      targetCurrencyCode: 'CDF', targetCurrencyDigits: 2,
+      taxes: [{ code: 'TARGET_TAX', version: 1, rate: '0.1', calculationCurrency: 'TARGET' }],
+      fxRate: '2360', fxBaseCurrencyCode: 'USD', fxQuoteCurrencyCode: 'CDF',
+    });
+
+    expect(result).toMatchObject({
+      sourceSubtotal: '2.50',
+      sourceNetAmount: '2.50',
+      taxes: [{ code: 'TARGET_TAX', version: 1, calculationCurrency: 'TARGET', amount: '590.00', currencyCode: 'CDF' }],
+      sourceTotal: null,
+      targetTotal: '6490.00',
+    });
+  });
+
+  it('rejects resolved discounts whose sum exceeds the rounded source subtotal', () => {
+    expect(() => calculateQuote({
+      quantity: '1', inputUnit: kg, priceUnit: kg, unitPrice: '10',
+      sourceCurrencyCode: 'USD', sourceCurrencyDigits: 2,
+      targetCurrencyCode: 'USD', targetCurrencyDigits: 2,
+      discounts: [{ code: 'INVALID_TOTAL', amount: '10.01' }],
+    })).toThrow(/discount/i);
+  });
+});
