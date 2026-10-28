@@ -638,6 +638,41 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /organizations/{organizationId}/catalog/offers/{offerId}/tax-classification:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: offerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [Catalog]
+      operationId: classifyCommercialOfferTax
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:tax:manage]
+      x-product-entitlement-required: true
+      x-tenant-scoped-resource: CommercialOffer
+      x-establishment-scope-derived-from-resource: true
+      description: Sets or clears an explicit technical tax category on a tenant offer. No classification is inferred from item data and no legal status is implied.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClassifyCommercialOfferTax" }
+      responses:
+        "200":
+          description: Offer tax classification changed or exactly replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialOffer" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/catalog/offers/{offerId}/price-versions:
     parameters:
@@ -823,6 +858,70 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TaxPolicyVersion" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/pricing/tax-context-versions:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    post:
+      tags: [Pricing]
+      operationId: createPricingTaxContextVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:tax:manage]
+      x-product-entitlement-required: true
+      description: Creates an immutable, tenant-configured technical tax jurisdiction context in DRAFT. Jurisdiction is not inferred from address or legally certified.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePricingTaxContextVersion" }
+      responses:
+        "201":
+          description: Draft tax context created or exactly replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PricingTaxContextVersion" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/pricing/tax-context-versions/{pricingTaxContextVersionId}/activate:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: pricingTaxContextVersionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Pricing]
+      operationId: activatePricingTaxContextVersion
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:tax:manage]
+      x-product-entitlement-required: true
+      description: Explicitly activates a tenant-reviewed technical context; it does not certify jurisdiction or legal compliance.
+      parameters:
+        - $ref: "#/components/parameters/ProductCode"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActivatePricingTaxContextVersion" }
+      responses:
+        "200":
+          description: Tax context activated or exactly replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PricingTaxContextVersion" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -4683,7 +4782,7 @@ components:
     CommercialOffer:
       type: object
       additionalProperties: false
-      required: [id, organizationId, productCode, itemId, variantId, establishmentId, channelCode, sellUnitCode, displayName, status, version, createdAt, updatedAt]
+      required: [id, organizationId, productCode, itemId, variantId, establishmentId, channelCode, sellUnitCode, displayName, taxCategoryCode, status, version, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -4694,6 +4793,7 @@ components:
         channelCode: { type: [string, 'null'], pattern: '^[A-Z][A-Z0-9_]{0,47}$', maxLength: 48 }
         sellUnitCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,31}$', maxLength: 32 }
         displayName: { type: [string, 'null'], maxLength: 160 }
+        taxCategoryCode: { type: [string, 'null'], pattern: '^[A-Z][A-Z0-9._-]{0,63}$', maxLength: 64, description: Explicit tenant technical classification; not inferred and not a legal certification. }
         status: { type: string, enum: [ACTIVE, INACTIVE] }
         version: { type: integer, minimum: 1 }
         createdAt: { type: string, format: date-time }
@@ -4951,6 +5051,44 @@ components:
         activatedAt: { type: [string, "null"], format: date-time }
         tenantReviewAcknowledgement: { type: [string, "null"], enum: [OWNER_REVIEWED_CONFIGURATION, null] }
         createdAt: { type: string, format: date-time }
+    CreatePricingTaxContextVersion:
+      type: object
+      additionalProperties: false
+      required: [productCode, jurisdictionCode]
+      properties:
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        establishmentId: { type: string, format: uuid, description: Omit for the organization/product default. }
+        jurisdictionCode: { type: string, minLength: 2, maxLength: 64, pattern: '^[A-Z0-9][A-Z0-9._:-]{1,63}$', description: Tenant-configured opaque code; not derived from address. }
+        effectiveFrom: { type: string, format: date-time, description: Server time when omitted; explicit values must be future timestamps. }
+    ActivatePricingTaxContextVersion:
+      type: object
+      additionalProperties: false
+      required: [acknowledgement]
+      properties:
+        acknowledgement: { type: string, const: OWNER_REVIEWED_CONFIGURATION }
+    PricingTaxContextVersion:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, productCode, establishmentId, version, status, jurisdictionCode, effectiveFrom, activatedAt, tenantReviewAcknowledgement, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        version: { type: integer, minimum: 1 }
+        status: { type: string, enum: [DRAFT, ACTIVE] }
+        jurisdictionCode: { type: string, pattern: '^[A-Z0-9][A-Z0-9._:-]{1,63}$' }
+        effectiveFrom: { type: string, format: date-time }
+        activatedAt: { type: [string, 'null'], format: date-time }
+        tenantReviewAcknowledgement: { type: [string, 'null'], enum: [OWNER_REVIEWED_CONFIGURATION, null] }
+        createdAt: { type: string, format: date-time }
+    ClassifyCommercialOfferTax:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion, taxCategoryCode]
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        taxCategoryCode: { type: [string, 'null'], maxLength: 64, pattern: '^[A-Z][A-Z0-9._-]{0,63}$', description: Use null only to clear the explicit classification. }
     IngestFxRate:
       type: object
       additionalProperties: false

@@ -37,6 +37,9 @@ const expected: Record<string, string> = {
   'POST /organizations/{organizationId}/pricing/policy-versions': 'createPricingPolicyVersion',
   'POST /organizations/{organizationId}/pricing/tax-policy-versions': 'createTaxPolicyVersion',
   'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate': 'activateTaxPolicyVersion',
+  'POST /organizations/{organizationId}/pricing/tax-context-versions': 'createPricingTaxContextVersion',
+  'POST /organizations/{organizationId}/pricing/tax-context-versions/{pricingTaxContextVersionId}/activate': 'activatePricingTaxContextVersion',
+  'PUT /organizations/{organizationId}/catalog/offers/{offerId}/tax-classification': 'classifyCommercialOfferTax',
   'POST /organizations/{organizationId}/pricing/quotes': 'createPricingQuote',
   'GET /organizations/{organizationId}/pricing/quotes/{quoteId}': 'getPricingQuote',
   'POST /platform/pricing/fx-rates': 'ingestFxRate',
@@ -111,6 +114,9 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
       'POST /organizations/{organizationId}/pricing/policy-versions',
       'POST /organizations/{organizationId}/pricing/tax-policy-versions',
       'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate',
+      'POST /organizations/{organizationId}/pricing/tax-context-versions',
+      'POST /organizations/{organizationId}/pricing/tax-context-versions/{pricingTaxContextVersionId}/activate',
+      'PUT /organizations/{organizationId}/catalog/offers/{offerId}/tax-classification',
       'POST /organizations/{organizationId}/pricing/quotes',
       'GET /organizations/{organizationId}/pricing/quotes/{quoteId}',
     ]) {
@@ -159,7 +165,7 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
 
   it('requires explicit product selection and non-authoritative tenant scoping for tenant operations', async () => {
     const spec = await load();
-    const productResolvedFromTenantScopedResource = new Set(['updateCommercialOffer', 'publishCommercialPriceVersion']);
+    const productResolvedFromTenantScopedResource = new Set(['updateCommercialOffer', 'publishCommercialPriceVersion', 'classifyCommercialOfferTax']);
     const productCode = requiredParameter(spec, 'ProductCode');
     expect(productCode.schema?.pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
     expect(productCode.schema).not.toHaveProperty('enum');
@@ -222,5 +228,24 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     expect(activate.responses?.['200']?.description).toContain('no legal status is implied');
     expect(requiredProperty(requiredSchema(spec, 'ActivateTaxPolicyVersion'), 'acknowledgement').type).toBe('string');
     expect((activate as Operation & { 'x-required-permissions'?: string[] })['x-required-permissions']).toContain('pricing:tax:manage');
+    for (const key of [
+      'POST /organizations/{organizationId}/pricing/tax-context-versions',
+      'POST /organizations/{organizationId}/pricing/tax-context-versions/{pricingTaxContextVersionId}/activate',
+      'PUT /organizations/{organizationId}/catalog/offers/{offerId}/tax-classification',
+    ]) {
+      const op = operation(spec, key) as Operation & { 'x-required-principal'?: string; 'x-required-roles'?: string[]; 'x-required-permissions'?: string[] };
+      expect(op['x-required-principal']).toBe('STAFF');
+      expect(op['x-required-roles']).toEqual(expect.arrayContaining(['OWNER', 'ADMIN']));
+      expect(op['x-required-permissions']).toContain('pricing:tax:manage');
+    }
+    const contextCreate = operation(spec, 'POST /organizations/{organizationId}/pricing/tax-context-versions');
+    expect(schemaRef(Object.values(contextCreate.requestBody?.content ?? {})[0]?.schema)).toBe('#/components/schemas/CreatePricingTaxContextVersion');
+    const contextInput = requiredSchema(spec, 'CreatePricingTaxContextVersion');
+    expect(contextInput.required).toEqual(expect.arrayContaining(['productCode', 'jurisdictionCode']));
+    const classificationInput = requiredSchema(spec, 'ClassifyCommercialOfferTax');
+    expect(classificationInput.required).toEqual(expect.arrayContaining(['expectedVersion', 'taxCategoryCode']));
+    expect(requiredProperty(classificationInput, 'taxCategoryCode').type).toEqual(['string', 'null']);
+    expect(requiredSchema(spec, 'CommercialOffer').required).toContain('taxCategoryCode');
+    expect(requiredProperty(requiredSchema(spec, 'CommercialOffer'), 'taxCategoryCode').type).toEqual(['string', 'null']);
   });
 });

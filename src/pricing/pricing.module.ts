@@ -10,11 +10,13 @@ import { PricingPolicyController } from './pricing-policy.controller.js';
 import { PricingPolicyService } from './pricing-policy.service.js';
 import { PricingQuoteController } from './pricing-quote.controller.js';
 import { PricingQuoteService } from './pricing-quote.service.js';
+import { CommercialOfferTaxClassificationController, PricingTaxContextController } from './pricing-tax-context.controller.js';
+import { PricingTaxContextService } from './pricing-tax-context.service.js';
 
 @Module({
   imports: [AuthModule, EntitlementsModule, EventModule, TenancyModule],
-  controllers: [FxRateController, PricingPolicyController, PricingQuoteController],
-  providers: [CommercialPriceService, FxRateService, PricingPolicyService, PricingQuoteService],
+  controllers: [FxRateController, PricingPolicyController, PricingQuoteController, PricingTaxContextController, CommercialOfferTaxClassificationController],
+  providers: [CommercialPriceService, FxRateService, PricingPolicyService, PricingQuoteService, PricingTaxContextService],
   exports: [CommercialPriceService],
 })
 export class PricingModule {}
