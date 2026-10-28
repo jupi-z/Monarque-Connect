@@ -37,6 +37,8 @@
 | Correction du contrat de test | L'assertion remplace `expect.any(String)` par le motif décimal attendu explicitement; aucune assertion n'est retirée. La validation GitHub-hosted du nouveau SHA reste `PENDING`. |
 | CI PR `#175`, SHA `10c5f861b7914ef30ebcbbf326354d35d7c19f91` | `FAILURE`: [run 40655378569](https://github.com/jupi-z/Monarque-Connect/actions/runs/40655378569), typecheck: `productCode` passé comme `string` au resolver scoped, et `organizationId` invalide dans la création imbriquée de `MembershipEstablishmentScope`. |
 | Correction du type et de la fixture | Le type `ProductCode` validé est conservé dans les deux appels d'autorisation; le scope nested create laisse Prisma déduire l'organisation via le parent membership. La CI du nouveau SHA reste `PENDING`. |
+| CI PR `#175`, SHA `b5b2e4fac45664d48f6c8c5aa7bb2732fb8d73bb` | `FAILURE`: [run 40655780607](https://github.com/jupi-z/Monarque-Connect/actions/runs/40655780607). Les migrations ont été appliquées depuis une base vide et par upgrade; la preuve structurelle a échoué car son contrôle cherchait un ancien texte de diagnostic plutôt que la condition réellement définie dans le trigger. Le job a arrêté les contrôles suivants et a nettoyé le conteneur PostgreSQL. |
+| Correction de la preuve structurelle | Le vérificateur recherche maintenant l'expression SQL effective `NEW.effective_from <= latest_effective_from`, le verrou d'offre et le message de rejet du trigger. Aucun contrôle SQL n'est retiré. CI du SHA correctif `PENDING`. |
 | CI post-fusion | `NOT_RUN`: la PR n'est pas fusionnée. |
 | Déploiement ou validation production | `NOT_RUN` et hors périmètre. |
 

@@ -132,7 +132,8 @@ async function structuralProof(databaseUrl) {
     const insertGuard = priceTriggers.rows.find((row) => row.tgname === 'commercial_price_versions_insert_guard');
     const immutableGuard = priceTriggers.rows.find((row) => row.tgname === 'commercial_price_versions_immutable');
     if (!insertGuard || !insertGuard.function_definition.includes('FOR UPDATE OF o')
-      || !insertGuard.function_definition.includes('strictly increasing effective order')) {
+      || !insertGuard.function_definition.includes('NEW."effective_from" <= latest_effective_from')
+      || !insertGuard.function_definition.includes('commercial price effective times must increase strictly')) {
       throw new Error('Commercial price insertion guard is missing its offer lock or temporal-order check');
     }
     if (!immutableGuard || !immutableGuard.function_definition.includes('commercial price versions are immutable')) {
