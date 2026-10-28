@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import * as calculator from '../../src/pricing/pricing-calculator.js';
+import { calculateCommercialQuote } from '../../src/pricing/pricing-calculator.js';
 import type { RationalMeasure } from '../../src/referentials/measure-conversion.js';
 
 const kg: RationalMeasure = { code: 'KG', dimension: 'MASS', baseUnitCode: 'KG', numerator: 1n, denominator: 1n };
@@ -32,9 +32,7 @@ type QuoteCalculationResult = {
 };
 
 function calculateQuote(input: QuoteCalculationInput): QuoteCalculationResult {
-  const candidate: unknown = Reflect.get(calculator, 'calculateCommercialQuote');
-  expect(candidate, 'pricing-calculator must export calculateCommercialQuote').toBeTypeOf('function');
-  return (candidate as (value: QuoteCalculationInput) => QuoteCalculationResult)(input);
+  return calculateCommercialQuote(input);
 }
 
 describe('commercial quote calculator', () => {
@@ -94,6 +92,27 @@ describe('commercial quote calculator', () => {
     });
   });
 
+  it('rejects mixed source and target tax calculation modes', () => {
+    expect(() => calculateQuote({
+      quantity: '1', inputUnit: kg, priceUnit: kg, unitPrice: '10',
+      sourceCurrencyCode: 'USD', sourceCurrencyDigits: 2,
+      targetCurrencyCode: 'USD', targetCurrencyDigits: 2,
+      taxes: [
+        { code: 'SOURCE_TAX', version: 1, rate: '0.1', calculationCurrency: 'SOURCE' },
+        { code: 'TARGET_TAX', version: 1, rate: '0.1', calculationCurrency: 'TARGET' },
+      ],
+    })).toThrow(/cannot be mixed/i);
+  });
+
+  it('rejects an unsupported tax calculation currency', () => {
+    const invalidTax = { code: 'UNKNOWN_TAX', version: 1, rate: '0.1', calculationCurrency: 'OTHER' };
+    expect(() => calculateQuote({
+      quantity: '1', inputUnit: kg, priceUnit: kg, unitPrice: '10',
+      sourceCurrencyCode: 'USD', sourceCurrencyDigits: 2,
+      targetCurrencyCode: 'USD', targetCurrencyDigits: 2,
+      taxes: [invalidTax as never],
+    })).toThrow(/currency is invalid/i);
+  });
   it('rejects resolved discounts whose sum exceeds the rounded source subtotal', () => {
     expect(() => calculateQuote({
       quantity: '1', inputUnit: kg, priceUnit: kg, unitPrice: '10',
