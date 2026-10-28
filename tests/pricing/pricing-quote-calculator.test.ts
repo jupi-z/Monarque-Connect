@@ -104,6 +104,16 @@ describe('commercial quote calculator', () => {
     })).toThrow(/cannot be mixed/i);
   });
 
+  it('rejects null tax or discount configuration instead of silently treating it as absent', () => {
+    const base = {
+      quantity: '1', inputUnit: kg, priceUnit: kg, unitPrice: '10',
+      sourceCurrencyCode: 'USD', sourceCurrencyDigits: 2,
+      targetCurrencyCode: 'USD', targetCurrencyDigits: 2,
+    };
+    expect(() => calculateQuote({ ...base, taxes: null as never })).toThrow(/tax rules are invalid/i);
+    expect(() => calculateQuote({ ...base, discounts: null as never })).toThrow(/discount rules are invalid/i);
+    expect(() => calculateQuote({ ...base, discounts: [null as never] })).toThrow(/discount is invalid/i);
+  });
   it('rejects an unsupported tax calculation currency', () => {
     const invalidTax = { code: 'UNKNOWN_TAX', version: 1, rate: '0.1', calculationCurrency: 'OTHER' };
     expect(() => calculateQuote({

@@ -139,12 +139,12 @@ export function calculateCommercialQuote(input: CommercialQuoteCalculationInput)
 
   const quantityInPriceUnit = convertMeasureQuantity(input.quantity, input.inputUnit, input.priceUnit);
   const sourceSubtotal = new Decimal(quantityInPriceUnit).mul(input.unitPrice).toDecimalPlaces(input.sourceCurrencyDigits, Decimal.ROUND_HALF_UP);
-  const discounts = input.discounts ?? [];
+  const discounts = input.discounts === undefined ? [] : input.discounts;
   if (!Array.isArray(discounts) || discounts.length > 100) throw new BadRequestException('Discount rules are invalid');
   const discountCodes = new Set<string>();
   let resolvedDiscountTotal = new Decimal(0);
   for (const discount of discounts) {
-    if (!DISCOUNT_CODE.test(discount.code) || discountCodes.has(discount.code)
+    if (!discount || typeof discount.code !== 'string' || !DISCOUNT_CODE.test(discount.code) || discountCodes.has(discount.code)
       || typeof discount.amount !== 'string' || !DISCOUNT_AMOUNT.test(discount.amount)) {
       throw new BadRequestException('Resolved discount is invalid or duplicated');
     }
@@ -155,7 +155,7 @@ export function calculateCommercialQuote(input: CommercialQuoteCalculationInput)
 
   const sourceNetAmount = sourceSubtotal.minus(resolvedDiscountTotal).toDecimalPlaces(input.sourceCurrencyDigits, Decimal.ROUND_HALF_UP);
   const discountAmount = sourceSubtotal.minus(sourceNetAmount);
-  const taxes = input.taxes ?? [];
+  const taxes = input.taxes === undefined ? [] : input.taxes;
   if (!Array.isArray(taxes) || taxes.length > 100) throw new BadRequestException('Tax rules are invalid');
   const taxCodes = new Set<string>();
   if (taxes.some((tax) => !tax || (tax.calculationCurrency !== 'SOURCE' && tax.calculationCurrency !== 'TARGET'))) {
