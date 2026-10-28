@@ -56,6 +56,7 @@ const expectedOperations: Record<string, string> = {
   'POST /organizations/{organizationId}/cash-movements': 'createCashMovement',
   'POST /organizations/{organizationId}/cash-movements/{movementId}/correct': 'correctCashMovement',
   'POST /organizations/{organizationId}/cash-transfers': 'createCashTransfer',
+  'POST /platform/pricing/fx-rates': 'ingestFxRate',
 };
 
 const mutationOperationIds = new Set(

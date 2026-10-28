@@ -674,6 +674,33 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /platform/pricing/fx-rates:
+    post:
+      tags: [Platform]
+      operationId: ingestFxRate
+      x-required-principal: PLATFORM
+      x-required-permissions: [pricing:fx:ingest]
+      x-required-platform-capability: pricing:fx:ingest
+      description: Records an immutable, allowlisted reference rate. No live provider, tenant policy, commercial spread, or fiscal rule is implied.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IngestFxRate" }
+      responses:
+        "201":
+          description: Immutable reference rate recorded or replayed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FxRate" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /organizations/{organizationId}/catalog/items/{itemId}/variants:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -4586,6 +4613,37 @@ components:
         priceUnitCode: { type: string }
         effectiveFrom: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
+    IngestFxRate:
+      type: object
+      additionalProperties: false
+      required: [baseCurrency, quoteCurrency, rate, sourceCode, observedAt, validFrom, validUntil, sourceReference]
+      properties:
+        baseCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        quoteCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        rate: { $ref: "#/components/schemas/PositiveFxRateString" }
+        sourceCode: { type: string, pattern: '^[A-Z][A-Z0-9._-]{0,63}$', maxLength: 64 }
+        observedAt: { type: string, format: date-time }
+        validFrom: { type: string, format: date-time }
+        validUntil: { type: string, format: date-time }
+        sourceReference: { type: string, minLength: 1, maxLength: 256 }
+    FxRate:
+      type: object
+      additionalProperties: false
+      required: [id, baseCurrency, quoteCurrency, rate, sourceCode, sourceReference, observedAt, validFrom, validUntil]
+      properties:
+        id: { type: string, format: uuid }
+        baseCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        quoteCurrency: { type: string, pattern: '^[A-Z]{3}$' }
+        rate: { $ref: "#/components/schemas/PositiveFxRateString" }
+        sourceCode: { type: string, pattern: '^[A-Z][A-Z0-9._-]{0,63}$' }
+        sourceReference: { type: string, minLength: 1, maxLength: 256 }
+        observedAt: { type: string, format: date-time }
+        validFrom: { type: string, format: date-time }
+        validUntil: { type: string, format: date-time }
+    PositiveFxRateString:
+      type: string
+      maxLength: 25
+      pattern: '^(?=.*[1-9])(?:0|[1-9][0-9]{0,5})(?:\.[0-9]{1,18})?$'
     PositiveCommercialPriceAmount:
       type: string
       maxLength: 25
