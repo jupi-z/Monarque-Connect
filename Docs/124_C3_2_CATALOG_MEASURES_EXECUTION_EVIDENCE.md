@@ -19,6 +19,7 @@ C3.2 couvre le registre versionné des mesures, un allowlist de métadonnées IS
 - `ItemVariant` : variante tenant-scoped attachée au même Item et à la même organisation par FK composite. Elle ne duplique pas Item et n'invente pas d'appartenance produit.
 - `CommercialOffer` : référence un Item, une variante éventuelle, une unité de vente, un produit et éventuellement un établissement/canal. Des FK composites empêchent les références inter-tenants. La version optimiste est incrémentée par modification; aucun prix n'est stocké dans ce modèle.
 - `CatalogCommandReceipt` : empreinte SHA-256 de la commande et unicité PostgreSQL par organisation, acteur, opération et clé. La mutation, le reçu, l'audit et l'Outbox sont écrits dans la transaction.
+- Le reset PostgreSQL des tests conserve les deux registres système versionnés (`measure_units`, `currency_definitions`) créés par migration. Les données tenant restent réinitialisées; les fixtures ne doivent pas effacer les référentiels immuables partagés.
 
 Le DDL est additif. Les valeurs de mesure sont des rapports rationnels exacts à une version interne `monarque-measures-v1`. L'allowlist devise référence l'ISO 4217 List One de l'agence de maintenance SIX (`six-iso4217-list-one-2026-10`); l'agence publie les listes courantes et leurs amendements sur [sa page officielle des standards](https://www.six-group.com/en/products-services/financial-information/market-reference-data/data-standards.html). La présence de cette source ne vaut ni validation fiscale, ni taux FX, ni choix de devise commerciale.
 
@@ -40,14 +41,15 @@ La conversion de quantité emploie `BigInt` et des facteurs rationnels. L'entré
 | Inspection statique et `git diff --check` | Réalisée localement; aucune erreur d'espacement signalée |
 | Prisma validate/generate | NOT_RUN localement; à exécuter sur GitHub-hosted Actions |
 | Lint/typecheck/build | NOT_RUN localement; à exécuter sur GitHub-hosted Actions |
-| Tests unitaires exacts de mesure | Ajoutés, NOT_RUN |
-| Tests PostgreSQL d'offres, isolation, idempotence et concurrence | Ajoutés, NOT_RUN |
-| Test HTTP non authentifié des registres et contrats OpenAPI | Ajouté, NOT_RUN |
-| Migration depuis base vide et états historiques supportés | Script de preuve étendu, NOT_RUN |
-| CI PR et CI post-fusion | NOT_RUN; aucun PR/commit de livraison n'est encore enregistré |
+| Tests unitaires exacts de mesure | Ajoutés; résultat complet attendu sur le SHA courant |
+| Tests PostgreSQL d'offres, isolation, idempotence et concurrence | Premier passage exécuté par Actions; échec détecté car le reset global tronquait les registres et les offres n'avaient plus d'unités actives |
+| Test HTTP non authentifié des registres et contrats OpenAPI | Exécuté dans le premier passage PostgreSQL; l'absence du registre après reset reproduisait le défaut de fixture |
+| Migration depuis base vide et états historiques supportés | Actions a reproduit `P3018` avec `jsonb_object_length`; le DDL utilise maintenant `jsonb_path_query_array` et le script vérifie sa contrainte et le comptage JSONPath. Une exécution complète après correction est encore requise |
+| CI PR | [PR #174](https://github.com/jupi-z/Monarque-Connect/pull/174), brouillon. Échecs corrigés successivement: run [40645157199](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645157199) lint, [40645436513](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645436513) typecheck, [40645716729](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645716729) lint, [40645899634](https://github.com/jupi-z/Monarque-Connect/actions/runs/40645899634) migration, [40646173196](https://github.com/jupi-z/Monarque-Connect/actions/runs/40646173196) integration/reset. La correction du reset vient d'être ajoutée; la CI sur son nouveau SHA reste à vérifier |
+| CI post-fusion | NOT_RUN; PR non fusionnée |
 
-Aucune preuve de migration appliquée, de base de production ou d'exécution runtime n'est revendiquée. Les références d'exécution seront inscrites ici seulement après lecture des conclusions GitHub Actions sur le SHA correspondant.
+Aucune preuve de migration appliquée sur production ou d'exécution runtime déployée n'est revendiquée. Les échecs ci-dessus sont des constats directs des logs GitHub, avec correction candidate; ils ne sont pas transformés en succès. La nouvelle CI doit prouver la migration, les tests, contrats, build et E2E sur son SHA exact.
 
 ## Suite
 
-Avant de créer la PR, terminer la revue statique du DDL, de l'OpenAPI, des tests et du script de migration. Puis exécuter tous les gates applicables sur GitHub-hosted Actions. Ne commencer C3.3 qu'après fusion contrôlée et CI post-fusion verte sur `main`.
+Terminer la revue statique et exécuter de nouveau tous les gates applicables sur GitHub-hosted Actions. Garder la PR en brouillon jusqu'à la réussite complète du SHA final. Ne commencer C3.3 qu'après fusion contrôlée et CI post-fusion verte sur `main`.
