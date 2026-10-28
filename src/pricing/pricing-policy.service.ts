@@ -199,7 +199,7 @@ export class PricingPolicyService {
 
   private async lockVersionScope(tx: Prisma.TransactionClient, kind: string, organizationId: string, productCode: ProductCode, code: string): Promise<void> {
     const key = `${kind}:${organizationId}:${productCode}:${code}`;
-    await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+    await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
   }
 
   private async receipt(
