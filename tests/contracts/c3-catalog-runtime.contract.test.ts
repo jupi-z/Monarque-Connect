@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 type Parameter = { $ref?: string; name?: string; in?: string; required?: boolean; schema?: { pattern?: string } };
 type Operation = { operationId?: string; parameters?: Parameter[]; 'x-required-principal'?: string; 'x-required-permissions'?: string[]; 'x-product-entitlement-required'?: boolean };
 type PathItem = { parameters?: Parameter[]; get?: Operation; post?: Operation; patch?: Operation };
-type Document = { paths: Record<string, PathItem>; components: { schemas: Record<string, { type?: string; required?: string[]; properties?: Record<string, { type?: string; items?: { type?: string }; pattern?: string }> }> } };
+type Schema = { type?: string; required?: string[]; minProperties?: number; properties?: Record<string, { type?: string; items?: { type?: string }; pattern?: string }> };
+type Document = { paths: Record<string, PathItem>; components: { schemas: Record<string, Schema | undefined> } };
 
 const expected: Array<[string, keyof PathItem, string]> = [
   ['/catalog/measure-units', 'get', 'listMeasureUnits'],
@@ -18,6 +19,12 @@ const expected: Array<[string, keyof PathItem, string]> = [
 
 async function load(): Promise<Document> {
   return parse(await readFile(new URL('../../openapi/openapi.yaml', import.meta.url), 'utf8')) as Document;
+}
+
+function schema(document: Document, name: string): Schema {
+  const value = document.components.schemas[name];
+  if (!value) throw new Error(`Missing OpenAPI schema: ${name}`);
+  return value;
 }
 
 describe('C3 catalog runtime contracts', () => {
@@ -49,17 +56,17 @@ describe('C3 catalog runtime contracts', () => {
 
   it('keeps precise measurement factors as strings and tenant-scoped models versioned', async () => {
     const spec = await load();
-    expect(spec.components.schemas.MeasureUnitRegistry.required).toEqual(['version', 'items']);
-    expect(spec.components.schemas.MeasureUnit.properties?.numerator).toMatchObject({ type: 'string', pattern: '^[1-9][0-9]{0,17}$' });
-    expect(spec.components.schemas.MeasureUnit.properties?.denominator?.type).toBe('string');
-    expect(spec.components.schemas.CommercialOffer.required).toContain('organizationId');
-    expect(spec.components.schemas.CommercialOffer.required).toContain('productCode');
-    expect(spec.components.schemas.CommercialOffer.properties?.version?.type).toBe('integer');
-    expect(spec.components.schemas.CurrencyDefinition.required).toEqual(['code', 'minorUnitDigits', 'registryVersion', 'sourceRevision']);
-    expect(spec.components.schemas.ItemVariant.required).not.toContain('productCode');
-    expect(spec.components.schemas.ItemVariant.properties).not.toHaveProperty('productCode');
-    expect(spec.components.schemas.CreateCommercialOffer.properties?.productCode?.pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
-    expect(spec.components.schemas.UpdateCommercialOffer.minProperties).toBe(2);
-    expect(spec.components.schemas.CreateCommercialOffer.properties?.sellUnitCode?.pattern).toBe('^[A-Za-z][A-Za-z0-9_]{0,31}$');
+    expect(schema(spec, 'MeasureUnitRegistry').required).toEqual(['version', 'items']);
+    expect(schema(spec, 'MeasureUnit').properties?.numerator).toMatchObject({ type: 'string', pattern: '^[1-9][0-9]{0,17}$' });
+    expect(schema(spec, 'MeasureUnit').properties?.denominator?.type).toBe('string');
+    expect(schema(spec, 'CommercialOffer').required).toContain('organizationId');
+    expect(schema(spec, 'CommercialOffer').required).toContain('productCode');
+    expect(schema(spec, 'CommercialOffer').properties?.version?.type).toBe('integer');
+    expect(schema(spec, 'CurrencyDefinition').required).toEqual(['code', 'minorUnitDigits', 'registryVersion', 'sourceRevision']);
+    expect(schema(spec, 'ItemVariant').required).not.toContain('productCode');
+    expect(schema(spec, 'ItemVariant').properties).not.toHaveProperty('productCode');
+    expect(schema(spec, 'CreateCommercialOffer').properties?.productCode?.pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
+    expect(schema(spec, 'UpdateCommercialOffer').minProperties).toBe(2);
+    expect(schema(spec, 'CreateCommercialOffer').properties?.sellUnitCode?.pattern).toBe('^[A-Za-z][A-Za-z0-9_]{0,31}$');
   });
 });

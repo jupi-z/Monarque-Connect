@@ -122,8 +122,9 @@ export class CommercialCatalogService {
     const current = await this.prisma.commercialOffer.findFirst({ where: { id: offerId, organizationId }, select: this.offerSelect });
     if (!current) throw new NotFoundException('Commercial offer not found');
     if (!isProductCode(current.productCode)) throw new ConflictException('Offer has an unsupported product code');
+    const productCode = current.productCode;
     const targetEstablishment = input.establishmentId === undefined ? current.establishmentId : input.establishmentId;
-    const context = await this.authorize(principal, organizationId, current.productCode, 'catalog:write', current.establishmentId ?? undefined);
+    const context = await this.authorize(principal, organizationId, productCode, 'catalog:write', current.establishmentId ?? undefined);
     if (targetEstablishment) await this.authorization.assertEstablishment(context, targetEstablishment);
     const key = this.requireKey(rawKey);
     const data = {
@@ -137,7 +138,7 @@ export class CommercialCatalogService {
     const hash = this.hash({ operation: 'COMMERCIAL_OFFER_UPDATE', offerId, data });
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const txContext = await this.authorization.requireModuleForProductInTransaction(tx, principal, organizationId, current.productCode, 'CATALOG', 'catalog:write');
+        const txContext = await this.authorization.requireModuleForProductInTransaction(tx, principal, organizationId, productCode, 'CATALOG', 'catalog:write');
         if (current.establishmentId) await this.assertEstablishmentInTransaction(tx, txContext, current.establishmentId);
         if (targetEstablishment) await this.assertEstablishmentInTransaction(tx, txContext, targetEstablishment);
         const replay = await this.findReceipt(tx, organizationId, principal.userId, 'COMMERCIAL_OFFER_UPDATE', key, hash);
@@ -153,7 +154,7 @@ export class CommercialCatalogService {
           }
         }
         const updated = await tx.commercialOffer.updateMany({
-          where: { id: offerId, organizationId, productCode: current.productCode, version: input.expectedVersion },
+          where: { id: offerId, organizationId, productCode, version: input.expectedVersion },
           data: {
             ...(input.establishmentId !== undefined ? { establishmentId: input.establishmentId } : {}),
             ...(data.channelCode !== undefined ? { channelCode: data.channelCode } : {}),
@@ -234,7 +235,7 @@ export class CommercialCatalogService {
   private async recordMutation(tx: Prisma.TransactionClient, context: ProductAuthorizationContext, principal: AuthPrincipal, organizationId: string, id: string, action: AuditAction, eventType: string, payload: Record<string, unknown>): Promise<void> {
     const eventContext = currentEventContext();
     const request = eventContext?.requestId ? { requestId: eventContext.requestId, correlationId: eventContext.correlationId } : createRequestContext();
-    await tx.auditEvent.create({ data: { id: randomUUID(), action, actorUserId: principal.userId, organizationId, establishmentId: payload.establishmentId as string | undefined, targetType: eventType.includes('variant') ? 'ItemVariant' : 'CommercialOffer', targetId: id, requestId: request.requestId, correlationId: request.correlationId, metadataJson: { productCode: context.productCode, ...payload } as Prisma.InputJsonValue } });
+    await tx.auditEvent.create({ data: { id: randomUUID(), action, actorUserId: principal.userId, organizationId, ...(typeof payload.establishmentId === 'string' ? { establishmentId: payload.establishmentId } : {}), targetType: eventType.includes('variant') ? 'ItemVariant' : 'CommercialOffer', targetId: id, requestId: request.requestId, correlationId: request.correlationId, metadataJson: { productCode: context.productCode, ...payload } as Prisma.InputJsonValue } });
     await this.outbox.enqueue(tx, createDomainEvent({ eventType, eventVersion: 1, occurredAt: new Date().toISOString(), actor: { type: 'USER', id: principal.userId }, aggregate: { type: eventType.includes('variant') ? 'ItemVariant' : 'CommercialOffer', id }, organizationId, ...(typeof payload.establishmentId === 'string' ? { establishmentId: payload.establishmentId } : {}), correlationId: request.correlationId, requestId: request.requestId, dataClassification: 'CONFIDENTIAL', purpose: 'commercial-catalog', payload: { productCode: context.productCode, ...payload } }));
   }
 
