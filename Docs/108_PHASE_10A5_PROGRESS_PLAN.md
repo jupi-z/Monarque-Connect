@@ -4,14 +4,14 @@ Le rapport [d'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code e
 
 Mise à jour après cette clôture historique : la synchronisation documentaire C2 PR #170 est fusionnée; le `main` observé pour l'ouverture C3 est `2dff07eae662d8de186d6f23cf831dd72c1dfec9`, avec CI post-fusion [run 40635438412](https://github.com/jupi-z/Monarque-Connect/actions/runs/40635438412) réussie. La ligne ci-dessus conserve l'état vérifié à l'époque de la PR #169.
 
-**Statut Phase 10A.5 = IN_PROGRESS. C0 = CLOSED. C1.1–C1.4 = DONE. C2.1–C2.4 = DONE / issue #163 CLOSED. C3 = AUTHORIZED; C3.1 contract-first = DONE; C3.2 = DONE (PR #174, `main@909764d461991489250b5da1caf673d209ebfef8`, CI post-fusion #583 / run 40650502528 success); C3.3 = IN_PROGRESS / validation pending; C3.4 = NOT STARTED. C4–C8 = PLANNED / NOT AUTHORIZED.** Les critères G-01–G-14 restent des gates de livraison future et ne sont pas satisfaits par la clôture de C0–C3.2.
+**Statut Phase 10A.5 = IN_PROGRESS. C0 = CLOSED. C1.1–C1.4 = DONE. C2.1–C2.4 = DONE / issue #163 CLOSED. C3 = AUTHORIZED; C3.1 = DONE; C3.2 = DONE; C3.3.1–C3.3.3 = DONE, PR #178 fusionnée dans `main@659ed86e7909b5ce81ebe38d76db59e80be4def7`, CI PR #40696540239 et post-fusion #40697766771 réussies. C3.3 quote/snapshot engine = IN PROGRESS; C3.4 = NOT STARTED. C4–C8 = PLANNED / NOT AUTHORIZED.** Les gates externes de fournisseur FX, conformité fiscale et production restent distincts; les critères G-01–G-14 ne sont pas tous satisfaits par les livraisons C0–C3.3.3.
 
 | Lot | Poids | Dépendances |
 |---|---:|---|
 | C0 audit/mapping/ADRs | 10 | 10A clôturée |
 | C1 product catalog/entitlements | 12 | C0 |
 | C2 identity/tenancy/clients | 12 | C0; DONE, preuves Docs/120–121 |
-| C3 prix, catalogue, FX/unités | 12 | C1/C2; C3.1 gelé; C3.2 livré et post-CI validée; C3.3 en cours; C3.4 à exécuter; Docs/122–125 |
+| C3 prix, catalogue, FX/unités | 12 | C1/C2; C3.1 gelé; C3.2 et C3.3.1–C3.3.3 livrés, CI PR et main prouvées; quote/snapshot engine C3.3 et C3.4 à exécuter; Docs/122–125 |
 | C4 Sales/POS/Cash transactionnel | 20 | C2/C3 |
 | C5 documents/impression/fiscalité | 10 | C4 |
 | C6 AI/events contrats partagés | 8 | C0/C2 |
