@@ -238,6 +238,82 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'CommercialOffer', aggregateId: offer.id, eventType: 'catalog.offer.tax_classification_changed' } })).resolves.toBe(1);
   });
 
+  it('resolves the establishment tax context before the organization default and snapshots exact tax inputs', async () => {
+    const fixture = await createTaxQuoteFixture(app, prisma, { contexts: [
+      { establishmentId: null, jurisdictionCode: 'TEST-DEFAULT' },
+      { establishmentId: null, jurisdictionCode: 'TEST-SITE', establishment: true },
+    ] });
+    const defaultTaxCode = await createActiveTaxPolicy(serverOf(app), fixture.tenant, 'TEST-DEFAULT', '0.10');
+    const siteTaxCode = await createActiveTaxPolicy(serverOf(app), fixture.tenant, 'TEST-SITE', '0.20');
+    await createActivePricingPolicy(serverOf(app), fixture.tenant, [defaultTaxCode, siteTaxCode]);
+    const offer = await createTaxableOffer(serverOf(app), fixture.tenant, fixture.itemId, true);
+
+    const defaultQuote = bodyOf<TaxQuoteSnapshot>(await request(serverOf(app))
+      .post(`/api/v1/organizations/${fixture.tenant.organizationId}/pricing/quotes`)
+      .set('Authorization', `Bearer ${fixture.tenant.ownerToken}`)
+      .set('Idempotency-Key', `tax-quote-default-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '2', unitCode: 'KG', targetCurrency: 'USD' })
+      .expect(201));
+    expect(defaultQuote).toMatchObject({ sourceTotal: '44.00', targetTotal: '44.00', taxCategoryCode: 'SYNTHETIC_STANDARD' });
+    expect(defaultQuote.taxContext).toMatchObject({ jurisdictionCode: 'TEST-DEFAULT', establishmentId: null });
+    expect(defaultQuote.taxLines).toHaveLength(1);
+    expect(defaultQuote.taxLines[0]).toMatchObject({ code: defaultTaxCode, rate: '0.100000000000000000', taxableBase: '40.00', amount: '4.00', currencyCode: 'USD', calculationCurrency: 'SOURCE' });
+    expect(defaultQuote.taxPolicyVersionIds).toEqual([defaultQuote.taxLines[0]!.policyVersionId]);
+
+    const siteQuote = bodyOf<TaxQuoteSnapshot>(await request(serverOf(app))
+      .post(`/api/v1/organizations/${fixture.tenant.organizationId}/pricing/quotes`)
+      .set('Authorization', `Bearer ${fixture.tenant.ownerToken}`)
+      .set('Idempotency-Key', `tax-quote-site-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '2', unitCode: 'KG', targetCurrency: 'USD', establishmentId: fixture.establishmentId })
+      .expect(201));
+    expect(siteQuote).toMatchObject({ sourceTotal: '48.00', targetTotal: '48.00', establishmentId: fixture.establishmentId });
+    expect(siteQuote.taxContext).toMatchObject({ jurisdictionCode: 'TEST-SITE', establishmentId: fixture.establishmentId });
+    expect(siteQuote.taxLines).toHaveLength(1);
+    expect(siteQuote.taxLines[0]).toMatchObject({ code: siteTaxCode, rate: '0.200000000000000000', taxableBase: '40.00', amount: '8.00', currencyCode: 'USD', calculationCurrency: 'SOURCE' });
+  });
+
+  it('fails closed without an explicit offer category or an effective tax context and creates no quote', async () => {
+    const fixture = await createTaxQuoteFixture(app, prisma, { contexts: [{ establishmentId: null, jurisdictionCode: 'TEST-NO-CONTEXT', establishment: false }] });
+    const taxCode = await createActiveTaxPolicy(serverOf(app), fixture.tenant, 'TEST-NO-CONTEXT', '0.16');
+    await createActivePricingPolicy(serverOf(app), fixture.tenant, [taxCode]);
+    const unclassified = await createTaxableOffer(serverOf(app), fixture.tenant, fixture.itemId, false);
+    const route = `/api/v1/organizations/${fixture.tenant.organizationId}/pricing/quotes`;
+    const quoteCountBefore = await prisma.pricingQuote.count({ where: { organizationId: fixture.tenant.organizationId } });
+    await request(serverOf(app)).post(route).set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', `tax-no-category-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: unclassified.id, quantity: '1', unitCode: 'KG', targetCurrency: 'USD' }).expect(422);
+    await expect(prisma.pricingQuote.count({ where: { organizationId: fixture.tenant.organizationId } })).resolves.toBe(quoteCountBefore);
+
+    const contextless = await createTaxQuoteFixture(app, prisma, { contexts: [] });
+    const contextlessTaxCode = await createActiveTaxPolicy(serverOf(app), contextless.tenant, 'TEST-MISSING-CONTEXT', '0.16');
+    await createActivePricingPolicy(serverOf(app), contextless.tenant, [contextlessTaxCode]);
+    const classified = await createTaxableOffer(serverOf(app), contextless.tenant, contextless.itemId, true);
+    await request(serverOf(app)).post(`/api/v1/organizations/${contextless.tenant.organizationId}/pricing/quotes`)
+      .set('Authorization', `Bearer ${contextless.tenant.ownerToken}`).set('Idempotency-Key', `tax-no-context-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: classified.id, quantity: '1', unitCode: 'KG', targetCurrency: 'USD' }).expect(422);
+    await expect(prisma.pricingQuote.count({ where: { organizationId: contextless.tenant.organizationId } })).resolves.toBe(0);
+  });
+
+  it('bounds quote validity by the next effective tax context and tax rule', async () => {
+    const fixture = await createTaxQuoteFixture(app, prisma, { contexts: [{ establishmentId: null, jurisdictionCode: 'TEST-EXPIRY', establishment: false }] });
+    const taxCode = await createActiveTaxPolicy(serverOf(app), fixture.tenant, 'TEST-EXPIRY', '0.10');
+    await createActivePricingPolicy(serverOf(app), fixture.tenant, [taxCode]);
+    const offer = await createTaxableOffer(serverOf(app), fixture.tenant, fixture.itemId, true);
+
+    const contextEffectiveFrom = new Date(Date.now() + 90_000);
+    await createAndActivateTaxContext(serverOf(app), prisma, fixture.tenant, null, 'TEST-EXPIRY-NEXT', contextEffectiveFrom);
+    const policyEffectiveFrom = new Date(Date.now() + 60_000);
+    await createActiveTaxPolicy(serverOf(app), fixture.tenant, 'TEST-EXPIRY', '0.12', policyEffectiveFrom.toISOString(), taxCode);
+
+    const quote = bodyOf<TaxQuoteSnapshot>(await request(serverOf(app))
+      .post(`/api/v1/organizations/${fixture.tenant.organizationId}/pricing/quotes`)
+      .set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', `tax-quote-expiry-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '1', unitCode: 'KG', targetCurrency: 'USD' }).expect(201));
+    expect(Date.parse(quote.expiresAt)).toBeLessThanOrEqual(policyEffectiveFrom.getTime());
+    expect(Date.parse(quote.expiresAt)).toBeGreaterThan(Date.now());
+    expect(quote.taxPolicyVersionIds).toHaveLength(1);
+    expect(quote.taxLines[0]?.rate).toBe('0.100000000000000000');
+  });
+
   it('creates a server-priced commercial quote and replays its immutable result idempotently', async () => {
     const tenant = await createTenant(app, prisma);
     const server = serverOf(app);
@@ -380,8 +456,116 @@ async function expectHttpStatus(responsePromise: PromiseLike<Response>, expected
   return response;
 }
 
-function taxPolicyPayload() {
-  return { productCode: 'MONARQUE_CONNECT', code: `TAX_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`, jurisdictionCode: 'TEST-XX', taxCategoryCode: 'SYNTHETIC_STANDARD', rate: '0.16', calculationCurrency: 'SOURCE', effectiveFrom: new Date(Date.now() + 60_000).toISOString(), configurationReference: `synthetic-test-config:${randomUUID()}` };
+function taxPolicyPayload(effectiveFrom: string | null = new Date(Date.now() + 60_000).toISOString()) {
+  return { productCode: 'MONARQUE_CONNECT', code: `TAX_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`, jurisdictionCode: 'TEST-XX', taxCategoryCode: 'SYNTHETIC_STANDARD', rate: '0.16', calculationCurrency: 'SOURCE', ...(effectiveFrom ? { effectiveFrom } : {}), configurationReference: `synthetic-test-config:${randomUUID()}` };
+}
+
+type TaxQuoteSnapshot = {
+  id: string;
+  sourceTotal: string | null;
+  targetTotal: string;
+  expiresAt: string;
+  establishmentId: string | null;
+  taxCategoryCode: string | null;
+  taxContext: { versionId: string; version: number; establishmentId: string | null; jurisdictionCode: string } | null;
+  taxLines: Array<{ policyVersionId: string; code: string; version: number; rate: string; taxableBase: string; amount: string; currencyCode: string; calculationCurrency: 'SOURCE' | 'TARGET' }>;
+  taxPolicyVersionIds: string[];
+};
+
+async function createTaxQuoteFixture(
+  app: INestApplication,
+  prisma: PrismaService,
+  options: { contexts: Array<{ establishmentId: string | null; jurisdictionCode: string; establishment?: boolean }> },
+): Promise<{ tenant: { organizationId: string; ownerToken: string; ownerId: string }; establishmentId: string; itemId: string }> {
+  const tenant = await createTenant(app, prisma);
+  const server = serverOf(app);
+  const primaryEstablishment = await prisma.establishment.findFirstOrThrow({
+    where: { organizationId: tenant.organizationId, isPrimary: true }, select: { id: true },
+  });
+  for (const configured of options.contexts) {
+    await createAndActivateTaxContext(
+      server, prisma, tenant, configured.establishment ? primaryEstablishment.id : configured.establishmentId,
+      configured.jurisdictionCode, new Date(Date.now() - 30_000),
+    );
+  }
+  const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${tenant.organizationId}/items`)
+    .set('Authorization', `Bearer ${tenant.ownerToken}`)
+    .send({ type: 'PRODUCT', name: `Tax quote item ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD' }).expect(201));
+  return { tenant, establishmentId: primaryEstablishment.id, itemId: item.id };
+}
+
+async function createAndActivateTaxContext(
+  server: Parameters<typeof request>[0],
+  prisma: PrismaService,
+  tenant: { organizationId: string; ownerToken: string; ownerId: string },
+  establishmentId: string | null,
+  jurisdictionCode: string,
+  effectiveFrom: Date,
+): Promise<string> {
+  const latest = await prisma.pricingTaxContextVersion.findFirst({
+    where: { organizationId: tenant.organizationId, productCode: 'MONARQUE_CONNECT', establishmentId },
+    orderBy: { version: 'desc' }, select: { version: true },
+  });
+  const id = randomUUID();
+  await prisma.pricingTaxContextVersion.create({ data: {
+    id, organizationId: tenant.organizationId, productCode: 'MONARQUE_CONNECT', establishmentId,
+    version: (latest?.version ?? 0) + 1, status: 'DRAFT', jurisdictionCode, effectiveFrom,
+    createdByUserId: tenant.ownerId, commandPayloadHash: 'c'.repeat(64),
+  } });
+  await request(server).post(`/api/v1/organizations/${tenant.organizationId}/pricing/tax-context-versions/${id}/activate`)
+    .query({ productCode: 'MONARQUE_CONNECT' }).set('Authorization', `Bearer ${tenant.ownerToken}`)
+    .set('Idempotency-Key', `tax-context-fixture-${randomUUID()}`)
+    .send({ acknowledgement: 'OWNER_REVIEWED_CONFIGURATION' }).expect(200);
+  return id;
+}
+
+async function createActiveTaxPolicy(
+  server: Parameters<typeof request>[0],
+  tenant: { organizationId: string; ownerToken: string },
+  jurisdictionCode: string,
+  rate: string,
+  effectiveFrom?: string,
+  code?: string,
+): Promise<string> {
+  const payload = { ...taxPolicyPayload(effectiveFrom ?? null), ...(code ? { code } : {}), jurisdictionCode, rate };
+  const route = `/api/v1/organizations/${tenant.organizationId}/pricing/tax-policy-versions`;
+  const draft = bodyOf<{ id: string; code: string }>(await request(server).post(route)
+    .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-policy-fixture-${randomUUID()}`)
+    .send(payload).expect(201));
+  await request(server).post(`${route}/${draft.id}/activate`).query({ productCode: 'MONARQUE_CONNECT' })
+    .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-policy-activate-fixture-${randomUUID()}`)
+    .send({ acknowledgement: 'OWNER_REVIEWED_CONFIGURATION' }).expect(200);
+  return draft.code;
+}
+
+async function createActivePricingPolicy(
+  server: Parameters<typeof request>[0],
+  tenant: { organizationId: string; ownerToken: string },
+  taxPolicyCodes: string[],
+): Promise<void> {
+  await request(server).post(`/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`)
+    .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-pricing-policy-fixture-${randomUUID()}`)
+    .send({ ...pricingPolicyPayload(), taxPolicyCodes }).expect(201);
+}
+
+async function createTaxableOffer(
+  server: Parameters<typeof request>[0],
+  tenant: { organizationId: string; ownerToken: string },
+  itemId: string,
+  classify: boolean,
+): Promise<{ id: string }> {
+  const offer = bodyOf<{ id: string; version: number }>(await request(server).post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers`)
+    .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `taxable-offer-${randomUUID()}`)
+    .send({ productCode: 'MONARQUE_CONNECT', itemId, sellUnitCode: 'KG' }).expect(201));
+  await request(server).post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers/${offer.id}/price-versions`)
+    .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `taxable-price-${randomUUID()}`)
+    .send({ amount: '20', currencyCode: 'USD', priceUnitCode: 'KG' }).expect(201);
+  if (classify) {
+    await request(server).put(`/api/v1/organizations/${tenant.organizationId}/catalog/offers/${offer.id}/tax-classification`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `taxable-classification-${randomUUID()}`)
+      .send({ expectedVersion: offer.version, taxCategoryCode: 'SYNTHETIC_STANDARD' }).expect(200);
+  }
+  return { id: offer.id };
 }
 
 async function createTenant(app: INestApplication, prisma: PrismaService): Promise<{ organizationId: string; ownerToken: string; ownerId: string }> {
