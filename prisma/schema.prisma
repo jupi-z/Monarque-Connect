@@ -329,6 +329,7 @@ enum AuditAction {
   PRICING_POLICY_VERSION_CREATED
   PRICING_TAX_POLICY_DRAFT_CREATED
   PRICING_TAX_POLICY_ACTIVATED
+  PRICING_QUOTE_CREATED
   SUPPLIER_RFQ_CREATED
   SUPPLIER_RFQ_UPDATED
   SUPPLIER_RFQ_STATUS_CHANGED
@@ -724,6 +725,7 @@ model User {
   messagingCommandReceipts          MessagingCommandReceipt[]
   catalogCommandReceipts            CatalogCommandReceipt[]
   publishedCommercialPrices         CommercialPriceVersion[]
+  createdPricingQuotes              PricingQuote[]                       @relation("PricingQuoteCreatedBy")
   ingestedFxRates                   FxRate[]                              @relation("FxRateIngestedBy")
   fxRateIngestionReceipts            FxRateIngestionReceipt[]
   createdPricingPolicyVersions      PricingPolicyVersion[]                @relation("PricingPolicyVersionCreatedBy")
@@ -851,6 +853,7 @@ model ProductCatalog {
   commercialPriceVersions CommercialPriceVersion[]
   pricingPolicyVersions PricingPolicyVersion[]
   taxPolicyVersions TaxPolicyVersion[]
+  pricingQuotes PricingQuote[]
 
   @@map("product_catalog")
 }
@@ -1155,6 +1158,7 @@ model Organization {
   commercialPriceVersions           CommercialPriceVersion[]
   pricingPolicyVersions              PricingPolicyVersion[]
   taxPolicyVersions                  TaxPolicyVersion[]
+  pricingQuotes                      PricingQuote[]
   catalogCommandReceipts            CatalogCommandReceipt[]
   warehouses                        Warehouse[]
   leads                             Lead[]
@@ -1677,6 +1681,7 @@ model Establishment {
   invitationScopeLinks              InvitationEstablishmentScope[]
   warehouses                        Warehouse[]
   commercialOffers                  CommercialOffer[]
+  pricingQuotes                      PricingQuote[]
   opportunities                     Opportunity[]
   quotes                            Quote[]
   salesOrders                       SalesOrder[]
@@ -1968,6 +1973,7 @@ model Item {
   inventoryReconciliations     InventoryReconciliation[]
   variants                     ItemVariant[]
   commercialOffers             CommercialOffer[]
+  pricingQuotes                PricingQuote[]
 
   @@unique([id, organizationId])
   @@index([organizationId, active, name])
@@ -2024,6 +2030,7 @@ model ItemVariant {
   updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   item           Item            @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Cascade)
   offers         CommercialOffer[]
+  pricingQuotes  PricingQuote[]
 
   @@unique([itemId, code])
   @@unique([id, itemId, organizationId])
@@ -2067,6 +2074,7 @@ model CommercialOffer {
   establishment     Establishment?        @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
   sellUnit          MeasureUnit           @relation(fields: [sellUnitCode], references: [code], onDelete: Restrict)
   priceVersions     CommercialPriceVersion[]
+  pricingQuotes     PricingQuote[]
 
   @@unique([id, organizationId])
   @@unique([id, organizationId, productCode], map: "commercial_offers_id_organization_product_key")
@@ -2095,8 +2103,10 @@ model CommercialPriceVersion {
   currency           CurrencyDefinition @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
   priceUnit          MeasureUnit        @relation(fields: [priceUnitCode], references: [code], onDelete: Restrict)
   publishedBy        User               @relation(fields: [publishedByUserId], references: [id], onDelete: Restrict)
+  pricingQuotes      PricingQuote[]
 
   @@unique([offerId, currencyCode, version], map: "commercial_price_versions_offer_currency_version_key")
+  @@unique([id, organizationId, productCode, offerId], map: "commercial_price_versions_id_scope_offer_key")
   @@unique([organizationId, offerId, currencyCode, effectiveFrom], map: "commercial_price_versions_org_offer_currency_effective_key")
   @@index([organizationId, productCode, offerId, currencyCode, effectiveFrom(sort: Desc)], map: "commercial_price_versions_price_scope_time_idx")
   @@map("commercial_price_versions")
@@ -2123,8 +2133,10 @@ model PricingPolicyVersion {
   organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   product            ProductCatalog @relation(fields: [productCode], references: [code], onDelete: Restrict)
   createdBy          User         @relation("PricingPolicyVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  pricingQuotes      PricingQuote[]
 
   @@unique([organizationId, productCode, code, version], map: "pricing_policy_versions_scope_code_version_key")
+  @@unique([id, organizationId, productCode], map: "pricing_policy_versions_id_scope_key")
   @@index([organizationId, productCode, code, effectiveFrom(sort: Desc)], map: "pricing_policy_versions_scope_effective_idx")
   @@map("pricing_policy_versions")
 }
@@ -2217,6 +2229,59 @@ model CatalogCommandReceipt {
   @@unique([organizationId, actorUserId, operation, idempotencyKey])
   @@index([organizationId, createdAt])
   @@map("catalog_command_receipts")
+}
+
+/// Commercial pricing quote. This immutable snapshot is distinct from Sales Quote and BillingQuote.
+model PricingQuote {
+  id                     String                   @id @db.Uuid
+  organizationId         String                   @map("organization_id") @db.Uuid
+  productCode            String                   @map("product_code") @db.VarChar(64)
+  establishmentId        String?                  @map("establishment_id") @db.Uuid
+  offerId                String                   @map("offer_id") @db.Uuid
+  itemId                 String                   @map("item_id") @db.Uuid
+  variantId              String?                  @map("variant_id") @db.Uuid
+  priceVersionId         String                   @map("price_version_id") @db.Uuid
+  pricingPolicyVersionId String                   @map("pricing_policy_version_id") @db.Uuid
+  actorUserId            String                   @map("actor_user_id") @db.Uuid
+  idempotencyKey         String                   @map("idempotency_key") @db.VarChar(200)
+  inputHash              String                   @map("input_hash") @db.VarChar(64)
+  valuationAt            DateTime                 @map("valuation_at") @db.Timestamptz(6)
+  expiresAt              DateTime                 @map("expires_at") @db.Timestamptz(6)
+  snapshotVersion        Int                      @default(1) @map("snapshot_version")
+  calculationVersion     String                   @map("calculation_version") @db.VarChar(64)
+  snapshotJson           Json                     @map("snapshot_json")
+  createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization           Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product                ProductCatalog           @relation(fields: [productCode], references: [code], onDelete: Restrict)
+  establishment          Establishment?            @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  offer                  CommercialOffer          @relation(fields: [offerId, organizationId, productCode], references: [id, organizationId, productCode], onDelete: Restrict)
+  item                   Item                     @relation(fields: [itemId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  variant                ItemVariant?             @relation(fields: [variantId, itemId, organizationId], references: [id, itemId, organizationId], onDelete: Restrict)
+  priceVersion           CommercialPriceVersion   @relation(fields: [priceVersionId, organizationId, productCode, offerId], references: [id, organizationId, productCode, offerId], onDelete: Restrict)
+  pricingPolicyVersion   PricingPolicyVersion     @relation(fields: [pricingPolicyVersionId, organizationId, productCode], references: [id, organizationId, productCode], onDelete: Restrict)
+  actor                  User                     @relation("PricingQuoteCreatedBy", fields: [actorUserId], references: [id], onDelete: Restrict)
+  lines                  PricingQuoteLine[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, idempotencyKey], map: "pricing_quotes_org_idempotency_key")
+  @@index([organizationId, productCode, establishmentId, createdAt(sort: Desc), id])
+  @@index([offerId, valuationAt])
+  @@map("pricing_quotes")
+}
+
+/// One immutable calculation-line snapshot. V1 emits one line; the relation allows additive extension.
+model PricingQuoteLine {
+  id             String      @id @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  quoteId        String      @map("quote_id") @db.Uuid
+  lineIndex      Int         @map("line_index")
+  snapshotJson   Json        @map("snapshot_json")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  quote          PricingQuote @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([quoteId, lineIndex])
+  @@index([organizationId, quoteId])
+  @@map("pricing_quote_lines")
 }
 
 model Warehouse {
