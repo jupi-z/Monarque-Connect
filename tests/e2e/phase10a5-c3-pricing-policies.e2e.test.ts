@@ -129,6 +129,115 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     await expect(prisma.taxPolicyVersion.count({ where: { organizationId: tenant.organizationId } })).resolves.toBe(0);
   });
 
+  it('creates and activates tenant/product/establishment tax contexts and explicitly classifies offers', async () => {
+    const tenant = await createTenant(app, prisma);
+    const server = serverOf(app);
+    const establishment = await prisma.establishment.findFirstOrThrow({ where: { organizationId: tenant.organizationId, isPrimary: true }, select: { id: true } });
+    const otherEstablishmentId = randomUUID();
+    await prisma.establishment.create({ data: { id: otherEstablishmentId, organizationId: tenant.organizationId, code: `TAX-${randomUUID().slice(0, 8).toUpperCase()}`, name: 'Other tax scope', type: 'OFFICE' } });
+    const route = `/api/v1/organizations/${tenant.organizationId}/pricing/tax-context-versions`;
+    const defaultPayload = { productCode: 'MONARQUE_CONNECT', jurisdictionCode: 'TEST-XX', effectiveFrom: new Date(Date.now() + 60_000).toISOString() };
+    await request(server).post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-context-product-denied-${randomUUID()}`)
+      .send({ ...defaultPayload, productCode: 'ZAMUREK' }).expect(403);
+    const contextKey = `tax-context-default-${randomUUID()}`;
+    const draft = bodyOf<{ id: string; status: string; jurisdictionCode: string; establishmentId: string | null; version: number }>(await request(server)
+      .post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', contextKey).send(defaultPayload).expect(201));
+    expect(draft).toMatchObject({ status: 'DRAFT', jurisdictionCode: 'TEST-XX', establishmentId: null, version: 1 });
+    const replay = bodyOf<{ id: string }>(await request(server)
+      .post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', contextKey).send(defaultPayload).expect(201));
+    expect(replay.id).toBe(draft.id);
+    await request(server).post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', contextKey).send({ ...defaultPayload, jurisdictionCode: 'TEST-YY' }).expect(409);
+
+    const establishmentDraft = bodyOf<{ id: string; establishmentId: string }>(await request(server)
+      .post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-context-site-${randomUUID()}`)
+      .send({ ...defaultPayload, establishmentId: establishment.id }).expect(201));
+    expect(establishmentDraft.establishmentId).toBe(establishment.id);
+
+    const scopedAdmin = await registerAndLogin(server, `c3-tax-scoped-admin-${randomUUID()}@example.test`);
+    const scopedAdminUser = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: scopedAdmin.email }, select: { id: true } });
+    await prisma.membership.create({ data: {
+      id: randomUUID(), organizationId: tenant.organizationId, userId: scopedAdminUser.id, role: 'ADMIN', scopeMode: 'SELECTED_ESTABLISHMENTS',
+      scopeLinks: { create: [{ establishmentId: establishment.id }] },
+    } });
+    await request(server).post(route).set('Authorization', `Bearer ${scopedAdmin.token}`).set('Idempotency-Key', `tax-context-null-scope-${randomUUID()}`)
+      .send({ ...defaultPayload, establishmentId: null }).expect(400);
+    await request(server).post(route).set('Authorization', `Bearer ${scopedAdmin.token}`).set('Idempotency-Key', `tax-context-denied-scope-${randomUUID()}`)
+      .send({ ...defaultPayload, establishmentId: otherEstablishmentId }).expect(403);
+    const allowedScopedPayload = { ...defaultPayload, establishmentId: establishment.id, effectiveFrom: new Date(Date.now() + 120_000).toISOString() };
+    await request(server).post(route).set('Authorization', `Bearer ${scopedAdmin.token}`).set('Idempotency-Key', `tax-context-allowed-scope-${randomUUID()}`)
+      .send(allowedScopedPayload).expect(201);
+    await expect(prisma.pricingTaxContextVersion.count({ where: { organizationId: tenant.organizationId, establishmentId: otherEstablishmentId } })).resolves.toBe(0);
+
+    const activationRoute = `/api/v1/organizations/${tenant.organizationId}/pricing/tax-context-versions/${draft.id}/activate`;
+    const acknowledgement = { acknowledgement: 'OWNER_REVIEWED_CONFIGURATION' };
+    const sharedActivationKey = `tax-context-activate-race-${randomUUID()}`;
+    const activationResponses = await Promise.all([
+      request(server).post(activationRoute).query({ productCode: 'MONARQUE_CONNECT' }).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', sharedActivationKey).send(acknowledgement),
+      request(server).post(`/api/v1/organizations/${tenant.organizationId}/pricing/tax-context-versions/${establishmentDraft.id}/activate`).query({ productCode: 'MONARQUE_CONNECT' }).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', sharedActivationKey).send(acknowledgement),
+    ]);
+    expect(activationResponses.map((response) => response.status).sort()).toEqual([200, 409]);
+    const winningActivation = bodyOf<{ id: string }>(activationResponses.find((response) => response.status === 200)!);
+    expect([draft.id, establishmentDraft.id]).toContain(winningActivation.id);
+    const rejectedVersionId = winningActivation.id === draft.id ? establishmentDraft.id : draft.id;
+    await expect(prisma.pricingTaxContextVersion.findUniqueOrThrow({ where: { id: rejectedVersionId } }).then((value) => value.status)).resolves.toBe('DRAFT');
+    await expect(prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'PricingTaxContextVersion', targetId: rejectedVersionId, action: 'PRICING_TAX_CONTEXT_ACTIVATED' } })).resolves.toBe(0);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'PricingTaxContextVersion', aggregateId: rejectedVersionId, eventType: 'pricing.tax_context_version.activated' } })).resolves.toBe(0);
+    await expect(prisma.catalogCommandReceipt.count({
+      where: {
+        organizationId: tenant.organizationId,
+        actorUserId: tenant.ownerId,
+        operation: 'PRICING_TAX_CONTEXT_ACTIVATE',
+        idempotencyKey: sharedActivationKey,
+      },
+    })).resolves.toBe(1);
+    const activatedDraft = await prisma.pricingTaxContextVersion.findUniqueOrThrow({ where: { id: draft.id } });
+    const activated = activatedDraft.status === 'ACTIVE'
+      ? bodyOf<{ id: string; status: string; tenantReviewAcknowledgement: string }>(activationResponses.find((response) => response.status === 200)!)
+      : bodyOf<{ id: string; status: string; tenantReviewAcknowledgement: string }>(await request(server)
+        .post(activationRoute).query({ productCode: 'MONARQUE_CONNECT' }).set('Authorization', `Bearer ${tenant.ownerToken}`)
+        .set('Idempotency-Key', `tax-context-activate-recovery-${randomUUID()}`).send(acknowledgement).expect(200));
+    expect(activated).toMatchObject({ id: draft.id, status: 'ACTIVE', tenantReviewAcknowledgement: 'OWNER_REVIEWED_CONFIGURATION' });
+    await expect(prisma.pricingTaxContextVersion.update({ where: { id: draft.id }, data: { jurisdictionCode: 'TEST-ZZ' } })).rejects.toThrow();
+    await expect(prisma.pricingTaxContextVersion.delete({ where: { id: draft.id } })).rejects.toThrow();
+
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${tenant.organizationId}/items`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .send({ type: 'PRODUCT', name: `Tax classified ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD' }).expect(201));
+    const offer = bodyOf<{ id: string; version: number }>(await request(server).post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-offer-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG' }).expect(201));
+    const sales = await registerAndLogin(server, `c3-tax-sales-${randomUUID()}@example.test`);
+    const salesUser = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: sales.email }, select: { id: true } });
+    await prisma.membership.create({ data: { id: randomUUID(), organizationId: tenant.organizationId, userId: salesUser.id, role: 'SALES', scopeMode: 'ALL_ESTABLISHMENTS' } });
+    await request(server).put(`/api/v1/organizations/${tenant.organizationId}/catalog/offers/${offer.id}/tax-classification`)
+      .set('Authorization', `Bearer ${sales.token}`).set('Idempotency-Key', `tax-classify-sales-denied-${randomUUID()}`)
+      .send({ expectedVersion: offer.version, taxCategoryCode: 'SYNTHETIC_STANDARD' }).expect(403);
+    const restrictedOffer = bodyOf<{ id: string; version: number }>(await request(server).post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-offer-restricted-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG', establishmentId: otherEstablishmentId }).expect(201));
+    await request(server).put(`/api/v1/organizations/${tenant.organizationId}/catalog/offers/${restrictedOffer.id}/tax-classification`)
+      .set('Authorization', `Bearer ${scopedAdmin.token}`).set('Idempotency-Key', `tax-classify-denied-scope-${randomUUID()}`)
+      .send({ expectedVersion: restrictedOffer.version, taxCategoryCode: 'SYNTHETIC_STANDARD' }).expect(403);
+    const classifyRoute = `/api/v1/organizations/${tenant.organizationId}/catalog/offers/${offer.id}/tax-classification`;
+    const classificationKey = `tax-classify-${randomUUID()}`;
+    const classification = { expectedVersion: offer.version, taxCategoryCode: 'SYNTHETIC_STANDARD' };
+    const classified = bodyOf<{ taxCategoryCode: string | null; version: number }>(await request(server).put(classifyRoute)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', classificationKey).send(classification).expect(200));
+    expect(classified).toMatchObject({ taxCategoryCode: 'SYNTHETIC_STANDARD', version: offer.version + 1 });
+    await request(server).put(classifyRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', classificationKey).send(classification).expect(200);
+    await request(server).put(classifyRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', classificationKey).send({ ...classification, taxCategoryCode: 'OTHER' }).expect(409);
+    await request(server).put(classifyRoute).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-classify-stale-${randomUUID()}`).send(classification).expect(409);
+
+    const otherTenant = await createTenant(app, prisma);
+    await request(server).put(`/api/v1/organizations/${otherTenant.organizationId}/catalog/offers/${offer.id}/tax-classification`)
+      .set('Authorization', `Bearer ${otherTenant.ownerToken}`).set('Idempotency-Key', `tax-cross-tenant-${randomUUID()}`)
+      .send({ expectedVersion: classified.version, taxCategoryCode: 'SYNTHETIC_STANDARD' }).expect(404);
+    await expect(prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'PricingTaxContextVersion', targetId: draft.id, action: 'PRICING_TAX_CONTEXT_ACTIVATED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'PricingTaxContextVersion', aggregateId: draft.id, eventType: 'pricing.tax_context_version.activated' } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'CommercialOffer', targetId: offer.id, action: 'CATALOG_OFFER_TAX_CLASSIFICATION_CHANGED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'CommercialOffer', aggregateId: offer.id, eventType: 'catalog.offer.tax_classification_changed' } })).resolves.toBe(1);
+  });
+
   it('creates a server-priced commercial quote and replays its immutable result idempotently', async () => {
     const tenant = await createTenant(app, prisma);
     const server = serverOf(app);

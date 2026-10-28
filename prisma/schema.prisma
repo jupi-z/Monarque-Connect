@@ -329,6 +329,9 @@ enum AuditAction {
   PRICING_POLICY_VERSION_CREATED
   PRICING_TAX_POLICY_DRAFT_CREATED
   PRICING_TAX_POLICY_ACTIVATED
+  PRICING_TAX_CONTEXT_DRAFT_CREATED
+  PRICING_TAX_CONTEXT_ACTIVATED
+  CATALOG_OFFER_TAX_CLASSIFICATION_CHANGED
   PRICING_QUOTE_CREATED
   SUPPLIER_RFQ_CREATED
   SUPPLIER_RFQ_UPDATED
@@ -731,6 +734,8 @@ model User {
   createdPricingPolicyVersions      PricingPolicyVersion[]                @relation("PricingPolicyVersionCreatedBy")
   createdTaxPolicyVersions          TaxPolicyVersion[]                    @relation("TaxPolicyVersionCreatedBy")
   activatedTaxPolicyVersions        TaxPolicyVersion[]                    @relation("TaxPolicyVersionActivatedBy")
+  createdPricingTaxContextVersions PricingTaxContextVersion[]             @relation("PricingTaxContextCreatedBy")
+  activatedPricingTaxContextVersions PricingTaxContextVersion[]           @relation("PricingTaxContextActivatedBy")
 
   @@index([status])
   @@map("users")
@@ -853,6 +858,7 @@ model ProductCatalog {
   commercialPriceVersions CommercialPriceVersion[]
   pricingPolicyVersions PricingPolicyVersion[]
   taxPolicyVersions TaxPolicyVersion[]
+  pricingTaxContextVersions PricingTaxContextVersion[]
   pricingQuotes PricingQuote[]
 
   @@map("product_catalog")
@@ -1158,6 +1164,7 @@ model Organization {
   commercialPriceVersions           CommercialPriceVersion[]
   pricingPolicyVersions              PricingPolicyVersion[]
   taxPolicyVersions                  TaxPolicyVersion[]
+  pricingTaxContextVersions          PricingTaxContextVersion[]
   pricingQuotes                      PricingQuote[]
   catalogCommandReceipts            CatalogCommandReceipt[]
   warehouses                        Warehouse[]
@@ -1682,6 +1689,7 @@ model Establishment {
   warehouses                        Warehouse[]
   commercialOffers                  CommercialOffer[]
   pricingQuotes                      PricingQuote[]
+  pricingTaxContextVersions          PricingTaxContextVersion[]
   opportunities                     Opportunity[]
   quotes                            Quote[]
   salesOrders                       SalesOrder[]
@@ -2063,6 +2071,7 @@ model CommercialOffer {
   channelCode       String?               @map("channel_code") @db.VarChar(48)
   sellUnitCode      String                @map("sell_unit_code") @db.VarChar(32)
   displayName       String?               @map("display_name") @db.VarChar(160)
+  taxCategoryCode   String?               @map("tax_category_code") @db.VarChar(64)
   status            CommercialOfferStatus @default(ACTIVE)
   version           Int                   @default(1)
   createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -2169,6 +2178,33 @@ model TaxPolicyVersion {
   @@unique([organizationId, productCode, code, version], map: "tax_policy_versions_scope_code_version_key")
   @@index([organizationId, productCode, jurisdictionCode, taxCategoryCode, status, effectiveFrom(sort: Desc)], map: "tax_policy_versions_resolution_idx")
   @@map("tax_policy_versions")
+}
+
+/// Tenant-configured context for technical tax resolution; it does not attest to legal jurisdiction.
+model PricingTaxContextVersion {
+  id                        String          @id @db.Uuid
+  organizationId            String          @map("organization_id") @db.Uuid
+  productCode               String          @map("product_code") @db.VarChar(64)
+  establishmentId           String?         @map("establishment_id") @db.Uuid
+  version                   Int
+  status                    TaxPolicyStatus @default(DRAFT)
+  jurisdictionCode          String          @map("jurisdiction_code") @db.VarChar(64)
+  effectiveFrom             DateTime        @map("effective_from") @db.Timestamptz(6)
+  createdByUserId           String          @map("created_by_user_id") @db.Uuid
+  activatedByUserId         String?         @map("activated_by_user_id") @db.Uuid
+  activatedAt               DateTime?       @map("activated_at") @db.Timestamptz(6)
+  activationAcknowledgement String?         @map("activation_acknowledgement") @db.VarChar(40)
+  commandPayloadHash        String          @map("command_payload_hash") @db.VarChar(64)
+  createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization              Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product                   ProductCatalog  @relation(fields: [productCode], references: [code], onDelete: Restrict)
+  establishment             Establishment?  @relation(fields: [establishmentId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdBy                 User            @relation("PricingTaxContextCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  activatedBy               User?           @relation("PricingTaxContextActivatedBy", fields: [activatedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([id, organizationId, productCode])
+  @@index([organizationId, productCode, establishmentId, status, effectiveFrom(sort: Desc)], map: "pricing_tax_context_resolution_idx")
+  @@map("pricing_tax_context_versions")
 }
 
 /// Immutable, provenance-bearing reference exchange rate; it does not imply a live provider or a commercial spread.
