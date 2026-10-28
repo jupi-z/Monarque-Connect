@@ -175,7 +175,9 @@ describe('C3 proposed catalog and pricing OpenAPI contract', () => {
       expect(op['x-required-principal'], operationId).toBeTruthy();
       expect(op['x-required-permissions']?.length, operationId).toBeGreaterThan(0);
     }
-    expect((operation(spec, 'POST /platform/pricing/fx-rates') as Operation & { 'x-required-principal'?: string })['x-required-principal']).toBe('PLATFORM');
+    const fxIngestion = operation(spec, 'POST /platform/pricing/fx-rates') as Operation & { 'x-required-principal'?: string; 'x-required-platform-capability'?: string };
+    expect(fxIngestion['x-required-principal']).toBe('PLATFORM');
+    expect(fxIngestion['x-required-platform-capability']).toBe('pricing:fx:ingest');
     const taxAdmin = operation(spec, 'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate') as Operation & { 'x-required-principal'?: string; 'x-required-roles'?: string[] };
     expect(taxAdmin['x-required-principal']).toBe('STAFF');
     expect(taxAdmin['x-required-roles']).toEqual(expect.arrayContaining(['OWNER', 'ADMIN']));

@@ -325,6 +325,7 @@ enum AuditAction {
   BILLING_PRICE_VERSION_PUBLISHED
   BILLING_CUSTOMER_VERIFICATION_CHANGED
   BILLING_CUSTOMER_ORGANIZATION_LINKED
+  PRICING_FX_RATE_INGESTED
   SUPPLIER_RFQ_CREATED
   SUPPLIER_RFQ_UPDATED
   SUPPLIER_RFQ_STATUS_CHANGED
@@ -720,6 +721,8 @@ model User {
   messagingCommandReceipts          MessagingCommandReceipt[]
   catalogCommandReceipts            CatalogCommandReceipt[]
   publishedCommercialPrices         CommercialPriceVersion[]
+  ingestedFxRates                   FxRate[]                              @relation("FxRateIngestedBy")
+  fxRateIngestionReceipts            FxRateIngestionReceipt[]
 
   @@index([status])
   @@map("users")
@@ -1992,6 +1995,8 @@ model CurrencyDefinition {
   active          Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   commercialPrices CommercialPriceVersion[]
+  baseFxRates       FxRate[]             @relation("FxRateBaseCurrency")
+  quoteFxRates      FxRate[]             @relation("FxRateQuoteCurrency")
 
   @@index([active, code])
   @@map("currency_definitions")
@@ -2075,6 +2080,47 @@ model CommercialPriceVersion {
   @@unique([organizationId, offerId, currencyCode, effectiveFrom], map: "commercial_price_versions_org_offer_currency_effective_key")
   @@index([organizationId, productCode, offerId, currencyCode, effectiveFrom(sort: Desc)], map: "commercial_price_versions_price_scope_time_idx")
   @@map("commercial_price_versions")
+}
+
+/// Immutable, provenance-bearing reference exchange rate; it does not imply a live provider or a commercial spread.
+model FxRate {
+  id                 String                    @id @db.Uuid
+  baseCurrencyCode   String                    @map("base_currency_code") @db.Char(3)
+  quoteCurrencyCode  String                    @map("quote_currency_code") @db.Char(3)
+  rate               Decimal                   @db.Decimal(24, 18)
+  sourceCode         String                    @map("source_code") @db.VarChar(64)
+  sourceReference    String                    @map("source_reference") @db.VarChar(256)
+  observedAt         DateTime                  @map("observed_at") @db.Timestamptz(6)
+  validFrom          DateTime                  @map("valid_from") @db.Timestamptz(6)
+  validUntil         DateTime                  @map("valid_until") @db.Timestamptz(6)
+  commandPayloadHash String                    @map("command_payload_hash") @db.VarChar(64)
+  ingestedByUserId   String                    @map("ingested_by_user_id") @db.Uuid
+  createdAt          DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  baseCurrency       CurrencyDefinition        @relation("FxRateBaseCurrency", fields: [baseCurrencyCode], references: [code], onDelete: Restrict)
+  quoteCurrency      CurrencyDefinition        @relation("FxRateQuoteCurrency", fields: [quoteCurrencyCode], references: [code], onDelete: Restrict)
+  ingestedBy         User                      @relation("FxRateIngestedBy", fields: [ingestedByUserId], references: [id], onDelete: Restrict)
+  receipts           FxRateIngestionReceipt[]
+
+  @@unique([sourceCode, sourceReference], map: "fx_rates_source_reference_key")
+  @@index([baseCurrencyCode, quoteCurrencyCode, validFrom, validUntil], map: "fx_rates_pair_validity_idx")
+  @@index([observedAt])
+  @@map("fx_rates")
+}
+
+/// Platform-scoped command receipt; retries never create a second FX rate or duplicate audit/outbox entries.
+model FxRateIngestionReceipt {
+  id             String   @id @db.Uuid
+  actorUserId    String   @map("actor_user_id") @db.Uuid
+  idempotencyKey String   @map("idempotency_key") @db.VarChar(200)
+  payloadHash    String   @map("payload_hash") @db.VarChar(64)
+  fxRateId       String   @map("fx_rate_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor          User     @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  fxRate         FxRate   @relation(fields: [fxRateId], references: [id], onDelete: Restrict)
+
+  @@unique([actorUserId, idempotencyKey], map: "fx_rate_ingestion_receipts_actor_key_key")
+  @@index([fxRateId])
+  @@map("fx_rate_ingestion_receipts")
 }
 
 /// Stores idempotency fingerprints for catalog create commands; resources are reloaded through scoped authorization.

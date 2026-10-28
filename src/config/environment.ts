@@ -102,6 +102,27 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
     }
   }
 
+  const platformAdminUserIds = typeof input.PLATFORM_ADMIN_USER_IDS === 'string'
+    ? input.PLATFORM_ADMIN_USER_IDS.split(',').map((id) => id.trim()).filter(Boolean)
+    : [];
+  const platformPricingFxIngestUserIds = typeof input.PLATFORM_PRICING_FX_INGEST_USER_IDS === 'string'
+    ? input.PLATFORM_PRICING_FX_INGEST_USER_IDS.split(',').map((id) => id.trim()).filter(Boolean)
+    : [];
+  if (platformPricingFxIngestUserIds.some((id) => !platformAdminUserIds.includes(id))) {
+    throw new Error('FX ingestion users must also be platform administrators');
+  }
+  if (new Set(platformPricingFxIngestUserIds).size !== platformPricingFxIngestUserIds.length) {
+    throw new Error('PLATFORM_PRICING_FX_INGEST_USER_IDS must contain unique user IDs');
+  }
+
+  const pricingFxAllowedSources = typeof input.PRICING_FX_ALLOWED_SOURCES === 'string'
+    ? input.PRICING_FX_ALLOWED_SOURCES.split(',').map((source) => source.trim().toUpperCase()).filter(Boolean)
+    : [];
+  if (pricingFxAllowedSources.some((source) => !/^[A-Z][A-Z0-9._-]{0,63}$/.test(source))
+    || new Set(pricingFxAllowedSources).size !== pricingFxAllowedSources.length) {
+    throw new Error('PRICING_FX_ALLOWED_SOURCES must contain unique source codes');
+  }
+
   return {
     ...input,
     NODE_ENV: nodeEnv,
@@ -111,9 +132,8 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
     FAIRSCALE_BILLING_PROVIDER: typeof input.FAIRSCALE_BILLING_PROVIDER === 'string' ? input.FAIRSCALE_BILLING_PROVIDER.trim() : '',
     FAIRSCALE_BILLING_LIVE_ENABLED: input.FAIRSCALE_BILLING_LIVE_ENABLED === true || (typeof input.FAIRSCALE_BILLING_LIVE_ENABLED === 'string' && input.FAIRSCALE_BILLING_LIVE_ENABLED.toLowerCase() === 'true'),
     FAIRSCALE_BILLING_OPERATIONAL_EVIDENCE_FILE: typeof input.FAIRSCALE_BILLING_OPERATIONAL_EVIDENCE_FILE === 'string' ? input.FAIRSCALE_BILLING_OPERATIONAL_EVIDENCE_FILE.trim() : '',
-    PLATFORM_ADMIN_USER_IDS:
-      typeof input.PLATFORM_ADMIN_USER_IDS === 'string'
-        ? input.PLATFORM_ADMIN_USER_IDS.split(',').map((id) => id.trim()).filter(Boolean)
-        : [],
+    PLATFORM_ADMIN_USER_IDS: platformAdminUserIds,
+    PLATFORM_PRICING_FX_INGEST_USER_IDS: platformPricingFxIngestUserIds,
+    PRICING_FX_ALLOWED_SOURCES: pricingFxAllowedSources,
   };
 }

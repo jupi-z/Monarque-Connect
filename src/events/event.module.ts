@@ -22,6 +22,7 @@ function createDispatcher(consumer: FoundationProbeConsumer, goodsReceiptInvento
   dispatcher.register(eventReceipt.consumerName, 'inventory.goods_receipt.assigned', 1, eventReceipt.handle.bind(eventReceipt));
   dispatcher.register(eventReceipt.consumerName, 'inventory.goods_receipt.imported', 1, eventReceipt.handle.bind(eventReceipt));
   for (const eventType of [
+    'pricing.fx_rate.ingested',
     'project.created.v1', 'project.updated.v1', 'project.status_changed.v1',
     'task.created.v1', 'task.updated.v1', 'task.status_changed.v1',
     'document.upload_started.v1', 'document.available.v1', 'document.linked.v1',

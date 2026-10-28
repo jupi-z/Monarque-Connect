@@ -35,6 +35,41 @@ describe('validateEnvironment', () => {
     expect(validateEnvironment({ DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test', PLATFORM_ADMIN_USER_IDS: ' user-a, user-b ' })).toMatchObject({ PLATFORM_ADMIN_USER_IDS: ['user-a', 'user-b'] });
   });
 
+  it('normalizes FX source and ingestion capability allowlists', () => {
+    expect(validateEnvironment({
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test',
+      PLATFORM_ADMIN_USER_IDS: 'admin-a, admin-b',
+      PLATFORM_PRICING_FX_INGEST_USER_IDS: ' admin-b ',
+      PRICING_FX_ALLOWED_SOURCES: ' treasury_v1, TEST_FIXTURE ',
+    })).toMatchObject({
+      PLATFORM_PRICING_FX_INGEST_USER_IDS: ['admin-b'],
+      PRICING_FX_ALLOWED_SOURCES: ['TREASURY_V1', 'TEST_FIXTURE'],
+    });
+  });
+
+  it('rejects FX ingestion capability users who are not platform admins', () => {
+    expect(() => validateEnvironment({
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test',
+      PLATFORM_ADMIN_USER_IDS: 'admin-a',
+      PLATFORM_PRICING_FX_INGEST_USER_IDS: 'user-b',
+    })).toThrow(/FX ingestion users must also be platform administrators/i);
+  });
+
+  it('rejects duplicate FX ingestion capability users', () => {
+    expect(() => validateEnvironment({
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test',
+      PLATFORM_ADMIN_USER_IDS: 'admin-a',
+      PLATFORM_PRICING_FX_INGEST_USER_IDS: 'admin-a,admin-a',
+    })).toThrow(/must contain unique user IDs/i);
+  });
+
+  it('defaults FX ingestion allowlists to empty', () => {
+    expect(validateEnvironment({ DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test' })).toMatchObject({
+      PLATFORM_PRICING_FX_INGEST_USER_IDS: [],
+      PRICING_FX_ALLOWED_SOURCES: [],
+    });
+  });
+
   it('rejects an invalid port', () => {
     expect(() =>
       validateEnvironment({
