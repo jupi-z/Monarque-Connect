@@ -343,7 +343,7 @@ describe('Catalog items referential', () => {
     const membershipId = randomUUID();
     await prisma.membership.create({ data: {
       id: membershipId, organizationId, userId: user.id, role: 'OWNER', scopeMode: 'SELECTED_ESTABLISHMENTS',
-      scopeLinks: { create: [{ organizationId, establishmentId: primary.id }] },
+      scopeLinks: { create: [{ establishmentId: primary.id }] },
     } });
 
     await request(server).post(`/api/v1/organizations/${organizationId}/catalog/offers/${offer.id}/price-versions`)

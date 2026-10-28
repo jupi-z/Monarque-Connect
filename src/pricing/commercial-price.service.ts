@@ -23,7 +23,8 @@ export class CommercialPriceService {
       select: { id: true, organizationId: true, productCode: true, establishmentId: true, sellUnitCode: true },
     });
     if (!offer) throw new NotFoundException('Commercial offer not found');
-    if (!isProductCode(offer.productCode)) throw new ConflictException('Commercial offer uses an unsupported product code');
+    const productCode = offer.productCode;
+    if (!isProductCode(productCode)) throw new ConflictException('Commercial offer uses an unsupported product code');
     if (typeof input.amount !== 'string' || !/^(?=.*[1-9])(?:0|[1-9]\d{0,15})(?:\.\d{1,8})?$/.test(input.amount)) {
       throw new BadRequestException('Price amount must be positive with at most 16 integer and 8 fractional digits');
     }
@@ -31,7 +32,7 @@ export class CommercialPriceService {
       throw new BadRequestException('Price currency or unit code is invalid');
     }
 
-    const context = await this.authorization.requireModuleForProduct(principal, organizationId, offer.productCode, 'CATALOG', 'pricing:price:publish');
+    const context = await this.authorization.requireModuleForProduct(principal, organizationId, productCode, 'CATALOG', 'pricing:price:publish');
     if (offer.establishmentId) await this.authorization.assertEstablishment(context, offer.establishmentId);
 
     const amount = new Prisma.Decimal(input.amount).toFixed(8);
@@ -52,7 +53,7 @@ export class CommercialPriceService {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const txContext = await this.authorization.requireModuleForProductInTransaction(
-          tx, principal, organizationId, offer.productCode, 'CATALOG', 'pricing:price:publish',
+          tx, principal, organizationId, productCode, 'CATALOG', 'pricing:price:publish',
         );
         const lockedOffer = await tx.$queryRaw<Array<{ id: string; establishment_id: string | null }>>`
           SELECT id, establishment_id FROM commercial_offers WHERE id = ${offerId}::uuid AND organization_id = ${organizationId}::uuid FOR UPDATE
