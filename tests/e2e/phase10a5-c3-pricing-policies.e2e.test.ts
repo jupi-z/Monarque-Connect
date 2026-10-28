@@ -256,7 +256,8 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
       .expect(201));
     expect(defaultQuote).toMatchObject({ sourceTotal: '44.00', targetTotal: '44.00', taxCategoryCode: 'SYNTHETIC_STANDARD' });
     expect(defaultQuote.valuationAt).toBeTruthy();
-    expect(defaultQuote.taxContext).toMatchObject({ jurisdictionCode: 'TEST-DEFAULT', establishmentId: null, version: 1, effectiveFrom: expect.any(String) });
+    expect(defaultQuote.taxContext).toMatchObject({ jurisdictionCode: 'TEST-DEFAULT', establishmentId: null, version: 1 });
+    expect(Date.parse(defaultQuote.taxContext?.effectiveFrom ?? '')).toBeGreaterThan(0);
     expect(defaultQuote.taxLines).toHaveLength(1);
     expect(defaultQuote.taxLines[0]).toMatchObject({ code: defaultTaxCode, rate: '0.100000000000000000', taxableBase: '40.00', amount: '4.00', currencyCode: 'USD', calculationCurrency: 'SOURCE' });
     expect(defaultQuote.taxPolicyVersionIds).toEqual([defaultQuote.taxLines[0]!.policyVersionId]);
@@ -268,7 +269,8 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
       .send({ productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '2', unitCode: 'KG', targetCurrency: 'USD', establishmentId: fixture.establishmentId })
       .expect(201));
     expect(siteQuote).toMatchObject({ sourceTotal: '48.00', targetTotal: '48.00', establishmentId: fixture.establishmentId });
-    expect(siteQuote.taxContext).toMatchObject({ jurisdictionCode: 'TEST-SITE', establishmentId: fixture.establishmentId, version: 1, effectiveFrom: expect.any(String) });
+    expect(siteQuote.taxContext).toMatchObject({ jurisdictionCode: 'TEST-SITE', establishmentId: fixture.establishmentId, version: 1 });
+    expect(Date.parse(siteQuote.taxContext?.effectiveFrom ?? '')).toBeGreaterThan(0);
     expect(siteQuote.taxLines).toHaveLength(1);
     expect(siteQuote.taxLines[0]).toMatchObject({ code: siteTaxCode, rate: '0.200000000000000000', taxableBase: '40.00', amount: '8.00', currencyCode: 'USD', calculationCurrency: 'SOURCE' });
   });
