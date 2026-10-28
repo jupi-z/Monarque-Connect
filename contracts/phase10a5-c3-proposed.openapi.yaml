@@ -149,8 +149,8 @@ paths:
       x-required-principal: STAFF
       x-required-permissions: [pricing:price:publish]
       x-product-entitlement-required: true
+      description: Product scope is derived from the tenant-scoped offer; the client cannot change its product.
       parameters:
-        - $ref: '#/components/parameters/ProductCode'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
@@ -289,7 +289,6 @@ paths:
       x-required-permissions: [pricing:tax:manage]
       x-product-entitlement-required: true
       parameters:
-        - $ref: '#/components/parameters/ProductCode'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true

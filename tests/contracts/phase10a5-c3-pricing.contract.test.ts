@@ -108,7 +108,7 @@ describe('C3 proposed catalog and pricing OpenAPI contract', () => {
 
   it('requires explicit product selection and non-authoritative tenant scoping for tenant operations', async () => {
     const spec = await load();
-    const productResolvedFromTenantScopedResource = new Set(['updateCommercialOffer']);
+    const productResolvedFromTenantScopedResource = new Set(['updateCommercialOffer', 'publishCommercialPriceVersion']);
     expect(spec.components.parameters.ProductCode.schema?.pattern).toBe('^[A-Z][A-Z0-9_]{1,63}$');
     expect(spec.components.parameters.ProductCode.schema).not.toHaveProperty('enum');
     for (const [key, operationId] of Object.entries(expected)) {
