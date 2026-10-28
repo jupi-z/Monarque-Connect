@@ -1,6 +1,6 @@
 import { generateKeyPair, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
-import { afterAll, beforeAll, describe, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { exportPKCS8, exportSPKI } from 'jose';
 import { Test } from '@nestjs/testing';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
