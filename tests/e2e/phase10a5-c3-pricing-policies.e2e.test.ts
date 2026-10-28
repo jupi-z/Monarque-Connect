@@ -45,8 +45,9 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     const tenant = await createTenant(app, prisma);
     const key = `c3-policy-command-${randomUUID()}`;
     const payload = pricingPolicyPayload();
-    const first = bodyOf<{ id: string; organizationId: string; productCode: string; code: string; version: number; roundingMode: string; maxFxAgeSeconds: number }>(await request(serverOf(app))
-      .post(`/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', key).send(payload).expect(201));
+    const firstResponse = await expectHttpStatus(request(serverOf(app))
+      .post(`/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', key).send(payload), 201);
+    const first = bodyOf<{ id: string; organizationId: string; productCode: string; code: string; version: number; roundingMode: string; maxFxAgeSeconds: number }>(firstResponse);
     expect(first).toMatchObject({ organizationId: tenant.organizationId, productCode: 'MONARQUE_CONNECT', code: payload.code, version: 1, roundingMode: 'HALF_UP', maxFxAgeSeconds: 86400 });
 
     const replay = bodyOf<{ id: string }>(await request(serverOf(app))
@@ -68,7 +69,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     const route = `/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`;
     const submit = (suffix: string) => request(serverOf(app)).post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-race-${suffix}-${randomUUID()}`).send(payload);
     const [left, right] = await Promise.all([submit('left'), submit('right')]);
-    expect([left.status, right.status].sort()).toEqual([201, 409]);
+    expect([left.status, right.status].sort(), JSON.stringify([left.body, right.body])).toEqual([201, 409]);
     await expect(prisma.pricingPolicyVersion.count({ where: { organizationId: tenant.organizationId, productCode: 'MONARQUE_CONNECT', code: payload.code } })).resolves.toBe(1);
   });
 
@@ -77,8 +78,9 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     const key = `c3-tax-create-${randomUUID()}`;
     const payload = taxPolicyPayload();
     const route = `/api/v1/organizations/${tenant.organizationId}/pricing/tax-policy-versions`;
-    const draft = bodyOf<{ id: string; status: string; rate: string; jurisdictionCode: string; configurationReference: string }>(await request(serverOf(app))
-      .post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', key).send(payload).expect(201));
+    const draftResponse = await expectHttpStatus(request(serverOf(app))
+      .post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', key).send(payload), 201);
+    const draft = bodyOf<{ id: string; status: string; rate: string; jurisdictionCode: string; configurationReference: string }>(draftResponse);
     expect(draft).toMatchObject({ status: 'DRAFT', rate: '0.160000000000000000', jurisdictionCode: payload.jurisdictionCode, configurationReference: payload.configurationReference });
     await request(serverOf(app)).post(`/api/v1/organizations/${tenant.organizationId}/pricing/tax-policy-versions/${draft.id}/activate`).query({ productCode: payload.productCode }).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-tax-bad-ack-${randomUUID()}`).send({ acknowledgement: 'LEGAL_COMPLIANCE_CONFIRMED' }).expect(400);
 
@@ -107,7 +109,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     const salesUser = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: sales.email }, select: { id: true } });
     await prisma.membership.create({ data: { id: randomUUID(), organizationId: tenant.organizationId, userId: salesUser.id, role: 'SALES', scopeMode: 'ALL_ESTABLISHMENTS', status: 'ACTIVE' } });
     const route = `/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`;
-    await request(serverOf(app)).post(route).set('Authorization', `Bearer ${sales.token}`).set('Idempotency-Key', `c3-policy-sales-${randomUUID()}`).send(pricingPolicyPayload()).expect(403);
+    await expectHttpStatus(request(serverOf(app)).post(route).set('Authorization', `Bearer ${sales.token}`).set('Idempotency-Key', `c3-policy-sales-${randomUUID()}`).send(pricingPolicyPayload()), 403);
     await request(serverOf(app)).post(`/api/v1/organizations/${outsider.organizationId}/pricing/policy-versions`).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-cross-${randomUUID()}`).send(pricingPolicyPayload()).expect(403);
     await request(serverOf(app)).post(route).set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `c3-policy-product-${randomUUID()}`).send(pricingPolicyPayload(undefined, 'ZAMUREK')).expect(403);
     await request(serverOf(app)).post(route).set('Idempotency-Key', `c3-policy-unauth-${randomUUID()}`).send({}).expect(401);
@@ -130,6 +132,12 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
 
 function pricingPolicyPayload(code = `POLICY_${randomUUID().replaceAll('-', '').slice(0, 12)}`, productCode = 'MONARQUE_CONNECT') {
   return { productCode, code, roundingMode: 'HALF_UP', maxFxAgeSeconds: 86400, allowedCurrencies: ['CDF', 'USD'], allowedFxSources: ['TEST_FIXTURE'], discountRuleCodes: [], taxPolicyCodes: [] };
+}
+
+async function expectHttpStatus(responsePromise: PromiseLike<Response>, expectedStatus: number): Promise<Response> {
+  const response = await responsePromise;
+  expect(response.status, `Expected HTTP ${expectedStatus}, received ${response.status}: ${JSON.stringify(response.body)}`).toBe(expectedStatus);
+  return response;
 }
 
 function taxPolicyPayload() {
