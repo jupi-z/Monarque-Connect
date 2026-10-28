@@ -1,6 +1,6 @@
 # C3 — Shared Catalog, Pricing, Measures & FX: contrat normatif
 
-**Statut : CONTRAT C3.1 PROPOSÉ, aucun modèle ou endpoint C3 livré à cette date.** Ce document fige les frontières et le comportement attendu avant toute migration. La preuve d'implémentation et l'acceptation du gate sont suivies dans [Docs/123](123_C3_EXECUTION_STATUS.md) et l'issue [#171](https://github.com/jupi-z/Monarque-Connect/issues/171).
+**Statut : CONTRAT C3.1 GELÉ, aucun modèle ou endpoint C3 livré.** Le contrat proposé a été fusionné par PR #172 au commit `e19bd1fba2bb3757bb13ea8466383bd34fbb7846`; CI post-fusion [#40639567210](https://github.com/jupi-z/Monarque-Connect/actions/runs/40639567210) verte. Ce document fige les frontières et le comportement attendu avant migration; l'OpenAPI reste `proposed-not-runtime`. L'implémentation C3.2+ et les preuves correspondantes sont suivies dans [Docs/123](123_C3_EXECUTION_STATUS.md) et l'issue [#171](https://github.com/jupi-z/Monarque-Connect/issues/171).
 
 ## 1. Base de code auditée et propriétaires
 
@@ -166,4 +166,4 @@ Pour rollback applicatif, endpoints C3 peuvent être désactivés sans supprimer
 - **Risques acceptés jusqu'à C4:** routes Sales historiques acceptent les montants entrés par un STAFF autorisé et n'utilisent pas encore un `pricingQuoteId`; C4 devra offrir le chemin serveur-référencé tout en gardant la compatibilité legacy explicitement gouvernée.
 - **NOT IMPLEMENTED:** fournisseur FX externe, tarif commercial ZAMUREK, règles fiscales réelles, transactions POS, conversion des ledgers historiques, parcours de taxe certifié.
 
-Ces points ouverts n'autorisent aucune migration: le contrat doit être revu/finalisé dans C3.1 avant C3.2.
+Ces points ouverts restent des critères d'acceptation des PR C3.2/C3.3. Ils ne sont pas des preuves d'implémentation et doivent être résolus avant d'annoncer le comportement concerné comme livré.
