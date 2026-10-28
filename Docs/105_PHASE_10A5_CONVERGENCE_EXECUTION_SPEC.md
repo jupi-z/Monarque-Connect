@@ -1,6 +1,6 @@
 # Phase 10A.5 — Convergence Monarque Connect × ZAMUREK
 
-**Statut vérifié au 28/10/2026 : C0, C1.1–C1.4 et C2.1–C2.4 clôturés avec preuves GitHub-hosted; C3.1 contract-first est clôturé.** C2 documentaire a été synchronisé par PR #170 sur `main@2dff07eae662d8de186d6f23cf831dd72c1dfec9`, CI post-fusion #40635438412 verte. Le contrat C3.1 a été fusionné par PR #172 dans `main@e19bd1fba2bb3757bb13ea8466383bd34fbb7846`; CI PR #569 et post-fusion #40639567210 vertes. C3.2 n'a pas encore commencé et devra avoir son plan et sa migration additive validés par CI avant livraison. C4–C8 restent planifiés et non autorisés. Cette convergence demeure entre **10A clôturée** et **10B** et ne se substitue ni aux gates externes FairScale 9.6 ni à 11/11.5/12.
+**Statut vérifié au 28/10/2026 : C0, C1.1–C1.4 et C2.1–C2.4 clôturés avec preuves GitHub-hosted; C3.1 contract-first est clôturé.** C2 documentaire a été synchronisé par PR #170 sur `main@2dff07eae662d8de186d6f23cf831dd72c1dfec9`, CI post-fusion #40635438412 verte. Le contrat C3.1 a été fusionné par PR #172 dans `main@e19bd1fba2bb3757bb13ea8466383bd34fbb7846`; CI PR #569 et post-fusion #40639567210 vertes. **C3.2 est en cours sur une branche dédiée**; son implémentation et sa migration restent non validées tant que la PR et ses preuves GitHub Actions ne sont pas disponibles. C3.3–C3.4 ne sont pas commencées. C4–C8 restent planifiés et non autorisés. Cette convergence demeure entre **10A clôturée** et **10B** et ne se substitue ni aux gates externes FairScale 9.6 ni à 11/11.5/12.
 
 ## Objectif / résultat
 Obtenir **un seul Core transactionnel** intégrable par ZAMUREK, sans rupture des modules déjà livrés. Monarque Connect est le dépôt propriétaire du Core ; visibilité GitHub `PUBLIC` intentionnelle, sans licence open source accordée. ZAMUREK progresse par étapes : cadrage avant contrats stables; SDK et tests contractuels après stabilisation des contrats Core nécessaires; intégration fonctionnelle après livraison des opérations transactionnelles concernées; commercialisation après les gates techniques et externes applicables. Aucun développement applicatif ZAMUREK n'est inclus dans C0/C1.
@@ -29,7 +29,7 @@ Obtenir **un seul Core transactionnel** intégrable par ZAMUREK, sans rupture de
 | C0 | DONE | Issue #153 close; audit et décisions consignés dans Docs/115 et Docs/114. |
 | C1.1–C1.4 | DONE | PR #158–#162 fusionnées; preuves dans Docs/118. |
 | C2.1–C2.4 | DONE | PR #164–#168 fusionnées; clôture documentaire PR #169; issue #163 close; baseline fonctionnelle `bef5d7fa92522f71466b9933917853ed96796dd7`, CI post-fusion #559 success; baseline documentaire actuelle `7e724fb7d07669d6c1e66342e0222f4bd81c77f9`, CI #561 success. |
-| C3 | AUTHORIZED / C3.1 DONE | Contrat [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md) fusionné par PR #172; CI post-fusion #40639567210 verte. C3.2 NOT STARTED. |
+| C3 | AUTHORIZED / C3.1 DONE / C3.2 IN PROGRESS | Contrat [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md) fusionné par PR #172; CI post-fusion #40639567210 verte. C3.2 est en travail, non testé ni livré; voir [Docs/124](124_C3_2_CATALOG_MEASURES_EXECUTION_EVIDENCE.md). C3.3–C3.4 NOT STARTED. |
 | C4–C8 | PLANNED / NOT AUTHORIZED | Hors périmètre de l'autorisation actuelle. |
 
 ## Principes d'intégration

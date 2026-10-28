@@ -95,6 +95,7 @@ async function structuralProof(databaseUrl) {
   try {
     const expectedTables = [
       'metric_snapshots', 'insight_alerts', 'external_identities', 'external_identity_link_challenges',
+      'measure_units', 'currency_definitions', 'item_variants', 'commercial_offers', 'catalog_command_receipts',
     ];
     const projectionTables = ['metric_snapshots', 'insight_alerts'];
     const tables = await pool.query(
@@ -243,8 +244,81 @@ async function structuralProof(databaseUrl) {
       `SELECT e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'AuditAction'`,
     );
     const identityAuditActionNames = new Set(identityAuditActions.rows.map((row) => row.enumlabel));
-    for (const required of ['EXTERNAL_IDENTITY_LINKED', 'EXTERNAL_IDENTITY_REACTIVATED', 'EXTERNAL_IDENTITY_REVOKED']) {
-      if (!identityAuditActionNames.has(required)) throw new Error(`Missing C2 audit action ${required}`);
+    for (const required of ['EXTERNAL_IDENTITY_LINKED', 'EXTERNAL_IDENTITY_REACTIVATED', 'EXTERNAL_IDENTITY_REVOKED', 'CATALOG_VARIANT_CREATED', 'CATALOG_OFFER_CREATED', 'CATALOG_OFFER_UPDATED', 'CATALOG_OFFER_STATUS_CHANGED']) {
+      if (!identityAuditActionNames.has(required)) throw new Error(`Missing required audit action ${required}`);
+    }
+
+    const unitChecks = await pool.query(
+      `SELECT conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid IN ('measure_units'::regclass, 'currency_definitions'::regclass, 'item_variants'::regclass, 'commercial_offers'::regclass, 'catalog_command_receipts'::regclass) AND contype = 'c'`,
+    );
+    const unitCheckNames = new Set(unitChecks.rows.map((row) => row.conname));
+    for (const required of ['measure_units_factor_check', 'measure_units_registry_version_check', 'currency_definitions_minor_digits_check', 'item_variants_code_format_check', 'item_variants_attributes_object_check', 'commercial_offers_version_check', 'catalog_command_receipts_payload_hash_check']) {
+      if (!unitCheckNames.has(required)) throw new Error(`Missing C3 catalog constraint ${required}`);
+    }
+    const attributesCheck = unitChecks.rows.find((row) => row.conname === 'item_variants_attributes_object_check')?.definition?.replaceAll('"', '').toLowerCase();
+    if (!attributesCheck?.includes('jsonb_typeof(attributes_json) = \'object\'') || !attributesCheck.includes('jsonb_path_query_array') || !attributesCheck.includes('<= 30')) {
+      throw new Error('Item variant JSON attributes are not constrained to a bounded object');
+    }
+    const attributeCountProbe = await pool.query(
+      `SELECT jsonb_array_length(jsonb_path_query_array($1::jsonb, '$.keyvalue()')) AS count`,
+      [JSON.stringify(Object.fromEntries(Array.from({ length: 31 }, (_, index) => [`field${index}`, 'value'])))],
+    );
+    if (Number(attributeCountProbe.rows[0]?.count) !== 31) throw new Error('PostgreSQL JSONPath key counting did not return the expected result');
+
+    const units = await pool.query("SELECT code, dimension, base_unit_code, numerator::text, denominator::text, registry_version, source_revision FROM measure_units WHERE active ORDER BY code");
+    const expectedUnits = [
+      { code: 'CM', dimension: 'LENGTH', base_unit_code: 'M', numerator: '1', denominator: '100', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'EA', dimension: 'COUNT', base_unit_code: 'EA', numerator: '1', denominator: '1', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'G', dimension: 'MASS', base_unit_code: 'KG', numerator: '1', denominator: '1000', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'HOUR', dimension: 'TIME', base_unit_code: 'HOUR', numerator: '1', denominator: '1', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'KG', dimension: 'MASS', base_unit_code: 'KG', numerator: '1', denominator: '1', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'L', dimension: 'VOLUME', base_unit_code: 'L', numerator: '1', denominator: '1', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'M', dimension: 'LENGTH', base_unit_code: 'M', numerator: '1', denominator: '1', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'MG', dimension: 'MASS', base_unit_code: 'KG', numerator: '1', denominator: '1000000', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'MINUTE', dimension: 'TIME', base_unit_code: 'HOUR', numerator: '1', denominator: '60', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'ML', dimension: 'VOLUME', base_unit_code: 'L', numerator: '1', denominator: '1000', registry_version: 1, source_revision: 'monarque-measures-v1' },
+      { code: 'MM', dimension: 'LENGTH', base_unit_code: 'M', numerator: '1', denominator: '1000', registry_version: 1, source_revision: 'monarque-measures-v1' },
+    ];
+    if (JSON.stringify(units.rows) !== JSON.stringify(expectedUnits)) throw new Error('C3 active measure registry differs from its reviewed exact rational allowlist');
+    const invalidMeasureBases = await pool.query(
+      `SELECT unit.code FROM measure_units unit
+       LEFT JOIN measure_units base ON base.code = unit.base_unit_code
+       WHERE base.code IS NULL OR base.dimension <> unit.dimension
+          OR base.base_unit_code <> base.code OR base.numerator <> 1 OR base.denominator <> 1`,
+    );
+    if (invalidMeasureBases.rowCount !== 0) throw new Error('C3 measure registry contains an invalid dimension or non-canonical base unit');
+
+    const currencies = await pool.query("SELECT code, minor_unit_digits, registry_version, source_revision FROM currency_definitions WHERE active ORDER BY code");
+    if (JSON.stringify(currencies.rows) !== JSON.stringify([
+      { code: 'CDF', minor_unit_digits: 2, registry_version: 1, source_revision: 'six-iso4217-list-one-2026-10' },
+      { code: 'EUR', minor_unit_digits: 2, registry_version: 1, source_revision: 'six-iso4217-list-one-2026-10' },
+      { code: 'USD', minor_unit_digits: 2, registry_version: 1, source_revision: 'six-iso4217-list-one-2026-10' },
+    ])) {
+      throw new Error('C3 supported currency registry differs from the reviewed initial allowlist');
+    }
+
+    const catalogForeignKeys = await pool.query(
+      `SELECT conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid IN ('item_variants'::regclass, 'commercial_offers'::regclass, 'catalog_command_receipts'::regclass) AND contype = 'f'`,
+    );
+    for (const [name, references] of [
+      ['item_variants_item_id_organization_id_fkey', '(item_id, organization_id) REFERENCES items(id, organization_id)'],
+      ['commercial_offers_item_id_organization_id_fkey', '(item_id, organization_id) REFERENCES items(id, organization_id)'],
+      ['commercial_offers_establishment_id_organization_id_fkey', '(establishment_id, organization_id) REFERENCES establishments(id, organization_id)'],
+      ['commercial_offers_variant_id_item_id_organization_id_fkey', '(variant_id, item_id, organization_id) REFERENCES item_variants(id, item_id, organization_id)'],
+      ['commercial_offers_product_code_fkey', '(product_code) REFERENCES product_catalog(code)'],
+      ['commercial_offers_sell_unit_code_fkey', '(sell_unit_code) REFERENCES measure_units(code)'],
+      ['catalog_command_receipts_organization_id_fkey', '(organization_id) REFERENCES organizations(id)'],
+      ['catalog_command_receipts_actor_user_id_fkey', '(actor_user_id) REFERENCES users(id)'],
+    ]) {
+      const foreignKey = catalogForeignKeys.rows.find((row) => row.conname === name);
+      if (!foreignKey?.definition.replaceAll('"', '').includes(references)) throw new Error(`Missing C3 tenant-scoped foreign key ${name}`);
+    }
+    const receiptUniqueIndex = await pool.query(
+      `SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'catalog_command_receipts' AND indexname = 'catalog_command_receipts_organization_id_actor_user_id_operation_idempotency_key_key'`,
+    );
+    const receiptIndex = receiptUniqueIndex.rows[0]?.indexdef?.replaceAll('"', '').toLowerCase();
+    if (!receiptIndex?.includes('unique') || !receiptIndex.includes('(organization_id, actor_user_id, operation, idempotency_key)')) {
+      throw new Error('C3 catalog idempotency receipt uniqueness is not enforced by PostgreSQL');
     }
   } finally { await pool.end(); }
 }
@@ -304,7 +378,7 @@ try {
   const c1AfterCounts = await sourceCounts(databaseUrls.c1Upgrade);
   if (JSON.stringify(c1BeforeCounts) !== JSON.stringify(c1AfterCounts)) throw new Error('C1 migration changed historical source-table row counts');
 
-  console.log(`Phase 10A.5 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade, and current-main upgrade; product catalog/backfill, scoped entitlements, identity registry/challenges, identity immutability, audit enum values, projection constraints, idempotent seed, and historical source-row preservation verified.`);
+  console.log(`Phase 10A.5 migration proof passed: empty database (${migrationDirectories.length} migrations), Phase 9.6 upgrade, and current-main upgrade; product catalog/backfill, scoped entitlements, identity registry/challenges and immutability, exact C3 measure/currency registries, tenant-scoped catalog constraints and idempotency, audit enum values, projection constraints, idempotent seed, and historical source-row preservation verified.`);
 } finally {
   await dropDatabase(adminPool, databaseNames.empty);
   await dropDatabase(adminPool, databaseNames.upgrade);

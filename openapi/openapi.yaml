@@ -33,6 +33,28 @@ tags:
   - { name: Platform }
 
 paths:
+  /catalog/measure-units:
+    get:
+      tags: [Catalog]
+      operationId: listMeasureUnits
+      responses:
+        "200":
+          description: Active server-controlled versioned measurement units.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeasureUnitRegistry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /catalog/currencies:
+    get:
+      tags: [Catalog]
+      operationId: listCurrencies
+      responses:
+        "200":
+          description: Active supported currency metadata; organization defaults and historical documents are unchanged.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurrencyRegistry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
   /health/live:
     get:
       security: []
@@ -527,6 +549,125 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/CatalogItem" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/catalog/offers:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+    get:
+      tags: [Catalog]
+      operationId: listCommercialOffers
+      x-required-principal: STAFF
+      x-required-permissions: [catalog:read]
+      x-product-entitlement-required: true
+      parameters:
+        - name: productCode
+          in: query
+          required: true
+          schema: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        - $ref: "#/components/parameters/EstablishmentFilterId"
+        - name: channelCode
+          in: query
+          required: false
+          schema: { type: string, pattern: '^[A-Za-z][A-Za-z0-9_]{0,47}$' }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Active offers visible in the authorized tenant, product and establishment scope.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialOfferPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Catalog]
+      operationId: createCommercialOffer
+      x-required-principal: STAFF
+      x-required-permissions: [catalog:write]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCommercialOffer" }
+      responses:
+        "201":
+          description: Commercial offer created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialOffer" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/catalog/offers/{offerId}:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: offerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Catalog]
+      operationId: updateCommercialOffer
+      x-required-principal: STAFF
+      x-required-permissions: [catalog:write]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateCommercialOffer" }
+      responses:
+        "200":
+          description: Offer metadata or status updated with optimistic concurrency.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialOffer" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizations/{organizationId}/catalog/items/{itemId}/variants:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Catalog]
+      operationId: createItemVariant
+      x-required-principal: STAFF
+      x-required-permissions: [catalog:write]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateItemVariant" }
+      responses:
+        "201":
+          description: Item variant created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItemVariant" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/items/{itemId}:
@@ -4279,6 +4420,114 @@ components:
           type: array
           items: { $ref: "#/components/schemas/CatalogItem" }
         nextCursor: { type: [string, 'null'] }
+    MeasureUnit:
+      type: object
+      additionalProperties: false
+      required: [code, displayName, dimension, baseUnitCode, numerator, denominator, registryVersion, sourceRevision]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,31}$', maxLength: 32 }
+        displayName: { type: string, maxLength: 80 }
+        dimension: { type: string, maxLength: 32 }
+        baseUnitCode: { type: string, maxLength: 32 }
+        numerator: { type: string, pattern: "^[1-9][0-9]{0,17}$" }
+        denominator: { type: string, pattern: "^[1-9][0-9]{0,17}$" }
+        registryVersion: { type: string }
+        sourceRevision: { type: string }
+    MeasureUnitRegistry:
+      type: object
+      additionalProperties: false
+      required: [version, items]
+      properties:
+        version: { type: string }
+        items: { type: array, items: { $ref: "#/components/schemas/MeasureUnit" } }
+    CurrencyDefinition:
+      type: object
+      additionalProperties: false
+      required: [code, minorUnitDigits, registryVersion, sourceRevision]
+      properties:
+        code: { type: string, pattern: "^[A-Z]{3}$" }
+        minorUnitDigits: { type: integer, minimum: 0, maximum: 4 }
+        registryVersion: { type: integer, minimum: 1 }
+        sourceRevision: { type: string }
+    CurrencyRegistry:
+      type: object
+      additionalProperties: false
+      required: [version, items]
+      properties:
+        version: { type: string }
+        items: { type: array, items: { $ref: "#/components/schemas/CurrencyDefinition" } }
+    CommercialOffer:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, productCode, itemId, variantId, establishmentId, channelCode, sellUnitCode, displayName, status, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        itemId: { type: string, format: uuid }
+        variantId: { type: [string, 'null'], format: uuid }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        channelCode: { type: [string, 'null'], pattern: '^[A-Z][A-Z0-9_]{0,47}$', maxLength: 48 }
+        sellUnitCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{0,31}$', maxLength: 32 }
+        displayName: { type: [string, 'null'], maxLength: 160 }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CommercialOfferPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/CommercialOffer" } }
+        nextCursor: { type: [string, 'null'] }
+    CreateCommercialOffer:
+      type: object
+      additionalProperties: false
+      required: [productCode, itemId, sellUnitCode]
+      properties:
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        itemId: { type: string, format: uuid }
+        variantId: { type: [string, 'null'], format: uuid }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        channelCode: { type: [string, 'null'], pattern: '^[A-Za-z][A-Za-z0-9_]{0,47}$', maxLength: 48 }
+        sellUnitCode: { type: string, pattern: '^[A-Za-z][A-Za-z0-9_]{0,31}$', maxLength: 32 }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+    CreateItemVariant:
+      type: object
+      additionalProperties: false
+      required: [productCode, code]
+      properties:
+        productCode: { type: string, pattern: '^[A-Z][A-Z0-9_]{1,63}$' }
+        code: { type: string, pattern: "^[A-Z0-9][A-Z0-9._-]{0,63}$" }
+        displayName: { type: string, maxLength: 160 }
+        attributes:
+          type: object
+          maxProperties: 30
+          additionalProperties: { type: string, maxLength: 256 }
+    ItemVariant:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, itemId, code, displayName, attributes, status]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        code: { type: string, pattern: '^[A-Z0-9][A-Z0-9._-]{0,63}$' }
+        displayName: { type: string }
+        attributes: { type: object, additionalProperties: { type: string } }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    UpdateCommercialOffer:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion]
+      minProperties: 2
+      properties:
+        expectedVersion: { type: integer, minimum: 1 }
+        establishmentId: { type: [string, 'null'], format: uuid }
+        channelCode: { type: [string, 'null'], pattern: '^[A-Za-z][A-Za-z0-9_]{0,47}$', maxLength: 48 }
+        displayName: { type: [string, 'null'], maxLength: 160 }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
     Warehouse:
       type: object
       additionalProperties: false
