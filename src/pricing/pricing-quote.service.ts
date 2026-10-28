@@ -141,6 +141,7 @@ export class PricingQuoteService {
           if (sourceCandidates.length !== 1) throw new UnprocessableEntityException('Commercial source currency is ambiguous or unavailable');
           price = sourceCandidates[0];
         }
+        if (!price) throw new UnprocessableEntityException('No effective commercial price is available for the requested currency');
         if (!policy.allowedCurrencies.includes(price.currencyCode)) throw new UnprocessableEntityException('Commercial source currency is not allowed by the active pricing policy');
 
         const inputUnit = await tx.measureUnit.findFirst({ where: { code: input.unitCode, active: true } });
@@ -242,7 +243,7 @@ export class PricingQuoteService {
             calculationVersion: CALCULATION_VERSION, snapshotJson: snapshot,
             lines: {
               create: [{
-                id: randomUUID(), organizationId, lineIndex: 0,
+                id: randomUUID(), lineIndex: 0,
                 snapshotJson: {
                   itemId: offer.itemId, itemName: offer.item.name, offerId: offer.id, variantId,
                   quantityOriginal: snapshot.quantityOriginal, quantityNormalized: snapshot.quantityNormalized,
@@ -352,14 +353,18 @@ export class PricingQuoteService {
       throw new ConflictException('Idempotency-Key was already used for a different pricing quote command');
     }
     if (quote.establishmentId) await this.authorization.assertEstablishment(authorized, quote.establishmentId);
-    return quote.snapshotJson as Record<string, unknown>;
+    return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt);
   }
 
-  private replay(quote: { productCode: string; actorUserId: string; inputHash: string; snapshotJson: Prisma.JsonValue }, actorUserId: string, inputHash: string): Record<string, unknown> {
+  private replay(quote: { productCode: string; actorUserId: string; inputHash: string; snapshotJson: Prisma.JsonValue; expiresAt: Date }, actorUserId: string, inputHash: string): Record<string, unknown> {
     if (quote.actorUserId !== actorUserId || quote.inputHash !== inputHash) {
       throw new ConflictException('Idempotency-Key was already used for a different pricing quote command');
     }
-    return quote.snapshotJson as Record<string, unknown>;
+    return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt);
+  }
+
+  private withCurrentValidity(snapshot: Record<string, unknown>, expiresAt: Date): Record<string, unknown> {
+    return { ...snapshot, validity: new Date() < expiresAt ? 'VALID' : 'EXPIRED' };
   }
 
   private rational(unit: { code: string; dimension: string; baseUnitCode: string; numerator: bigint; denominator: bigint }): RationalMeasure {

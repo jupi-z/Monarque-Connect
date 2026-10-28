@@ -1,6 +1,6 @@
 # C3 — Shared Catalog, Pricing, Measures & FX — statut
 
-**Issue de suivi :** [#171](https://github.com/jupi-z/Monarque-Connect/issues/171)  
+**Issue de suivi :** [#171](https://github.com/jupi-z/Monarque-Connect/issues/171)
 **Baseline actuelle après C3.3.4 :** `main@173d68ff9bc8bb0beab16e4e0e72d788b91435b8` (PR #180 fusionnée); CI post-fusion [40705791462](https://github.com/jupi-z/Monarque-Connect/actions/runs/40705791462) réussie.
 
 **CI post-fusion C3.1 :** PR #172, run [40639567210](https://github.com/jupi-z/Monarque-Connect/actions/runs/40639567210), success sur le SHA exact.
