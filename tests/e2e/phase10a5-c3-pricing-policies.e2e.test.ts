@@ -128,6 +128,137 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     await expect(prisma.pricingPolicyVersion.count({ where: { organizationId: tenant.organizationId } })).resolves.toBe(0);
     await expect(prisma.taxPolicyVersion.count({ where: { organizationId: tenant.organizationId } })).resolves.toBe(0);
   });
+
+  it('creates a server-priced commercial quote and replays its immutable result idempotently', async () => {
+    const tenant = await createTenant(app, prisma);
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/items`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .send({ type: 'PRODUCT', name: `Quote item ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD' })
+      .expect(201));
+    const offer = bodyOf<{ id: string }>(await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `quote-offer-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG' })
+      .expect(201));
+    await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers/${offer.id}/price-versions`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `quote-price-${randomUUID()}`)
+      .send({ amount: '20', currencyCode: 'USD', priceUnitCode: 'KG' })
+      .expect(201);
+    await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `quote-policy-${randomUUID()}`)
+      .send(pricingPolicyPayload())
+      .expect(201);
+
+    const route = `/api/v1/organizations/${tenant.organizationId}/pricing/quotes`;
+    const key = `pricing-quote-${randomUUID()}`;
+    const command = { productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '2', unitCode: 'KG', targetCurrency: 'USD' };
+    const firstResponse = await request(server)
+      .post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', key)
+      .send(command)
+      .expect(201);
+    const first = bodyOf<{ id: string; organizationId: string; productCode: string; sourceCurrency: string; targetCurrency: string; subtotal: string; targetTotal: string; validity: string }>(firstResponse);
+    expect(first).toMatchObject({
+      organizationId: tenant.organizationId,
+      productCode: 'MONARQUE_CONNECT',
+      sourceCurrency: 'USD',
+      targetCurrency: 'USD',
+      subtotal: '40.00',
+      targetTotal: '40.00',
+      validity: 'VALID',
+    });
+    expect(await prisma.pricingQuote.count({ where: { organizationId: tenant.organizationId } })).toBe(1);
+    expect(await prisma.pricingQuoteLine.count({ where: { organizationId: tenant.organizationId, quoteId: first.id } })).toBe(1);
+    expect(await prisma.salesOrder.count({ where: { organizationId: tenant.organizationId } })).toBe(0);
+    expect(await prisma.invoice.count({ where: { organizationId: tenant.organizationId } })).toBe(0);
+    expect(await prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'PricingQuote', targetId: first.id, action: 'PRICING_QUOTE_CREATED' } })).toBe(1);
+    expect(await prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'PricingQuote', aggregateId: first.id, eventType: 'pricing.quote.created' } })).toBe(1);
+
+    await request(server)
+      .get(`${route}/${first.id}`)
+      .query({ productCode: 'MONARQUE_CONNECT' })
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .expect(200)
+      .expect(({ body }) => expect(body).toEqual(first));
+    await request(server)
+      .get(`${route}/${first.id}`)
+      .query({ productCode: 'MONARQUE_CONNECT' })
+      .expect(401);
+    const otherTenant = await createTenant(app, prisma);
+    await request(server)
+      .get(`/api/v1/organizations/${otherTenant.organizationId}/pricing/quotes/${first.id}`)
+      .query({ productCode: 'MONARQUE_CONNECT' })
+      .set('Authorization', `Bearer ${otherTenant.ownerToken}`)
+      .expect(404);
+
+    const replay = await request(server)
+      .post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', key)
+      .send(command)
+      .expect(201);
+    expect(replay.body).toEqual(first);
+    await request(server)
+      .post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', key)
+      .send({ ...command, quantity: '3' })
+      .expect(409);
+    await expect(prisma.pricingQuote.update({ where: { id: first.id }, data: { snapshotJson: { tampered: true } } })).rejects.toThrow();
+
+    const fxOffer = bodyOf<{ id: string }>(await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `quote-fx-offer-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', itemId: item.id, sellUnitCode: 'KG' })
+      .expect(201));
+    await request(server)
+      .post(`/api/v1/organizations/${tenant.organizationId}/catalog/offers/${fxOffer.id}/price-versions`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `quote-fx-price-${randomUUID()}`)
+      .send({ amount: '20', currencyCode: 'USD', priceUnitCode: 'KG' })
+      .expect(201);
+
+    const observedAt = new Date();
+    await prisma.fxRate.create({ data: {
+      id: randomUUID(), baseCurrencyCode: 'USD', quoteCurrencyCode: 'CDF', rate: '2360',
+      sourceCode: 'TEST_FIXTURE', sourceReference: `pricing-quote-e2e-${randomUUID()}`,
+      observedAt, validFrom: new Date(observedAt.getTime() - 1_000), validUntil: new Date(observedAt.getTime() + 86_400_000),
+      commandPayloadHash: 'a'.repeat(64), ingestedByUserId: tenant.ownerId,
+    } });
+
+    const converted = bodyOf<{
+      quantityNormalized: { amount: string; baseUnitCode: string };
+      subtotal: string;
+      sourceCurrency: string;
+      targetTotal: string;
+      targetCurrency: string;
+      fx: { rateId: string; appliedRate: string; direction: string; sourceReference: string };
+    }>(await request(server)
+      .post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', `pricing-quote-fx-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: fxOffer.id, quantity: '125', unitCode: 'G', targetCurrency: 'CDF' })
+      .expect(201));
+    expect(converted).toMatchObject({
+      quantityNormalized: { amount: '0.125', baseUnitCode: 'KG' },
+      subtotal: '2.50',
+      sourceCurrency: 'USD',
+      targetTotal: '5900.00',
+      targetCurrency: 'CDF',
+      fx: { appliedRate: '2360.000000000000000000', direction: 'DIRECT' },
+    });
+    expect(converted.fx.rateId).toBeTruthy();
+    expect(converted.fx.sourceReference).toMatch(/^pricing-quote-e2e-/);
+  });
 });
 
 function pricingPolicyPayload(code = `POLICY_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`, productCode = 'MONARQUE_CONNECT') {

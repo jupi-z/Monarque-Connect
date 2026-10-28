@@ -85,7 +85,7 @@ La conception n’inclut pas de statut `REVOKED` sans commande de révocation r�
 
 ## Limites et suite
 
-Le calcul Decimal pur d’une ligne de devis est livré par C3.3.4. Les devis et lignes persistés, la sélection serveur du prix/policy/FX, le snapshot immuable, l’idempotence HTTP et la consommation du résultat restent à réaliser dans C3.3/C3.4. La configuration d’un fournisseur FX réel, la conformité fiscale et le POS ne sont pas inclus dans ces livraisons.
+Le calcul Decimal pur d’une ligne de devis est livré par C3.3.4. La PR #182 apporte ensuite les devis et lignes persistés, la sélection serveur du prix/policy/FX, le snapshot immuable, l’idempotence HTTP et la lecture tenant-scoped. La résolution des remises et taxes configurées reste ouverte; l’API refuse ces commandes tant que les classifications métier fiables correspondantes ne sont pas disponibles. La configuration d’un fournisseur FX réel, la conformité fiscale et le POS sont hors de ces livraisons.
 
 ## C3.3.4 — noyau de calcul Decimal des lignes de cotation
 
@@ -95,3 +95,15 @@ Le calcul Decimal pur d’une ligne de devis est livré par C3.3.4. Les devis et
 - Les tests couvrent le cas synthétique `125 g × 20 USD/kg × 2 360 CDF/USD = 5 900 CDF`, taxe en SOURCE avec FX, taxe TARGET, remise avant taxe, dépassement de remise, mode de taxe mixte/inconnu et configuration nulle. Le run d’abord test-only a produit le RED attendu avant implémentation; il ne compte pas comme validation positive.
 - Portée exclue: aucune table ou API de devis, aucun résolveur de règles, aucune persistance/snapshot, aucune route Sales modifiée, aucune fiscalité juridique ou source FX externe.
 - Suites complètes CI PR et post-fusion sont les preuves effectives; aucun test lourd local n’a été lancé.
+
+## C3.3.5 — devis commerciaux persistés et snapshots immuables
+
+- PR [#182](https://github.com/jupi-z/Monarque-Connect/pull/182), état au 2026-10-28: ouverte, head `3452141202f69aaea1f26330cc0e2023ab1d4bba`, en attente de revue et fusion; base `223054c2430b2998b64be8e58c732bc309d5a62c`.
+- Run d’abord test-only [40710233231](https://github.com/jupi-z/Monarque-Connect/actions/runs/40710233231): échec E2E attendu, la route de quote n’existait pas avant l’implémentation.
+- Run [40715509694](https://github.com/jupi-z/Monarque-Connect/actions/runs/40715509694), SHA `2b828be5d27081f7efd3b2fafd836f19b6f63032`: échec lint sur une erreur de syntaxe dans la construction de la ligne snapshot; les étapes suivantes ont été sautées et le conteneur PostgreSQL supprimé.
+- Run [40743729776](https://github.com/jupi-z/Monarque-Connect/actions/runs/40743729776), SHA `aece159b34f7e9a0782a6358f61c2b125e3c22a9`: lint réussi, typecheck échoué (`price` potentiellement indéfini et champ `organizationId` incompatible dans le nested create Prisma). Les migrations/tests n’ont pas démarré; nettoyage PostgreSQL réussi.
+- Run [40744111262](https://github.com/jupi-z/Monarque-Connect/actions/runs/40744111262), SHA `18881d7b145a1aa57f7f53fc1a2145fa021d9b52`: typecheck et migrations passés; contrat échoué car le runtime OpenAPI référençait `ProductCode` sans déclarer le composant. Aucun test PostgreSQL/E2E n’a été lancé; nettoyage réussi.
+- Run [40744922728](https://github.com/jupi-z/Monarque-Connect/actions/runs/40744922728), SHA `32a47ff3742b63687d9739b7f5cf6256f99ce59f`: migrations, unit/contract et intégration PostgreSQL passées; E2E a démontré que la réponse utilisait bien `subtotal`, alors que l’assertion attendait `sourceSubtotal`. Le test a été corrigé pour suivre le snapshot contractuel.
+- CI complète réussie sur le head final `3452141202f69aaea1f26330cc0e2023ab1d4bba`: [run 40745940521](https://github.com/jupi-z/Monarque-Connect/actions/runs/40745940521). Preuves de logs: Prisma validate/generate/deploy; 63 migrations depuis base vide et upgrades historiques supportés; OpenAPI/contrats; 210 tests unitaires/contrats; 220 tests PostgreSQL; 39 E2E; répétitions CRM/Phase 1; build, smoke HTTP et suppression du conteneur isolé. CI post-fusion: `NOT_RUN` tant que la PR reste ouverte.
+- Le service n’accepte aucun prix final ni instant de valorisation venant du client; il vérifie le produit, l’organisation, l’établissement et les permissions dans le serveur. Un snapshot de quote et sa ligne sont protégés par FK tenant/product/resource, trigger d’immutabilité, idempotence exacte et audit/Outbox atomiques. Un rejeu divergent retourne `409`; la validité temporelle renvoyée est recalculée depuis `expiresAt` sans modifier le snapshot stocké.
+- Remises et taxes: si une politique active les configure, la quote échoue en `422` tant que les résolveurs fiables de remise, de catégorie Item et de juridiction vendeur ne sont pas livrés. Il s’agit d’un gate C3 restant, non d’une fonctionnalité livrée. Aucun fournisseur FX réel ni conformité fiscale n’est déclaré.

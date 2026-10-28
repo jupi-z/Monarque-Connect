@@ -202,6 +202,7 @@ paths:
     post:
       tags: [Pricing]
       operationId: createPricingQuote
+      x-runtime-status: implemented
       x-required-principal: STAFF
       x-required-permissions: [pricing:quote:create]
       x-product-entitlement-required: true
@@ -234,6 +235,7 @@ paths:
     get:
       tags: [Pricing]
       operationId: getPricingQuote
+      x-runtime-status: implemented
       x-required-principal: STAFF
       x-required-permissions: [pricing:quote:read]
       x-product-entitlement-required: true
@@ -491,7 +493,7 @@ components:
         itemId: { type: string, format: uuid }
         variantId: { type: string, format: uuid }
         establishmentId: { type: string, format: uuid }
-        channelCode: { type: string, maxLength: 64 }
+        channelCode: { type: string, minLength: 1, maxLength: 48, pattern: '^[A-Za-z][A-Za-z0-9_]{0,47}$' }
         sellUnitCode: { type: string }
         displayName: { type: string, maxLength: 160 }
       additionalProperties: false
@@ -634,7 +636,7 @@ components:
         unitCode: { type: string }
         targetCurrency: { type: string, pattern: '^[A-Z]{3}$' }
         establishmentId: { type: string, format: uuid }
-        channelCode: { type: string, maxLength: 64 }
+        channelCode: { type: string, minLength: 1, maxLength: 48, pattern: '^[A-Za-z][A-Za-z0-9_]{0,47}$' }
       additionalProperties: false
     FxSnapshot:
       type: object
@@ -720,7 +722,7 @@ components:
         taxCalculationCurrency: { type: string, enum: [SOURCE, TARGET] }
         calculationVersion: { type: string }
         fx: { anyOf: [{ $ref: '#/components/schemas/FxSnapshot' }, { type: 'null' }] }
-        validity: { type: string, enum: [VALID, EXPIRED, REVOKED] }
+        validity: { type: string, enum: [VALID, EXPIRED] }
       additionalProperties: false
     IngestFxRate:
       type: object

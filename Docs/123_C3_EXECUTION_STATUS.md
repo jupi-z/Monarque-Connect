@@ -1,6 +1,6 @@
 # C3 — Shared Catalog, Pricing, Measures & FX — statut
 
-**Issue de suivi :** [#171](https://github.com/jupi-z/Monarque-Connect/issues/171)  
+**Issue de suivi :** [#171](https://github.com/jupi-z/Monarque-Connect/issues/171)
 **Baseline actuelle après C3.3.4 :** `main@173d68ff9bc8bb0beab16e4e0e72d788b91435b8` (PR #180 fusionnée); CI post-fusion [40705791462](https://github.com/jupi-z/Monarque-Connect/actions/runs/40705791462) réussie.
 
 **CI post-fusion C3.1 :** PR #172, run [40639567210](https://github.com/jupi-z/Monarque-Connect/actions/runs/40639567210), success sur le SHA exact.
@@ -14,13 +14,13 @@
 | C2 | DONE | Identités externes et principaux tenant | Docs/119–121; PR #164–#169; preuve de clôture CI #561, puis `main@2dff07e` CI post-fusion #170 run 40635438412 |
 | C3.1 | DONE | Audit, contrat normatif et OpenAPI proposé; aucune migration ni route runtime | PR [#172](https://github.com/jupi-z/Monarque-Connect/pull/172), fusionnée au commit `e19bd1f`; CI PR #569 et post-fusion #40639567210 vertes |
 | C3.2 | DONE | Catalogue, mesures, variantes et offres | PR #174 fusionnée dans `main@909764d`; CI post-fusion #583, run [40650502528](https://github.com/jupi-z/Monarque-Connect/actions/runs/40650502528), success. Détails actualisés dans [Docs/124](124_C3_2_CATALOG_MEASURES_EXECUTION_EVIDENCE.md). |
-| C3.3 | IN PROGRESS | Prix, FX et policies livrés; noyau de calcul de ligne livré; devis persistés/snapshots encore ouverts | C3.3.1–C3.3.3 sont documentés dans Docs/125. C3.3.4 (PR [#180](https://github.com/jupi-z/Monarque-Connect/pull/180)) a livré le noyau Decimal pur, fusionné dans `main@173d68ff9bc8bb0beab16e4e0e72d788b91435b8`; CI PR [40704490523](https://github.com/jupi-z/Monarque-Connect/actions/runs/40704490523) et post-fusion [40705791462](https://github.com/jupi-z/Monarque-Connect/actions/runs/40705791462) réussies. Les quotes, lignes persistées, snapshots immuables et intégration du résolveur restent à livrer; C3.4 demeure ouvert. |
+| C3.3 | IN PROGRESS | Prix, FX, policies, noyau Decimal et persistance des quotes implémentés dans PR #182; résolveurs discount/tax encore requis | C3.3.1–C3.3.4 sont documentés dans Docs/125. PR [#182](https://github.com/jupi-z/Monarque-Connect/pull/182) ajoute les quotes immuables et leur calcul serveur; CI PR verte sur le head `3452141202f69aaea1f26330cc0e2023ab1d4bba`, run [40745940521](https://github.com/jupi-z/Monarque-Connect/actions/runs/40745940521). En attente de revue/fusion et CI post-fusion. Les configurations de remise et de taxe fail-closed ne peuvent pas encore être consommées par le quote resolver; C3.4 demeure ouvert. |
 | C3.4 | NOT STARTED | Durcissement, compatibilité et clôture | NOT_RUN |
 | C4–C8 | NOT AUTHORIZED | Hors de cette mission | Pas commencé |
 
 ## Contrat et audit
 
-Le contrat cible et les preuves d'inspection du code sont dans [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md). C3.1 a figé les propriétaires du Core, la distinction Billing SaaS/prix commerciaux, les snapshots, les politiques de précision et d'arrondi, les droits et les contrats OpenAPI proposés. C3.2 est fusionné et validé par CI post-fusion #583. C3.3.1–C3.3.3 (prix versionnés, FX, policies de prix et configurations fiscales explicites) sont livrés. C3.3.4 (PR #180) a ajouté un calcul pur de ligne Decimal avec mesures exactes, remises et taxes résolues, bases taxables et totaux source/cible; il n'ajoute ni résolution de policies, ni API, ni devis/snapshot persistant. Le service de cotation persistant et le durcissement C3.4 restent ouverts. Aucun fournisseur FX réel ni conformité fiscale n'est déclaré.
+Le contrat cible et les preuves d'inspection du code sont dans [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md). C3.1 a figé les propriétaires du Core, la distinction Billing SaaS/prix commerciaux, les snapshots, les politiques de précision et d'arrondi, les droits et les contrats OpenAPI proposés. C3.2 est fusionné et validé par CI post-fusion #583. C3.3.1–C3.3.3 livrent prix versionnés, FX, policies et configurations fiscales explicites. C3.3.4 ajoute un calcul Decimal pur de ligne avec mesures exactes, règles déjà résolues, bases taxables et totaux source/cible. La PR #182 implémente la persistance immuable des quotes, l'idempotence, le contrôle d'accès et le calcul serveur, sous validation/fusion. Le moteur refuse encore les policies de remise/taxe configurées tant que leurs résolveurs et leurs classifications métier fiables ne sont pas livrés. Aucun fournisseur FX réel ni conformité fiscale n'est déclaré.
 
 ## Gates de clôture C3
 

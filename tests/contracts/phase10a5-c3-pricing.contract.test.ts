@@ -111,6 +111,8 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
       'POST /organizations/{organizationId}/pricing/policy-versions',
       'POST /organizations/{organizationId}/pricing/tax-policy-versions',
       'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate',
+      'POST /organizations/{organizationId}/pricing/quotes',
+      'GET /organizations/{organizationId}/pricing/quotes/{quoteId}',
     ]) {
       expect(operation(runtime, key).operationId, key).toBe(expected[key]);
       expect(operation(spec, key)['x-runtime-status']).toBe('implemented');
@@ -202,6 +204,7 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     expect(quote.responses?.['422']).toBeDefined();
     expect(schemaRef(quote.responses?.['201']?.content?.['application/json']?.schema)).toBe('#/components/schemas/PricingQuoteSnapshot');
     const snapshot = requiredSchema(spec, 'PricingQuoteSnapshot');
+    expect(requiredProperty(snapshot, 'validity').enum).toEqual(['VALID', 'EXPIRED']);
     expect(snapshot.required).toEqual(expect.arrayContaining(['inputHash', 'priceVersionId', 'pricingPolicyVersionId', 'subtotal', 'netAmount', 'discountAmount', 'sourceTotal', 'sourceCurrency', 'targetTotal', 'roundingPolicyVersion', 'calculationVersion', 'validity', 'establishmentId', 'channelCode', 'variantId', 'fx']));
     expect(requiredProperty(snapshot, 'establishmentId')).toBeDefined();
     expect(requiredProperty(snapshot, 'channelCode')).toBeDefined();
