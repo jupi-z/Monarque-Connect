@@ -348,6 +348,53 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     expect(quote.taxLines[0]?.rate).toBe('0.100000000000000000');
   });
 
+  it('creates immutable percentage discount versions and applies allowlisted discounts before tax', async () => {
+    const fixture = await createTaxQuoteFixture(app, prisma, { contexts: [{ establishmentId: null, jurisdictionCode: 'TEST-DISCOUNT', establishment: false }] });
+    const taxCode = await createActiveTaxPolicy(serverOf(app), fixture.tenant, 'TEST-DISCOUNT', '0.10');
+    const discountCode = `DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    const discountRoute = `/api/v1/organizations/${fixture.tenant.organizationId}/pricing/discount-rule-versions`;
+    const discountKey = `discount-rule-${randomUUID()}`;
+    const discountPayload = {
+      productCode: 'MONARQUE_CONNECT', code: discountCode, rate: '15',
+      configurationReference: `synthetic-test-discount:${randomUUID()}`,
+    };
+    const createdRule = bodyOf<{ id: string; code: string; version: number; rate: string }>(await request(serverOf(app))
+      .post(discountRoute).set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', discountKey)
+      .send(discountPayload).expect(201));
+    expect(createdRule).toMatchObject({ code: discountCode, version: 1, rate: '15.000000000000000000' });
+
+    const replayedRule = bodyOf<{ id: string }>(await request(serverOf(app))
+      .post(discountRoute).set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', discountKey)
+      .send(discountPayload).expect(201));
+    expect(replayedRule.id).toBe(createdRule.id);
+    await request(serverOf(app)).post(discountRoute)
+      .set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', discountKey)
+      .send({ ...discountPayload, rate: '16' }).expect(409);
+
+    await createActivePricingPolicy(serverOf(app), fixture.tenant, [taxCode], [discountCode]);
+    const offer = await createTaxableOffer(serverOf(app), fixture.tenant, fixture.itemId, true);
+    const quote = bodyOf<TaxQuoteSnapshot>(await request(serverOf(app))
+      .post(`/api/v1/organizations/${fixture.tenant.organizationId}/pricing/quotes`)
+      .set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', `discount-quote-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '2', unitCode: 'KG', targetCurrency: 'USD' }).expect(201));
+    expect(quote).toMatchObject({ subtotal: '40.00', discountAmount: '6.00', netAmount: '34.00', sourceTotal: '37.40', targetTotal: '37.40' });
+    expect(quote.discounts).toEqual([{
+      ruleVersionId: createdRule.id, ruleCode: discountCode, version: 1, rate: '15.000000000000000000', amount: '6.00', currencyCode: 'USD',
+    }]);
+    expect(quote.taxLines[0]).toMatchObject({ taxableBase: '34.00', amount: '3.40', currencyCode: 'USD' });
+  });
+
+  it('rejects percentage discount rates above one hundred percent', async () => {
+    const tenant = await createTenant(app, prisma);
+    const payload = {
+      productCode: 'MONARQUE_CONNECT', code: `DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`,
+      rate: '100.000000000000000001', configurationReference: `synthetic-test-discount:${randomUUID()}`,
+    };
+    await request(serverOf(app)).post(`/api/v1/organizations/${tenant.organizationId}/pricing/discount-rule-versions`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `discount-range-${randomUUID()}`)
+      .send(payload).expect(400);
+  });
+
   it('creates a server-priced commercial quote and replays its immutable result idempotently', async () => {
     const tenant = await createTenant(app, prisma);
     const server = serverOf(app);
@@ -496,6 +543,9 @@ function taxPolicyPayload(effectiveFrom: string | null = new Date(Date.now() + 6
 
 type TaxQuoteSnapshot = {
   id: string;
+  subtotal: string;
+  discountAmount: string;
+  netAmount: string;
   sourceTotal: string | null;
   targetTotal: string;
   valuationAt: string;
@@ -503,6 +553,7 @@ type TaxQuoteSnapshot = {
   establishmentId: string | null;
   taxCategoryCode: string | null;
   taxContext: { versionId: string; version: number; establishmentId: string | null; jurisdictionCode: string; effectiveFrom: string } | null;
+  discounts: Array<{ ruleVersionId: string; ruleCode: string; version: number; rate: string; amount: string; currencyCode: string }>;
   taxLines: Array<{ policyVersionId: string; code: string; version: number; rate: string; taxableBase: string; amount: string; currencyCode: string; calculationCurrency: 'SOURCE' | 'TARGET' }>;
   taxPolicyVersionIds: string[];
   taxCalculationCurrency: 'SOURCE' | 'TARGET';
@@ -580,10 +631,11 @@ async function createActivePricingPolicy(
   server: Parameters<typeof request>[0],
   tenant: { organizationId: string; ownerToken: string },
   taxPolicyCodes: string[],
+  discountRuleCodes: string[] = [],
 ): Promise<void> {
   await request(server).post(`/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`)
     .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-pricing-policy-fixture-${randomUUID()}`)
-    .send({ ...pricingPolicyPayload(), taxPolicyCodes }).expect(201);
+    .send({ ...pricingPolicyPayload(), taxPolicyCodes, discountRuleCodes }).expect(201);
 }
 
 async function createTaxableOffer(

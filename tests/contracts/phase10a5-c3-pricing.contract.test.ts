@@ -35,6 +35,7 @@ const expected: Record<string, string> = {
   'POST /organizations/{organizationId}/catalog/offers/{offerId}/price-versions': 'publishCommercialPriceVersion',
   'POST /organizations/{organizationId}/catalog/items/{itemId}/variants': 'createItemVariant',
   'POST /organizations/{organizationId}/pricing/policy-versions': 'createPricingPolicyVersion',
+  'POST /organizations/{organizationId}/pricing/discount-rule-versions': 'createCommercialDiscountRuleVersion',
   'POST /organizations/{organizationId}/pricing/tax-policy-versions': 'createTaxPolicyVersion',
   'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate': 'activateTaxPolicyVersion',
   'POST /organizations/{organizationId}/pricing/tax-context-versions': 'createPricingTaxContextVersion',
@@ -112,6 +113,7 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     const runtime = await loadRuntime();
     for (const key of [
       'POST /organizations/{organizationId}/pricing/policy-versions',
+      'POST /organizations/{organizationId}/pricing/discount-rule-versions',
       'POST /organizations/{organizationId}/pricing/tax-policy-versions',
       'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate',
       'POST /organizations/{organizationId}/pricing/tax-context-versions',
