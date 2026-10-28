@@ -1,9 +1,10 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, Injectable, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { type TenantRole } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service.js';
-import type { AuthPrincipal, AuthorizationContext } from '../auth/auth.types.js';
+import type { AuthPrincipal, AuthorizationContext, ProductAuthorizationContext, StaffAuthorizationContext } from '../auth/auth.types.js';
 import { EffectiveEntitlementsService } from '../entitlements/effective-entitlements.service.js';
+import { isProductCode, type ProductCode } from '../products/product-code.js';
 
 @Injectable()
 export class AuthorizationService {
@@ -57,6 +58,83 @@ export class AuthorizationService {
       throw new ForbiddenException('Module access denied');
     }
     return context;
+  }
+
+  /** Product-scoped authorization is opt-in; legacy routes retain requireModule's Connect-only behavior. */
+  async requireModuleForProduct(
+    principal: AuthPrincipal,
+    organizationId: string,
+    productCode: ProductCode,
+    moduleCode: string,
+    permission: Permission,
+  ): Promise<ProductAuthorizationContext> {
+    if (!isProductCode(productCode)) throw new BadRequestException('Product code is invalid');
+    const context = await this.requireMembership(principal, organizationId);
+    this.assertPermission(context, permission);
+    const projection = await this.entitlements.resolveForProduct(organizationId, productCode);
+    if (projection.organizationId !== organizationId || projection.productCode !== productCode) {
+      this.logTestDenial({ branch: 'product-projection-mismatch', productCode });
+      throw new ForbiddenException('Product access denied');
+    }
+    const module = projection.modules.find((candidate) => candidate.code === moduleCode);
+    if (!module?.allowed) {
+      this.logTestDenial({
+        branch: 'product-module', productCode, moduleCode, permission,
+        decision: module ? { allowed: module.allowed, reason: module.reason } : null,
+      });
+      throw new ForbiddenException('Product module access denied');
+    }
+    return {
+      ...context,
+      productCode,
+      actorType: 'STAFF',
+      authorizationProvenance: { kind: 'ACTIVE_TENANT_MEMBERSHIP', membershipId: context.membershipId },
+    };
+  }
+
+  /** Re-checks product authorization inside an existing business transaction. */
+  async requireModuleForProductInTransaction(
+    tx: Prisma.TransactionClient,
+    principal: AuthPrincipal,
+    organizationId: string,
+    productCode: ProductCode,
+    moduleCode: string,
+    permission: Permission,
+  ): Promise<ProductAuthorizationContext> {
+    if (!isProductCode(productCode)) throw new BadRequestException('Product code is invalid');
+    const candidate = await tx.membership.findUnique({
+      where: { organizationId_userId: { organizationId, userId: principal.userId } },
+      select: { id: true },
+    });
+    if (!candidate) throw new ForbiddenException('Organization access denied');
+    const locked = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT id FROM "memberships" WHERE id = ${candidate.id}::uuid FOR UPDATE`);
+    if (locked.length !== 1) throw new ForbiddenException('Organization access denied');
+    const membership = await tx.membership.findUnique({
+      where: { id: candidate.id },
+      include: { scopeLinks: { select: { establishmentId: true } }, user: { select: { status: true } }, organization: { select: { status: true } } },
+    });
+    if (!membership || membership.status !== 'ACTIVE' || membership.user.status !== 'ACTIVE' || membership.organization.status !== 'ACTIVE') {
+      throw new ForbiddenException('Organization access denied');
+    }
+    const context: StaffAuthorizationContext = {
+      userId: principal.userId,
+      sessionId: principal.sessionId,
+      organizationId,
+      membershipId: membership.id,
+      role: membership.role,
+      scopeMode: membership.scopeMode,
+      establishmentIds: membership.scopeLinks.map((scope) => scope.establishmentId),
+      actorType: 'STAFF',
+      authorizationProvenance: { kind: 'ACTIVE_TENANT_MEMBERSHIP', membershipId: membership.id },
+    };
+    this.assertPermission(context, permission);
+    const projection = await this.entitlements.resolveForProduct(organizationId, productCode, new Date(), tx);
+    if (projection.organizationId !== organizationId || projection.productCode !== productCode) {
+      throw new ForbiddenException('Product access denied');
+    }
+    const module = projection.modules.find((candidateModule) => candidateModule.code === moduleCode);
+    if (!module?.allowed) throw new ForbiddenException('Product module access denied');
+    return { ...context, productCode };
   }
 
   async requireModuleInTransaction(tx: Prisma.TransactionClient, principal: AuthPrincipal, organizationId: string, moduleCode: string, permission: Permission): Promise<AuthorizationContext> {
