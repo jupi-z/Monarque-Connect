@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 
-type Parameter = { name?: string; in?: string; required?: boolean; schema?: Schema };
+type Parameter = { $ref?: string; name?: string; in?: string; required?: boolean; schema?: Schema };
 type Schema = {
   type?: string | string[];
   format?: string;
@@ -54,7 +54,16 @@ function operation(spec: Document, key: string): Operation {
   if (!pathItem) throw new Error(`Missing proposed path ${path}`);
   const result = pathItem[method.toLowerCase()];
   if (!result) throw new Error(`Missing proposed operation ${key}`);
-  return { ...result, parameters: [...(pathItem.parameters ?? []), ...(result.parameters ?? [])] };
+  const parameters = [...(pathItem.parameters ?? []), ...(result.parameters ?? [])].map((parameter) => {
+    if (!parameter.$ref) return parameter;
+    const prefix = '#/components/parameters/';
+    if (!parameter.$ref.startsWith(prefix)) throw new Error(`Unsupported parameter reference ${parameter.$ref}`);
+    const name = parameter.$ref.slice(prefix.length);
+    const resolved = spec.components.parameters[name];
+    if (!resolved) throw new Error(`Missing proposed parameter ${name}`);
+    return resolved;
+  });
+  return { ...result, parameters };
 }
 
 function requiredSchema(spec: Document, name: string): Schema {
