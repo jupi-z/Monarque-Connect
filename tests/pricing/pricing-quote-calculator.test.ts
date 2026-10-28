@@ -74,6 +74,23 @@ describe('commercial quote calculator', () => {
     });
   });
 
+  it('adds SOURCE-currency tax before converting the final source total', () => {
+    const result = calculateQuote({
+      quantity: '1', inputUnit: kg, priceUnit: kg, unitPrice: '100',
+      sourceCurrencyCode: 'USD', sourceCurrencyDigits: 2,
+      targetCurrencyCode: 'CDF', targetCurrencyDigits: 2,
+      taxes: [{ code: 'SOURCE_TAX', version: 1, rate: '0.1', calculationCurrency: 'SOURCE' }],
+      fxRate: '2', fxBaseCurrencyCode: 'USD', fxQuoteCurrencyCode: 'CDF',
+    });
+
+    expect(result).toMatchObject({
+      sourceSubtotal: '100.00',
+      sourceNetAmount: '100.00',
+      taxes: [{ code: 'SOURCE_TAX', version: 1, calculationCurrency: 'SOURCE', amount: '10.00', currencyCode: 'USD' }],
+      sourceTotal: '110.00',
+      targetTotal: '220.00',
+    });
+  });
   it('calculates TARGET taxes after conversion and does not invent a source total', () => {
     const result = calculateQuote({
       quantity: '125', inputUnit: gram, priceUnit: kg, unitPrice: '20',
