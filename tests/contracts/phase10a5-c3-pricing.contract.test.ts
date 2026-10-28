@@ -14,7 +14,6 @@ type Schema = {
   required?: string[];
   items?: Schema;
   additionalProperties?: boolean;
-  description?: string;
   $ref?: string;
   allOf?: Schema[];
   anyOf?: Schema[];
