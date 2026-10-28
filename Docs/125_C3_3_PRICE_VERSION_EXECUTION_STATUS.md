@@ -1,10 +1,11 @@
-# C3.3.1 — Prix commerciaux versionnés: état d'exécution
+# C3.3 — Prix commerciaux versionnés et registre FX: état d'exécution
 
-**Statut: implémentation candidate, CI corrective en cours.** Ce document décrit le périmètre proposé de la première tranche C3.3. Il ne déclare ni migration validée, ni parcours de cotation terminé, ni C3.3/C3 clôturé.
+**Statut: C3.3.1 livré; implémentation C3.3.2 validée sur son SHA de code, validation du SHA documentaire en attente.** Ce document conserve l'historique de la première tranche puis suit le registre FX en cours. Il ne déclare ni moteur complet de cotation terminé, ni C3.3/C3 clôturé.
 
 ## Baseline
 
-- `main`: `909764d461991489250b5da1caf673d209ebfef8`.
+- Baseline initiale C3.3: `main@909764d461991489250b5da1caf673d209ebfef8`.
+- `main` après fusion C3.3.1: `1a1970504c5a8b7976740c620060292bf37aa408`.
 - Backend CI post-fusion C3.2: run [40650502528](https://github.com/jupi-z/Monarque-Connect/actions/runs/40650502528), conclusion `success` sur le SHA de cette baseline.
 - Branche candidate: `monarque/c3-pricing-fx`.
 - Contrat normatif: [Docs/122](122_C3_SHARED_CATALOG_PRICING_MEASURES_FX_CONTRACT.md).
@@ -27,6 +28,8 @@
 
 ## État des validations
 
+Les lignes d'échec ci-dessous sont l'historique des itérations de la PR #175 au moment où chaque SHA a été testé. Le résultat final C3.3.1 documenté après ce journal fait foi pour sa clôture; aucun résultat antérieur n'est effacé.
+
 | Contrôle | État |
 |---|---|
 | Tests ciblés locaux | `NOT_RUN`: Vitest n'est pas installé dans ce worktree; la commande ciblée n'a pas démarré. Aucun résultat de test n'est revendiqué localement. |
@@ -44,6 +47,21 @@
 | CI post-fusion | `NOT_RUN`: la PR n'est pas fusionnée. |
 | Déploiement ou validation production | `NOT_RUN` et hors périmètre. |
 
+## Résultat final C3.3.1
+
+- PR [#175](https://github.com/jupi-z/Monarque-Connect/pull/175) fusionnée; merge commit `1a1970504c5a8b7976740c620060292bf37aa408`.
+- CI PR réussie sur le head final, run [40657030191](https://github.com/jupi-z/Monarque-Connect/actions/runs/40657030191); CI post-fusion réussie sur `main`, run [40657980533](https://github.com/jupi-z/Monarque-Connect/actions/runs/40657980533).
+- La migration ajoutée, le contrat runtime et la primitive de calcul commercial sont livrés. Ce lot ne livre pas encore les policies, le service de cotation, les snapshots de cotation ni l'utilisation commerciale d'un taux FX.
+- Les tests locaux restent `NOT_RUN`; les preuves de migration, tests et build proviennent des exécutions GitHub Actions indiquées.
+
+## C3.3.2 — Registre de taux FX
+
+- PR brouillon [#176](https://github.com/jupi-z/Monarque-Connect/pull/176), branche `monarque/c3-fx-policy-registry`; SHA de code validé `1771207227a090d694392378d7cd598dbaba6c70`.
+- Périmètre: ingestion plateforme allowlistée, taux Decimal immuable, reçus idempotents, audit et Outbox atomiques, sans fournisseur FX externe ni moteur de cotation.
+- CI complète sur ce SHA: [run 40663124677](https://github.com/jupi-z/Monarque-Connect/actions/runs/40663124677), `success`. Les journaux confirment Prisma generate/validate/deploy, migrations depuis zéro et états historiques, OpenAPI, contrats, tests unitaires, intégration PostgreSQL, E2E HTTP, répétitions CRM/Phase 1, build, smoke HTTP et nettoyage de la base isolée.
+- Itérations antérieures conservées: les runs [40662535049](https://github.com/jupi-z/Monarque-Connect/actions/runs/40662535049) et [40662838967](https://github.com/jupi-z/Monarque-Connect/actions/runs/40662838967) ont détecté successivement un import Vitest `expect` manquant puis un import TypeScript inutilisé de `CommercialPriceService`. Les deux défauts ont été corrigés et ne sont pas masqués.
+- Cette mise à jour documentaire produit un nouveau SHA; sa CI complète doit réussir avant que la PR puisse être prête ou fusionnée.
+
 ## Limites et suite
 
-Cette tranche ne fournit pas encore la persistance ni les opérations de `PricingPolicyVersion`, `TaxPolicyVersion`, `FxRate`, `PricingQuote`, `PricingQuoteLine` ou `PricingQuoteRevocation`. Elle ne configure aucun fournisseur FX, ne déclare aucune conformité fiscale, ne remplace pas les anciens calculs Sales/Billing et ne réalise aucune transaction POS. Ces points restent ouverts dans C3.3/C3.4 et doivent être livrés avant toute clôture C3.
+Cette tranche apporte le registre persistant `FxRate` et ses reçus d’ingestion, mais pas encore la persistance ni les opérations de `PricingPolicyVersion`, `TaxPolicyVersion`, `PricingQuote`, `PricingQuoteLine` ou `PricingQuoteRevocation`, ni la sélection d’un taux dans une cotation commerciale. Elle ne configure aucun fournisseur FX, ne déclare aucune conformité fiscale, ne remplace pas les anciens calculs Sales/Billing et ne réalise aucune transaction POS. Ces points restent ouverts dans C3.3/C3.4 et doivent être livrés avant toute clôture C3.
