@@ -123,7 +123,7 @@ export class FxRateService {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
     }
     const replay = await this.prisma.fxRateIngestionReceipt.findUnique({ where: { actorUserId_idempotencyKey: { actorUserId, idempotencyKey } }, include: { fxRate: true } });
-    if (replay?.payloadHash !== payloadHash) throw new ConflictException('Idempotency-Key was already used for another FX rate command');
+    if (!replay || replay.payloadHash !== payloadHash) throw new ConflictException('Idempotency-Key was already used for another FX rate command');
     return this.serialize(replay.fxRate);
   }
 

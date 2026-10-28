@@ -55,6 +55,14 @@ describe('validateEnvironment', () => {
     })).toThrow(/FX ingestion users must also be platform administrators/i);
   });
 
+  it('rejects duplicate FX ingestion capability users', () => {
+    expect(() => validateEnvironment({
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test',
+      PLATFORM_ADMIN_USER_IDS: 'admin-a',
+      PLATFORM_PRICING_FX_INGEST_USER_IDS: 'admin-a,admin-a',
+    })).toThrow(/must contain unique user IDs/i);
+  });
+
   it('defaults FX ingestion allowlists to empty', () => {
     expect(validateEnvironment({ DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test' })).toMatchObject({
       PLATFORM_PRICING_FX_INGEST_USER_IDS: [],

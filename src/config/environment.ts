@@ -111,6 +111,9 @@ export function validateEnvironment(input: Record<string, unknown>): Record<stri
   if (platformPricingFxIngestUserIds.some((id) => !platformAdminUserIds.includes(id))) {
     throw new Error('FX ingestion users must also be platform administrators');
   }
+  if (new Set(platformPricingFxIngestUserIds).size !== platformPricingFxIngestUserIds.length) {
+    throw new Error('PLATFORM_PRICING_FX_INGEST_USER_IDS must contain unique user IDs');
+  }
 
   const pricingFxAllowedSources = typeof input.PRICING_FX_ALLOWED_SOURCES === 'string'
     ? input.PRICING_FX_ALLOWED_SOURCES.split(',').map((source) => source.trim().toUpperCase()).filter(Boolean)

@@ -15,7 +15,7 @@ CREATE TABLE "fx_rates" (
   "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "fx_rates_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "fx_rates_currency_pair_check" CHECK ("base_currency_code" <> "quote_currency_code"),
-  CONSTRAINT "fx_rates_rate_check" CHECK ("rate" > 0),
+  CONSTRAINT "fx_rates_rate_check" CHECK ("rate" > 0 AND "rate"::text NOT IN ('NaN', 'Infinity', '-Infinity')),
   CONSTRAINT "fx_rates_source_code_check" CHECK ("source_code" ~ '^[A-Z][A-Z0-9._-]{0,63}$'),
   CONSTRAINT "fx_rates_source_reference_check" CHECK (length(btrim("source_reference")) > 0),
   CONSTRAINT "fx_rates_validity_check" CHECK ("valid_until" > "valid_from"),
