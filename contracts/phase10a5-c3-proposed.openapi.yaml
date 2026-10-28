@@ -706,7 +706,6 @@ components:
         rate: { type: string, maxLength: 22, pattern: '^(?:0|[1-9]\d?|100)(?:\.\d{1,18})?$' }
         effectiveFrom: { type: string, format: date-time, description: Server time when omitted; explicit values must be future timestamps. }
         configurationReference: { type: string, minLength: 1, maxLength: 512, pattern: '^\S(?:[\s\S]*\S)?$' }
-      additionalProperties: false
     CommercialDiscountRuleVersion:
       type: object
       additionalProperties: false
