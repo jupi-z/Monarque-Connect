@@ -110,6 +110,30 @@ export class CreateTaxPolicyVersionDto {
   configurationReference!: string;
 }
 
+export class CreateCommercialDiscountRuleVersionDto {
+  @IsString()
+  @Matches(CODE)
+  productCode!: string;
+
+  @IsString()
+  @Matches(CODE)
+  code!: string;
+
+  @IsString()
+  @MaxLength(25)
+  @Matches(/^(?:0|[1-9]\d?|100)(?:\.\d{1,18})?$/)
+  rate!: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  effectiveFrom?: string;
+
+  @IsString()
+  @MaxLength(512)
+  @Matches(/^\S(?:[\s\S]*\S)?$/)
+  configurationReference!: string;
+}
+
 export class ActivateTaxPolicyVersionDto {
   @IsIn(['OWNER_REVIEWED_CONFIGURATION'])
   acknowledgement!: 'OWNER_REVIEWED_CONFIGURATION';

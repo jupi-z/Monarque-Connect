@@ -329,6 +329,7 @@ enum AuditAction {
   PRICING_POLICY_VERSION_CREATED
   PRICING_TAX_POLICY_DRAFT_CREATED
   PRICING_TAX_POLICY_ACTIVATED
+  PRICING_DISCOUNT_RULE_VERSION_CREATED
   PRICING_TAX_CONTEXT_DRAFT_CREATED
   PRICING_TAX_CONTEXT_ACTIVATED
   CATALOG_OFFER_TAX_CLASSIFICATION_CHANGED
@@ -733,6 +734,7 @@ model User {
   fxRateIngestionReceipts            FxRateIngestionReceipt[]
   createdPricingPolicyVersions      PricingPolicyVersion[]                @relation("PricingPolicyVersionCreatedBy")
   createdTaxPolicyVersions          TaxPolicyVersion[]                    @relation("TaxPolicyVersionCreatedBy")
+  createdCommercialDiscountRuleVersions CommercialDiscountRuleVersion[]   @relation("CommercialDiscountRuleVersionCreatedBy")
   activatedTaxPolicyVersions        TaxPolicyVersion[]                    @relation("TaxPolicyVersionActivatedBy")
   createdPricingTaxContextVersions PricingTaxContextVersion[]             @relation("PricingTaxContextCreatedBy")
   activatedPricingTaxContextVersions PricingTaxContextVersion[]           @relation("PricingTaxContextActivatedBy")
@@ -858,6 +860,7 @@ model ProductCatalog {
   commercialPriceVersions CommercialPriceVersion[]
   pricingPolicyVersions PricingPolicyVersion[]
   taxPolicyVersions TaxPolicyVersion[]
+  commercialDiscountRuleVersions CommercialDiscountRuleVersion[]
   pricingTaxContextVersions PricingTaxContextVersion[]
   pricingQuotes PricingQuote[]
 
@@ -1164,6 +1167,7 @@ model Organization {
   commercialPriceVersions           CommercialPriceVersion[]
   pricingPolicyVersions              PricingPolicyVersion[]
   taxPolicyVersions                  TaxPolicyVersion[]
+  commercialDiscountRuleVersions     CommercialDiscountRuleVersion[]
   pricingTaxContextVersions          PricingTaxContextVersion[]
   pricingQuotes                      PricingQuote[]
   catalogCommandReceipts            CatalogCommandReceipt[]
@@ -2178,6 +2182,30 @@ model TaxPolicyVersion {
   @@unique([organizationId, productCode, code, version], map: "tax_policy_versions_scope_code_version_key")
   @@index([organizationId, productCode, jurisdictionCode, taxCategoryCode, status, effectiveFrom(sort: Desc)], map: "tax_policy_versions_resolution_idx")
   @@map("tax_policy_versions")
+}
+
+/// Immutable tenant/product-scoped percentage discount rule; corrections are new effective versions.
+model CommercialDiscountRuleVersion {
+  id                     String          @id @db.Uuid
+  organizationId         String          @map("organization_id") @db.Uuid
+  productCode            String          @map("product_code") @db.VarChar(64)
+  code                   String          @db.VarChar(64)
+  version                Int
+  rate                   Decimal         @db.Decimal(24, 18)
+  effectiveFrom          DateTime        @map("effective_from") @db.Timestamptz(6)
+  configurationReference String          @map("configuration_reference") @db.VarChar(512)
+  createdByUserId        String          @map("created_by_user_id") @db.Uuid
+  commandPayloadHash     String          @map("command_payload_hash") @db.VarChar(64)
+  createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization           Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  product                ProductCatalog  @relation(fields: [productCode], references: [code], onDelete: Restrict)
+  createdBy              User            @relation("CommercialDiscountRuleVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, productCode, code, version], map: "commercial_discount_rule_versions_scope_code_version_key")
+  @@unique([organizationId, productCode, code, effectiveFrom], map: "commercial_discount_rule_versions_scope_code_effective_key")
+  @@unique([id, organizationId, productCode], map: "commercial_discount_rule_versions_id_scope_key")
+  @@index([organizationId, productCode, code, effectiveFrom(sort: Desc)], map: "commercial_discount_rule_versions_resolution_idx")
+  @@map("commercial_discount_rule_versions")
 }
 
 /// Tenant-configured context for technical tax resolution; it does not attest to legal jurisdiction.

@@ -4,6 +4,7 @@ import { CurrentPrincipal } from '../auth/auth.decorators.js';
 import type { AuthPrincipal } from '../auth/auth.types.js';
 import {
   ActivateTaxPolicyVersionDto,
+  CreateCommercialDiscountRuleVersionDto,
   CreatePricingPolicyVersionDto,
   CreateTaxPolicyVersionDto,
   PricingOrganizationParams,
@@ -35,6 +36,16 @@ export class PricingPolicyController {
     @Body() input: CreateTaxPolicyVersionDto,
   ): Promise<unknown> {
     return this.policies.createTaxPolicyVersion(principal, params.organizationId, input, key);
+  }
+
+  @Post('discount-rule-versions')
+  createCommercialDiscountRuleVersion(
+    @CurrentPrincipal() principal: AuthPrincipal,
+    @Param() params: PricingOrganizationParams,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() input: CreateCommercialDiscountRuleVersionDto,
+  ): Promise<unknown> {
+    return this.policies.createCommercialDiscountRuleVersion(principal, params.organizationId, input, key);
   }
 
   @Post('tax-policy-versions/:taxPolicyVersionId/activate')

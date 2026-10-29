@@ -348,6 +348,136 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     expect(quote.taxLines[0]?.rate).toBe('0.100000000000000000');
   });
 
+  it('creates immutable percentage discount versions and applies allowlisted discounts before tax', async () => {
+    const fixture = await createTaxQuoteFixture(app, prisma, { contexts: [{ establishmentId: null, jurisdictionCode: 'TEST-DISCOUNT', establishment: false }] });
+    const taxCode = await createActiveTaxPolicy(serverOf(app), fixture.tenant, 'TEST-DISCOUNT', '0.10');
+    const discountCode = `DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    const discountRoute = `/api/v1/organizations/${fixture.tenant.organizationId}/pricing/discount-rule-versions`;
+    const discountKey = `discount-rule-${randomUUID()}`;
+    const sales = await registerAndLogin(serverOf(app), `c3-discount-sales-${randomUUID()}@example.test`);
+    const salesUser = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: sales.email }, select: { id: true } });
+    await prisma.membership.create({ data: { id: randomUUID(), organizationId: fixture.tenant.organizationId, userId: salesUser.id, role: 'SALES', scopeMode: 'ALL_ESTABLISHMENTS', status: 'ACTIVE' } });
+    const discountPayload = {
+      productCode: 'MONARQUE_CONNECT', code: discountCode, rate: '15',
+      configurationReference: `synthetic-test-discount:${randomUUID()}`,
+    };
+    await request(serverOf(app)).post(discountRoute).set('Authorization', `Bearer ${sales.token}`)
+      .set('Idempotency-Key', `discount-rule-denied-${randomUUID()}`).send(discountPayload).expect(403);
+    const createdRule = bodyOf<{ id: string; code: string; version: number; rate: string }>(await request(serverOf(app))
+      .post(discountRoute).set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', discountKey)
+      .send(discountPayload).expect(201));
+    expect(createdRule).toMatchObject({ code: discountCode, version: 1, rate: '15.000000000000000000' });
+
+    const replayedRule = bodyOf<{ id: string }>(await request(serverOf(app))
+      .post(discountRoute).set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', discountKey)
+      .send(discountPayload).expect(201));
+    expect(replayedRule.id).toBe(createdRule.id);
+    await request(serverOf(app)).post(discountRoute)
+      .set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', discountKey)
+      .send({ ...discountPayload, rate: '16' }).expect(409);
+    await expect(prisma.catalogCommandReceipt.count({ where: { organizationId: fixture.tenant.organizationId, actorUserId: fixture.tenant.ownerId, resourceType: 'CommercialDiscountRuleVersion', resourceId: createdRule.id } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { organizationId: fixture.tenant.organizationId, targetType: 'CommercialDiscountRuleVersion', targetId: createdRule.id, action: 'PRICING_DISCOUNT_RULE_VERSION_CREATED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: fixture.tenant.organizationId, aggregateType: 'CommercialDiscountRuleVersion', aggregateId: createdRule.id, eventType: 'pricing.discount_rule_version.created' } })).resolves.toBe(1);
+    const event = await prisma.outboxEvent.findFirstOrThrow({ where: { organizationId: fixture.tenant.organizationId, aggregateType: 'CommercialDiscountRuleVersion', aggregateId: createdRule.id, eventType: 'pricing.discount_rule_version.created' } });
+    expect(event.payloadJson).toMatchObject({ productCode: 'MONARQUE_CONNECT', code: discountCode, version: 1 });
+    expect(event.payloadJson).not.toHaveProperty('rate');
+    expect(event.payloadJson).not.toHaveProperty('configurationReference');
+    await expect(prisma.commercialDiscountRuleVersion.update({ where: { id: createdRule.id }, data: { rate: '16' } })).rejects.toThrow();
+    await expect(prisma.commercialDiscountRuleVersion.delete({ where: { id: createdRule.id } })).rejects.toThrow();
+
+    const nextDiscountEffectiveFrom = new Date(Date.now() + 12 * 60_000).toISOString();
+    const nextRule = bodyOf<{ version: number }>(await request(serverOf(app)).post(discountRoute)
+      .set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', `discount-rule-next-${randomUUID()}`)
+      .send({ ...discountPayload, rate: '30', effectiveFrom: nextDiscountEffectiveFrom }).expect(201));
+    expect(nextRule.version).toBe(2);
+
+    await createActivePricingPolicy(serverOf(app), fixture.tenant, [taxCode], [discountCode]);
+    const offer = await createTaxableOffer(serverOf(app), fixture.tenant, fixture.itemId, true);
+    const quote = bodyOf<TaxQuoteSnapshot>(await request(serverOf(app))
+      .post(`/api/v1/organizations/${fixture.tenant.organizationId}/pricing/quotes`)
+      .set('Authorization', `Bearer ${fixture.tenant.ownerToken}`).set('Idempotency-Key', `discount-quote-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '2', unitCode: 'KG', targetCurrency: 'USD' }).expect(201));
+    expect(quote).toMatchObject({ snapshotVersion: 3, subtotal: '40.00', discountAmount: '6.00', netAmount: '34.00', sourceTotal: '37.40', targetTotal: '37.40' });
+    expect(Date.parse(quote.expiresAt)).toBeLessThanOrEqual(Date.parse(nextDiscountEffectiveFrom));
+    expect(quote.discounts).toEqual([{
+      ruleVersionId: createdRule.id, ruleCode: discountCode, version: 1, rate: '15.000000000000000000', amount: '6.00', currencyCode: 'USD',
+    }]);
+    expect(quote.taxLines[0]).toMatchObject({ taxableBase: '34.00', amount: '3.40', currencyCode: 'USD' });
+  });
+
+  it('serializes concurrent identical discount version creation', async () => {
+    const tenant = await createTenant(app, prisma);
+    const code = `DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    const effectiveFrom = new Date(Date.now() + 60_000).toISOString();
+    const route = `/api/v1/organizations/${tenant.organizationId}/pricing/discount-rule-versions`;
+    const submit = (suffix: string) => request(serverOf(app)).post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `discount-race-${suffix}-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', code, rate: '12.5', effectiveFrom, configurationReference: 'synthetic-test-discount:race' });
+    const [left, right] = await Promise.all([submit('left'), submit('right')]);
+    expect([left.status, right.status].sort(), JSON.stringify([left.body, right.body])).toEqual([201, 409]);
+    await expect(prisma.commercialDiscountRuleVersion.count({ where: { organizationId: tenant.organizationId, productCode: 'MONARQUE_CONNECT', code } })).resolves.toBe(1);
+  });
+
+  it('returns one immutable version and one audit trail for concurrent exact idempotent replays', async () => {
+    const tenant = await createTenant(app, prisma);
+    const code = `DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    const route = `/api/v1/organizations/${tenant.organizationId}/pricing/discount-rule-versions`;
+    const key = `discount-same-key-${randomUUID()}`;
+    const command = { productCode: 'MONARQUE_CONNECT', code, rate: '7.25', configurationReference: 'synthetic-test-discount:concurrent-replay' };
+    const submit = () => request(serverOf(app)).post(route)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', key).send(command);
+    const [left, right] = await Promise.all([submit(), submit()]);
+    expect([left.status, right.status].sort()).toEqual([201, 201]);
+    const leftRule = bodyOf<{ id: string }>(left);
+    const rightRule = bodyOf<{ id: string }>(right);
+    expect(leftRule.id).toBe(rightRule.id);
+    await expect(prisma.commercialDiscountRuleVersion.count({ where: { organizationId: tenant.organizationId, productCode: 'MONARQUE_CONNECT', code } })).resolves.toBe(1);
+    await expect(prisma.catalogCommandReceipt.count({ where: { organizationId: tenant.organizationId, actorUserId: tenant.ownerId, operation: 'PRICING_DISCOUNT_RULE_VERSION_CREATE', idempotencyKey: key } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'CommercialDiscountRuleVersion', targetId: leftRule.id, action: 'PRICING_DISCOUNT_RULE_VERSION_CREATED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'CommercialDiscountRuleVersion', aggregateId: leftRule.id, eventType: 'pricing.discount_rule_version.created' } })).resolves.toBe(1);
+  });
+
+  it('rejects percentage discount rates above one hundred percent', async () => {
+    const tenant = await createTenant(app, prisma);
+    const payload = {
+      productCode: 'MONARQUE_CONNECT', code: `DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`,
+      rate: '100.000000000000000001', configurationReference: `synthetic-test-discount:${randomUUID()}`,
+    };
+    await request(serverOf(app)).post(`/api/v1/organizations/${tenant.organizationId}/pricing/discount-rule-versions`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `discount-range-${randomUUID()}`)
+      .send(payload).expect(400);
+  });
+
+  it('fails closed when an allowlisted discount is missing or combined rates exceed one hundred percent', async () => {
+    const ruleOwner = await createTaxQuoteFixture(app, prisma, { contexts: [] });
+    const missingCode = `DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`;
+    await request(serverOf(app)).post(`/api/v1/organizations/${ruleOwner.tenant.organizationId}/pricing/discount-rule-versions`)
+      .set('Authorization', `Bearer ${ruleOwner.tenant.ownerToken}`).set('Idempotency-Key', `discount-owner-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', code: missingCode, rate: '10', configurationReference: `synthetic-test-discount:${randomUUID()}` }).expect(201);
+
+    const missing = await createTaxQuoteFixture(app, prisma, { contexts: [] });
+    await createActivePricingPolicy(serverOf(app), missing.tenant, [], [missingCode]);
+    const missingOffer = await createTaxableOffer(serverOf(app), missing.tenant, missing.itemId, false);
+    await request(serverOf(app)).post(`/api/v1/organizations/${missing.tenant.organizationId}/pricing/quotes`)
+      .set('Authorization', `Bearer ${missing.tenant.ownerToken}`).set('Idempotency-Key', `discount-missing-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: missingOffer.id, quantity: '1', unitCode: 'KG', targetCurrency: 'USD' }).expect(422);
+    await expect(prisma.pricingQuote.count({ where: { organizationId: missing.tenant.organizationId } })).resolves.toBe(0);
+
+    const overallocated = await createTaxQuoteFixture(app, prisma, { contexts: [] });
+    const discountCodes = [`DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`, `DISC_${randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase()}`];
+    for (const code of discountCodes) {
+      await request(serverOf(app)).post(`/api/v1/organizations/${overallocated.tenant.organizationId}/pricing/discount-rule-versions`)
+        .set('Authorization', `Bearer ${overallocated.tenant.ownerToken}`).set('Idempotency-Key', `discount-overallocated-${randomUUID()}`)
+        .send({ productCode: 'MONARQUE_CONNECT', code, rate: '60', configurationReference: `synthetic-test-discount:${randomUUID()}` }).expect(201);
+    }
+    await createActivePricingPolicy(serverOf(app), overallocated.tenant, [], discountCodes);
+    const overallocatedOffer = await createTaxableOffer(serverOf(app), overallocated.tenant, overallocated.itemId, false);
+    await request(serverOf(app)).post(`/api/v1/organizations/${overallocated.tenant.organizationId}/pricing/quotes`)
+      .set('Authorization', `Bearer ${overallocated.tenant.ownerToken}`).set('Idempotency-Key', `discount-overallocated-quote-${randomUUID()}`)
+      .send({ productCode: 'MONARQUE_CONNECT', offerId: overallocatedOffer.id, quantity: '1', unitCode: 'KG', targetCurrency: 'USD' }).expect(422);
+    await expect(prisma.pricingQuote.count({ where: { organizationId: overallocated.tenant.organizationId } })).resolves.toBe(0);
+  });
+
   it('creates a server-priced commercial quote and replays its immutable result idempotently', async () => {
     const tenant = await createTenant(app, prisma);
     const server = serverOf(app);
@@ -495,7 +625,11 @@ function taxPolicyPayload(effectiveFrom: string | null = new Date(Date.now() + 6
 }
 
 type TaxQuoteSnapshot = {
+  snapshotVersion: number;
   id: string;
+  subtotal: string;
+  discountAmount: string;
+  netAmount: string;
   sourceTotal: string | null;
   targetTotal: string;
   valuationAt: string;
@@ -503,6 +637,7 @@ type TaxQuoteSnapshot = {
   establishmentId: string | null;
   taxCategoryCode: string | null;
   taxContext: { versionId: string; version: number; establishmentId: string | null; jurisdictionCode: string; effectiveFrom: string } | null;
+  discounts: Array<{ ruleVersionId: string; ruleCode: string; version: number; rate: string; amount: string; currencyCode: string }>;
   taxLines: Array<{ policyVersionId: string; code: string; version: number; rate: string; taxableBase: string; amount: string; currencyCode: string; calculationCurrency: 'SOURCE' | 'TARGET' }>;
   taxPolicyVersionIds: string[];
   taxCalculationCurrency: 'SOURCE' | 'TARGET';
@@ -580,10 +715,11 @@ async function createActivePricingPolicy(
   server: Parameters<typeof request>[0],
   tenant: { organizationId: string; ownerToken: string },
   taxPolicyCodes: string[],
+  discountRuleCodes: string[] = [],
 ): Promise<void> {
   await request(server).post(`/api/v1/organizations/${tenant.organizationId}/pricing/policy-versions`)
     .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', `tax-pricing-policy-fixture-${randomUUID()}`)
-    .send({ ...pricingPolicyPayload(), taxPolicyCodes }).expect(201);
+    .send({ ...pricingPolicyPayload(), taxPolicyCodes, discountRuleCodes }).expect(201);
 }
 
 async function createTaxableOffer(

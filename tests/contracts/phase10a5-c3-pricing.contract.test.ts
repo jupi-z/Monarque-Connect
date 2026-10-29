@@ -13,6 +13,7 @@ type Schema = {
   properties?: Record<string, Schema>;
   required?: string[];
   items?: Schema;
+  additionalProperties?: boolean;
   $ref?: string;
   allOf?: Schema[];
   anyOf?: Schema[];
@@ -35,6 +36,7 @@ const expected: Record<string, string> = {
   'POST /organizations/{organizationId}/catalog/offers/{offerId}/price-versions': 'publishCommercialPriceVersion',
   'POST /organizations/{organizationId}/catalog/items/{itemId}/variants': 'createItemVariant',
   'POST /organizations/{organizationId}/pricing/policy-versions': 'createPricingPolicyVersion',
+  'POST /organizations/{organizationId}/pricing/discount-rule-versions': 'createCommercialDiscountRuleVersion',
   'POST /organizations/{organizationId}/pricing/tax-policy-versions': 'createTaxPolicyVersion',
   'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate': 'activateTaxPolicyVersion',
   'POST /organizations/{organizationId}/pricing/tax-context-versions': 'createPricingTaxContextVersion',
@@ -112,6 +114,7 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     const runtime = await loadRuntime();
     for (const key of [
       'POST /organizations/{organizationId}/pricing/policy-versions',
+      'POST /organizations/{organizationId}/pricing/discount-rule-versions',
       'POST /organizations/{organizationId}/pricing/tax-policy-versions',
       'POST /organizations/{organizationId}/pricing/tax-policy-versions/{taxPolicyVersionId}/activate',
       'POST /organizations/{organizationId}/pricing/tax-context-versions',
@@ -255,5 +258,26 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     expect(requiredProperty(classificationInput, 'taxCategoryCode').type).toEqual(['string', 'null']);
     expect(requiredSchema(spec, 'CommercialOffer').required).toContain('taxCategoryCode');
     expect(requiredProperty(requiredSchema(spec, 'CommercialOffer'), 'taxCategoryCode').type).toEqual(['string', 'null']);
+  });
+
+  it('defines immutable server-managed discount rules and provenance-bearing quote snapshots', async () => {
+    const spec = await load();
+    const operationContract = operation(spec, 'POST /organizations/{organizationId}/pricing/discount-rule-versions') as Operation & {
+      'x-required-principal'?: string; 'x-required-roles'?: string[]; 'x-required-permissions'?: string[];
+    };
+    expect(operationContract['x-required-principal']).toBe('STAFF');
+    expect(operationContract['x-required-roles']).toEqual(expect.arrayContaining(['OWNER', 'ADMIN']));
+    expect(operationContract['x-required-permissions']).toContain('pricing:policy:manage');
+    expect(schemaRef(Object.values(operationContract.requestBody?.content ?? {})[0]?.schema)).toBe('#/components/schemas/CreateCommercialDiscountRuleVersion');
+    expect(schemaRef(operationContract.responses?.['201']?.content?.['application/json']?.schema)).toBe('#/components/schemas/CommercialDiscountRuleVersion');
+
+    const input = requiredSchema(spec, 'CreateCommercialDiscountRuleVersion');
+    expect(input.required).toEqual(expect.arrayContaining(['productCode', 'code', 'rate', 'configurationReference']));
+    expect(requiredProperty(input, 'rate').type).toBe('string');
+    expect(input.additionalProperties).toBe(false);
+    const snapshot = requiredSchema(spec, 'DiscountLineSnapshot');
+    expect(snapshot.required).toEqual(expect.arrayContaining(['ruleVersionId', 'ruleCode', 'version', 'rate', 'amount', 'currencyCode']));
+    expect(snapshot.properties).not.toHaveProperty('policyVersion');
+    expect(requiredProperty(requiredSchema(spec, 'PricingQuoteSnapshot'), 'snapshotVersion').description).toContain('version 3');
   });
 });
