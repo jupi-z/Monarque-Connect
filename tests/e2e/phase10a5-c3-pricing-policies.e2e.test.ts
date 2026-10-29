@@ -510,11 +510,14 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
 
     const revokeKey = `pricing-quote-revoke-${randomUUID()}`;
     const [left, right] = await Promise.all([revoke(tenant.ownerToken, revokeKey), revoke(tenant.ownerToken, revokeKey)]);
+    type RevokedQuoteResponse = { id: string; validity: string; targetTotal: string; revokedAt: string; revocationReasonCode: string };
+    const leftBody = bodyOf<RevokedQuoteResponse>(left);
+    const rightBody = bodyOf<RevokedQuoteResponse>(right);
     expect([left.status, right.status].sort()).toEqual([200, 200]);
-    expect(left.body.id).toBe(created.id);
-    expect(right.body).toEqual(left.body);
-    expect(left.body).toMatchObject({ ...created, validity: 'REVOKED', revocationReasonCode: 'CUSTOMER_REQUEST' });
-    expect(Date.parse(left.body.revokedAt)).toBeGreaterThan(0);
+    expect(leftBody.id).toBe(created.id);
+    expect(rightBody).toEqual(leftBody);
+    expect(leftBody).toMatchObject({ ...created, validity: 'REVOKED', revocationReasonCode: 'CUSTOMER_REQUEST' });
+    expect(Date.parse(leftBody.revokedAt)).toBeGreaterThan(0);
     await revoke(tenant.ownerToken, revokeKey, 'SECURITY_REVIEW').expect(409);
     await revoke(tenant.ownerToken, `second-revoke-${randomUUID()}`).expect(409);
 
