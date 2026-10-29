@@ -214,7 +214,7 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     expect(quote.responses?.['422']).toBeDefined();
     expect(schemaRef(quote.responses?.['201']?.content?.['application/json']?.schema)).toBe('#/components/schemas/PricingQuoteSnapshot');
     const snapshot = requiredSchema(spec, 'PricingQuoteSnapshot');
-    expect(requiredProperty(snapshot, 'validity').enum).toEqual(['VALID', 'EXPIRED']);
+    expect(requiredProperty(snapshot, 'validity').enum).toEqual(['VALID', 'EXPIRED', 'REVOKED']);
     expect(snapshot.required).toEqual(expect.arrayContaining(['inputHash', 'priceVersionId', 'pricingPolicyVersionId', 'subtotal', 'netAmount', 'discountAmount', 'sourceTotal', 'sourceCurrency', 'targetTotal', 'roundingPolicyVersion', 'calculationVersion', 'validity', 'establishmentId', 'channelCode', 'variantId', 'fx']));
     expect(requiredProperty(snapshot, 'establishmentId')).toBeDefined();
     expect(requiredProperty(snapshot, 'channelCode')).toBeDefined();

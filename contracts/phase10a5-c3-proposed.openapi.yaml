@@ -279,6 +279,13 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /organizations/{organizationId}/pricing/quotes/{quoteId}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: quoteId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
     post:
       tags: [Pricing]
       operationId: revokePricingQuote
