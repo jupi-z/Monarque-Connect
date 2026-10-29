@@ -4,14 +4,14 @@ Le rapport [d'audit C0](115_PHASE_10A5_C0_CODEBASE_AUDIT.md) documente le code e
 
 Mise à jour après cette clôture historique : la synchronisation documentaire C2 PR #170 est fusionnée; le `main` observé pour l'ouverture C3 est `2dff07eae662d8de186d6f23cf831dd72c1dfec9`, avec CI post-fusion [run 40635438412](https://github.com/jupi-z/Monarque-Connect/actions/runs/40635438412) réussie. La ligne ci-dessus conserve l'état vérifié à l'époque de la PR #169.
 
-**Statut Phase 10A.5 = IN_PROGRESS. C0 = CLOSED. C1.1–C1.4 = DONE. C2.1–C2.4 = DONE / issue #163 CLOSED. C3 = AUTHORIZED; C3.1 = DONE; C3.2 = DONE; C3.3.1–C3.3.4 = DONE, dont PR #180 fusionnée dans `main@173d68ff9bc8bb0beab16e4e0e72d788b91435b8`, CI PR #40704490523 et post-fusion #40705791462 réussies. Le noyau pur de calcul de cotation est livré; persistance/résolution des quotes et snapshots restent IN_PROGRESS; C3.4 = NOT STARTED. C4–C8 = PLANNED / NOT AUTHORIZED.** Les gates externes de fournisseur FX, conformité fiscale et production restent distincts; les critères G-01–G-14 ne sont pas satisfaits intégralement.
+**Statut Phase 10A.5 = IN_PROGRESS. C0 = CLOSED; C1.1–C1.4 = DONE; C2.1–C2.4 = DONE / issue #163 CLOSED; C3.1–C3.4 = DONE techniquement / issue #171 à synchroniser après revue des preuves.** C3.4 PR #187 fusionnée à `main@46b8b61b1ed670cd0b6e7c433db1986da61d468d`; CI PR [40850299703](https://github.com/jupi-z/Monarque-Connect/actions/runs/40850299703) et post-fusion [40851397121](https://github.com/jupi-z/Monarque-Connect/actions/runs/40851397121) réussies. Les résolveurs de contexte fiscal/remises et la révocation append-only des devis sont livrés; preuves détaillées dans [Docs/127](127_C3_CLOSURE_EVIDENCE.md). C4–C8 restent PLANNED / NOT AUTHORIZED. Les gates externes (fournisseur FX live, validation fiscale, PSP, sauvegarde/restauration opérationnelle, commercialisation) ne sont pas réputés satisfaits par C3.
 
 | Lot | Poids | Dépendances |
 |---|---:|---|
 | C0 audit/mapping/ADRs | 10 | 10A clôturée |
 | C1 product catalog/entitlements | 12 | C0 |
 | C2 identity/tenancy/clients | 12 | C0; DONE, preuves Docs/120–121 |
-| C3 prix, catalogue, FX/unités | 12 | C1/C2; C3.1–C3.3.4 livrés avec CI PR/main prouvées; persistance et snapshots quotes C3.3 puis C3.4 à exécuter; Docs/122–125 |
+| C3 prix, catalogue, FX/unités | 12 | C1/C2; C3.1–C3.4 techniquement DONE, preuves Docs/122–127 et CI PR/main; aucun C4/POS inclus |
 | C4 Sales/POS/Cash transactionnel | 20 | C2/C3 |
 | C5 documents/impression/fiscalité | 10 | C4 |
 | C6 AI/events contrats partagés | 8 | C0/C2 |
