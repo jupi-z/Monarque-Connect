@@ -1,7 +1,7 @@
 # C3 — Shared Catalog, Pricing, Measures & FX — statut
 
 **Issue de suivi :** [#171](https://github.com/jupi-z/Monarque-Connect/issues/171)
-**Baseline vérifiée :** `main@ce7d9ae392db49419033dee959513f8da083208f` après fusion de PR #182; CI post-fusion [40750165326](https://github.com/jupi-z/Monarque-Connect/actions/runs/40750165326) réussie sur ce SHA.
+**État final vérifié :** C3 techniquement clôturé sur `main@46b8b61b1ed670cd0b6e7c433db1986da61d468d` après PR #187. CI PR [40850299703](https://github.com/jupi-z/Monarque-Connect/actions/runs/40850299703) réussie sur le head `a9ebb59f75a145dc79a1a93cb18308495c513651`; CI post-fusion [40851397121](https://github.com/jupi-z/Monarque-Connect/actions/runs/40851397121) réussie sur le merge SHA `46b8b61b1ed670cd0b6e7c433db1986da61d468d`.
 
 **CI post-fusion C3.1 :** PR #172, run [40639567210](https://github.com/jupi-z/Monarque-Connect/actions/runs/40639567210), success sur le SHA exact.
 
@@ -14,13 +14,13 @@
 | C2 | DONE | Identités externes et principaux tenant | Docs/119–121; PR #164–#169; preuve de clôture CI #561, puis `main@2dff07e` CI post-fusion #170 run 40635438412 |
 | C3.1 | DONE | Audit, contrat normatif et OpenAPI proposé; aucune migration ni route runtime | PR [#172](https://github.com/jupi-z/Monarque-Connect/pull/172), fusionnée au commit `e19bd1f`; CI PR #569 et post-fusion #40639567210 vertes |
 | C3.2 | DONE | Catalogue, mesures, variantes et offres | PR #174 fusionnée dans `main@909764d`; CI post-fusion #583, run [40650502528](https://github.com/jupi-z/Monarque-Connect/actions/runs/40650502528), success. Détails actualisés dans [Docs/124](124_C3_2_CATALOG_MEASURES_EXECUTION_EVIDENCE.md). |
-| C3.3 | IN PROGRESS | Prix, FX, policies, calcul Decimal et quotes persistées livrés; résolveurs discount/tax encore requis | PR #182 fusionnée au commit `ce7d9ae392db49419033dee959513f8da083208f`; CI PR [40745940521](https://github.com/jupi-z/Monarque-Connect/actions/runs/40745940521) et post-fusion [40750165326](https://github.com/jupi-z/Monarque-Connect/actions/runs/40750165326) réussies. Détails historiques dans Docs/125; règles normatives de résolution dans Docs/126. |
-| C3.4 | IN PROGRESS | Résolveurs sûrs de contexte fiscal/remises, révocation de quote, sécurité, compatibilité et clôture | Contrat préparatoire Docs/126; code et preuves restent à livrer. |
-| C4–C8 | NOT AUTHORIZED | Hors de cette mission | Pas commencé |
+| C3.3 | DONE | Prix commerciaux versionnés, FX, policies, calcul Decimal et quotes persistées; résolution de taxes et remises livrée | PR #182–#186 fusionnées; références historiques dans Docs/125–126. CI post-fusion PR #186 [40846748088](https://github.com/jupi-z/Monarque-Connect/actions/runs/40846748088) verte sur `main@45b5558fe08a78e82338dc4e6e3a9bed99549d48`. |
+| C3.4 | DONE | Révocation append-only des quotes; contrôles Owner/Admin, tenant/produit/établissement, idempotence, audit/Outbox atomiques et snapshot inchangé | PR [#187](https://github.com/jupi-z/Monarque-Connect/pull/187) fusionnée; CI PR [40850299703](https://github.com/jupi-z/Monarque-Connect/actions/runs/40850299703), post-fusion [40851397121](https://github.com/jupi-z/Monarque-Connect/actions/runs/40851397121). Preuve de clôture: [Docs/127](127_C3_CLOSURE_EVIDENCE.md). |
+| C4–C8 | NOT AUTHORIZED | Hors de cette mission | Pas commencé; C3 ne livre ni POS, ni fiscalisation officielle, ni interface client. |
 
 ## Contrat et audit
 
-Le contrat cible et les preuves sont dans Docs/122–126. PR #182 livre la quote tenant/product-scoped, son snapshot immuable, le calcul et le rejeu idempotent. La quote reste fail-closed pour toute policy avec codes de remise ou de taxe jusqu'à livraison des résolveurs décrits dans Docs/126. Aucun fournisseur FX réel ni conformité fiscale n'est déclaré.
+Le contrat cible et les preuves sont dans Docs/122–127. Les routes, règles, mesures, prix/FX et snapshots C3 ont été validés par les contrôles CI PR et post-fusion référencés. Aucun fournisseur FX réel ni conformité fiscale n'est déclaré.
 
 ## Gates de clôture C3
 
