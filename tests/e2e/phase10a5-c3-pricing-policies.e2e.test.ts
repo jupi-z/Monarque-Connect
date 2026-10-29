@@ -478,6 +478,70 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     await expect(prisma.pricingQuote.count({ where: { organizationId: overallocated.tenant.organizationId } })).resolves.toBe(0);
   });
 
+  it('revokes a quote once, atomically audits it, and preserves its immutable snapshot', async () => {
+    const tenant = await createTenant(app, prisma);
+    const server = serverOf(app);
+    const item = bodyOf<{ id: string }>(await request(server).post(`/api/v1/organizations/${tenant.organizationId}/items`)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .send({ type: 'PRODUCT', name: `Revocable quote item ${randomUUID()}`, unit: 'kg', referencePrice: '1', currency: 'USD' }).expect(201));
+    const offer = await createTaxableOffer(server, tenant, item.id, false);
+    await createActivePricingPolicy(server, tenant, [], []);
+    const quoteRoute = `/api/v1/organizations/${tenant.organizationId}/pricing/quotes`;
+    const createKey = `revocable-quote-create-${randomUUID()}`;
+    const command = { productCode: 'MONARQUE_CONNECT', offerId: offer.id, quantity: '1', unitCode: 'KG', targetCurrency: 'USD' };
+    const created = bodyOf<{ id: string; validity: string; targetTotal: string }>(await request(server).post(quoteRoute)
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).set('Idempotency-Key', createKey).send(command).expect(201));
+    expect(created).toMatchObject({ validity: 'VALID', targetTotal: '20.00' });
+    const storedSnapshot = await prisma.pricingQuote.findUniqueOrThrow({ where: { id: created.id }, select: { snapshotJson: true } });
+
+    const sales = await registerAndLogin(server, `c3-revoke-sales-${randomUUID()}@example.test`);
+    const salesUser = await prisma.user.findUniqueOrThrow({ where: { normalizedEmail: sales.email }, select: { id: true } });
+    await prisma.membership.create({ data: { id: randomUUID(), organizationId: tenant.organizationId, userId: salesUser.id, role: 'SALES', scopeMode: 'ALL_ESTABLISHMENTS', status: 'ACTIVE' } });
+    const revokePath = `/api/v1/organizations/${tenant.organizationId}/pricing/quotes/${created.id}/revoke`;
+    const revoke = (auth: string, key: string, reasonCode = 'CUSTOMER_REQUEST') => request(server).post(revokePath)
+      .query({ productCode: 'MONARQUE_CONNECT' }).set('Authorization', `Bearer ${auth}`).set('Idempotency-Key', key).send({ reasonCode });
+
+    await revoke(sales.token, `sales-cannot-revoke-${randomUUID()}`).expect(403);
+    const otherTenant = await createTenant(app, prisma);
+    await request(server).post(`/api/v1/organizations/${otherTenant.organizationId}/pricing/quotes/${created.id}/revoke`)
+      .query({ productCode: 'MONARQUE_CONNECT' }).set('Authorization', `Bearer ${otherTenant.ownerToken}`)
+      .set('Idempotency-Key', `cross-tenant-revoke-${randomUUID()}`).send({ reasonCode: 'CUSTOMER_REQUEST' }).expect(404);
+    await revoke(tenant.ownerToken, `invalid-reason-${randomUUID()}`, 'FREE_TEXT_REASON').expect(400);
+
+    const revokeKey = `pricing-quote-revoke-${randomUUID()}`;
+    const [left, right] = await Promise.all([revoke(tenant.ownerToken, revokeKey), revoke(tenant.ownerToken, revokeKey)]);
+    type RevokedQuoteResponse = { id: string; validity: string; targetTotal: string; revokedAt: string; revocationReasonCode: string };
+    const leftBody = bodyOf<RevokedQuoteResponse>(left);
+    const rightBody = bodyOf<RevokedQuoteResponse>(right);
+    expect([left.status, right.status].sort()).toEqual([201, 201]);
+    expect(leftBody.id).toBe(created.id);
+    expect(rightBody).toEqual(leftBody);
+    expect(leftBody).toMatchObject({ ...created, validity: 'REVOKED', revocationReasonCode: 'CUSTOMER_REQUEST' });
+    expect(Date.parse(leftBody.revokedAt)).toBeGreaterThan(0);
+    await revoke(tenant.ownerToken, revokeKey, 'SECURITY_REVIEW').expect(409);
+    await revoke(tenant.ownerToken, `second-revoke-${randomUUID()}`).expect(409);
+
+    const readBack = await request(server).get(`${quoteRoute}/${created.id}`).query({ productCode: 'MONARQUE_CONNECT' })
+      .set('Authorization', `Bearer ${tenant.ownerToken}`).expect(200);
+    expect(readBack.body).toEqual(left.body);
+    const createReplay = await request(server).post(quoteRoute).set('Authorization', `Bearer ${tenant.ownerToken}`)
+      .set('Idempotency-Key', createKey).send(command).expect(201);
+    expect(createReplay.body).toEqual(left.body);
+    const persisted = await prisma.pricingQuote.findUniqueOrThrow({ where: { id: created.id }, select: { snapshotJson: true } });
+    expect(persisted.snapshotJson).toEqual(storedSnapshot.snapshotJson);
+    await expect(prisma.pricingQuote.update({ where: { id: created.id }, data: { snapshotJson: { tampered: true } } })).rejects.toThrow();
+    const revocation = await prisma.pricingQuoteRevocation.findUniqueOrThrow({ where: { quoteId_organizationId: { quoteId: created.id, organizationId: tenant.organizationId } } });
+    await expect(prisma.pricingQuoteRevocation.update({ where: { id: revocation.id }, data: { reasonCode: 'OTHER' } })).rejects.toThrow();
+    await expect(prisma.pricingQuoteRevocation.delete({ where: { id: revocation.id } })).rejects.toThrow();
+    await expect(prisma.catalogCommandReceipt.count({ where: { organizationId: tenant.organizationId, actorUserId: tenant.ownerId, operation: 'PRICING_QUOTE_REVOKE', idempotencyKey: revokeKey } })).resolves.toBe(1);
+    await expect(prisma.auditEvent.count({ where: { organizationId: tenant.organizationId, targetType: 'PricingQuote', targetId: created.id, action: 'PRICING_QUOTE_REVOKED' } })).resolves.toBe(1);
+    await expect(prisma.outboxEvent.count({ where: { organizationId: tenant.organizationId, aggregateType: 'PricingQuote', aggregateId: created.id, eventType: 'pricing.quote.revoked' } })).resolves.toBe(1);
+    const event = await prisma.outboxEvent.findFirstOrThrow({ where: { organizationId: tenant.organizationId, aggregateType: 'PricingQuote', aggregateId: created.id, eventType: 'pricing.quote.revoked' } });
+    expect(event.payloadJson).toMatchObject({ quoteId: created.id, productCode: 'MONARQUE_CONNECT', revocationId: revocation.id });
+    expect(event.payloadJson).not.toHaveProperty('reasonCode');
+    expect(event.payloadJson).not.toHaveProperty('targetTotal');
+  });
+
   it('creates a server-priced commercial quote and replays its immutable result idempotently', async () => {
     const tenant = await createTenant(app, prisma);
     const server = serverOf(app);

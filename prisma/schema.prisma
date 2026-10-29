@@ -334,6 +334,7 @@ enum AuditAction {
   PRICING_TAX_CONTEXT_ACTIVATED
   CATALOG_OFFER_TAX_CLASSIFICATION_CHANGED
   PRICING_QUOTE_CREATED
+  PRICING_QUOTE_REVOKED
   SUPPLIER_RFQ_CREATED
   SUPPLIER_RFQ_UPDATED
   SUPPLIER_RFQ_STATUS_CHANGED
@@ -722,6 +723,7 @@ model User {
   messagingOrganizationParticipants ConversationOrganizationParticipant[] @relation("MessagingOrganizationParticipantCreatedBy")
   messagingUserParticipants         ConversationUserParticipant[]         @relation("MessagingUserParticipantUser")
   authoredMessages                  Message[]                             @relation("MessageAuthor")
+  revokedPricingQuotes              PricingQuoteRevocation[]              @relation("PricingQuoteRevokedBy")
   createdMessagingInvitations       MessagingInvitation[]                 @relation("MessagingInvitationCreatedBy")
   targetedMessagingInvitations      MessagingInvitation[]                 @relation("MessagingInvitationTargetUser")
   createdMessagingBlocks            MessagingOrganizationBlock[]          @relation("MessagingBlockCreatedBy")
@@ -1170,6 +1172,7 @@ model Organization {
   commercialDiscountRuleVersions     CommercialDiscountRuleVersion[]
   pricingTaxContextVersions          PricingTaxContextVersion[]
   pricingQuotes                      PricingQuote[]
+  pricingQuoteRevocations             PricingQuoteRevocation[]
   catalogCommandReceipts            CatalogCommandReceipt[]
   warehouses                        Warehouse[]
   leads                             Lead[]
@@ -2325,6 +2328,7 @@ model PricingQuote {
   pricingPolicyVersion   PricingPolicyVersion     @relation(fields: [pricingPolicyVersionId, organizationId, productCode], references: [id, organizationId, productCode], onDelete: Restrict)
   actor                  User                     @relation("PricingQuoteCreatedBy", fields: [actorUserId], references: [id], onDelete: Restrict)
   lines                  PricingQuoteLine[]
+  revocation             PricingQuoteRevocation?
 
   @@unique([id, organizationId])
   @@unique([organizationId, idempotencyKey], map: "pricing_quotes_org_idempotency_key")
@@ -2346,6 +2350,24 @@ model PricingQuoteLine {
   @@unique([quoteId, lineIndex])
   @@index([organizationId, quoteId])
   @@map("pricing_quote_lines")
+}
+
+/// Append-only invalidation record; the quote snapshot itself remains immutable.
+model PricingQuoteRevocation {
+  id                 String       @id @db.Uuid
+  organizationId     String       @map("organization_id") @db.Uuid
+  quoteId            String       @map("quote_id") @db.Uuid
+  actorUserId        String       @map("actor_user_id") @db.Uuid
+  reasonCode         String       @map("reason_code") @db.VarChar(40)
+  commandPayloadHash String       @map("command_payload_hash") @db.VarChar(64)
+  revokedAt          DateTime     @default(now()) @map("revoked_at") @db.Timestamptz(6)
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quote              PricingQuote @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  actor              User         @relation("PricingQuoteRevokedBy", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([quoteId, organizationId])
+  @@index([organizationId, revokedAt(sort: Desc)])
+  @@map("pricing_quote_revocations")
 }
 
 model Warehouse {

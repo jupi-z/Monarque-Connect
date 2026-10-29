@@ -44,6 +44,7 @@ const expected: Record<string, string> = {
   'PUT /organizations/{organizationId}/catalog/offers/{offerId}/tax-classification': 'classifyCommercialOfferTax',
   'POST /organizations/{organizationId}/pricing/quotes': 'createPricingQuote',
   'GET /organizations/{organizationId}/pricing/quotes/{quoteId}': 'getPricingQuote',
+  'POST /organizations/{organizationId}/pricing/quotes/{quoteId}/revoke': 'revokePricingQuote',
   'POST /platform/pricing/fx-rates': 'ingestFxRate',
 };
 
@@ -213,7 +214,7 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     expect(quote.responses?.['422']).toBeDefined();
     expect(schemaRef(quote.responses?.['201']?.content?.['application/json']?.schema)).toBe('#/components/schemas/PricingQuoteSnapshot');
     const snapshot = requiredSchema(spec, 'PricingQuoteSnapshot');
-    expect(requiredProperty(snapshot, 'validity').enum).toEqual(['VALID', 'EXPIRED']);
+    expect(requiredProperty(snapshot, 'validity').enum).toEqual(['VALID', 'EXPIRED', 'REVOKED']);
     expect(snapshot.required).toEqual(expect.arrayContaining(['inputHash', 'priceVersionId', 'pricingPolicyVersionId', 'subtotal', 'netAmount', 'discountAmount', 'sourceTotal', 'sourceCurrency', 'targetTotal', 'roundingPolicyVersion', 'calculationVersion', 'validity', 'establishmentId', 'channelCode', 'variantId', 'fx']));
     expect(requiredProperty(snapshot, 'establishmentId')).toBeDefined();
     expect(requiredProperty(snapshot, 'channelCode')).toBeDefined();
@@ -231,6 +232,22 @@ describe('C3 catalog and pricing OpenAPI contract', () => {
     }
     expect(requiredSchema(spec, 'TaxLineSnapshot').required).toEqual(expect.arrayContaining(['policyVersionId', 'code', 'version', 'calculationCurrency', 'rate', 'taxableBase', 'amount', 'currencyCode']));
     expect(requiredSchema(spec, 'PricingTaxContextSnapshot').required).toEqual(expect.arrayContaining(['versionId', 'version', 'establishmentId', 'jurisdictionCode', 'effectiveFrom']));
+  });
+
+  it('defines owner/admin-only append-only quote revocation with idempotency', async () => {
+    const spec = await load();
+    const revocation = operation(spec, 'POST /organizations/{organizationId}/pricing/quotes/{quoteId}/revoke') as Operation & {
+      'x-required-principal'?: string; 'x-required-roles'?: string[]; 'x-required-permissions'?: string[];
+    };
+    expect(revocation['x-required-principal']).toBe('STAFF');
+    expect(revocation['x-required-roles']).toEqual(['OWNER', 'ADMIN']);
+    expect(revocation['x-required-permissions']).toContain('pricing:quote:revoke');
+    expect(revocation.responses?.['409']).toBeDefined();
+    expect(schemaRef(Object.values(revocation.requestBody?.content ?? {})[0]?.schema)).toBe('#/components/schemas/RevokePricingQuote');
+    expect(requiredSchema(spec, 'RevokePricingQuote').required).toEqual(['reasonCode']);
+    expect(requiredProperty(requiredSchema(spec, 'PricingQuoteSnapshot'), 'validity').enum).toContain('REVOKED');
+    const runtime = await loadRuntime();
+    expect(operation(runtime, 'POST /organizations/{organizationId}/pricing/quotes/{quoteId}/revoke')['x-runtime-status']).toBe('implemented');
   });
 
   it('keeps tax configuration tenant-admin controlled and explicitly non-certifying', async () => {

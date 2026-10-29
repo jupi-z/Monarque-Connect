@@ -52,3 +52,16 @@ export class PricingQuoteOrganizationParams {
   @IsUUID()
   organizationId!: string;
 }
+
+export const PRICING_QUOTE_REVOCATION_REASONS = [
+  'CUSTOMER_REQUEST',
+  'PRICE_CONFIGURATION_ERROR',
+  'QUOTE_CREATED_IN_ERROR',
+  'SECURITY_REVIEW',
+  'OTHER',
+] as const;
+
+export class RevokePricingQuoteDto {
+  @IsIn(PRICING_QUOTE_REVOCATION_REASONS)
+  reasonCode!: typeof PRICING_QUOTE_REVOCATION_REASONS[number];
+}

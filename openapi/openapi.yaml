@@ -321,7 +321,6 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-
   /organizations/{organizationId}/quotas:
     parameters:
       - $ref: "#/components/parameters/OrganizationId"
@@ -826,6 +825,41 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /organizations/{organizationId}/pricing/quotes/{quoteId}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/OrganizationId"
+      - name: quoteId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Pricing]
+      operationId: revokePricingQuote
+      x-runtime-status: implemented
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:quote:revoke]
+      x-product-entitlement-required: true
+      description: Appends an audited revocation record without changing the immutable quote snapshot; idempotent retries return the revoked quote state.
+      parameters:
+        - $ref: "#/components/parameters/ProductCode"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RevokePricingQuote" }
+      responses:
+        "201":
+          description: Original immutable quote snapshot with validity REVOKED.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PricingQuoteSnapshot" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /organizations/{organizationId}/pricing/tax-policy-versions:
     parameters:
@@ -5059,7 +5093,15 @@ components:
         roundingPolicyVersion: { type: string }
         taxCalculationCurrency: { type: string, enum: [SOURCE, TARGET] }
         fx: { anyOf: [{ $ref: "#/components/schemas/FxSnapshot" }, { type: "null" }] }
-        validity: { type: string, enum: [VALID, EXPIRED] }
+        validity: { type: string, enum: [VALID, EXPIRED, REVOKED] }
+        revokedAt: { type: string, format: date-time, description: Present only when the quote has an append-only revocation record. }
+        revocationReasonCode: { type: string, enum: [CUSTOMER_REQUEST, PRICE_CONFIGURATION_ERROR, QUOTE_CREATED_IN_ERROR, SECURITY_REVIEW, OTHER], description: Present only when revoked. }
+    RevokePricingQuote:
+      type: object
+      additionalProperties: false
+      required: [reasonCode]
+      properties:
+        reasonCode: { type: string, enum: [CUSTOMER_REQUEST, PRICE_CONFIGURATION_ERROR, QUOTE_CREATED_IN_ERROR, SECURITY_REVIEW, OTHER] }
     CreateCommercialDiscountRuleVersion:
       type: object
       additionalProperties: false
