@@ -45,4 +45,4 @@ La clôture est technique et n'autorise ni la commercialisation, ni le POS C4, n
 
 ## 4. Décision
 
-**GO — C3 est techniquement clôturé sur `main@46b8b61`; C4 reste en attente d'une autorisation distincte.** L'issue de suivi C3 #171 peut être clôturée après synchronisation de ce document et vérification de la CI de la PR documentaire. Les gates FX live, fiscalité, PSP, opérations et production demeurent explicitement ouverts.
+**GO — C3 est techniquement clôturé sur `main@46b8b61`; C4 reste en attente d'une autorisation distincte.** L'issue de suivi C3 [#171](https://github.com/jupi-z/Monarque-Connect/issues/171) a été clôturée après publication des preuves et vérification de la CI documentaire post-fusion #40854010445. Les gates FX live, fiscalité, PSP, opérations et production demeurent explicitement ouverts.
