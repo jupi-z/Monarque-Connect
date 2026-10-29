@@ -513,7 +513,7 @@ describe('C3 tenant pricing and tax policy HTTP boundary', () => {
     type RevokedQuoteResponse = { id: string; validity: string; targetTotal: string; revokedAt: string; revocationReasonCode: string };
     const leftBody = bodyOf<RevokedQuoteResponse>(left);
     const rightBody = bodyOf<RevokedQuoteResponse>(right);
-    expect([left.status, right.status].sort()).toEqual([200, 200]);
+    expect([left.status, right.status].sort()).toEqual([201, 201]);
     expect(leftBody.id).toBe(created.id);
     expect(rightBody).toEqual(leftBody);
     expect(leftBody).toMatchObject({ ...created, validity: 'REVOKED', revocationReasonCode: 'CUSTOMER_REQUEST' });

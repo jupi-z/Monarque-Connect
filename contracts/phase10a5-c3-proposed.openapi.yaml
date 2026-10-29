@@ -303,7 +303,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/RevokePricingQuote' }
       responses:
-        '200':
+        '201':
           description: Immutable quote snapshot with validity REVOKED.
           content:
             application/json:
