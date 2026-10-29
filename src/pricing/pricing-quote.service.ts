@@ -10,10 +10,11 @@ import { convertMeasureQuantity, type RationalMeasure } from '../referentials/me
 import { AuthorizationService } from '../tenancy/authorization.service.js';
 import { isProductCode, type ProductCode } from '../products/product-code.js';
 import { calculateCommercialQuote } from './pricing-calculator.js';
-import type { CreatePricingQuoteDto } from './pricing-quote.dto.js';
+import type { CreatePricingQuoteDto, RevokePricingQuoteDto } from './pricing-quote.dto.js';
 
 const QUOTE_TTL_MS = 15 * 60 * 1000;
 const CALCULATION_VERSION = 'C3_PRICING_V3';
+const QUOTE_REVOKE = 'PRICING_QUOTE_REVOKE';
 const Decimal = Prisma.Decimal.clone({ precision: 80, rounding: Prisma.Decimal.ROUND_HALF_UP });
 
 type FxSnapshot = {
@@ -85,7 +86,7 @@ export class PricingQuoteService {
         const auth = await this.authorization.requireModuleForProductInTransaction(
           tx, principal, organizationId, productCode, 'CATALOG', 'pricing:quote:create',
         );
-        const replay = await tx.pricingQuote.findFirst({ where: { organizationId, idempotencyKey: key } });
+        const replay = await tx.pricingQuote.findFirst({ where: { organizationId, idempotencyKey: key }, include: { revocation: true } });
         if (replay) {
           if (replay.establishmentId) await this.assertEstablishmentInTransaction(tx, auth, replay.establishmentId);
           return this.replay(replay, principal.userId, inputHash);
@@ -354,11 +355,91 @@ export class PricingQuoteService {
   async get(principal: AuthPrincipal, organizationId: string, quoteId: string, productCodeInput: string): Promise<Record<string, unknown>> {
     const productCode = this.product(productCodeInput);
     const context = await this.authorization.requireModuleForProduct(principal, organizationId, productCode, 'CATALOG', 'pricing:quote:read');
-    const quote = await this.prisma.pricingQuote.findFirst({ where: { id: quoteId, organizationId, productCode } });
+    const quote = await this.prisma.pricingQuote.findFirst({ where: { id: quoteId, organizationId, productCode }, include: { revocation: true } });
     if (!quote) throw new NotFoundException('Pricing quote not found');
     if (quote.establishmentId) await this.authorization.assertEstablishment(context, quote.establishmentId);
-    const snapshot = quote.snapshotJson as Record<string, unknown>;
-    return { ...snapshot, validity: new Date() < quote.expiresAt ? 'VALID' : 'EXPIRED' };
+    return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt, quote.revocation);
+  }
+
+  async revoke(
+    principal: AuthPrincipal,
+    organizationId: string,
+    quoteId: string,
+    productCodeInput: string,
+    input: RevokePricingQuoteDto,
+    rawKey?: string,
+  ): Promise<Record<string, unknown>> {
+    const key = this.requireKey(rawKey);
+    const productCode = this.product(productCodeInput);
+    const canonical = { quoteId, productCode, reasonCode: input.reasonCode };
+    const payloadHash = this.hash(canonical);
+    await this.authorization.requireModuleForProduct(principal, organizationId, productCode, 'CATALOG', 'pricing:quote:revoke');
+    const context = currentEventContext() ?? createRequestContext();
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const auth = await this.authorization.requireModuleForProductInTransaction(
+          tx, principal, organizationId, productCode, 'CATALOG', 'pricing:quote:revoke',
+        );
+        await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM pricing_quotes
+          WHERE id = ${quoteId}::uuid AND organization_id = ${organizationId}::uuid AND product_code = ${productCode}
+          FOR UPDATE
+        `;
+        const quote = await tx.pricingQuote.findFirst({
+          where: { id: quoteId, organizationId, productCode }, include: { revocation: true },
+        });
+        if (!quote) throw new NotFoundException('Pricing quote not found');
+        if (quote.establishmentId) await this.assertEstablishmentInTransaction(tx, auth, quote.establishmentId);
+
+        const replay = await tx.catalogCommandReceipt.findUnique({
+          where: { organizationId_actorUserId_operation_idempotencyKey: {
+            organizationId, actorUserId: principal.userId, operation: QUOTE_REVOKE, idempotencyKey: key,
+          } },
+          select: { payloadHash: true, resourceType: true, resourceId: true },
+        });
+        if (replay) {
+          if (replay.payloadHash !== payloadHash || replay.resourceType !== 'PricingQuoteRevocation') {
+            throw new ConflictException('Idempotency-Key was already used for a different quote revocation command');
+          }
+          const revocation = quote.revocation?.id === replay.resourceId
+            ? quote.revocation
+            : await tx.pricingQuoteRevocation.findFirst({ where: { id: replay.resourceId, organizationId, quoteId } });
+          if (!revocation) throw new ConflictException('Idempotent quote revocation is no longer available');
+          return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt, revocation);
+        }
+        if (quote.revocation) throw new ConflictException('Pricing quote has already been revoked');
+
+        const revocation = await tx.pricingQuoteRevocation.create({ data: {
+          id: randomUUID(), organizationId, quoteId, actorUserId: principal.userId,
+          reasonCode: input.reasonCode, commandPayloadHash: payloadHash,
+        } });
+        await tx.catalogCommandReceipt.create({ data: {
+          id: randomUUID(), organizationId, actorUserId: principal.userId, operation: QUOTE_REVOKE,
+          idempotencyKey: key, payloadHash, resourceType: 'PricingQuoteRevocation', resourceId: revocation.id,
+        } });
+        await tx.auditEvent.create({ data: {
+          id: randomUUID(), action: 'PRICING_QUOTE_REVOKED', actorUserId: principal.userId, organizationId,
+          establishmentId: quote.establishmentId, targetType: 'PricingQuote', targetId: quoteId,
+          requestId: context.requestId ?? null, correlationId: context.correlationId,
+          metadataJson: { productCode, revocationId: revocation.id, commandPayloadHash: payloadHash },
+        } });
+        await this.outbox.enqueue(tx, createDomainEvent({
+          eventType: 'pricing.quote.revoked', eventVersion: 1, occurredAt: revocation.revokedAt.toISOString(),
+          actor: { type: 'USER', id: principal.userId }, aggregate: { type: 'PricingQuote', id: quoteId }, organizationId,
+          ...(quote.establishmentId ? { establishmentId: quote.establishmentId } : {}),
+          correlationId: context.correlationId, ...(context.requestId ? { requestId: context.requestId } : {}),
+          dataClassification: 'CONFIDENTIAL', purpose: 'commercial-pricing-quote-revocation',
+          payload: { quoteId, productCode, revocationId: revocation.id, commandPayloadHash: payloadHash },
+        }));
+        return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt, revocation);
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      if (this.isUniqueViolation(error) || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034')) {
+        return this.resolveRevocationReplay(principal, organizationId, quoteId, productCode, key, payloadHash);
+      }
+      throw error;
+    }
   }
 
   private async resolvePolicy(tx: Prisma.TransactionClient, organizationId: string, productCode: ProductCode, at: Date) {
@@ -514,25 +595,47 @@ export class PricingQuoteService {
   }
 
   private async resolveConcurrentReplay(principal: AuthPrincipal, organizationId: string, productCode: ProductCode, key: string, inputHash: string): Promise<Record<string, unknown>> {
-    const quote = await this.prisma.pricingQuote.findFirst({ where: { organizationId, idempotencyKey: key } });
+    const quote = await this.prisma.pricingQuote.findFirst({ where: { organizationId, idempotencyKey: key }, include: { revocation: true } });
     if (!quote) throw new ConflictException('Concurrent pricing quote creation conflicted; retry with a new idempotency key');
     const authorized = await this.authorization.requireModuleForProduct(principal, organizationId, productCode, 'CATALOG', 'pricing:quote:create');
     if (quote.productCode !== productCode || quote.actorUserId !== principal.userId || quote.inputHash !== inputHash) {
       throw new ConflictException('Idempotency-Key was already used for a different pricing quote command');
     }
     if (quote.establishmentId) await this.authorization.assertEstablishment(authorized, quote.establishmentId);
-    return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt);
+    return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt, quote.revocation);
   }
 
-  private replay(quote: { productCode: string; actorUserId: string; inputHash: string; snapshotJson: Prisma.JsonValue; expiresAt: Date }, actorUserId: string, inputHash: string): Record<string, unknown> {
+  private replay(quote: { productCode: string; actorUserId: string; inputHash: string; snapshotJson: Prisma.JsonValue; expiresAt: Date; revocation: { revokedAt: Date; reasonCode: string } | null }, actorUserId: string, inputHash: string): Record<string, unknown> {
     if (quote.actorUserId !== actorUserId || quote.inputHash !== inputHash) {
       throw new ConflictException('Idempotency-Key was already used for a different pricing quote command');
     }
-    return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt);
+    return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt, quote.revocation);
   }
 
-  private withCurrentValidity(snapshot: Record<string, unknown>, expiresAt: Date): Record<string, unknown> {
+  private withCurrentValidity(snapshot: Record<string, unknown>, expiresAt: Date, revocation: { revokedAt: Date; reasonCode: string } | null): Record<string, unknown> {
+    if (revocation) return { ...snapshot, validity: 'REVOKED', revokedAt: revocation.revokedAt.toISOString(), revocationReasonCode: revocation.reasonCode };
     return { ...snapshot, validity: new Date() < expiresAt ? 'VALID' : 'EXPIRED' };
+  }
+
+  private async resolveRevocationReplay(
+    principal: AuthPrincipal, organizationId: string, quoteId: string, productCode: ProductCode, key: string, payloadHash: string,
+  ): Promise<Record<string, unknown>> {
+    const context = await this.authorization.requireModuleForProduct(principal, organizationId, productCode, 'CATALOG', 'pricing:quote:revoke');
+    const receipt = await this.prisma.catalogCommandReceipt.findUnique({
+      where: { organizationId_actorUserId_operation_idempotencyKey: {
+        organizationId, actorUserId: principal.userId, operation: QUOTE_REVOKE, idempotencyKey: key,
+      } },
+      select: { payloadHash: true, resourceType: true, resourceId: true },
+    });
+    if (!receipt) throw new ConflictException('Concurrent quote revocation conflicted; retry with the same idempotency key');
+    if (receipt.payloadHash !== payloadHash || receipt.resourceType !== 'PricingQuoteRevocation') {
+      throw new ConflictException('Idempotency-Key was already used for a different quote revocation command');
+    }
+    const quote = await this.prisma.pricingQuote.findFirst({ where: { id: quoteId, organizationId, productCode }, include: { revocation: true } });
+    if (!quote) throw new NotFoundException('Pricing quote not found');
+    if (quote.establishmentId) await this.authorization.assertEstablishment(context, quote.establishmentId);
+    if (quote.revocation?.id !== receipt.resourceId) throw new ConflictException('Idempotent quote revocation does not match the quote state');
+    return this.withCurrentValidity(quote.snapshotJson as Record<string, unknown>, quote.expiresAt, quote.revocation);
   }
 
   private rational(unit: { code: string; dimension: string; baseUnitCode: string; numerator: bigint; denominator: bigint }): RationalMeasure {

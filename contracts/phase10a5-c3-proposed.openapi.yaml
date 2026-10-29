@@ -279,6 +279,33 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Pricing]
+      operationId: revokePricingQuote
+      x-runtime-status: implemented
+      x-required-principal: STAFF
+      x-required-roles: [OWNER, ADMIN]
+      x-required-permissions: [pricing:quote:revoke]
+      x-product-entitlement-required: true
+      parameters:
+        - $ref: '#/components/parameters/ProductCode'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RevokePricingQuote' }
+      responses:
+        '200':
+          description: Immutable quote snapshot with validity REVOKED.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingQuoteSnapshot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /organizations/{organizationId}/catalog/items/{itemId}/variants:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -933,8 +960,16 @@ components:
         taxCalculationCurrency: { type: string, enum: [SOURCE, TARGET] }
         calculationVersion: { type: string }
         fx: { anyOf: [{ $ref: '#/components/schemas/FxSnapshot' }, { type: 'null' }] }
-        validity: { type: string, enum: [VALID, EXPIRED] }
+        validity: { type: string, enum: [VALID, EXPIRED, REVOKED] }
+        revokedAt: { type: string, format: date-time }
+        revocationReasonCode: { type: string, enum: [CUSTOMER_REQUEST, PRICE_CONFIGURATION_ERROR, QUOTE_CREATED_IN_ERROR, SECURITY_REVIEW, OTHER] }
       additionalProperties: false
+    RevokePricingQuote:
+      type: object
+      additionalProperties: false
+      required: [reasonCode]
+      properties:
+        reasonCode: { type: string, enum: [CUSTOMER_REQUEST, PRICE_CONFIGURATION_ERROR, QUOTE_CREATED_IN_ERROR, SECURITY_REVIEW, OTHER] }
     IngestFxRate:
       type: object
       required: [baseCurrency, quoteCurrency, rate, sourceCode, observedAt, validFrom, validUntil, sourceReference]

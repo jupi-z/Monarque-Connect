@@ -254,6 +254,7 @@ export type Permission =
   | 'catalog:write'
   | 'pricing:quote:create'
   | 'pricing:quote:read'
+  | 'pricing:quote:revoke'
   | 'pricing:price:publish'
   | 'pricing:policy:manage'
   | 'pricing:tax:manage'
@@ -302,7 +303,7 @@ export type Permission =
 export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
   OWNER: [
     'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
-    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'pricing:quote:create', 'pricing:quote:read', 'pricing:price:publish', 'pricing:policy:manage', 'pricing:tax:manage', 'inventory:read', 'inventory:write',
+    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'pricing:quote:create', 'pricing:quote:read', 'pricing:quote:revoke', 'pricing:price:publish', 'pricing:policy:manage', 'pricing:tax:manage', 'inventory:read', 'inventory:write',
     'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
@@ -314,7 +315,7 @@ export const rolePermissions: Record<TenantRole, readonly Permission[]> = {
   ],
   ADMIN: [
     'organization:read', 'organization:write', 'establishments:read', 'establishments:write', 'memberships:write', 'capabilities:read',
-    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'pricing:quote:create', 'pricing:quote:read', 'pricing:price:publish', 'pricing:policy:manage', 'pricing:tax:manage', 'inventory:read', 'inventory:write',
+    'parties:read', 'parties:write', 'catalog:read', 'catalog:write', 'pricing:quote:create', 'pricing:quote:read', 'pricing:quote:revoke', 'pricing:price:publish', 'pricing:policy:manage', 'pricing:tax:manage', 'inventory:read', 'inventory:write',
     'expenses:read', 'expenses:write', 'cash:read', 'cash:write',
     'crm:read', 'crm:write', 'network:discovery:read', 'network:connections:read', 'network:connections:write',
     'network:inquiries:read', 'network:inquiries:write', 'network:profile:read', 'network:profile:write', 'network:trust:read',
